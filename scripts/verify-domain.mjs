@@ -1,0 +1,195 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import {
+  fundingRate,
+  getDeltaBands,
+  portfolioValue,
+  uniswapV3Inventory,
+} from '../src/domain/formulas/core.js'
+import { formulaStages } from '../src/domain/formulas/registry.js'
+import { buildMarketState, buildMarketStatePath } from '../src/domain/market/cost.js'
+import { buildFormulaPath } from '../src/domain/market/formulaPath.js'
+import { parseBinanceKlines, parseCsvText } from '../src/domain/market/ohlcv.js'
+import { buildDecisionGraph, strategyProfileList } from '../src/domain/planning/orderPlan.js'
+import { buildDailyReplay } from '../src/domain/replay/dailyReplay.js'
+
+const bands = getDeltaBands({ entryPrice: 100, holdingDays: 30, iv: 1, targetReturn: 0.3 })
+assert.ok(bands.long.low < bands.long.cost)
+assert.ok(bands.long.cost < bands.long.high)
+assert.ok(bands.short.low < bands.short.cost)
+assert.ok(bands.short.cost < bands.short.high)
+assert.ok(formulaStages.length >= 12)
+assert.ok(formulaStages.some((stage) => stage.id === 'liquidity-fingerprint' && stage.status === 'mapped'))
+assert.deepEqual(strategyProfileList.map((profile) => profile.id), ['conservative', 'balanced', 'aggressive'])
+
+const lpV3 = uniswapV3Inventory({ markPrice: 100, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
+assert.ok(lpV3.token0 > 0)
+assert.ok(lpV3.token1 > 0)
+assert.ok(Number.isFinite(lpV3.value))
+
+const funding = fundingRate({ perpTwap: 101, spotTwap: 100, hours: 8 })
+assert.ok(funding.funding > 0)
+assert.ok(Number.isFinite(portfolioValue({
+  lpValue: lpV3.value,
+  optionValue: 1.2,
+  hedgeSize: 0.2,
+  markPrice: 100,
+  startPrice: 95,
+  fees: 0.3,
+  fundingCost: 0.1,
+})))
+
+const csv = await readFile(new URL('../public/data/btcusdt-1d-2017-2025.csv', import.meta.url), 'utf8')
+const rows = parseBinanceKlines(csv)
+assert.ok(rows.length > 3000)
+assert.equal(rows[0].date, '2017-08-17')
+assert.equal(rows.at(-1).date, '2025-12-31')
+
+const parsed = parseCsvText(`date,open,high,low,close,volume
+2026-01-01,100,105,99,104,120
+2026-01-02,104,106,103,105,0
+`)
+assert.equal(parsed.length, 2)
+
+const nvda = parseCsvText(await readFile(new URL('../public/data/nvda-1d-2025-2026.csv', import.meta.url), 'utf8'))
+const tsla = parseCsvText(await readFile(new URL('../public/data/tsla-1d-2025-2026.csv', import.meta.url), 'utf8'))
+assert.ok(nvda.length >= 240)
+assert.ok(tsla.length >= 240)
+assert.equal(nvda[0].date, '2025-05-12')
+assert.equal(tsla[0].date, '2025-05-12')
+assert.equal(nvda.at(-1).date, '2026-05-11')
+assert.equal(tsla.at(-1).date, '2026-05-11')
+
+const market = buildMarketState(rows)
+const marketPath = buildMarketStatePath(rows)
+assert.ok(Number.isFinite(market.costAnchor))
+assert.ok(Number.isFinite(market.annualVol))
+assert.ok(Number.isFinite(market.atrPercent))
+assert.equal(marketPath.length, rows.length)
+assert.ok(Math.abs(marketPath.at(-1).costAnchor - market.costAnchor) < 1e-9)
+
+const graph = buildDecisionGraph({
+  market,
+  input: {
+    entryPrice: market.markPrice,
+    holdingDays: 30,
+    iv: market.annualVol,
+    targetReturn: 0.3,
+    capital: 10000,
+    baseNotional: 0,
+    strategyProfile: 'balanced',
+    strikePrice: market.markPrice * 1.05,
+    riskFreeRate: 0.04,
+    optionType: 'put',
+    startPrice: market.costAnchor,
+    rangeWidth: 0.1,
+    skew: 1,
+    liquidity: 1,
+    hedgeSize: 0,
+    fees: 0,
+    perpTwap: market.markPrice,
+    spotTwap: market.costAnchor,
+  },
+})
+assert.ok(['buy', 'sell', null].includes(graph.decision.timing.side))
+assert.ok(Number.isFinite(graph.position.maxNotional))
+assert.ok(Number.isFinite(graph.position.riskBudget))
+assert.equal(graph.plan.primaryOrders.every((order) => Number.isFinite(order.price)), true)
+assert.equal(graph.plan.primaryOrders.every((order) => Number.isFinite(order.expectedProfit)), true)
+if (graph.decision.timing.side === 'sell') assert.equal(graph.plan.primaryOrders.length, 0)
+
+const formulaPath = buildFormulaPath(rows, {
+  entryPrice: market.markPrice,
+  holdingDays: 30,
+  iv: market.annualVol,
+  targetReturn: 0.3,
+  strikePrice: market.markPrice * 1.05,
+  riskFreeRate: 0.04,
+  optionType: 'put',
+  startPrice: market.costAnchor,
+  rangeWidth: 0.1,
+  skew: 1,
+  liquidity: 1,
+  pathUsesScenarioInputs: false,
+})
+assert.equal(formulaPath.length, rows.length)
+assert.ok(formulaPath.some((row) => Number.isFinite(row.deltaUpper)))
+assert.ok(formulaPath.some((row) => Number.isFinite(row.optionDelta)))
+assert.ok(formulaPath.some((row) => Number.isFinite(row.lpInventoryDelta)))
+assert.equal(formulaPath.every((row) => {
+  if (![row.deltaLower, row.deltaCost, row.deltaUpper].every(Number.isFinite)) return true
+  return row.deltaLower < row.deltaCost && row.deltaCost < row.deltaUpper
+}), true)
+const earlyPath = formulaPath.find((row) => row.date === '2018-01-01')
+const latePath = formulaPath.at(-1)
+assert.notEqual(earlyPath?.bandAnchor, latePath?.bandAnchor)
+assert.ok(Math.abs(earlyPath.optionDelta) < 0.65)
+
+for (const sampleRows of [rows, nvda, tsla]) {
+  const sampleMarket = buildMarketState(sampleRows)
+  const replay = buildDailyReplay(sampleRows, {
+    holdingDays: 30,
+    targetReturn: 0.3,
+    capital: 10000,
+    strategyProfile: 'balanced',
+    rangeWidth: 0.1,
+    skew: 1,
+    liquidity: 1,
+    replayFeeRate: 0.001,
+    optionType: 'put',
+    riskFreeRate: 0.04,
+    iv: sampleMarket.annualVol,
+  })
+  assert.ok(Number.isFinite(replay.totalPnl))
+  assert.ok(Number.isFinite(replay.winRate))
+  assert.ok(Number.isFinite(replay.maxDrawdown))
+  assert.equal(replay.trades.every((trade) => ['建仓', '回到成本', '风控', '减仓'].includes(trade.reason)), true)
+  verifyLedger(replay.trades)
+  for (const profile of strategyProfileList) {
+    const profileReplay = buildDailyReplay(sampleRows, {
+      holdingDays: 30,
+      targetReturn: 0.3,
+      capital: 10000,
+      strategyProfile: profile.id,
+      rangeWidth: 0.1,
+      skew: 1,
+      liquidity: 1,
+      replayFeeRate: 0.001,
+      optionType: 'put',
+      riskFreeRate: 0.04,
+      iv: sampleMarket.annualVol,
+    })
+    assert.equal(profileReplay.profileId, profile.id)
+    assert.ok(Number.isFinite(profileReplay.returnOnUsedNotional))
+    verifyLedger(profileReplay.trades)
+  }
+}
+
+console.log('domain verification passed')
+
+function verifyLedger(trades) {
+  let base = 0
+  let costBasis = 0
+  for (const trade of trades) {
+    assert.ok(Number.isFinite(trade.notional))
+    assert.ok(Number.isFinite(trade.baseAmount))
+    assert.ok(trade.notional >= 0)
+    assert.ok(trade.baseAmount >= 0)
+    if (trade.side === 'buy') {
+      base += trade.baseAmount
+      costBasis += trade.notional
+    } else {
+      assert.ok(base > 0)
+      assert.ok(trade.baseAmount <= base + 1e-9)
+      const averageCost = base > 0 ? costBasis / base : 0
+      base = Math.max(0, base - trade.baseAmount)
+      costBasis = Math.max(0, costBasis - averageCost * trade.baseAmount)
+      if (base < 1e-9) {
+        base = 0
+        costBasis = 0
+      }
+    }
+    assert.ok(base >= 0)
+    assert.ok(costBasis >= 0)
+  }
+}

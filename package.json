@@ -1,0 +1,24 @@
+{
+  "name": "market-lab",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm run verify:domain && vite build",
+    "verify:domain": "node scripts/verify-domain.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "d3-dsv": "^3.0.1",
+    "echarts": "^6.0.0",
+    "lightweight-charts": "^5.2.0",
+    "lucide-vue-next": "^1.0.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.6",
+    "vite": "^8.0.12"
+  }
+}
