@@ -1,0 +1,1622 @@
+[
+  {
+    "id": "auto-000568-1d",
+    "symbol": "000568",
+    "label": "000568",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/000568-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-000596-1d",
+    "symbol": "000596",
+    "label": "000596",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/000596-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-000625-1d",
+    "symbol": "000625",
+    "label": "000625",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/000625-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-000799-1d",
+    "symbol": "000799",
+    "label": "000799",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/000799-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-000858-1d",
+    "symbol": "000858",
+    "label": "000858",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/000858-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-000988-1d",
+    "symbol": "000988",
+    "label": "000988",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/000988-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002050-1d",
+    "symbol": "002050",
+    "label": "002050",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002050-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002230-1d",
+    "symbol": "002230",
+    "label": "002230",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002230-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002261-1d",
+    "symbol": "002261",
+    "label": "002261",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002261-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002281-1d",
+    "symbol": "002281",
+    "label": "002281",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002281-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002304-1d",
+    "symbol": "002304",
+    "label": "002304",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002304-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002456-1d",
+    "symbol": "002456",
+    "label": "002456",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002456-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002463-1d",
+    "symbol": "002463",
+    "label": "002463",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002463-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002475-1d",
+    "symbol": "002475",
+    "label": "002475",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002475-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002594-1d",
+    "symbol": "002594",
+    "label": "002594",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002594-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002645-1d",
+    "symbol": "002645",
+    "label": "002645",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002645-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002837-1d",
+    "symbol": "002837",
+    "label": "002837",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002837-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-002891-1d",
+    "symbol": "002891",
+    "label": "002891",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/002891-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-0175_HK-1d",
+    "symbol": "0175.HK",
+    "label": "0175_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/0175_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-0522_HK-1d",
+    "symbol": "0522.HK",
+    "label": "0522_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/0522_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-0700_HK-1d",
+    "symbol": "0700.HK",
+    "label": "0700_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/0700_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-0916_HK-1d",
+    "symbol": "0916.HK",
+    "label": "0916_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/0916_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-0981_HK-1d",
+    "symbol": "0981.HK",
+    "label": "0981_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/0981_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-0992_HK-1d",
+    "symbol": "0992.HK",
+    "label": "0992_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/0992_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-1211_HK-1d",
+    "symbol": "1211.HK",
+    "label": "1211_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/1211_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-1810_HK-1d",
+    "symbol": "1810.HK",
+    "label": "1810_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/1810_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-1816_HK-1d",
+    "symbol": "1816.HK",
+    "label": "1816_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/1816_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-2015_HK-1d",
+    "symbol": "2015.HK",
+    "label": "2015_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/2015_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-2380_HK-1d",
+    "symbol": "2380.HK",
+    "label": "2380_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/2380_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-2899_HK-1d",
+    "symbol": "2899.HK",
+    "label": "2899_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/2899_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-300124-1d",
+    "symbol": "300124",
+    "label": "300124",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300124-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-300308-1d",
+    "symbol": "300308",
+    "label": "300308",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300308-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-300394-1d",
+    "symbol": "300394",
+    "label": "300394",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300394-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-300502-1d",
+    "symbol": "300502",
+    "label": "300502",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300502-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-300718-1d",
+    "symbol": "300718",
+    "label": "300718",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300718-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-300750-1d",
+    "symbol": "300750",
+    "label": "300750",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300750-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-300866-1d",
+    "symbol": "300866",
+    "label": "300866",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/300866-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-301308-1d",
+    "symbol": "301308",
+    "label": "301308",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/301308-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-3690_HK-1d",
+    "symbol": "3690.HK",
+    "label": "3690_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/3690_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-3888_HK-1d",
+    "symbol": "3888.HK",
+    "label": "3888_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/3888_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-600104-1d",
+    "symbol": "600104",
+    "label": "600104",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600104-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-600406-1d",
+    "symbol": "600406",
+    "label": "600406",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600406-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-600519-1d",
+    "symbol": "600519",
+    "label": "600519",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600519-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-600580-1d",
+    "symbol": "600580",
+    "label": "600580",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600580-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-600584-1d",
+    "symbol": "600584",
+    "label": "600584",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600584-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-600779-1d",
+    "symbol": "600779",
+    "label": "600779",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600779-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-600809-1d",
+    "symbol": "600809",
+    "label": "600809",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/600809-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-601127-1d",
+    "symbol": "601127",
+    "label": "601127",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/601127-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-601238-1d",
+    "symbol": "601238",
+    "label": "601238",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/601238-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-601360-1d",
+    "symbol": "601360",
+    "label": "601360",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/601360-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-601899-1d",
+    "symbol": "601899",
+    "label": "601899",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/601899-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-603019-1d",
+    "symbol": "603019",
+    "label": "603019",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/603019-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-603369-1d",
+    "symbol": "603369",
+    "label": "603369",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/603369-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-603986-1d",
+    "symbol": "603986",
+    "label": "603986",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/603986-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-688017-1d",
+    "symbol": "688017",
+    "label": "688017",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/688017-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-688041-1d",
+    "symbol": "688041",
+    "label": "688041",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/688041-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-688111-1d",
+    "symbol": "688111",
+    "label": "688111",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/688111-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-688169-1d",
+    "symbol": "688169",
+    "label": "688169",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/688169-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-688256-1d",
+    "symbol": "688256",
+    "label": "688256",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/688256-1d.csv",
+    "rows": 183
+  },
+  {
+    "id": "auto-688521-1d",
+    "symbol": "688521",
+    "label": "688521",
+    "market": "A股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/688521-1d.csv",
+    "rows": 173
+  },
+  {
+    "id": "auto-9698_HK-1d",
+    "symbol": "9698.HK",
+    "label": "9698_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/9698_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-9863_HK-1d",
+    "symbol": "9863.HK",
+    "label": "9863_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/9863_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-9866_HK-1d",
+    "symbol": "9866.HK",
+    "label": "9866_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/9866_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-9868_HK-1d",
+    "symbol": "9868.HK",
+    "label": "9868_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/9868_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-9888_HK-1d",
+    "symbol": "9888.HK",
+    "label": "9888_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/9888_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-9988_HK-1d",
+    "symbol": "9988.HK",
+    "label": "9988_HK",
+    "market": "港股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/9988_HK-1d.csv",
+    "rows": 188
+  },
+  {
+    "id": "auto-AAOI-1d",
+    "symbol": "AAOI",
+    "label": "AAOI",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AAOI-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AAPL-1d",
+    "symbol": "AAPL",
+    "label": "AAPL",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AAPL-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ADBE-1d",
+    "symbol": "ADBE",
+    "label": "ADBE",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ADBE-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ALAB-1d",
+    "symbol": "ALAB",
+    "label": "ALAB",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ALAB-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AMAT-1d",
+    "symbol": "AMAT",
+    "label": "AMAT",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AMAT-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AMD-1d",
+    "symbol": "AMD",
+    "label": "AMD",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AMD-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AMKR-1d",
+    "symbol": "AMKR",
+    "label": "AMKR",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AMKR-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AMZN-1d",
+    "symbol": "AMZN",
+    "label": "AMZN",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AMZN-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ANET-1d",
+    "symbol": "ANET",
+    "label": "ANET",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ANET-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-APH-1d",
+    "symbol": "APH",
+    "label": "APH",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/APH-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-APLD-1d",
+    "symbol": "APLD",
+    "label": "APLD",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/APLD-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-APP-1d",
+    "symbol": "APP",
+    "label": "APP",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/APP-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ARM-1d",
+    "symbol": "ARM",
+    "label": "ARM",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ARM-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AS-1d",
+    "symbol": "AS",
+    "label": "AS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AS-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ASML-1d",
+    "symbol": "ASML",
+    "label": "ASML",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ASML-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-AVGO-1d",
+    "symbol": "AVGO",
+    "label": "AVGO",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/AVGO-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-BE-1d",
+    "symbol": "BE",
+    "label": "BE",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/BE-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CCJ-1d",
+    "symbol": "CCJ",
+    "label": "CCJ",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CCJ-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CDNS-1d",
+    "symbol": "CDNS",
+    "label": "CDNS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CDNS-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CEG-1d",
+    "symbol": "CEG",
+    "label": "CEG",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CEG-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CIEN-1d",
+    "symbol": "CIEN",
+    "label": "CIEN",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CIEN-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-COHR-1d",
+    "symbol": "COHR",
+    "label": "COHR",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/COHR-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-COIN-1d",
+    "symbol": "COIN",
+    "label": "COIN",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/COIN-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-COPX-1d",
+    "symbol": "COPX",
+    "label": "COPX",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/COPX-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CRDO-1d",
+    "symbol": "CRDO",
+    "label": "CRDO",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CRDO-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CRM-1d",
+    "symbol": "CRM",
+    "label": "CRM",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CRM-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CRWD-1d",
+    "symbol": "CRWD",
+    "label": "CRWD",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CRWD-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-CRWV-1d",
+    "symbol": "CRWV",
+    "label": "CRWV",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/CRWV-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-DDOG-1d",
+    "symbol": "DDOG",
+    "label": "DDOG",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/DDOG-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-DELL-1d",
+    "symbol": "DELL",
+    "label": "DELL",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/DELL-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-EME-1d",
+    "symbol": "EME",
+    "label": "EME",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/EME-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-EOSE-1d",
+    "symbol": "EOSE",
+    "label": "EOSE",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/EOSE-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ETN-1d",
+    "symbol": "ETN",
+    "label": "ETN",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ETN-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-FCX-1d",
+    "symbol": "FCX",
+    "label": "FCX",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/FCX-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-FIX-1d",
+    "symbol": "FIX",
+    "label": "FIX",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/FIX-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-FLNC-1d",
+    "symbol": "FLNC",
+    "label": "FLNC",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/FLNC-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-FN-1d",
+    "symbol": "FN",
+    "label": "FN",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/FN-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-FSLY-1d",
+    "symbol": "FSLY",
+    "label": "FSLY",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/FSLY-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-GDXU-1d",
+    "symbol": "GDXU",
+    "label": "GDXU",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/GDXU-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-GEV-1d",
+    "symbol": "GEV",
+    "label": "GEV",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/GEV-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-GLD-1d",
+    "symbol": "GLD",
+    "label": "GLD",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/GLD-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-GOOG-1d",
+    "symbol": "GOOG",
+    "label": "GOOG",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/GOOG-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-GTLB-1d",
+    "symbol": "GTLB",
+    "label": "GTLB",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/GTLB-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-HIMS-1d",
+    "symbol": "HIMS",
+    "label": "HIMS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/HIMS-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-HUBB-1d",
+    "symbol": "HUBB",
+    "label": "HUBB",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/HUBB-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-INTC-1d",
+    "symbol": "INTC",
+    "label": "INTC",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/INTC-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-INTU-1d",
+    "symbol": "INTU",
+    "label": "INTU",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/INTU-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ISRG-1d",
+    "symbol": "ISRG",
+    "label": "ISRG",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ISRG-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-KLAC-1d",
+    "symbol": "KLAC",
+    "label": "KLAC",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/KLAC-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-LITE-1d",
+    "symbol": "LITE",
+    "label": "LITE",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/LITE-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-LRCX-1d",
+    "symbol": "LRCX",
+    "label": "LRCX",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/LRCX-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MAGS-1d",
+    "symbol": "MAGS",
+    "label": "MAGS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MAGS-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-META-1d",
+    "symbol": "META",
+    "label": "META",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/META-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MOD-1d",
+    "symbol": "MOD",
+    "label": "MOD",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MOD-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MP-1d",
+    "symbol": "MP",
+    "label": "MP",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MP-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MRVL-1d",
+    "symbol": "MRVL",
+    "label": "MRVL",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MRVL-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MSFT-1d",
+    "symbol": "MSFT",
+    "label": "MSFT",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MSFT-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MSTR-1d",
+    "symbol": "MSTR",
+    "label": "MSTR",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MSTR-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-MU-1d",
+    "symbol": "MU",
+    "label": "MU",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/MU-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-NBIS-1d",
+    "symbol": "NBIS",
+    "label": "NBIS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/NBIS-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-NET-1d",
+    "symbol": "NET",
+    "label": "NET",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/NET-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-NOW-1d",
+    "symbol": "NOW",
+    "label": "NOW",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/NOW-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-NTAP-1d",
+    "symbol": "NTAP",
+    "label": "NTAP",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/NTAP-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-NVDA-1d",
+    "symbol": "NVDA",
+    "label": "NVDA",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/NVDA-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-OKLO-1d",
+    "symbol": "OKLO",
+    "label": "OKLO",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/OKLO-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ORCL-1d",
+    "symbol": "ORCL",
+    "label": "ORCL",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ORCL-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-PANW-1d",
+    "symbol": "PANW",
+    "label": "PANW",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/PANW-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-PLTR-1d",
+    "symbol": "PLTR",
+    "label": "PLTR",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/PLTR-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-POWL-1d",
+    "symbol": "POWL",
+    "label": "POWL",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/POWL-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-PSTG-1d",
+    "symbol": "PSTG",
+    "label": "PSTG",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/PSTG-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-PWR-1d",
+    "symbol": "PWR",
+    "label": "PWR",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/PWR-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-QCOM-1d",
+    "symbol": "QCOM",
+    "label": "QCOM",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/QCOM-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-QQQ-1d",
+    "symbol": "QQQ",
+    "label": "QQQ",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/QQQ-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-RDDT-1d",
+    "symbol": "RDDT",
+    "label": "RDDT",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/RDDT-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SCCO-1d",
+    "symbol": "SCCO",
+    "label": "SCCO",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SCCO-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SMCI-1d",
+    "symbol": "SMCI",
+    "label": "SMCI",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SMCI-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SMR-1d",
+    "symbol": "SMR",
+    "label": "SMR",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SMR-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SNDK-1d",
+    "symbol": "SNDK",
+    "label": "SNDK",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SNDK-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SNOW-1d",
+    "symbol": "SNOW",
+    "label": "SNOW",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SNOW-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SNPS-1d",
+    "symbol": "SNPS",
+    "label": "SNPS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SNPS-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SOXX-1d",
+    "symbol": "SOXX",
+    "label": "SOXX",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SOXX-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-SPY-1d",
+    "symbol": "SPY",
+    "label": "SPY",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/SPY-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-STX-1d",
+    "symbol": "STX",
+    "label": "STX",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/STX-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TEAM-1d",
+    "symbol": "TEAM",
+    "label": "TEAM",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TEAM-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TECK-1d",
+    "symbol": "TECK",
+    "label": "TECK",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TECK-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TER-1d",
+    "symbol": "TER",
+    "label": "TER",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TER-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TLT-1d",
+    "symbol": "TLT",
+    "label": "TLT",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TLT-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TSLA-1d",
+    "symbol": "TSLA",
+    "label": "TSLA",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TSLA-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TSM-1d",
+    "symbol": "TSM",
+    "label": "TSM",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TSM-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-TT-1d",
+    "symbol": "TT",
+    "label": "TT",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/TT-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-URA-1d",
+    "symbol": "URA",
+    "label": "URA",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/URA-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-URNM-1d",
+    "symbol": "URNM",
+    "label": "URNM",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/URNM-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-VRT-1d",
+    "symbol": "VRT",
+    "label": "VRT",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/VRT-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-VST-1d",
+    "symbol": "VST",
+    "label": "VST",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/VST-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-WDC-1d",
+    "symbol": "WDC",
+    "label": "WDC",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/WDC-1d.csv",
+    "rows": 193
+  },
+  {
+    "id": "auto-ZS-1d",
+    "symbol": "ZS",
+    "label": "ZS",
+    "market": "美股",
+    "interval": "1日",
+    "source": "Yahoo Finance",
+    "url": "/data/ZS-1d.csv",
+    "rows": 193
+  }
+]

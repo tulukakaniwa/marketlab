@@ -10,8 +10,29 @@ import MetricStrip from './components/MetricStrip.vue'
 import OrderTable from './components/OrderTable.vue'
 import ReplayPanel from './components/ReplayPanel.vue'
 import { useLabStore } from './stores/labStore.js'
+import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
+
+const tickerSearch = ref('')
+const allSamples = computed(() => {
+  const curated = new Map(lab.marketSamples.map(s => [s.symbol, s]))
+  for (const s of stockIndex) {
+    if (!curated.has(s.symbol)) curated.set(s.symbol, s)
+  }
+  return [...curated.values()]
+})
+const filteredSamples = computed(() => {
+  const q = tickerSearch.value.trim().toLowerCase()
+  if (!q) return lab.marketSamples
+  return allSamples.value.filter(s =>
+    s.symbol.toLowerCase().includes(q) || s.label.toLowerCase().includes(q)
+  )
+})
+
+function onSearchEnter() {
+  if (filteredSamples.value.length) lab.loadSample(filteredSamples.value[0])
+}
 
 const metrics = computed(() => {
   const m = lab.market; const g = lab.graph
@@ -54,7 +75,18 @@ const brief = computed(() => {
     <header class="top-bar">
       <div><span>Market Lab</span><h1>公式工作台</h1></div>
       <div class="bar-act">
-        <button v-for="s in lab.marketSamples" :key="s.id" :class="{ on: lab.source?.id === s.id }" :disabled="lab.loadingSampleId === s.id" @click="lab.loadSample(s)">
+        <input
+          v-model="tickerSearch"
+          class="ticker-search"
+          type="search"
+          placeholder="搜代码/名称…"
+          list="ticker-list"
+          @keydown.enter="onSearchEnter"
+        />
+        <datalist id="ticker-list">
+          <option v-for="s in allSamples" :key="s.id" :value="s.symbol" />
+        </datalist>
+        <button v-for="s in filteredSamples" :key="s.id" :class="{ on: lab.source?.id === s.id }" :disabled="lab.loadingSampleId === s.id" @click="lab.loadSample(s)">
           <Database :size="14" />{{ lab.loadingSampleId === s.id ? '…' : s.symbol }}
         </button>
         <button class="theme-btn" @click="document.documentElement.classList.toggle('dark')" title="切换主题"><Moon :size="14" /></button>
@@ -155,6 +187,8 @@ const brief = computed(() => {
 .bar-act button { display: inline-flex; gap: 4px; align-items: center; min-height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 9px; background: var(--bg); color: var(--ink); font-weight: 700; font-size: 0.76rem; }
 .bar-act button.on, .bar-act button:hover { border-color: var(--green); }
 .bar-act button:disabled { opacity: 0.5; }
+.ticker-search { width: 100px; min-height: 26px; border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; background: var(--bg); color: var(--ink); font-size: 0.72rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ticker-search::placeholder { color: var(--muted); font-weight: 400; }
 .theme-btn { min-width: 28px; justify-content: center; border-radius: 99px; }
 .err-bar { flex-shrink: 0; margin: 0; padding: 4px 12px; background: var(--red); color: #fff; font-size: 0.76rem; }
 
