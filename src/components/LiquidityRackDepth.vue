@@ -72,7 +72,7 @@ function pct(value) {
 
 <template>
   <div :class="['lf-depth-wrap', variant]">
-    <svg class="lf-depth" :viewBox="`0 0 ${width} ${height}`" preserveAspectRatio="none" role="img">
+    <svg class="lf-depth" :viewBox="`0 0 ${width} ${height}`" preserveAspectRatio="xMidYMid meet" role="img">
       <defs>
         <linearGradient :id="bidId" x1="1" x2="0" y1="0" y2="0">
           <stop offset="0" stop-color="var(--green)" stop-opacity="0.82" />
@@ -180,8 +180,11 @@ function pct(value) {
 }
 
 .lf-depth-wrap.expanded {
-  grid-template-columns: minmax(340px, 1fr) 320px;
+  grid-template-columns: minmax(340px, 640px) minmax(300px, 360px);
   gap: 12px;
+  height: 100%;
+  min-height: 0;
+  justify-content: center;
 }
 
 .lf-depth {
@@ -189,10 +192,17 @@ function pct(value) {
   height: 100%;
   min-height: 0;
   display: block;
+  background: var(--surface);
 }
 
 .lf-depth-wrap.expanded .lf-depth {
-  min-height: 560px;
+  width: auto;
+  height: min(100%, 620px);
+  max-width: 100%;
+  min-height: 0;
+  aspect-ratio: 5 / 6;
+  justify-self: center;
+  align-self: center;
 }
 
 .lf-bg {
@@ -277,6 +287,7 @@ function pct(value) {
 
 .lf-table {
   min-width: 0;
+  min-height: 0;
   align-self: stretch;
   overflow: auto;
   border: 1px solid var(--line);
@@ -321,7 +332,9 @@ function pct(value) {
   }
 
   .lf-depth-wrap.expanded .lf-depth {
-    min-height: 460px;
+    width: min(100%, 390px);
+    height: auto;
+    min-height: 0;
   }
 }
 </style>
