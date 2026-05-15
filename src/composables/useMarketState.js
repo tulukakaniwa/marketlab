@@ -1,6 +1,6 @@
 import { computed } from 'vue'
-import { buildCostPath, buildMarketStatePath } from '../domain/market/cost.js'
-import { buildFormulaPath } from '../domain/market/formulaPath.js'
+import { buildCostPath, buildMarketStatePath } from '../domain/market-data/cost.js'
+import { buildFormulaPath } from '../domain/market-data/formulaPath.js'
 
 /**
  * 市场态计算层：滚动 VWAP 成本带、年化波动、ATR、动量、Δ 价格带等

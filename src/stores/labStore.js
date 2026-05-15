@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
-import { buildMarketStatePath } from '../domain/market/cost.js'
-import { marketSamples } from '../domain/market/ohlcv.js'
-import { inferTdpy } from '../domain/market/tdpy.js'
-import { buildDecisionGraph } from '../domain/planning/orderPlan.js'
+import { buildMarketStatePath } from '../domain/market-data/cost.js'
+import { marketSamples } from '../domain/market-data/ohlcv.js'
+import { inferTdpy } from '../domain/market-data/tdpy.js'
+import { buildResearchSnapshot } from '../domain/formula-research/researchSnapshot.js'
+import { buildDecisionGraph } from '../domain/strategy-planning/orderPlan.js'
 import { useDataLoader } from '../composables/useDataLoader.js'
 import { useMarketState } from '../composables/useMarketState.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
@@ -38,10 +39,24 @@ export const useLabStore = defineStore('lab', () => {
     strategyProfile: input.strategyProfile,
   }))
 
-  // 5. 决策图
-  const graph = computed(() => buildDecisionGraph({
+  // 5. 默认条件图 + 研究层快照并列组合。
+  //    StrategyPlanning 不直接依赖研究层，facade 只为 UI 组装查询模型。
+  const planningGraph = computed(() => buildDecisionGraph({
     market: marketState.market.value,
     input: effectiveInput.value,
+  }))
+  const researchGraph = computed(() => {
+    if (!marketState.market.value || !planningGraph.value?.inputs) return null
+    return buildResearchSnapshot({
+      market: marketState.market.value,
+      input: effectiveInput.value,
+      executable: planningGraph.value,
+    })
+  })
+  const graph = computed(() => ({
+    ...planningGraph.value,
+    ...(researchGraph.value ?? {}),
+    research: researchGraph.value,
   }))
 
   const executionBrief = computed(() => buildExecutionBrief(graph.value))

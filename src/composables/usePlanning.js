@@ -5,7 +5,7 @@ import {
   getFormulaCapability,
   getFormulaStage,
 } from '../domain/formulas/registry.js'
-import { strategyProfileList } from '../domain/planning/orderPlan.js'
+import { strategyProfileList } from '../domain/strategy-planning/orderPlan.js'
 import { persistedReactive, persistedRef } from './usePersisted.js'
 
 /**

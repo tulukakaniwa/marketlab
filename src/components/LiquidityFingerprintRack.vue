@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-vue-next'
-import { buildLiquidityRackModel } from '../domain/market/liquidityRack.js'
+import { buildLiquidityRackModel } from '../domain/research-visualization/liquidityRackModel.js'
 import LiquidityRackDepth from './LiquidityRackDepth.vue'
 
 const props = defineProps({

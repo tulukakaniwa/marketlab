@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inferTdpy } from '../market/tdpy.js'
+import { inferTdpy } from '../market-data/tdpy.js'
 
 describe('inferTdpy', () => {
   it('detects crypto by market or symbol token', () => {

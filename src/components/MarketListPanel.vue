@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { inferTdpy } from '../domain/market/tdpy.js'
+import { inferTdpy } from '../domain/market-data/tdpy.js'
 
 const props = defineProps({
   samples: { type: Array, required: true },
