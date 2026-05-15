@@ -332,9 +332,10 @@ const brief = computed(() => {
 .wb-center .metric-strip article { padding: 7px 8px; }
 
 @media (max-width: 900px) {
-  .workbench { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+  .workbench { grid-template-columns: 1fr; grid-template-rows: auto auto auto; overflow-y: auto; }
   .wb-left { border-right: none; border-bottom: 1px solid var(--line); max-height: 160px; }
-  .wb-right { border-left: none; border-top: 1px solid var(--line); }
+  .wb-center { overflow: visible; }
+  .wb-right { border-left: none; border-top: 1px solid var(--line); overflow: visible; }
   .wb-chart { height: 320px; }
 }
 </style>

@@ -15,9 +15,11 @@ describe('buildLiquidityRackModel', () => {
     ]
     const graph = { inputs: { entryPrice: 100 }, plan: { primaryOrders } }
 
-    const model = buildLiquidityRackModel({ rows, costPath, formulaPath, graph, activeIndex: 79 })
+    const model = buildLiquidityRackModel({ rows, costPath, formulaPath, graph, activeIndex: 79, binCount: 72 })
 
-    expect(model.shelves.length).toBeGreaterThanOrEqual(12)
+    expect(model.shelves).toHaveLength(72)
+    expect(model.ticks).toHaveLength(5)
+    expect(model.priceStep).toBeGreaterThan(0)
     expect(model.markers.map((m) => m.label)).toEqual(['现价', '成本', 'Δ上', 'Δ下'])
     expect(model.orderTicks).toHaveLength(2)
     expect(graph.plan.primaryOrders).toBe(primaryOrders)
