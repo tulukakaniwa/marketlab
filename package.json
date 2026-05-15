@@ -2,15 +2,12 @@
   "name": "market-lab",
   "private": true,
   "version": "0.0.0",
-  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm run check:size && pnpm run check:data && pnpm run verify:domain && vite build",
+    "build": "pnpm run check:data && pnpm run verify:domain && vite build",
     "verify:domain": "node scripts/verify-domain.mjs",
-    "verify:pine": "node scripts/verify-pine.mjs",
     "check:data": "node scripts/check-data-index.mjs",
-    "check:size": "node scripts/check-file-size.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"

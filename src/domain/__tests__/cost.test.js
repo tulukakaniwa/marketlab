@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCostPath, buildMarketState, buildMarketStatePath, deriveWindows } from '../market-data/cost.js'
+import { buildCostPath, buildMarketState, buildMarketStatePath, deriveWindows } from '../market/cost.js'
 
 function makeRows(n, basePrice = 100) {
   return Array.from({ length: n }, (_, i) => ({

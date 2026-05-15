@@ -1,24 +1,27 @@
 import { computed } from 'vue'
-import { buildCostPath, buildMarketStatePath } from '../domain/market-data/cost.js'
-import { buildFormulaPath } from '../domain/market-data/formulaPath.js'
+import { buildCostPath, buildMarketStatePath } from '../domain/market/cost.js'
+import { buildFormulaPath } from '../domain/market/formulaPath.js'
 
 /**
  * 市场态计算层：滚动 VWAP 成本带、年化波动、ATR、动量、Δ 价格带等
  *
  * 二级缓存：rows → tdpy → marketStates
- * - 同一 rows 不同 tdpy 互不污染（修复 A3）
- * - 全局唯一 marketStates 来源，避免各组件重复计算市场路径
+ *   - 同一 rows 不同 tdpy 互不污染
+ *   - 全局唯一 marketStates 来源，回放层不再重复计算
+ *
+ * tdpy 由 effectiveInput 注入（store 层基于品种自动判断 + 用户覆盖），
+ * 本层不直接读 input，避免 tdpy 字段散落到多个组件。
  *
  * @param {Ref<Array>} rows
  * @param {Ref<number>} cursor
- * @param {object} input  reactive，至少含 tradingDaysPerYear
+ * @param {ComputedRef<object>} effectiveInput  必须含 tradingDaysPerYear（来自 labStore.effectiveInput）
  */
-export function useMarketState(rows, cursor, input) {
+export function useMarketState(rows, cursor, effectiveInput) {
   // WeakMap<rows, Map<tdpy, states>>
   const marketStatePathCache = new WeakMap()
 
   function getMarketStatePath(r) {
-    const tdpy = Number(input.tradingDaysPerYear) || 365
+    const tdpy = Number(effectiveInput.value.tradingDaysPerYear) || 365
     let bucket = marketStatePathCache.get(r)
     if (!bucket) {
       bucket = new Map()
@@ -32,7 +35,7 @@ export function useMarketState(rows, cursor, input) {
   const marketStateFull = computed(() => rows.value.length ? getMarketStatePath(rows.value) : [])
   const market = computed(() => marketStateFull.value[cursor.value] ?? null)
   const costPath = computed(() => buildCostPath(rows.value))
-  const formulaPath = computed(() => buildFormulaPath(rows.value, input))
+  const formulaPath = computed(() => buildFormulaPath(rows.value, effectiveInput.value))
 
   return { activeRows, marketStateFull, market, costPath, formulaPath }
 }

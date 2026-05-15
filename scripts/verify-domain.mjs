@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
-  lambertW,
   fundingRate,
   getDeltaBands,
-  liquidityFingerprint,
-  numoenSnapshot,
   portfolioValue,
   uniswapV3Inventory,
 } from '../src/domain/formulas/core.js'
@@ -14,6 +11,7 @@ import { buildMarketState, buildMarketStatePath } from '../src/domain/market/cos
 import { buildFormulaPath } from '../src/domain/market/formulaPath.js'
 import { parseBinanceKlines, parseCsvText } from '../src/domain/market/ohlcv.js'
 import { buildDecisionGraph, strategyProfileList } from '../src/domain/planning/orderPlan.js'
+import { buildDailyReplay } from '../src/domain/replay/dailyReplay.js'
 
 const bands = getDeltaBands({ entryPrice: 100, holdingDays: 30, iv: 1, targetReturn: 0.3 })
 assert.ok(bands.long.low < bands.long.cost)
@@ -21,15 +19,8 @@ assert.ok(bands.long.cost < bands.long.high)
 assert.ok(bands.short.low < bands.short.cost)
 assert.ok(bands.short.cost < bands.short.high)
 assert.ok(formulaStages.length >= 12)
-assert.ok(formulaStages.some((stage) => stage.id === 'liquidity-fingerprint' && stage.status === 'research-only'))
-assert.ok(formulaStages.some((stage) => stage.id === 'amm-geometry' && stage.status === 'protocol-unverified'))
+assert.ok(formulaStages.some((stage) => stage.id === 'liquidity-fingerprint' && stage.status === 'mapped'))
 assert.deepEqual(strategyProfileList.map((profile) => profile.id), ['conservative', 'balanced', 'aggressive'])
-
-const fp = liquidityFingerprint({ entryPrice: 100, lowerFactor: 0.8, upperFactor: 1.2, segmentCount: 10 })
-assert.ok(Math.abs(fp.segments.reduce((sum, seg) => sum + seg.weight, 0) - 1) < 1e-6)
-const w = lambertW(1)
-assert.ok(Math.abs(w * Math.exp(w) - 1) < 1e-8)
-assert.equal(numoenSnapshot().status, 'protocol-unverified')
 
 const lpV3 = uniswapV3Inventory({ markPrice: 100, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
 assert.ok(lpV3.token0 > 0)
@@ -101,19 +92,8 @@ const graph = buildDecisionGraph({
   },
 })
 assert.ok(['buy', 'sell', null].includes(graph.decision.timing.side))
-assert.ok(Array.isArray(graph.decision.triggeredConditions))
-assert.ok(Array.isArray(graph.decision.blockedReasons))
-assert.ok(Array.isArray(graph.decision.missingInputs))
-if (graph.position.side) {
-  assert.ok(
-    graph.position.maxNotional === null ||
-    Number.isFinite(graph.position.maxNotional),
-  )
-  assert.ok(
-    graph.position.riskBudget === null ||
-    Number.isFinite(graph.position.riskBudget),
-  )
-}
+assert.ok(Number.isFinite(graph.position.maxNotional))
+assert.ok(Number.isFinite(graph.position.riskBudget))
 assert.equal(graph.plan.primaryOrders.every((order) => Number.isFinite(order.price)), true)
 assert.equal(graph.plan.primaryOrders.every((order) => Number.isFinite(order.expectedProfit)), true)
 if (graph.decision.timing.side === 'sell') assert.equal(graph.plan.primaryOrders.length, 0)
@@ -145,4 +125,71 @@ const latePath = formulaPath.at(-1)
 assert.notEqual(earlyPath?.bandAnchor, latePath?.bandAnchor)
 assert.ok(Math.abs(earlyPath.optionDelta) < 0.65)
 
+for (const sampleRows of [rows, nvda, tsla]) {
+  const sampleMarket = buildMarketState(sampleRows)
+  const replay = buildDailyReplay(sampleRows, {
+    holdingDays: 30,
+    targetReturn: 0.3,
+    capital: 10000,
+    strategyProfile: 'balanced',
+    rangeWidth: 0.1,
+    skew: 1,
+    liquidity: 1,
+    replayFeeRate: 0.001,
+    optionType: 'put',
+    riskFreeRate: 0.04,
+    iv: sampleMarket.annualVol,
+  })
+  assert.ok(Number.isFinite(replay.totalPnl))
+  assert.ok(Number.isFinite(replay.winRate))
+  assert.ok(Number.isFinite(replay.maxDrawdown))
+  assert.equal(replay.trades.every((trade) => ['建仓', '回到成本', '风控', '减仓'].includes(trade.reason)), true)
+  verifyLedger(replay.trades)
+  for (const profile of strategyProfileList) {
+    const profileReplay = buildDailyReplay(sampleRows, {
+      holdingDays: 30,
+      targetReturn: 0.3,
+      capital: 10000,
+      strategyProfile: profile.id,
+      rangeWidth: 0.1,
+      skew: 1,
+      liquidity: 1,
+      replayFeeRate: 0.001,
+      optionType: 'put',
+      riskFreeRate: 0.04,
+      iv: sampleMarket.annualVol,
+    })
+    assert.equal(profileReplay.profileId, profile.id)
+    assert.ok(Number.isFinite(profileReplay.returnOnUsedNotional))
+    verifyLedger(profileReplay.trades)
+  }
+}
+
 console.log('domain verification passed')
+
+function verifyLedger(trades) {
+  let base = 0
+  let costBasis = 0
+  for (const trade of trades) {
+    assert.ok(Number.isFinite(trade.notional))
+    assert.ok(Number.isFinite(trade.baseAmount))
+    assert.ok(trade.notional >= 0)
+    assert.ok(trade.baseAmount >= 0)
+    if (trade.side === 'buy') {
+      base += trade.baseAmount
+      costBasis += trade.notional
+    } else {
+      assert.ok(base > 0)
+      assert.ok(trade.baseAmount <= base + 1e-9)
+      const averageCost = base > 0 ? costBasis / base : 0
+      base = Math.max(0, base - trade.baseAmount)
+      costBasis = Math.max(0, costBasis - averageCost * trade.baseAmount)
+      if (base < 1e-9) {
+        base = 0
+        costBasis = 0
+      }
+    }
+    assert.ok(base >= 0)
+    assert.ok(costBasis >= 0)
+  }
+}

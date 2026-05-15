@@ -38,7 +38,7 @@ function signed(value) {
           <td>{{ signed(order.expectedProfit) }}</td>
         </tr>
         <tr v-if="!orders.length">
-          <td colspan="6">未触发入场条件，或缺少账户/仓位输入</td>
+          <td colspan="6">当前公式没有给出这个方向的入场信号</td>
         </tr>
       </tbody>
     </table>
