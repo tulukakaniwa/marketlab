@@ -1,8 +1,10 @@
 <script setup>
 import { computed } from 'vue'
 import { summarizeReason } from '../domain/decision/narrative.js'
+import { buildTraderChecklist } from '../domain/workbench/traderChecklist.js'
 import OrderTable from './OrderTable.vue'
 import ReplayPanel from './ReplayPanel.vue'
+import TraderChecklist from './TraderChecklist.vue'
 
 const props = defineProps({
   graph: { type: Object, required: true },
@@ -34,6 +36,8 @@ const ordersTitle = computed(() =>
   props.graph?.decision?.timing?.side === 'sell' ? '候选卖出条件' : '候选买入条件'
 )
 
+const checklist = computed(() => buildTraderChecklist({ graph: props.graph, market: props.market }))
+
 function money(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
 function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
 </script>
@@ -61,6 +65,10 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
           <div><span>失效距离</span><strong>{{ pct(graph?.position?.stopDistance) }}</strong></div>
         </div>
       </article>
+    </section>
+
+    <section class="dd-section">
+      <TraderChecklist :checklist="checklist" />
     </section>
 
     <section class="dd-section">
