@@ -1,0 +1,78 @@
+export const formulaSourceAudit = [
+  {
+    id: 'delta-band',
+    executable: true,
+    status: 'implemented',
+    sources: ['943334771f', '5baa5607d0', '83418c6ca1'],
+    inputs: ['entryPrice', 'holdingDays', 'iv', 'targetReturn', 'tradingDaysPerYear'],
+    outputs: ['longBand', 'shortBand'],
+    boundary: 'Executable only as a price-band input; it is not a complete strategy by itself.',
+  },
+  {
+    id: 'option-greeks',
+    executable: false,
+    status: 'implemented',
+    sources: ['97fa8c814b'],
+    inputs: ['entryPrice', 'strikePrice', 'holdingDays', 'iv', 'riskFreeRate', 'dividendYield'],
+    outputs: ['price', 'delta', 'gamma', 'thetaDaily', 'thetaAnnual', 'vega', 'rho'],
+    boundary: 'Research and risk observation only unless a real option leg is configured.',
+  },
+  {
+    id: 'asian-bachelier',
+    executable: false,
+    status: 'research-only',
+    sources: ['97fa8c814b', '99af67bf76', '722e20ccc4', '0e2beceb89'],
+    inputs: ['entryPrice', 'strikePrice', 'holdingDays', 'iv', 'normalVol'],
+    outputs: ['asianPrice', 'bachelierPrice', 'approxGreeks'],
+    boundary: 'Payoff-fit research; not a strategy conclusion.',
+  },
+  {
+    id: 'lp-inventory',
+    executable: false,
+    status: 'research-only',
+    sources: ['936edf03fb', '3f634650d0', '0159507098', '825122fb8a'],
+    inputs: ['markPrice', 'lowerPrice', 'upperPrice', 'liquidity'],
+    outputs: ['token0', 'token1', 'inventoryDelta', 'value'],
+    boundary: 'Requires a real LP position before it can describe user exposure.',
+  },
+  {
+    id: 'liquidity-fingerprint',
+    executable: false,
+    status: 'research-only',
+    sources: ['0a40cbb0ee', '06b68e5e0e', 'hgjrvacjbe', 'bb63abc148'],
+    inputs: ['distribution', 'lowerFactor', 'upperFactor', 'segmentCount'],
+    outputs: ['density', 'segmentWeights'],
+    boundary: 'Model distribution only; not an order book or real LP interval map.',
+  },
+  {
+    id: 'amm-geometry',
+    executable: false,
+    status: 'protocol-unverified',
+    sources: ['50693ae997', '8a2d4257ef', 'c1a8cc5a49', 'cb14bde283'],
+    inputs: ['reserveSnapshot', 'invariantParameters'],
+    outputs: ['ammCurve', 'lambertCurve', 'numoenSnapshot'],
+    boundary: 'Geometry and protocol research only; no default order output.',
+  },
+  {
+    id: 'capital-efficiency',
+    executable: false,
+    status: 'research-only',
+    sources: ['696b78e1fd', '5ab9c1e3a1'],
+    inputs: ['rangeWidth', 'skew'],
+    outputs: ['efficiency', 'frontierSlope'],
+    boundary: 'Describes range geometry; does not imply profitability.',
+  },
+  {
+    id: 'portfolio',
+    executable: false,
+    status: 'research-only',
+    sources: ['99af67bf76', '0e2beceb89', '722e20ccc4', '825122fb8a', '0159507098', '3f634650d0'],
+    inputs: ['lpLeg', 'optionLeg', 'hedgeLeg', 'fees', 'funding'],
+    outputs: ['componentCurve', 'combinedResearchValue'],
+    boundary: 'Requires configured legs and settlement rules before leaving research UI.',
+  },
+]
+
+export function getFormulaSourceAudit(id) {
+  return formulaSourceAudit.find((entry) => entry.id === id) ?? null
+}

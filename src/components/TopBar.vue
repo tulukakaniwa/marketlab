@@ -10,7 +10,6 @@ const props = defineProps({
   market: { type: Object, default: null },
   rows: { type: Array, default: () => [] },
   decision: { type: Object, default: null },
-  confidence: { type: Number, default: 0 },
   profileId: { type: String, required: true },
   profileList: { type: Array, required: true },
   theme: { type: String, default: 'light' },
@@ -37,7 +36,7 @@ const narrativeText = computed(() => {
   })
 })
 
-const recommendation = computed(() => props.decision?.state ?? null)
+const status = computed(() => props.decision?.state ?? null)
 
 function money(value) {
   return Number.isFinite(value)
@@ -69,10 +68,10 @@ function pctSign(value) {
         <em :class="{ up: (dailyChange ?? 0) >= 0, down: (dailyChange ?? 0) < 0 }">{{ pctSign(dailyChange) }}</em>
       </div>
       <div class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
-      <div v-if="recommendation" class="tb-segment tb-action">
-        <span>推荐</span>
-        <strong>{{ recommendation }}</strong>
-        <em>{{ Math.round(confidence * 100) }}%</em>
+      <div v-if="status" class="tb-segment tb-action">
+        <span>状态</span>
+        <strong>{{ status }}</strong>
+        <em>{{ props.decision?.missingInputs?.length ? '缺输入' : '事实' }}</em>
       </div>
     </div>
 

@@ -8,7 +8,7 @@
  *   - key 加版本号，结构升级时旧数据被忽略而不是炸场
  *
  * 用法：
- *   const input = persistedReactive('lab.input.v1', { entryPrice: 0, ... })
+ *   const input = persistedReactive('lab.input.v2', { entryPrice: 0, ... })
  *   const mode = persistedRef('lab.mode.v1', 'orders')
  */
 import { isRef, reactive, ref, watch } from 'vue'

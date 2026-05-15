@@ -115,7 +115,7 @@ export function volConfidence({ annualVol, sampleSize = 60, confidenceLevel = 0.
   const seBaseline = 1 / Math.sqrt(2 * sampleSize)
   const quality = relativeUncertainty < seBaseline * 2 ? '高精度' : relativeUncertainty < seBaseline * 4 ? '中精度' : relativeUncertainty < seBaseline * 8 ? '低精度' : '不可靠'
 
-  return { annualVol, se, lower, upper, relativeUncertainty, quality, sampleSize, note: `基于 ${sampleSize} 样本，真实波动率在 [${(lower * 100).toFixed(1)}%, ${(upper * 100).toFixed(1)}%] 之间（${(confidenceLevel * 100).toFixed(0)}% 置信）` }
+  return { annualVol, se, lower, upper, relativeUncertainty, quality, sampleSize, note: `基于 ${sampleSize} 样本，波动率区间估计为 [${(lower * 100).toFixed(1)}%, ${(upper * 100).toFixed(1)}%]（区间水平 ${(confidenceLevel * 100).toFixed(0)}%）` }
 }
 
 export function netCarry({ costDistance, fundingRate, holdingDays = 1, tradingDaysPerYear = 365 }) {

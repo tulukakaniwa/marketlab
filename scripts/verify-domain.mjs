@@ -101,8 +101,19 @@ const graph = buildDecisionGraph({
   },
 })
 assert.ok(['buy', 'sell', null].includes(graph.decision.timing.side))
-assert.ok(Number.isFinite(graph.position.maxNotional))
-assert.ok(Number.isFinite(graph.position.riskBudget))
+assert.ok(Array.isArray(graph.decision.triggeredConditions))
+assert.ok(Array.isArray(graph.decision.blockedReasons))
+assert.ok(Array.isArray(graph.decision.missingInputs))
+if (graph.position.side) {
+  assert.ok(
+    graph.position.maxNotional === null ||
+    Number.isFinite(graph.position.maxNotional),
+  )
+  assert.ok(
+    graph.position.riskBudget === null ||
+    Number.isFinite(graph.position.riskBudget),
+  )
+}
 assert.equal(graph.plan.primaryOrders.every((order) => Number.isFinite(order.price)), true)
 assert.equal(graph.plan.primaryOrders.every((order) => Number.isFinite(order.expectedProfit)), true)
 if (graph.decision.timing.side === 'sell') assert.equal(graph.plan.primaryOrders.length, 0)

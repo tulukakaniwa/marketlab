@@ -85,7 +85,8 @@ const currentValues = computed(() => {
       v.push(['累计资金成本', f4(g.funding?.funding)])
       break
     case 'portfolio':
-      v.push(['组合价值', fmt(g.portfolio)])
+      v.push(['研究值', fmt(g.portfolioResearch?.value)])
+      v.push(['状态', g.portfolioResearch?.status ?? 'research-only'])
       v.push(['组合曲线点', g.lpPortfolio?.points?.length ?? 0])
       break
     case 'liquidity-fingerprint':
@@ -124,14 +125,14 @@ const decisionImpact = computed(() => {
     'capital-efficiency': '展示区间效率估计；不进入默认挂单',
     funding: '研究层：仅 TWAP 估计，未接真实永续资金费率和结算制度',
     portfolio: '研究层：组合视图不参与默认挂单',
-    'order-plan': '最终输出：挂买/挂卖/失效线/目标价',
-    'deviation-score': '判断当前偏离是否够强，是否触发交易',
-    'risk-surface': '展示不同价格上的 Greeks 曲线，挂单前看曲率',
+    'order-plan': '默认条件表：只在条件与账户输入都具备时输出候选订单',
+    'deviation-score': '展示当前成本偏离强度，不单独触发交易',
+    'risk-surface': '展示不同价格上的 Greeks 曲线，属于研究层观察',
     'net-lp-efficiency': '研究层：IL × CE 估计不能当作 LP 可行结论',
     'net-carry': '研究层：Funding × Cost 估计不能当作持仓结论',
-    'mean-reversion': '估计回归速度，决定持仓时长',
-    'gamma-pnl': '凸性头寸的实际波动收益估计',
-    'vol-confidence': '当前 IV 估计的置信区间',
+    'mean-reversion': '估计历史偏离衰减速度，不直接决定持仓时长',
+    'gamma-pnl': '凸性头寸的波动平方项估计',
+    'vol-confidence': '当前 IV 估计的区间误差',
   }
   return map[id] ?? '该公式参与研究层，不直接进入挂单结论'
 })

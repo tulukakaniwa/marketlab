@@ -31,6 +31,7 @@ describe('useLabStore（D2 拆分后契约）', () => {
     const lab = useLabStore()
     expect(lab.input.holdingDays).toBe(30)
     expect(lab.input.targetReturn).toBe(0.3)
+    expect(lab.input.capital).toBe(0)
     expect(lab.input.tradingDaysPerYear).toBe(365)
   })
 

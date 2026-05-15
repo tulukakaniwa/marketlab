@@ -102,8 +102,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   const zScore = periodVol > 0 ? market.costDistance / periodVol : 0
   const zAbs = Math.abs(zScore)
 
-  // Confidence from z-score via normal CDF
-  const confidence = clamp(zAbs < 8 ? 1 - 2 * (1 - (0.5 + 0.5 * erfApprox(zAbs / Math.sqrt(2)))) : 1, 0, 1)
+  const signalStrength = clamp(zAbs < 8 ? 1 - 2 * (1 - (0.5 + 0.5 * erfApprox(zAbs / Math.sqrt(2)))) : 1, 0, 1)
 
   // Dynamic edge: actual distance from cost, normalized by ATR
   const minEdge = Math.max(atr * executableProfile.edgeAtr, executableProfile.minEdge)
@@ -117,7 +116,6 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   const costStillFalling = market.costSlope5 < -Math.max(atr * executableProfile.costSlopeAtr, executableProfile.costSlopeMin)
   const momentumRising = market.momentum5 > executableProfile.momentumMin
 
-  // Computed labels — all derived from data, no magic strings
   const regimeLabel = belowCost ? '折价区' : aboveCost ? '溢价区' : '成本回归区'
   const zLabel = zAbs < 0.5 ? '弱' : zAbs < 1.5 ? '中' : '强'
   const momThresh = Math.max(atr * 0.5, 0.005)
@@ -125,55 +123,102 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   const slopeThresh = Math.max(atr * 0.2, 0.002)
   const costTrendLabel = market.costSlope5 < -slopeThresh ? '↓降' : market.costSlope5 > slopeThresh ? '↑升' : '→平'
 
-  // Action thresholds derived from confidence percentiles, not magic numbers
   const confHigh = Math.max(0.6, 1 - atr * 12)
   const confMid = Math.max(0.3, 1 - atr * 24)
+  const baseFacts = {
+    regime: regimeLabel,
+    zScore,
+    zStrength: zLabel,
+    costDistance: market.costDistance,
+    signalStrength,
+    triggeredConditions: [],
+    blockedReasons: [],
+    missingInputs: [],
+  }
 
   function buildReason() {
-    const parts = [`${regimeLabel}(Z=${zScore.toFixed(2)}σ ${zLabel})`, `动量${momentumLabel}`, `成本${costTrendLabel}`]
-    if (belowCost && momentumRising && !costStillFalling) parts.push('→ 动量止跌确认')
-    if (belowCost && (costStillFalling || !momentumRising)) parts.push('→ 等待止跌信号')
-    if (aboveCost) parts.push('→ 仅做已有仓位保护')
+    const parts = [`${regimeLabel} · Z=${zScore.toFixed(2)}σ · ${zLabel}`, `动量 ${momentumLabel}`, `成本 ${costTrendLabel}`]
+    if (belowCost && momentumRising && !costStillFalling) parts.push('动量止跌条件满足')
+    if (belowCost && (costStillFalling || !momentumRising)) parts.push('止跌条件未满足')
+    if (aboveCost) parts.push('处于成本带上方')
     return parts.join(' · ')
   }
 
   if (belowCost && !insideLongBand) {
-    return waitTiming('深度折价', `价格 ${fmt(market.markPrice)} 跌破波动带下沿 ${fmt(bands?.long?.low)}，${zLabel}信号但需等回归结构。`, confidence)
+    return waitTiming({
+      state: '低于波动带',
+      reason: `价格 ${fmt(market.markPrice)} 低于波动带下沿 ${fmt(bands?.long?.low)}。`,
+      facts: withFacts(baseFacts, {
+        triggeredConditions: ['价格低于成本带', '价格低于 GetDelta 下沿'],
+        blockedReasons: ['超出当前默认入场带，需要额外风控输入'],
+      }),
+    })
   }
   if (belowCost && (costStillFalling || !momentumRising)) {
-    return waitTiming('等待止跌', `折价 ${pctFmt(Math.abs(market.costDistance))}，Z=${zScore.toFixed(2)}，但成本仍在下降或动量不足。`, confidence)
+    return waitTiming({
+      state: '低于成本带',
+      reason: `价格低于成本带 ${pctFmt(Math.abs(market.costDistance))}，但止跌条件未同时满足。`,
+      facts: withFacts(baseFacts, {
+        triggeredConditions: ['价格低于成本带'],
+        blockedReasons: [
+          costStillFalling ? '成本锚仍在下降' : null,
+          !momentumRising ? '5 日动量未越过 profile 阈值' : null,
+        ].filter(Boolean),
+      }),
+    })
   }
   if (belowCost && buyEdge >= minEdge) {
-    const act = confidence > confHigh ? '分批吸筹' : confidence > confMid ? '轻仓试探' : '观察等待'
     return activeTiming({
-      state: zAbs > 1 ? '深度折价买入' : '折价买入',
+      state: '低于成本带',
       side: 'buy',
-      action: act,
+      action: signalStrength > confHigh ? '条件满足' : signalStrength > confMid ? '条件部分满足' : '条件观察',
       reason: buildReason(),
-      confidence,
+      signalStrength,
       edge: buyEdge,
       stop: Math.min(market.costLow, bands?.long.low ?? market.costLow),
       target: market.costAnchor,
+      ...withFacts(baseFacts, {
+        triggeredConditions: ['价格低于成本带', '成本未继续下行', '5 日动量满足 profile 阈值', '折价幅度达到 profile 阈值'],
+      }),
     })
   }
   if (aboveCost && !insideShortBand) {
-    return waitTiming('过热不追', `价格 ${fmt(market.markPrice)} 突破波动带上沿 ${fmt(bands?.short?.high)}。`, confidence)
+    return waitTiming({
+      state: '高于波动带',
+      reason: `价格 ${fmt(market.markPrice)} 高于波动带上沿 ${fmt(bands?.short?.high)}。`,
+      facts: withFacts(baseFacts, {
+        triggeredConditions: ['价格高于成本带', '价格高于 GetDelta 上沿'],
+        blockedReasons: ['默认计划不把研究层或高位状态翻译成追价动作'],
+      }),
+    })
   }
   if (aboveCost && sellEdge >= minEdge) {
-    const act = confidence > confHigh ? '底仓减压' : '轻仓保护'
     return activeTiming({
-      state: '溢价减仓',
+      state: '高于成本带',
       side: 'sell',
-      action: act,
+      action: signalStrength > confHigh ? '条件满足' : '条件部分满足',
       reason: buildReason(),
-      confidence,
+      signalStrength,
       edge: sellEdge,
       stop: Math.max(market.costHigh, bands?.short.high ?? market.costHigh),
       target: market.costAnchor,
+      ...withFacts(baseFacts, {
+        triggeredConditions: ['价格高于成本带', '溢价幅度达到 profile 阈值'],
+      }),
     })
   }
-  if (zAbs < 0.5) return waitTiming('中性等待', `偏离仅 ${zScore.toFixed(2)}σ，不足够触发交易。`, confidence)
-  return waitTiming('等待', `${regimeLabel} · 偏离 ${pctFmt(market.costDistance)} · 优势不够`, confidence)
+  if (zAbs < 0.5) {
+    return waitTiming({
+      state: '成本带内',
+      reason: `偏离 ${zScore.toFixed(2)}σ，未达到默认触发条件。`,
+      facts: withFacts(baseFacts, { blockedReasons: ['偏离幅度低于 0.5σ'] }),
+    })
+  }
+  return waitTiming({
+    state: regimeLabel,
+    reason: `${regimeLabel} · 偏离 ${pctFmt(market.costDistance)} · 未达到默认触发条件`,
+    facts: withFacts(baseFacts, { blockedReasons: ['价格位置或动量条件未同时满足'] }),
+  })
 }
 
 function erfApprox(x) {
@@ -189,14 +234,28 @@ function fmt(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString('zh-C
 
 export function buildPositionPlan(timing, bands, account, profile, market) {
   const executableProfile = ensureExecutableProfile(profile, market)
-  if (!timing?.side || account.capital <= 0) return emptyPosition(timing, account)
+  if (!account.isConfigured || account.capital <= 0) {
+    return {
+      ...emptyPosition(timing, account),
+      action: '缺少账户输入',
+      missingInputs: ['account.capital'],
+      rule: '缺少账户资金输入，默认计划不生成名义金额。',
+    }
+  }
+  if (!timing?.side) return emptyPosition(timing, account)
   if (timing.side === 'sell' && account.base <= 0) {
-    return { ...emptyPosition(timing, account), action: '无底仓等待', rule: '这是减压机会，不是做空信号；没有底仓就等待低价。' }
+    return {
+      ...emptyPosition(timing, account),
+      missingInputs: ['account.basePosition'],
+      action: '缺少底仓',
+      rule: '缺少底仓输入，默认计划不生成卖出订单。',
+    }
   }
   const stopDistance = Math.max(Math.abs(market.markPrice - timing.stop) / market.markPrice, 0.001)
-  const riskBudgetPct = executableProfile.riskMin + (executableProfile.riskMax - executableProfile.riskMin) * timing.confidence
+  const signalStrength = timing.signalStrength ?? 0
+  const riskBudgetPct = executableProfile.riskMin + (executableProfile.riskMax - executableProfile.riskMin) * signalStrength
   const riskBudget = account.capital * riskBudgetPct
-  const exposureCap = account.capital * (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * timing.confidence)
+  const exposureCap = account.capital * (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * signalStrength)
   const buyCap = Math.min(account.cash, exposureCap, riskBudget / stopDistance)
   const sellCap = Math.min(account.base * market.markPrice, exposureCap)
   const maxNotional = timing.side === 'buy' ? buyCap : sellCap
@@ -215,8 +274,9 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
     addToPrice,
     holdDays: account.holdingDays,
     rule: timing.side === 'buy'
-      ? `分 ${executableProfile.firstWeight < 0.4 ? '3' : '2'} 批入场 · 首笔 ${pctFmt(executableProfile.firstWeight)} · 跌破 ${fmt(timing.stop)} 不补仓`
-      : `已有底仓减压 · 目标回归成本锚 ${fmt(timing.target)} · 不做空`,
+      ? `账户资金已配置；候选订单使用 ${pctFmt(executableProfile.firstWeight)} 首笔权重和失效线 ${fmt(timing.stop)}。`
+      : `底仓已配置；候选订单使用成本锚 ${fmt(timing.target)} 作为观察目标。`,
+    missingInputs: [],
   }
 }
 
@@ -398,31 +458,41 @@ function buildResearchSnapshot({ market, input, executable }) {
     impermanentLoss: il,
     efficiency: capitalEfficiency({ rangeWidth, skew }),
     funding,
-    portfolio: portfolioValue({
-      lpValue: lpV3Hedged?.value ?? 0,
-      optionValue: option?.price ?? 0,
-      fundingCost: Math.abs(funding?.funding ?? 0) * capital,
-    }),
+    portfolioResearch: {
+      status: 'research-only',
+      missingInputs: ['real-lp-position', 'option-leg', 'hedge-leg', 'fee-model', 'funding-settlement'],
+      value: portfolioValue({
+        lpValue: lpV3Hedged?.value ?? 0,
+        optionValue: option?.price ?? 0,
+        fundingCost: Math.abs(funding?.funding ?? 0) * capital,
+      }),
+    },
   }
 }
 
 function buildDecision({ market, timing, position, holdingDays }) {
   const invalidations = timing?.side
     ? [`收盘价越过失效线 ${formatPrice(position.stopPrice)}`, `回归目标成本 ${formatPrice(position.targetPrice)}`, `${holdingDays} 天后未触发回归则失效`]
-    : [`跌破成本下沿 ${formatPrice(market.costLow)} 触发试多`, `突破成本上沿 ${formatPrice(market.costHigh)} 触发减仓`, `偏离 > ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))} 且 Z 值显著时交易`]
+    : [`价格低于成本下沿 ${formatPrice(market.costLow)}`, `价格高于成本上沿 ${formatPrice(market.costHigh)}`, `偏离阈值参考 ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))}`]
   return {
     state: timing?.state ?? '等待',
     path: timing?.path ?? '等待路径',
     timing,
     position,
-    confidence: timing?.confidence ?? 0,
+    signalStrength: timing?.signalStrength ?? 0,
     holdingWindow: `${holdingDays} 天`,
     invalidations,
+    regime: timing?.regime ?? null,
+    triggeredConditions: timing?.triggeredConditions ?? [],
+    blockedReasons: timing?.blockedReasons ?? [],
+    missingInputs: [...new Set([...(timing?.missingInputs ?? []), ...(position?.missingInputs ?? [])])],
   }
 }
 
 function buildAccount({ account, input, markPrice }) {
-  const capital = Math.max(Number(input.capital) || 0, 0)
+  const rawCapital = Number(input.capital)
+  const hasCapitalInput = Number.isFinite(rawCapital) && rawCapital > 0
+  const capital = hasCapitalInput ? rawCapital : 0
   const baseNotional = Math.max(Number(input.baseNotional) || 0, 0)
   const base = account?.base ?? (markPrice > 0 ? baseNotional / markPrice : 0)
   const cash = account?.cash ?? capital
@@ -432,15 +502,16 @@ function buildAccount({ account, input, markPrice }) {
     costBasis: account?.costBasis ?? baseNotional,
     capital,
     holdingDays: Math.max(Number(input.holdingDays) || 1, 1),
+    isConfigured: Boolean(account) || hasCapitalInput,
   }
 }
 
 function activeTiming(timing) {
-  return { ...timing, path: timing.side === 'buy' ? '折价进入成本修复路径' : '溢价进入成本回归路径' }
+  return { ...timing, path: timing.side === 'buy' ? '低于成本带条件链' : '高于成本带条件链' }
 }
 
-function waitTiming(state, reason, confidence) {
-  return { state, side: null, action: '不进场', path: '等待更好的成本差', confidence, edge: 0, stop: null, target: null, reason }
+function waitTiming({ state, reason, facts }) {
+  return { state, side: null, action: '未触发', path: '默认条件未触发', edge: 0, stop: null, target: null, reason, ...facts }
 }
 
 function orderRow({ side, price, targetPrice, notional, role, reason }) {
@@ -450,24 +521,24 @@ function orderRow({ side, price, targetPrice, notional, role, reason }) {
 }
 
 function orderRole(side, index) {
-  if (side === 'sell') return index === 0 ? '先减' : index === 1 ? '再减' : '保护'
-  return index === 0 ? '试仓' : index === 1 ? '加仓' : '极值'
+  return side === 'sell' ? `候选卖出 ${index + 1}` : `候选买入 ${index + 1}`
 }
 
 function emptyPosition(timing, account = {}) {
   return {
-    action: timing?.action ?? '不进场',
+    action: timing?.action ?? '未触发',
     side: timing?.side ?? null,
-    maxNotional: 0,
-    firstNotional: 0,
+    maxNotional: null,
+    firstNotional: null,
     reserveCash: Math.max(Number(account.cash ?? account.capital) || 0, 0),
-    riskBudget: 0,
-    riskBudgetPct: 0,
-    stopDistance: 0,
+    riskBudget: null,
+    riskBudgetPct: null,
+    stopDistance: null,
     stopPrice: timing?.stop ?? null,
     targetPrice: timing?.target ?? null,
     addToPrice: null,
-    rule: timing?.reason ?? '等待价格给出明确成本差。',
+    rule: timing?.reason ?? '默认条件未触发。',
+    missingInputs: [],
   }
 }
 
@@ -484,7 +555,7 @@ function emptyGraph() {
     lpV3: null,
     efficiency: null,
     funding: null,
-    portfolio: null,
+    portfolioResearch: null,
     profile: strategyProfiles.balanced,
     account: null,
     position: emptyPosition(null),
@@ -509,4 +580,14 @@ function positive(value) {
 
 function formatPrice(value) {
   return Number.isFinite(value) ? Math.round(value).toLocaleString('zh-CN') : '未知'
+}
+
+function withFacts(baseFacts, patch = {}) {
+  return {
+    ...baseFacts,
+    ...patch,
+    triggeredConditions: patch.triggeredConditions ?? baseFacts.triggeredConditions,
+    blockedReasons: patch.blockedReasons ?? baseFacts.blockedReasons,
+    missingInputs: patch.missingInputs ?? baseFacts.missingInputs,
+  }
 }
