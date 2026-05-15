@@ -1,8 +1,21 @@
 import XLSX from 'xlsx'
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
 
-const INPUT = process.argv[2] || '/Users/wangxuanzhe/Pictures/stocks_20260513.xlsx'
+// 用法：
+//   node scripts/convert-stocks-xlsx.mjs <xlsx 路径>
+//   或环境变量：STOCKS_XLSX=路径 node scripts/convert-stocks-xlsx.mjs
+const INPUT = process.argv[2] || process.env.STOCKS_XLSX
+if (!INPUT) {
+  console.error('用法: node scripts/convert-stocks-xlsx.mjs <xlsx 路径>')
+  console.error('     或设环境变量 STOCKS_XLSX=路径 后执行')
+  process.exit(2)
+}
+if (!existsSync(INPUT)) {
+  console.error(`文件不存在: ${INPUT}`)
+  process.exit(2)
+}
+
 const OUT_DIR = join(import.meta.dirname, '..', 'public', 'data')
 
 const wb = XLSX.readFile(INPUT)

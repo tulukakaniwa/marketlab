@@ -1,20 +1,53 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Activity, Database, Moon, Play, Sun } from 'lucide-vue-next'
 import ChainFlow from './components/ChainFlow.vue'
 import DecisionPanel from './components/DecisionPanel.vue'
 import FormulaChart from './components/FormulaChart.vue'
+import FormulaDrawer from './components/FormulaDrawer.vue'
 import FormulaNav from './components/FormulaNav.vue'
 import MarketChart from './components/MarketChart.vue'
 import MetricStrip from './components/MetricStrip.vue'
 import OrderTable from './components/OrderTable.vue'
+import QuestionNav from './components/QuestionNav.vue'
 import ReplayPanel from './components/ReplayPanel.vue'
 import { useLabStore } from './stores/labStore.js'
+import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
 
 const tickerSearch = ref('')
+const searchInput = ref(null)
+const showAllFormulas = ref(false)
+const drawerOpen = ref(false)
+
+// 主题（dark / light）持久化
+const theme = persistedRef('lab.theme.v1', 'light')
+function applyTheme(t) {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('dark', t === 'dark')
+}
+applyTheme(theme.value)
+watch(theme, applyTheme)
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+}
+
+function resetWorkbench() {
+  if (!confirm('清空所有持久化参数（输入、UI 状态、主题）并刷新？')) return
+  clearPersistedLab()
+  window.location.reload()
+}
+
+function focusSearch() {
+  searchInput.value?.focus()
+}
+
+function openDrawer(formulaId) {
+  if (formulaId) lab.activeFormulaId = formulaId
+  drawerOpen.value = true
+}
 const allSamples = computed(() => {
   const curated = new Map(lab.marketSamples.map(s => [s.symbol, s]))
   for (const s of stockIndex) {
@@ -76,6 +109,7 @@ const brief = computed(() => {
       <div><span>Market Lab</span><h1>公式工作台</h1></div>
       <div class="bar-act">
         <input
+          ref="searchInput"
           v-model="tickerSearch"
           class="ticker-search"
           type="search"
@@ -89,14 +123,37 @@ const brief = computed(() => {
         <button v-for="s in filteredSamples" :key="s.id" :class="{ on: lab.source?.id === s.id }" :disabled="lab.loadingSampleId === s.id" @click="lab.loadSample(s)">
           <Database :size="14" />{{ lab.loadingSampleId === s.id ? '…' : s.symbol }}
         </button>
-        <button class="theme-btn" @click="document.documentElement.classList.toggle('dark')" title="切换主题"><Moon :size="14" /></button>
+        <button class="theme-btn" @click="toggleTheme" title="切换主题">
+          <Moon v-if="theme === 'light'" :size="14" />
+          <Sun v-else :size="14" />
+        </button>
+        <button class="reset-btn" @click="resetWorkbench" title="清空持久化参数">重置</button>
       </div>
     </header>
-    <p v-if="lab.error" class="err-bar">{{ lab.error }}</p>
+    <p v-if="lab.error" class="err-bar" :class="`kind-${lab.error.kind}`">
+      <span class="err-msg">{{ lab.error.message }}</span>
+      <button v-if="lab.error.sample" class="err-btn" @click="lab.retryLast()" :disabled="lab.loading">
+        {{ lab.loading ? '重试中…' : '重试' }}
+      </button>
+      <button class="err-btn err-dismiss" @click="lab.dismissError()">关闭</button>
+    </p>
 
     <div v-if="lab.rows.length" class="workbench">
       <aside class="wb-left">
-        <FormulaNav :active-id="lab.activeFormulaId" @select="lab.activeFormulaId = $event" />
+        <QuestionNav
+          :active-formula-id="lab.activeFormulaId"
+          :source="lab.source"
+          :input="lab.input"
+          @select-formula="lab.activeFormulaId = $event"
+          @focus-search="focusSearch"
+          @open-drawer="openDrawer"
+        />
+        <details class="wb-formulas-toggle" :open="showAllFormulas">
+          <summary @click.prevent="showAllFormulas = !showAllFormulas">
+            完整公式列表（点击查看每个公式）
+          </summary>
+          <FormulaNav :active-id="lab.activeFormulaId" @select="(id) => { lab.activeFormulaId = id; openDrawer(id) }" />
+        </details>
       </aside>
 
       <main class="wb-center">
@@ -172,8 +229,19 @@ const brief = computed(() => {
     </div>
 
     <div v-else class="empty-state">
-      <Activity :size="36" /><strong>Market Lab</strong><small>点击上方数据集加载 K 线</small>
+      <Activity :size="36" />
+      <strong>Market Lab</strong>
+      <small v-if="lab.loading">加载中…{{ lab.loadingSampleId ? ' ' + lab.loadingSampleId : '' }}</small>
+      <small v-else>点击上方数据集加载 K 线（首次加载约 1~2 秒）</small>
     </div>
+
+    <FormulaDrawer
+      :open="drawerOpen"
+      :formula-id="lab.activeFormulaId"
+      :graph="lab.graph"
+      :market="lab.market"
+      @close="drawerOpen = false"
+    />
   </div>
 </template>
 
@@ -190,7 +258,17 @@ const brief = computed(() => {
 .ticker-search { width: 100px; min-height: 26px; border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; background: var(--bg); color: var(--ink); font-size: 0.72rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ticker-search::placeholder { color: var(--muted); font-weight: 400; }
 .theme-btn { min-width: 28px; justify-content: center; border-radius: 99px; }
-.err-bar { flex-shrink: 0; margin: 0; padding: 4px 12px; background: var(--red); color: #fff; font-size: 0.76rem; }
+.reset-btn { font-size: 0.66rem !important; opacity: 0.7; }
+.reset-btn:hover { opacity: 1; }
+.err-bar { flex-shrink: 0; display: flex; gap: 10px; align-items: center; margin: 0; padding: 5px 12px; background: var(--red); color: #fff; font-size: 0.76rem; }
+.err-bar.kind-empty { background: #b8860b; }
+.err-bar.kind-parse { background: #884d22; }
+.err-bar.kind-network { background: var(--red); }
+.err-msg { flex: 1; }
+.err-btn { min-height: 22px; padding: 1px 9px; border: 1px solid rgba(255,255,255,0.5); border-radius: 4px; background: transparent; color: #fff; font-size: 0.7rem; font-weight: 800; cursor: pointer; }
+.err-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); }
+.err-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.err-dismiss { opacity: 0.8; }
 
 /* ── Empty ── */
 .empty-state { flex: 1; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); }
@@ -198,7 +276,11 @@ const brief = computed(() => {
 
 /* ── 3-zone workbench ── */
 .workbench { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px 1fr 310px; gap: 0; overflow: hidden; }
-.wb-left { border-right: 1px solid var(--line); padding: 8px; overflow-y: auto; background: var(--panel); }
+.wb-left { border-right: 1px solid var(--line); padding: 8px; overflow-y: auto; background: var(--panel); display: grid; gap: 8px; align-content: start; }
+.wb-formulas-toggle summary { cursor: pointer; padding: 6px 8px; border: 1px dashed var(--line); border-radius: 6px; color: var(--muted); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.wb-formulas-toggle summary:hover { border-color: var(--green); color: var(--ink); }
+.wb-formulas-toggle[open] summary { color: var(--green); border-style: solid; }
+.wb-formulas-toggle[open] { display: grid; gap: 6px; }
 .wb-center { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; min-width: 0; }
 .wb-right { border-left: 1px solid var(--line); padding: 8px; overflow-y: auto; background: var(--panel); display: grid; gap: 7px; align-content: start; }
 

@@ -1,14 +1,13 @@
 import { blackScholes, getDeltaBands, uniswapV3Inventory } from '../formulas/core.js'
-import { buildCostPath } from './cost.js'
-
-const VOL_WINDOW = 60
+import { buildCostPath, deriveWindows } from './cost.js'
 
 export function buildFormulaPath(rows, input) {
   if (!Array.isArray(rows) || rows.length < 2) return []
-  const costPath = buildCostPath(rows)
+  const windows = deriveWindows(rows.length)
+  const costPath = buildCostPath(rows, windows)
   const tdpy = Number(input.tradingDaysPerYear) || 365
   return rows.map((row, index) => {
-    const iv = rollingAnnualVol(rows, index, tdpy) || Number(input.iv) || 0
+    const iv = rollingAnnualVol(rows, index, tdpy, windows.vol) || Number(input.iv) || 0
     const bandAnchor = costPath[index]?.anchor || row.close
     const deltaBands = getDeltaBands({
       entryPrice: bandAnchor,
@@ -48,9 +47,9 @@ export function buildFormulaPath(rows, input) {
   })
 }
 
-function rollingAnnualVol(rows, index, tradingDaysPerYear = 365) {
+function rollingAnnualVol(rows, index, tradingDaysPerYear = 365, volWindow = 60) {
   if (index < 2) return null
-  const start = Math.max(1, index - VOL_WINDOW + 1)
+  const start = Math.max(1, index - volWindow + 1)
   const returns = []
   for (let i = start; i <= index; i += 1) {
     const previous = rows[i - 1]?.close

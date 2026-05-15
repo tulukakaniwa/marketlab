@@ -85,10 +85,28 @@ function createSeries() {
   series.bsDelta = chart.addSeries(LineSeries, deltaLine(stageNames['option-greeks'] + ' Δ', '#a93226'), 2)
   series.lpDelta = chart.addSeries(LineSeries, deltaLine(stageNames['lp-inventory'] + ' Δ', '#0e7558'), 2)
   series.zero = chart.addSeries(LineSeries, deltaLine('Δ=0', '#888', LineStyle.Dashed), 2)
+  // pane 3：回放权益曲线（与 K 线时间轴对齐，可视化看到决策的累计盈亏）
+  series.equity = chart.addSeries(LineSeries, {
+    title: '回放权益',
+    color: '#1f5fbf',
+    lineWidth: 2,
+    priceLineVisible: false,
+    lastValueVisible: true,
+    priceFormat: { type: 'price', precision: 0, minMove: 1 },
+  }, 3)
+  series.equityZero = chart.addSeries(LineSeries, {
+    title: '盈亏=0',
+    color: '#888',
+    lineWidth: 1,
+    lineStyle: LineStyle.Dashed,
+    priceLineVisible: false,
+    lastValueVisible: false,
+  }, 3)
   markersApi = createSeriesMarkers(series.candle, [])
-  chart.panes()[0]?.setStretchFactor(0.70)
+  chart.panes()[0]?.setStretchFactor(0.62)
   chart.panes()[1]?.setStretchFactor(0.08)
-  chart.panes()[2]?.setStretchFactor(0.22)
+  chart.panes()[2]?.setStretchFactor(0.18)
+  chart.panes()[3]?.setStretchFactor(0.12)
 }
 
 function syncChart() {
@@ -133,6 +151,13 @@ function syncChart() {
   setLine(series.bsDelta, props.formulaPath.map((row) => row.optionDelta))
   setLine(series.lpDelta, props.formulaPath.map((row) => row.lpInventoryDelta))
   setLine(series.zero, props.rows.map(() => 0))
+  // 权益曲线：把 replay.equityCurve 按 date 对齐到 rows
+  const equityByDate = new Map((props.replay?.equityCurve ?? []).map((p) => [p.date, p.equity]))
+  series.equity.setData(props.rows
+    .map((row) => ({ time: row.date, value: equityByDate.has(row.date) ? equityByDate.get(row.date) : null }))
+    .filter((p) => p.value !== null)
+  )
+  series.equityZero.setData(props.rows.map((row) => ({ time: row.date, value: 0 })))
   markersApi?.setMarkers(buildMarkers(props.replay?.trades ?? []))
   chart.timeScale().fitContent()
 }

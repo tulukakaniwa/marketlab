@@ -5,21 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm run verify:domain && vite build",
+    "build": "pnpm run check:data && pnpm run verify:domain && vite build",
     "verify:domain": "node scripts/verify-domain.mjs",
+    "verify:pine": "node scripts/verify-pine.mjs",
+    "check:data": "node scripts/check-data-index.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
     "d3-dsv": "^3.0.1",
-    "echarts": "^6.0.0",
     "lightweight-charts": "^5.2.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
-    "vue": "^3.5.34",
-    "xlsx": "^0.18.5"
+    "vue": "^3.5.34"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.6",
-    "vite": "^8.0.12"
+    "@vue/test-utils": "^2.4.10",
+    "jsdom": "^29.1.1",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.6",
+    "xlsx": "^0.18.5"
   }
 }

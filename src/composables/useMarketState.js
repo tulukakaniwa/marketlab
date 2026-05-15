@@ -1,0 +1,38 @@
+import { computed } from 'vue'
+import { buildCostPath, buildMarketStatePath } from '../domain/market/cost.js'
+import { buildFormulaPath } from '../domain/market/formulaPath.js'
+
+/**
+ * 市场态计算层：滚动 VWAP 成本带、年化波动、ATR、动量、Δ 价格带等
+ *
+ * 二级缓存：rows → tdpy → marketStates
+ * - 同一 rows 不同 tdpy 互不污染（修复 A3）
+ * - 全局唯一 marketStates 来源，回放层不再重复计算（修复 A5）
+ *
+ * @param {Ref<Array>} rows
+ * @param {Ref<number>} cursor
+ * @param {object} input  reactive，至少含 tradingDaysPerYear
+ */
+export function useMarketState(rows, cursor, input) {
+  // WeakMap<rows, Map<tdpy, states>>
+  const marketStatePathCache = new WeakMap()
+
+  function getMarketStatePath(r) {
+    const tdpy = Number(input.tradingDaysPerYear) || 365
+    let bucket = marketStatePathCache.get(r)
+    if (!bucket) {
+      bucket = new Map()
+      marketStatePathCache.set(r, bucket)
+    }
+    if (!bucket.has(tdpy)) bucket.set(tdpy, buildMarketStatePath(r, tdpy))
+    return bucket.get(tdpy)
+  }
+
+  const activeRows = computed(() => rows.value.slice(0, cursor.value + 1))
+  const marketStateFull = computed(() => rows.value.length ? getMarketStatePath(rows.value) : [])
+  const market = computed(() => marketStateFull.value[cursor.value] ?? null)
+  const costPath = computed(() => buildCostPath(rows.value))
+  const formulaPath = computed(() => buildFormulaPath(rows.value, input))
+
+  return { activeRows, marketStateFull, market, costPath, formulaPath }
+}

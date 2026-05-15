@@ -2,19 +2,23 @@ import { buildMarketStatePath } from '../market/cost.js'
 import { buildDecisionGraph, resolveProfile } from '../planning/orderPlan.js'
 
 function warmupDays(totalRows) { return Math.min(80, Math.max(20, Math.floor(totalRows * 0.03))) }
-const marketStateCache = new WeakMap()
 
-export function buildDailyReplay(rows, input) {
+export function buildDailyReplay(rows, input, marketStates = null) {
   if (!Array.isArray(rows) || rows.length < 30) return emptyReplay()
   const WARMUP = warmupDays(rows.length)
   if (rows.length <= WARMUP + 2) return emptyReplay()
+  const tdpy = Number(input.tradingDaysPerYear) || 365
   const capital = Math.max(Number(input.capital) || 10000, 0)
   const initialBaseNotional = Math.max(Number(input.baseNotional) || 0, 0)
   const initialPrice = rows[WARMUP]?.close ?? rows[0]?.close ?? 0
   const accountCapital = capital + initialBaseNotional
   const fee = feeRate(input)
   const profile = resolveProfile(input.strategyProfile)
-  const marketStates = getMarketStates(rows)
+  // 优先复用外部传入的 market states，避免重复计算。
+  // 当未传入或长度不一致时回退到内部计算（与外部 tdpy 保持一致）。
+  const states = (Array.isArray(marketStates) && marketStates.length === rows.length)
+    ? marketStates
+    : buildMarketStatePath(rows, tdpy)
   const events = []
   const equityCurve = []
   let cash = capital
@@ -24,7 +28,7 @@ export function buildDailyReplay(rows, input) {
 
   for (let index = WARMUP; index < rows.length - 1; index += 1) {
     const row = rows[index]
-    const market = marketStates[index]
+    const market = states[index]
     const accountAction = accountExit({ row, index, market, cash, base, costBasis, fee, profile })
     if (accountAction) {
       cash = accountAction.cash
@@ -236,14 +240,6 @@ function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, 
     openValue: base * lastClose,
     openCost: costBasis,
   }
-}
-
-function getMarketStates(rows) {
-  const cached = marketStateCache.get(rows)
-  if (cached?.length === rows.length) return cached
-  const states = buildMarketStatePath(rows)
-  marketStateCache.set(rows, states)
-  return states
 }
 
 function feeRate(input) {
