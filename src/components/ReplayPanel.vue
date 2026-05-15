@@ -62,8 +62,11 @@ function pct(value) {
         <strong>{{ pct(replay.returnOnUsedNotional) }}</strong>
       </article>
       <article>
-        <span>回撤</span>
+        <span>最大回撤</span>
         <strong>{{ money(replay.maxDrawdown) }} · {{ pct(replay.maxDrawdownPct) }}</strong>
+        <small v-if="replay.maxDrawdownStart && replay.maxDrawdownEnd">
+          {{ replay.maxDrawdownStart }} → {{ replay.maxDrawdownEnd }}
+        </small>
       </article>
       <article>
         <span>现金</span>
@@ -82,7 +85,7 @@ function pct(value) {
       >
         <span>{{ item.profile.label }}</span>
         <strong>{{ pct(item.replay.returnOnUsedNotional) }}</strong>
-        <small>回撤 {{ money(item.replay.maxDrawdown) }} · {{ pct(item.replay.maxDrawdownPct) }} / {{ item.replay.tradeCount }} 次</small>
+        <small>最大回撤 {{ money(item.replay.maxDrawdown) }} · {{ pct(item.replay.maxDrawdownPct) }} / {{ item.replay.tradeCount }} 次</small>
       </article>
     </div>
     <table v-if="isRunnable && replay.trades.length">

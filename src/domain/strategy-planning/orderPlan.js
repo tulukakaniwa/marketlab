@@ -216,7 +216,7 @@ function fmt(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString('zh-C
 
 export function buildPositionPlan(timing, bands, account, profile, market) {
   const executableProfile = ensureExecutableProfile(profile, market)
-  if (!account.isConfigured || account.capital <= 0) {
+  if (!account.isConfigured) {
     return {
       ...emptyPosition(timing, account),
       action: '缺少账户输入',
@@ -225,6 +225,14 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
     }
   }
   if (!timing?.side) return emptyPosition(timing, account)
+  if (timing.side === 'buy' && account.cash <= 0) {
+    return {
+      ...emptyPosition(timing, account),
+      action: '缺少账户资金',
+      missingInputs: ['account.capital'],
+      rule: '缺少可用现金，模拟挂单不生成买入单。',
+    }
+  }
   if (timing.side === 'sell' && account.base <= 0) {
     return {
       ...emptyPosition(timing, account),
@@ -235,9 +243,10 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
   }
   const stopDistance = Math.max(Math.abs(market.markPrice - timing.stop) / market.markPrice, 0.001)
   const signalStrength = timing.signalStrength ?? 0
+  const sizingCapital = Math.max(account.equity ?? account.capital ?? 0, 0)
   const riskBudgetPct = executableProfile.riskMin + (executableProfile.riskMax - executableProfile.riskMin) * signalStrength
-  const riskBudget = account.capital * riskBudgetPct
-  const exposureCap = account.capital * (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * signalStrength)
+  const riskBudget = sizingCapital * riskBudgetPct
+  const exposureCap = sizingCapital * (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * signalStrength)
   const buyCap = Math.min(account.cash, exposureCap, riskBudget / stopDistance)
   const sellCap = Math.min(account.base * market.markPrice, exposureCap)
   const maxNotional = timing.side === 'buy' ? buyCap : sellCap
@@ -338,15 +347,18 @@ function buildAccount({ account, input, markPrice }) {
   const hasCapitalInput = Number.isFinite(rawCapital) && rawCapital > 0
   const capital = hasCapitalInput ? rawCapital : 0
   const baseNotional = Math.max(Number(input.baseNotional) || 0, 0)
+  const hasBaseInput = baseNotional > 0
   const base = account?.base ?? (markPrice > 0 ? baseNotional / markPrice : 0)
   const cash = account?.cash ?? capital
+  const equity = Math.max(cash + base * markPrice, 0)
   return {
     cash,
     base,
     costBasis: account?.costBasis ?? baseNotional,
     capital,
+    equity,
     holdingDays: Math.max(Number(input.holdingDays) || 1, 1),
-    isConfigured: Boolean(account) || hasCapitalInput,
+    isConfigured: Boolean(account) || hasCapitalInput || hasBaseInput,
   }
 }
 

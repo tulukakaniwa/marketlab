@@ -136,6 +136,56 @@ describe('buildDecisionGraph', () => {
     expect(g.plan.primaryOrders.every(o => o.side === 'sell')).toBe(true)
   })
 
+  it('纯底仓账户在卖出信号下不要求现金本金', () => {
+    const sellMarket = {
+      rows: 120,
+      markPrice: 110,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: 0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentum5: 0,
+      momentum20: 0,
+      costSlope5: 0,
+    }
+    const g = buildDecisionGraph({
+      market: sellMarket,
+      input: { ...baseInput, capital: 0, baseNotional: 10000, entryPrice: 110, iv: 0.4 },
+    })
+    expect(g.decision.timing.side).toBe('sell')
+    expect(g.decision.missingInputs).not.toContain('account.capital')
+    expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
+    expect(g.plan.primaryOrders.every(o => o.side === 'sell')).toBe(true)
+  })
+
+  it('回测账户按当前权益缩放仓位，不继续用启动本金放大风险', () => {
+    const buyMarket = {
+      rows: 120,
+      markPrice: 90,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: -0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentum5: 0.03,
+      momentum20: 0.01,
+      costSlope5: 0,
+    }
+    const g = buildDecisionGraph({
+      market: buyMarket,
+      input: { ...baseInput, capital: 10000, entryPrice: 100, iv: 0.4 },
+      account: { cash: 2000, base: 0, costBasis: 0 },
+    })
+    expect(g.decision.timing.side).toBe('buy')
+    expect(g.account.equity).toBe(2000)
+    expect(g.position.maxNotional).toBeLessThanOrEqual(2000 * g.profile.exposureMax + 1e-9)
+  })
+
   it('研究层 LP/funding 输入不改变默认挂单价格', () => {
     const buyMarket = {
       rows: 120,
