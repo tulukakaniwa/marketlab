@@ -70,24 +70,28 @@ export const strategyProfileList = Object.values(strategyProfiles)
 
 export function buildDecisionGraph({ market, input, account }) {
   if (!market) return emptyGraph()
-  const context = buildFormulaContext({ market, input })
-  const profile = resolveProfile(input?.strategyProfile)
+  const executable = buildExecutableContext({ market, input })
+  const research = buildResearchSnapshot({ market, input, executable })
+  const profile = resolveExecutableProfile(input?.strategyProfile, market)
   const nextAccount = buildAccount({ account, input, markPrice: market.markPrice })
-  const timing = buildEntryTiming(market, context.deltaBands, profile)
-  const position = buildPositionPlan(timing, context.deltaBands, nextAccount, profile, market)
-  const plan = buildExecutionPlan(position, context.deltaBands, nextAccount, market)
+  const timing = buildEntryTiming(market, executable.deltaBands, profile)
+  const position = buildPositionPlan(timing, executable.deltaBands, nextAccount, profile, market)
+  const plan = buildExecutionPlan(position, executable.deltaBands, nextAccount, market)
 
   return {
-    ...context,
+    ...executable,
+    ...research,
+    research,
     profile,
     account: nextAccount,
     position,
-    decision: buildDecision({ market, timing, position, holdingDays: context.inputs.holdingDays }),
+    decision: buildDecision({ market, timing, position, holdingDays: executable.inputs.holdingDays }),
     plan,
   }
 }
 
 export function buildEntryTiming(market, bands, profile = strategyProfiles.balanced) {
+  const executableProfile = ensureExecutableProfile(profile, market)
   const atr = market.atrPercent || 0
   const periodVol = market.annualVol > 0 ? market.annualVol * Math.sqrt(1 / 365) : 0.01
   const zScore = periodVol > 0 ? market.costDistance / periodVol : 0
@@ -97,7 +101,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   const confidence = clamp(zAbs < 8 ? 1 - 2 * (1 - (0.5 + 0.5 * erfApprox(zAbs / Math.sqrt(2)))) : 1, 0, 1)
 
   // Dynamic edge: actual distance from cost, normalized by ATR
-  const minEdge = Math.max(atr * profile.edgeAtr, profile.minEdge)
+  const minEdge = Math.max(atr * executableProfile.edgeAtr, executableProfile.minEdge)
   const buyEdge = market.costAnchor > market.markPrice ? (market.costAnchor - market.markPrice) / market.markPrice : 0
   const sellEdge = market.markPrice > market.costAnchor ? (market.markPrice - market.costAnchor) / market.markPrice : 0
 
@@ -105,8 +109,8 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   const aboveCost = market.markPrice > market.costHigh
   const insideLongBand = !bands || market.markPrice >= bands.long.low
   const insideShortBand = !bands || market.markPrice <= bands.short.high
-  const costStillFalling = market.costSlope5 < -Math.max(atr * profile.costSlopeAtr, profile.costSlopeMin)
-  const momentumRising = market.momentum5 > profile.momentumMin
+  const costStillFalling = market.costSlope5 < -Math.max(atr * executableProfile.costSlopeAtr, executableProfile.costSlopeMin)
+  const momentumRising = market.momentum5 > executableProfile.momentumMin
 
   // Computed labels — all derived from data, no magic strings
   const regimeLabel = belowCost ? '折价区' : aboveCost ? '溢价区' : '成本回归区'
@@ -179,14 +183,15 @@ function pctFmt(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '�
 function fmt(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString('zh-CN') : '—' }
 
 export function buildPositionPlan(timing, bands, account, profile, market) {
+  const executableProfile = ensureExecutableProfile(profile, market)
   if (!timing?.side || account.capital <= 0) return emptyPosition(timing, account)
   if (timing.side === 'sell' && account.base <= 0) {
     return { ...emptyPosition(timing, account), action: '无底仓等待', rule: '这是减压机会，不是做空信号；没有底仓就等待低价。' }
   }
   const stopDistance = Math.max(Math.abs(market.markPrice - timing.stop) / market.markPrice, 0.001)
-  const riskBudgetPct = profile.riskMin + (profile.riskMax - profile.riskMin) * timing.confidence
+  const riskBudgetPct = executableProfile.riskMin + (executableProfile.riskMax - executableProfile.riskMin) * timing.confidence
   const riskBudget = account.capital * riskBudgetPct
-  const exposureCap = account.capital * (profile.exposureMin + (profile.exposureMax - profile.exposureMin) * timing.confidence)
+  const exposureCap = account.capital * (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * timing.confidence)
   const buyCap = Math.min(account.cash, exposureCap, riskBudget / stopDistance)
   const sellCap = Math.min(account.base * market.markPrice, exposureCap)
   const maxNotional = timing.side === 'buy' ? buyCap : sellCap
@@ -195,7 +200,7 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
     action: timing.action,
     side: timing.side,
     maxNotional,
-    firstNotional: maxNotional * profile.firstWeight,
+    firstNotional: maxNotional * executableProfile.firstWeight,
     reserveCash: Math.max(0, account.cash - (timing.side === 'buy' ? maxNotional : 0)),
     riskBudget,
     riskBudgetPct,
@@ -205,7 +210,7 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
     addToPrice,
     holdDays: account.holdingDays,
     rule: timing.side === 'buy'
-      ? `分 ${profile.firstWeight < 0.4 ? '3' : '2'} 批入场 · 首笔 ${pctFmt(profile.firstWeight)} · 跌破 ${fmt(timing.stop)} 不补仓`
+      ? `分 ${executableProfile.firstWeight < 0.4 ? '3' : '2'} 批入场 · 首笔 ${pctFmt(executableProfile.firstWeight)} · 跌破 ${fmt(timing.stop)} 不补仓`
       : `已有底仓减压 · 目标回归成本锚 ${fmt(timing.target)} · 不做空`,
   }
 }
@@ -238,15 +243,34 @@ export function resolveProfile(id) {
   return strategyProfiles[id] ?? strategyProfiles.balanced
 }
 
-function buildFormulaContext({ market, input }) {
+export function resolveExecutableProfile(id, market) {
+  return scaleProfileToMarket(resolveProfile(id), market)
+}
+
+function ensureExecutableProfile(profile, market) {
+  if (Number.isFinite(profile?.minEdge) && Number.isFinite(profile?.riskMin)) return profile
+  return scaleProfileToMarket(profile ?? strategyProfiles.balanced, market)
+}
+
+function buildExecutableContext({ market, input }) {
   const entryPrice = positive(input.entryPrice) || market.markPrice
   const holdingDays = Math.max(Number(input.holdingDays) || 1, 1)
   const iv = Math.max(Number(input.iv) || market.annualVol || 0.01, 0.01)
   const targetReturn = Number(input.targetReturn) || 0
   const capital = Math.max(Number(input.capital) || 0, 0)
-  const rangeWidth = Math.max(Number(input.rangeWidth) || 0.01, 0.001)
   const tdpy = Number(input.tradingDaysPerYear) || 365
   const deltaBands = getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, tradingDaysPerYear: tdpy })
+
+  return {
+    inputs: { entryPrice, holdingDays, iv, targetReturn, capital, costAnchor: market.costAnchor },
+    deltaBands,
+  }
+}
+
+function buildResearchSnapshot({ market, input, executable }) {
+  const { entryPrice, holdingDays, iv, capital } = executable.inputs
+  const rangeWidth = Math.max(Number(input.rangeWidth) || 0.01, 0.001)
+  const tdpy = Number(input.tradingDaysPerYear) || 365
   const option = blackScholes({
     entryPrice,
     strikePrice: positive(input.strikePrice) || entryPrice * 1.05,
@@ -291,8 +315,6 @@ function buildFormulaContext({ market, input }) {
     hours: holdingDays * 24,
   })
   return {
-    inputs: { entryPrice, holdingDays, iv, targetReturn, capital, costAnchor: market.costAnchor },
-    deltaBands,
     option,
     lp,
     lpV3: lpV3Raw,

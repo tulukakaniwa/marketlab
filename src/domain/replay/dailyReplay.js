@@ -1,5 +1,5 @@
 import { buildMarketStatePath } from '../market/cost.js'
-import { buildDecisionGraph, resolveProfile } from '../planning/orderPlan.js'
+import { buildDecisionGraph, resolveExecutableProfile, resolveProfile } from '../planning/orderPlan.js'
 
 function warmupDays(totalRows) { return Math.min(80, Math.max(20, Math.floor(totalRows * 0.03))) }
 
@@ -29,13 +29,14 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   for (let index = WARMUP; index < rows.length - 1; index += 1) {
     const row = rows[index]
     const market = states[index]
-    const accountAction = accountExit({ row, index, market, cash, base, costBasis, fee, profile })
+    const executableProfile = resolveExecutableProfile(profile.id, market)
+    const accountAction = accountExit({ row, index, market, cash, base, costBasis, fee, profile: executableProfile })
     if (accountAction) {
       cash = accountAction.cash
       base = accountAction.base
       costBasis = accountAction.costBasis
       events.push(accountAction.event)
-      nextSignalIndex = index + profile.buyCooldown
+      nextSignalIndex = index + executableProfile.buyCooldown
     }
     const equity = cash + base * row.close
     equityCurve.push({ date: row.date, equity: equity - accountCapital })
@@ -43,7 +44,7 @@ export function buildDailyReplay(rows, input, marketStates = null) {
 
     const graph = buildDecisionGraph({
       market,
-      input: replayInput(input, market, profile),
+      input: replayInput(input, market, executableProfile),
       account: { cash, base, costBasis },
     })
     const order = chooseAccountOrder(graph, { cash, base, markPrice: row.close })
@@ -93,7 +94,7 @@ export function buildDailyReplay(rows, input, marketStates = null) {
         investedCost: removedCost,
       }))
     }
-    nextSignalIndex = fill.index + (order.side === 'buy' ? profile.buyCooldown : profile.sellCooldown)
+    nextSignalIndex = fill.index + (order.side === 'buy' ? executableProfile.buyCooldown : executableProfile.sellCooldown)
   }
 
   const last = rows.at(-1)

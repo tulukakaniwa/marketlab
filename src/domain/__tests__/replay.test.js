@@ -47,6 +47,25 @@ describe('buildDailyReplay', () => {
     expect(Number.isFinite(r.winRate)).toBe(true)
   })
 
+  it('回放使用市场缩放 profile，能完成建仓和回到成本', () => {
+    const swingRows = makeRows(240, i => 100 + Math.sin(i / 4) * 25).map(row => ({
+      ...row,
+      open: row.close,
+      high: row.close * 1.02,
+      low: row.close * 0.98,
+      volume: 1000,
+    }))
+    const replay = buildDailyReplay(swingRows, {
+      ...baseInput,
+      targetReturn: 0.05,
+      strategyProfile: 'aggressive',
+    })
+    expect(replay.tradeCount).toBeGreaterThan(0)
+    expect(replay.trades.some(t => t.side === 'buy' && t.reason === '建仓')).toBe(true)
+    expect(replay.trades.some(t => t.side === 'sell' && t.reason === '回到成本')).toBe(true)
+    expect(Number.isFinite(replay.totalPnl)).toBe(true)
+  })
+
   it('A4/A5 回归：tdpy 透传 + 接受外部 marketStates 不抛错', () => {
     // 行为契约：buildDailyReplay 必须接受第三个参数 marketStates，
     // 并能在传入与不传入时都返回结构合法的回放
