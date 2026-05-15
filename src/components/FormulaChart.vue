@@ -229,7 +229,7 @@ const {
 
     <!-- ORDER PLAN -->
     <div v-else-if="formulaId === 'order-plan'" class="fc-card">
-      <span class="fc-ttl">默认条件表</span>
+      <span class="fc-ttl">模拟挂单</span>
       <template v-if="orderData">
         <div class="fc-orders">
           <div v-for="(o, i) in orderData" :key="i" class="fc-orow">

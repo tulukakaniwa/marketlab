@@ -36,7 +36,7 @@ describe('ReplayPanel', () => {
     expect(wrapper.text()).not.toContain('账户回报')
   })
 
-  it('可运行回放才展示执行、胜率和回撤指标', () => {
+  it('可运行回测才展示执行、胜率和回撤指标', () => {
     const wrapper = mount(ReplayPanel, {
       props: {
         replay: replay({

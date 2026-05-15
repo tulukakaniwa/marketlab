@@ -17,7 +17,7 @@ const titleValue = computed(() => {
   return money(props.replay.totalPnl)
 })
 const statusText = computed(() => {
-  if (isDisabled.value) return '回放旁路未启用'
+  if (isDisabled.value) return '回测引擎未启用'
   if (isMissingAccount.value) return '需要账户资金或底仓名义'
   return `${props.replay.range || '等待样本'} · 下一根 K 线验证`
 })
@@ -25,9 +25,9 @@ const showProfileScan = computed(() =>
   isRunnable.value && props.profileReplays.some(item => !item.replay?.status)
 )
 const emptyText = computed(() => {
-  if (isDisabled.value) return '回放旁路未启用。'
-  if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行回放并显示执行、胜率、回撤和交易记录。'
-  return '当前样本没有形成回放成交。'
+  if (isDisabled.value) return '回测引擎未启用。'
+  if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行回测并显示执行、胜率、回撤和交易记录。'
+  return '当前样本没有形成回测成交。'
 })
 
 function money(value) {
@@ -44,7 +44,7 @@ function pct(value) {
 <template>
   <section class="replay-panel">
     <header>
-      <span>日线回放</span>
+      <span>日线回测</span>
       <strong>{{ titleValue }}</strong>
       <small>{{ statusText }}</small>
     </header>

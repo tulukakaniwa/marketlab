@@ -144,8 +144,8 @@ export function buildExecutionBrief(graph) {
   const missing = graph?.decision?.missingInputs ?? []
   return {
     title: state,
-    bias: orders.length ? '已生成候选订单' : '默认条件未触发或缺少必要输入',
-    profileLabel: `手动 ${graph?.profile?.label ?? '均衡'}`,
+    bias: orders.length ? '已生成模拟挂单' : '信号条件未触发或缺少必要输入',
+    profileLabel: `手动档位 ${graph?.profile?.label ?? '均衡'}`,
     price: firstOrder?.price ?? null,
     notional: firstOrder?.notional ?? null,
     stop: graph?.position?.stopPrice ?? null,

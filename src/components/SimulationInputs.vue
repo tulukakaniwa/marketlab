@@ -18,7 +18,7 @@ const trP = computed({ get: () => pctOut(props.input.targetReturn), set: (v) => 
   <div class="si-card">
     <div class="si-card-head">
       <strong>默认价格带</strong>
-      <small>进入 OrderPlan 的主链输入</small>
+      <small>进入模拟挂单的主链输入</small>
     </div>
 
     <div class="si-form">

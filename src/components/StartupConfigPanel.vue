@@ -9,28 +9,28 @@ defineProps({
 <template>
   <section class="startup-config">
     <header>
-      <span>启动配置</span>
-      <strong>数据运算链路</strong>
+      <span>回测设置</span>
+      <strong>运行链路</strong>
     </header>
 
     <div class="sc-chain">
-      <span>MarketData</span>
+      <span>市场样本</span>
       <b>→</b>
-      <span>StrategyPlanning</span>
+      <span>信号引擎</span>
       <b>+</b>
-      <span :class="{ off: !featureFlags.replayAccount }">ReplayAccount</span>
+      <span :class="{ off: !featureFlags.replayAccount }">回测引擎</span>
       <b>+</b>
-      <span :class="{ off: !featureFlags.portfolioResearch }">FormulaResearch</span>
+      <span :class="{ off: !featureFlags.portfolioResearch }">公式研究</span>
     </div>
 
     <div class="sc-grid">
       <label class="sc-toggle">
         <input v-model="featureFlags.replayAccount" type="checkbox" />
-        <span>启用回放旁路</span>
+        <span>启用回测引擎</span>
       </label>
       <label class="sc-toggle">
         <input v-model="featureFlags.replayAutoProfile" type="checkbox" :disabled="!featureFlags.replayAccount" />
-        <span>回放辅助选档</span>
+        <span>回测选档</span>
       </label>
       <label class="sc-toggle">
         <input v-model="featureFlags.portfolioResearch" type="checkbox" />
@@ -54,7 +54,7 @@ defineProps({
     </div>
 
     <p>
-      默认计划只消费 MarketData、GetDelta/成本带与显式账户输入。回放和组合研究是旁路功能，只有打开后才显示；回放辅助选档只改 profile，不改写公式链。
+      默认模拟只消费市场样本、GetDelta/成本带与显式账户输入。回测和组合研究是可选模块；回测选档只调整策略档位，不改写公式链。
     </p>
   </section>
 </template>

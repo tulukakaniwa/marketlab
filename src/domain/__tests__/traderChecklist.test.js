@@ -20,7 +20,7 @@ describe('buildTraderChecklist', () => {
       },
     })
     expect(checklist.items.find(item => item.label === '账户输入').status).toBe('missing')
-    expect(checklist.items.find(item => item.label === '候选订单').detail).toContain('账户资金')
+    expect(checklist.items.find(item => item.label === '模拟挂单').detail).toContain('账户资金')
   })
 
   it('组合研究保持 research-only 口径', () => {

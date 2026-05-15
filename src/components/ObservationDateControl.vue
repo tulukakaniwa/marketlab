@@ -45,7 +45,7 @@ const progress = computed(() => props.rows.length > 1 ? props.cursor / (props.ro
       <small>{{ firstDate || '—' }} → {{ lastDate || '—' }}</small>
       <button type="button" :disabled="!rows.length || cursor === rows.length - 1" @click="emit('latest')">样本最新</button>
     </footer>
-    <p>每个数据源有自己的截止日期；主图、默认计划和回放只使用该日期及之前的 K 线。</p>
+    <p>每个数据源有自己的截止日期；主图、默认模拟和回测只使用该日期及之前的 K 线。</p>
   </section>
 </template>
 

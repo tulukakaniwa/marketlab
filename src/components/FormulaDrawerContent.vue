@@ -77,7 +77,7 @@ const currentValues = computed(() => {
       v.push(['挂单档数', g.plan?.primaryOrders?.length ?? 0])
       v.push(['失效下沿', fmt(g.plan?.invalidation?.lower)])
       v.push(['失效上沿', fmt(g.plan?.invalidation?.upper)])
-      v.push(['决策状态', g.decision?.state ?? '—'])
+      v.push(['信号状态', g.decision?.state ?? '—'])
       break
     default:
       v.push(['详见公式图', '点击中央公式面板查看可视化'])
@@ -92,7 +92,7 @@ const decisionImpact = computed(() => {
     cost: '决定挂单的成本锚、上下沿、回归目标',
     volatility: '决定挂单间距与失效阈值',
     'delta-band': '直接生成挂单价格梯队（试仓/加仓/极值）',
-    'option-greeks': '研究层风险拆解；默认计划不消费期权组合',
+    'option-greeks': '研究层风险拆解；模拟挂单不消费期权组合',
     'lp-inventory': 'LP 库存暴露 → 组合 Delta 一部分',
     'capital-efficiency': '决定 LP 区间是否值得收窄',
     funding: '永续持仓的累计成本，影响 net carry',
@@ -132,7 +132,7 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : '—'
     </section>
 
     <section class="fdc-block">
-      <h4>决策落点</h4>
+      <h4>使用位置</h4>
       <p>{{ decisionImpact }}</p>
     </section>
 

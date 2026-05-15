@@ -144,7 +144,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
         triggeredConditions: ['价格低于成本带'],
         blockedReasons: [
           costStillFalling ? '成本锚仍在下降' : null,
-          !momentumRising ? '5 日动量未越过 profile 阈值' : null,
+          !momentumRising ? '5 日动量未越过策略档位阈值' : null,
         ].filter(Boolean),
       }),
     })
@@ -160,7 +160,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       stop: Math.min(market.costLow, bands?.long.low ?? market.costLow),
       target: market.costAnchor,
       ...withFacts(baseFacts, {
-        triggeredConditions: ['价格低于成本带', '成本未继续下行', '5 日动量满足 profile 阈值', '折价幅度达到 profile 阈值'],
+        triggeredConditions: ['价格低于成本带', '成本未继续下行', '5 日动量满足策略档位阈值', '折价幅度达到策略档位阈值'],
       }),
     })
   }
@@ -170,7 +170,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       reason: `价格 ${fmt(market.markPrice)} 高于波动带上沿 ${fmt(bands?.short?.high)}。`,
       facts: withFacts(baseFacts, {
         triggeredConditions: ['价格高于成本带', '价格高于 GetDelta 上沿'],
-        blockedReasons: ['默认计划不把研究层或高位状态翻译成追价动作'],
+        blockedReasons: ['模拟挂单不把研究层或高位状态翻译成追价动作'],
       }),
     })
   }
@@ -185,20 +185,20 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       stop: Math.max(market.costHigh, bands?.short.high ?? market.costHigh),
       target: market.costAnchor,
       ...withFacts(baseFacts, {
-        triggeredConditions: ['价格高于成本带', '溢价幅度达到 profile 阈值'],
+        triggeredConditions: ['价格高于成本带', '溢价幅度达到策略档位阈值'],
       }),
     })
   }
   if (zAbs < 0.5) {
     return waitTiming({
       state: '成本带内',
-      reason: `偏离 ${zScore.toFixed(2)}σ，未达到默认触发条件。`,
+      reason: `偏离 ${zScore.toFixed(2)}σ，未达到信号条件。`,
       facts: withFacts(baseFacts, { blockedReasons: ['偏离幅度低于 0.5σ'] }),
     })
   }
   return waitTiming({
     state: regimeLabel,
-    reason: `${regimeLabel} · 偏离 ${pctFmt(market.costDistance)} · 未达到默认触发条件`,
+    reason: `${regimeLabel} · 偏离 ${pctFmt(market.costDistance)} · 未达到信号条件`,
     facts: withFacts(baseFacts, { blockedReasons: ['价格位置或动量条件未同时满足'] }),
   })
 }
@@ -221,7 +221,7 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
       ...emptyPosition(timing, account),
       action: '缺少账户输入',
       missingInputs: ['account.capital'],
-      rule: '缺少账户资金输入，默认计划不生成名义金额。',
+      rule: '缺少账户资金输入，模拟挂单不生成名义金额。',
     }
   }
   if (!timing?.side) return emptyPosition(timing, account)
@@ -230,7 +230,7 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
       ...emptyPosition(timing, account),
       missingInputs: ['account.basePosition'],
       action: '缺少底仓',
-      rule: '缺少底仓输入，默认计划不生成卖出订单。',
+      rule: '缺少底仓输入，模拟挂单不生成卖出单。',
     }
   }
   const stopDistance = Math.max(Math.abs(market.markPrice - timing.stop) / market.markPrice, 0.001)
@@ -256,8 +256,8 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
     addToPrice,
     holdDays: account.holdingDays,
     rule: timing.side === 'buy'
-      ? `账户资金已配置；候选订单使用 ${pctFmt(executableProfile.firstWeight)} 首笔权重和失效线 ${fmt(timing.stop)}。`
-      : `底仓已配置；候选订单使用成本锚 ${fmt(timing.target)} 作为观察目标。`,
+      ? `账户资金已配置；模拟挂单使用 ${pctFmt(executableProfile.firstWeight)} 首笔权重和失效线 ${fmt(timing.stop)}。`
+      : `底仓已配置；模拟挂单使用成本锚 ${fmt(timing.target)} 作为观察目标。`,
     missingInputs: [],
   }
 }
@@ -355,7 +355,7 @@ function activeTiming(timing) {
 }
 
 function waitTiming({ state, reason, facts }) {
-  return { state, side: null, action: '未触发', path: '默认条件未触发', edge: 0, stop: null, target: null, reason, ...facts }
+  return { state, side: null, action: '未触发', path: '信号条件未触发', edge: 0, stop: null, target: null, reason, ...facts }
 }
 
 function orderRow({ side, price, targetPrice, notional, role, reason }) {
@@ -365,7 +365,7 @@ function orderRow({ side, price, targetPrice, notional, role, reason }) {
 }
 
 function orderRole(side, index) {
-  return side === 'sell' ? `候选卖出 ${index + 1}` : `候选买入 ${index + 1}`
+  return side === 'sell' ? `模拟卖出 ${index + 1}` : `模拟买入 ${index + 1}`
 }
 
 function emptyPosition(timing, account = {}) {
@@ -381,7 +381,7 @@ function emptyPosition(timing, account = {}) {
     stopPrice: timing?.stop ?? null,
     targetPrice: timing?.target ?? null,
     addToPrice: null,
-    rule: timing?.reason ?? '默认条件未触发。',
+    rule: timing?.reason ?? '信号条件未触发。',
     missingInputs: [],
   }
 }

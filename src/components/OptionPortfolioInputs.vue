@@ -160,7 +160,7 @@ function fmt(value) {
         <span>研究层</span>
         <strong>期权组合</strong>
       </div>
-      <small>不写入 OrderPlan</small>
+      <small>不写入模拟挂单</small>
     </div>
 
     <div class="opi-strategies" role="group" aria-label="期权组合">

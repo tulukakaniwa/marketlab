@@ -22,7 +22,7 @@ function groupStatus(group) {
 <template>
   <section class="tc">
     <header v-if="showHeader">
-      <span>交易员检查单</span>
+      <span>检查项</span>
       <strong>{{ statusLabel[checklist.status] ?? '观察' }}</strong>
     </header>
 

@@ -22,13 +22,13 @@ function marketDataItem(market) {
 
 function triggerItem(graph) {
   const decision = graph?.decision
-  if (!decision) return item('entry', '默认条件', 'missing', '等待市场态', '没有决策图时不生成计划。')
+  if (!decision) return item('entry', '信号条件', 'missing', '等待市场态', '没有信号状态时不生成模拟挂单。')
   const triggered = decision.triggeredConditions ?? []
   const blocked = decision.blockedReasons ?? []
   if (decision.timing?.side) {
-    return item('entry', '默认条件', 'ok', decision.timing.side === 'sell' ? '减仓条件满足' : '入场条件满足', triggered.join(' / ') || decision.timing.reason)
+    return item('entry', '信号条件', 'ok', decision.timing.side === 'sell' ? '减仓条件满足' : '入场条件满足', triggered.join(' / ') || decision.timing.reason)
   }
-  return item('entry', '默认条件', 'wait', '未触发', blocked[0] || decision.timing?.reason || '价格位置、动量或成本状态未同时满足。')
+  return item('entry', '信号条件', 'wait', '未触发', blocked[0] || decision.timing?.reason || '价格位置、动量或成本状态未同时满足。')
 }
 
 function accountItem(graph) {
@@ -38,7 +38,7 @@ function accountItem(graph) {
     return item('entry', '账户输入', 'missing', '缺账户资金', '未配置资金时，只能观察条件，不能计算名义金额和风险预算。')
   }
   if (missing.includes('account.basePosition')) {
-    return item('position', '底仓输入', 'missing', '缺底仓', '出现减仓条件时需要底仓名义，才可生成卖出候选。')
+    return item('position', '底仓输入', 'missing', '缺底仓', '出现减仓条件时需要底仓名义，才可生成模拟卖出单。')
   }
   return item('entry', '账户输入', 'ok', `资金 ${fmt(account.capital)}`, `现金 ${fmt(account.cash)}，底仓 ${fmt(account.base)}。`)
 }
@@ -47,11 +47,11 @@ function orderItem(graph) {
   const orders = graph?.plan?.primaryOrders ?? []
   if (orders.length) {
     const first = orders[0]
-    return item('entry', '候选订单', 'ok', `${orders.length} 档`, `首档 ${fmt(first.price)}，名义 ${fmt(first.notional)}。`)
+    return item('entry', '模拟挂单', 'ok', `${orders.length} 档`, `首档 ${fmt(first.price)}，名义 ${fmt(first.notional)}。`)
   }
   const missing = graph?.decision?.missingInputs ?? []
-  if (missing.length) return item('entry', '候选订单', 'missing', '缺输入', mapMissing(missing[0]))
-  return item('entry', '候选订单', 'wait', '未生成', '默认条件未触发，当前只适合观察。')
+  if (missing.length) return item('entry', '模拟挂单', 'missing', '缺输入', mapMissing(missing[0]))
+  return item('entry', '模拟挂单', 'wait', '未生成', '信号条件未触发，当前只适合观察。')
 }
 
 function optionItem(graph) {

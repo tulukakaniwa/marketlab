@@ -42,7 +42,7 @@ const reasonText = computed(() => {
 })
 
 const ordersTitle = computed(() =>
-  props.graph?.decision?.timing?.side === 'sell' ? '候选卖出条件' : '候选买入条件'
+  props.graph?.decision?.timing?.side === 'sell' ? '模拟卖出单' : '模拟买入单'
 )
 
 const checklist = computed(() => buildTraderChecklist({ graph: props.graph, market: props.market }))
@@ -80,6 +80,9 @@ const accountMeta = computed(() => {
   if (base > 0) return '仅底仓'
   return '缺输入'
 })
+const activeProfileLabel = computed(() =>
+  props.profileList.find(p => p.id === props.activeProfileId)?.label ?? props.activeProfileId
+)
 const sampleMeta = computed(() => {
   const count = props.rows.length
   const asOf = props.observationDate || props.rows.at(-1)?.date || '—'
@@ -168,7 +171,7 @@ function moveSection(id, delta) {
     </DisclosureSection>
 
     <DisclosureSection
-      title="当前事实"
+      title="行情状态"
       :meta="`${factMeta} · ${matchText}`"
       movable
       :can-move-up="canMoveSection('facts', -1)"
@@ -183,19 +186,19 @@ function moveSection(id, delta) {
           <em>{{ matchText }}</em>
         </header>
         <div v-if="hasPositionFacts" class="dd-action-grid">
-          <div><span>候选首笔</span><strong>{{ money(graph?.position?.firstNotional) }}</strong></div>
-          <div><span>候选价</span><strong>{{ money(primaryOrders[0]?.price) }}</strong></div>
+          <div><span>首笔金额</span><strong>{{ money(graph?.position?.firstNotional) }}</strong></div>
+          <div><span>挂单价</span><strong>{{ money(primaryOrders[0]?.price) }}</strong></div>
           <div><span>失效</span><strong>{{ money(graph?.position?.stopPrice) }}</strong></div>
           <div><span>目标</span><strong>{{ money(graph?.position?.targetPrice) }}</strong></div>
           <div><span>风险预算</span><strong>{{ money(graph?.position?.riskBudget) }}</strong></div>
           <div><span>失效距离</span><strong>{{ pct(graph?.position?.stopDistance) }}</strong></div>
         </div>
-        <p v-else class="dd-empty-note">未生成候选计划。当前只展示价格位置和触发状态，不显示名义、风险预算或目标价。</p>
+        <p v-else class="dd-empty-note">未生成模拟挂单。当前只展示价格位置和触发状态，不显示名义、风险预算或目标价。</p>
       </article>
     </DisclosureSection>
 
     <DisclosureSection
-      title="触发条件"
+      title="信号条件"
       :meta="triggerMeta"
       movable
       :can-move-up="canMoveSection('triggers', -1)"
@@ -219,7 +222,7 @@ function moveSection(id, delta) {
     </DisclosureSection>
 
     <DisclosureSection
-      title="计划单"
+      title="模拟挂单"
       :meta="`${primaryOrders.length} 档`"
       :default-open="primaryOrders.length > 0"
       movable
@@ -233,7 +236,7 @@ function moveSection(id, delta) {
     </DisclosureSection>
 
     <DisclosureSection
-      title="交易员检查单"
+      title="检查项"
       :meta="checklist.items?.length ? `${checklist.items.length} 项` : '等待'"
       movable
       :can-move-up="canMoveSection('checklist', -1)"
@@ -265,8 +268,8 @@ function moveSection(id, delta) {
     </DisclosureSection>
 
     <DisclosureSection
-      title="Profile"
-      :meta="autoProfile ? '回放辅助' : activeProfileId"
+      title="策略档位"
+      :meta="autoProfile ? '回测选档' : activeProfileLabel"
       :default-open="false"
       storage-key="decision.profile"
       tone="muted"
@@ -278,7 +281,7 @@ function moveSection(id, delta) {
       @move-down="moveSection('profile', 1)"
     >
       <div class="dd-profile-tabs">
-        <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">回放辅助</button>
+        <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">回测选档</button>
         <button
           v-for="p in profileList"
           :key="p.id"
@@ -286,8 +289,8 @@ function moveSection(id, delta) {
           @click="emit('set-profile', p.id)"
         >{{ p.label }}</button>
       </div>
-      <p v-if="!replayEnabled" class="replay-empty">ReplayAccount 未启用。Profile 只使用手动选择，不由回放反向改写默认条件。</p>
-      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">缺少账户资金或底仓名义，暂不显示 profile 回放评分。</p>
+      <p v-if="!replayEnabled" class="replay-empty">回测引擎未启用。策略档位只使用手动选择，不由回测结果反向改写信号条件。</p>
+      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">缺少账户资金或底仓名义，暂不显示策略档位回测评分。</p>
       <ul v-else class="dd-profile-grid">
         <li v-for="item in profileReplays" :key="item.profile.id" :class="{ active: item.profile.id === activeProfileId }">
           <span>{{ item.profile.label }}</span>
@@ -299,7 +302,7 @@ function moveSection(id, delta) {
 
     <DisclosureSection
       v-if="replayEnabled"
-      title="回放历史"
+      title="回测结果"
       :meta="replayMeta"
       :default-open="false"
       storage-key="decision.replay"
@@ -315,7 +318,7 @@ function moveSection(id, delta) {
     </DisclosureSection>
 
     <DisclosureSection
-      title="解读"
+      title="状态摘要"
       :default-open="false"
       storage-key="decision.reason"
       tone="muted"

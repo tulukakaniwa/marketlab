@@ -55,13 +55,13 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside))
   <div ref="wrapper" :class="['profile-chip', tone]">
     <button type="button" class="pc-trigger" @click="toggle">
       <span class="pc-dot" />
-      {{ autoProfile ? `回放辅助 · ${activeLabel}` : activeLabel }}
+      {{ autoProfile ? `回测选档 · ${activeLabel}` : activeLabel }}
       <span class="pc-arrow">▾</span>
     </button>
     <ul v-if="open" class="pc-menu">
       <li :class="{ active: autoProfile }" @click="setAuto">
         <span class="pc-dot tone-neutral" />
-        回放辅助选档
+        回测选档
       </li>
       <li
         v-for="p in profileList"

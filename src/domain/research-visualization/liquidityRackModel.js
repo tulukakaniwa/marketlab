@@ -166,7 +166,7 @@ function buildMeta({ orders }) {
     title: '模型目标仓',
     sourceLabel: 'OHLCV 成本锚 + log-Laplace 目标分布 + 本策略挂单',
     compositionLabel: '不是市场盘口，也不是链上真实 LP 构成',
-    orderLabel: orders.length ? '挂单刻度来自 OrderPlan' : '当前 OrderPlan 未生成挂单',
+    orderLabel: orders.length ? '挂单刻度来自模拟挂单' : '当前未生成模拟挂单',
     purpose: [
       '把目标风险密度离散成价格层级，观察挂单是否落在合理密度区。',
       '辅助订单流视角看成本、现价、Delta 带和计划挂单的相对位置。',
@@ -175,7 +175,7 @@ function buildMeta({ orders }) {
     layers: [
       { label: '密度', value: '模型目标 LP 分布', note: '由成本锚附近的 log-Laplace 分布生成' },
       { label: 'BID/ASK', value: '相对现价分侧', note: '低于现价归 BID，高于现价归 ASK' },
-      { label: '挂单', value: '我们的计划刻度', note: '来自 domain OrderPlan，不是市场订单簿' },
+      { label: '挂单', value: '我们的模拟刻度', note: '来自模拟挂单，不是市场订单簿' },
     ],
     missing: [
       '真实池子 tick / liquidityGross / liquidityNet',

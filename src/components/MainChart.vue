@@ -89,7 +89,7 @@ function applyOverlays() {
   toggle('lpDelta', o.deltaPane, () => chart.addSeries(LineSeries, deltaLine('LP Δ', '#0e7558'), 2))
   toggle('zero', o.deltaPane, () => chart.addSeries(LineSeries, deltaLine('Δ=0', '#888', LineStyle.Dashed), 2))
   toggle('equity', o.equityPane, () => chart.addSeries(LineSeries, {
-    title: '回放权益', color: '#1f5fbf', lineWidth: 2,
+    title: '回测权益', color: '#1f5fbf', lineWidth: 2,
     priceLineVisible: false, lastValueVisible: true,
     priceFormat: { type: 'price', precision: 0, minMove: 1 },
   }, 3))
@@ -218,7 +218,7 @@ function syncChart() {
       .map((r) => ({ time: r.date, value: finiteOrNull(r.custom) }))
       .filter((p) => p.value !== null))
   }
-  // markers：replay trades + 当前决策点
+  // markers：replay trades + 当前状态点
   if (markersApi) markersApi.setMarkers(buildMarkers())
   chart.timeScale().fitContent()
 }
