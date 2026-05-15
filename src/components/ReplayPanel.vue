@@ -1,8 +1,32 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   replay: { type: Object, required: true },
   profileReplays: { type: Array, default: () => [] },
   activeProfileId: { type: String, default: 'balanced' },
+})
+
+const isDisabled = computed(() => props.replay.status === 'disabled')
+const isMissingAccount = computed(() => props.replay.status === 'missing-account-input')
+const isRunnable = computed(() => !isDisabled.value && !isMissingAccount.value)
+const titleValue = computed(() => {
+  if (isDisabled.value) return '未启用'
+  if (isMissingAccount.value) return '未运行'
+  return money(props.replay.totalPnl)
+})
+const statusText = computed(() => {
+  if (isDisabled.value) return '回放旁路未启用'
+  if (isMissingAccount.value) return '需要账户资金或底仓名义'
+  return `${props.replay.range || '等待样本'} · 下一根 K 线验证`
+})
+const showProfileScan = computed(() =>
+  isRunnable.value && props.profileReplays.some(item => !item.replay?.status)
+)
+const emptyText = computed(() => {
+  if (isDisabled.value) return '回放旁路未启用。'
+  if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行回放并显示执行、胜率、回撤和交易记录。'
+  return '当前样本没有形成回放成交。'
 })
 
 function money(value) {
@@ -20,10 +44,10 @@ function pct(value) {
   <section class="replay-panel">
     <header>
       <span>日线回放</span>
-      <strong>{{ money(replay.totalPnl) }}</strong>
-      <small>{{ replay.status === 'disabled' ? '未启用' : replay.status === 'missing-account-input' ? '缺少账户输入' : `${replay.range || '等待样本'} · 下一根 K 线验证` }}</small>
+      <strong>{{ titleValue }}</strong>
+      <small>{{ statusText }}</small>
     </header>
-    <div class="replay-grid">
+    <div v-if="isRunnable" class="replay-grid">
       <article>
         <span>执行</span>
         <strong>{{ replay.tradeCount }}</strong>
@@ -49,7 +73,7 @@ function pct(value) {
         <strong>{{ money(replay.openValue) }}</strong>
       </article>
     </div>
-    <div v-if="profileReplays.length" class="profile-scan">
+    <div v-if="showProfileScan" class="profile-scan">
       <article
         v-for="item in profileReplays"
         :key="item.profile.id"
@@ -60,7 +84,7 @@ function pct(value) {
         <small>回撤 {{ money(item.replay.maxDrawdown) }} · {{ pct(item.replay.maxDrawdownPct) }} / {{ item.replay.tradeCount }} 次</small>
       </article>
     </div>
-    <table v-if="replay.trades.length">
+    <table v-if="isRunnable && replay.trades.length">
       <tbody>
         <tr v-for="trade in replay.trades.slice(-4).reverse()" :key="`${trade.signalDate}-${trade.fillDate}`">
           <td>{{ trade.side === 'buy' ? '买' : '卖' }}</td>
@@ -71,7 +95,7 @@ function pct(value) {
       </tbody>
     </table>
     <p v-else class="replay-empty">
-      {{ replay.status === 'disabled' ? '回放旁路未启用。' : replay.status === 'missing-account-input' ? '需要账户资金或底仓名义后才运行回放。' : '当前样本没有形成回放成交。' }}
+      {{ emptyText }}
     </p>
   </section>
 </template>

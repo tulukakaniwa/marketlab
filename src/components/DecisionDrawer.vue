@@ -56,7 +56,14 @@ const triggerMeta = computed(() => {
   if (blocked) return `${blocked} 未触发`
   return '等待'
 })
-const replayMeta = computed(() => props.replayEnabled ? `${props.replay?.tradeCount ?? 0} 次` : '未启用')
+const replayMeta = computed(() => {
+  if (!props.replayEnabled) return '未启用'
+  if (props.replay?.status === 'missing-account-input') return '缺输入'
+  return `${props.replay?.tradeCount ?? 0} 次`
+})
+const hasRunnableProfileReplay = computed(() =>
+  props.replayEnabled && props.profileReplays.some(item => !item.replay?.status)
+)
 
 function money(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
 function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
@@ -123,6 +130,7 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
         >{{ p.label }}</button>
       </div>
       <p v-if="!replayEnabled" class="replay-empty">ReplayAccount 未启用。Profile 只使用手动选择，不由回放反向改写默认条件。</p>
+      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">缺少账户资金或底仓名义，暂不显示 profile 回放评分。</p>
       <ul v-else class="dd-profile-grid">
         <li v-for="item in profileReplays" :key="item.profile.id" :class="{ active: item.profile.id === activeProfileId }">
           <span>{{ item.profile.label }}</span>
