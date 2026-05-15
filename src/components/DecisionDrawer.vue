@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { summarizeReason } from '../domain/decision/narrative.js'
 import { buildTraderChecklist } from '../domain/workbench/traderChecklist.js'
+import DisclosureSection from './DisclosureSection.vue'
 import OrderTable from './OrderTable.vue'
 import ReplayPanel from './ReplayPanel.vue'
 import TraderChecklist from './TraderChecklist.vue'
@@ -37,6 +38,25 @@ const ordersTitle = computed(() =>
 )
 
 const checklist = computed(() => buildTraderChecklist({ graph: props.graph, market: props.market }))
+const primaryOrders = computed(() => props.graph?.plan?.primaryOrders ?? [])
+const matchText = computed(() => `匹配 ${Math.round((props.graph?.decision?.signalStrength ?? 0) * 100)}%`)
+const factMeta = computed(() => props.graph?.decision?.state || '等待数据')
+const hasPositionFacts = computed(() => [
+  props.graph?.position?.firstNotional,
+  primaryOrders.value[0]?.price,
+  props.graph?.position?.stopPrice,
+  props.graph?.position?.targetPrice,
+  props.graph?.position?.riskBudget,
+  props.graph?.position?.stopDistance,
+].some(Number.isFinite))
+const triggerMeta = computed(() => {
+  const triggered = props.graph?.decision?.triggeredConditions?.length ?? 0
+  const blocked = props.graph?.decision?.blockedReasons?.length ?? 0
+  if (triggered) return `${triggered} 已触发`
+  if (blocked) return `${blocked} 未触发`
+  return '等待'
+})
+const replayMeta = computed(() => props.replayEnabled ? `${props.replay?.tradeCount ?? 0} 次` : '未启用')
 
 function money(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
 function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
@@ -44,40 +64,25 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
 
 <template>
   <div class="dd-drawer">
-    <section class="dd-section dd-reason">
-      <h3 class="dd-h">解读</h3>
-      <p class="dd-reason-text">{{ reasonText }}</p>
-    </section>
-
-    <section class="dd-section dd-action">
-      <h3 class="dd-h">当前事实</h3>
+    <DisclosureSection title="当前事实" :meta="`${factMeta} · ${matchText}`" storage-key="decision.facts">
       <article class="dd-action-card">
         <header>
           <strong>{{ graph?.decision?.state || '等待数据' }}</strong>
-          <em>条件匹配 {{ Math.round((graph?.decision?.signalStrength ?? 0) * 100) }}%</em>
+          <em>{{ matchText }}</em>
         </header>
-        <div class="dd-action-grid">
+        <div v-if="hasPositionFacts" class="dd-action-grid">
           <div><span>候选首笔</span><strong>{{ money(graph?.position?.firstNotional) }}</strong></div>
-          <div><span>候选价</span><strong>{{ money(graph?.plan?.primaryOrders?.[0]?.price) }}</strong></div>
+          <div><span>候选价</span><strong>{{ money(primaryOrders[0]?.price) }}</strong></div>
           <div><span>失效</span><strong>{{ money(graph?.position?.stopPrice) }}</strong></div>
           <div><span>目标</span><strong>{{ money(graph?.position?.targetPrice) }}</strong></div>
           <div><span>风险预算</span><strong>{{ money(graph?.position?.riskBudget) }}</strong></div>
           <div><span>失效距离</span><strong>{{ pct(graph?.position?.stopDistance) }}</strong></div>
         </div>
+        <p v-else class="dd-empty-note">未生成候选计划。当前只展示价格位置和触发状态，不显示名义、风险预算或目标价。</p>
       </article>
-    </section>
+    </DisclosureSection>
 
-    <section class="dd-section">
-      <TraderChecklist :checklist="checklist" />
-    </section>
-
-    <section class="dd-section">
-      <h3 class="dd-h">计划单</h3>
-      <OrderTable :title="ordersTitle" :orders="graph?.plan?.primaryOrders ?? []" />
-    </section>
-
-    <section class="dd-section">
-      <h3 class="dd-h">触发条件</h3>
+    <DisclosureSection title="触发条件" :meta="triggerMeta" storage-key="decision.triggers">
       <div class="dd-risk-row">
         <span>失效线</span>
         <strong>{{ money(graph?.plan?.invalidation?.lower) }} / {{ money(graph?.plan?.invalidation?.upper) }}</strong>
@@ -90,14 +95,24 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
         <span>未触发</span>
         <strong>{{ item }}</strong>
       </div>
+    </DisclosureSection>
+
+    <DisclosureSection title="计划单" :meta="`${primaryOrders.length} 档`" :default-open="primaryOrders.length > 0">
+      <OrderTable :title="ordersTitle" :orders="primaryOrders" />
+    </DisclosureSection>
+
+    <DisclosureSection title="交易员检查单" :meta="checklist.items?.length ? `${checklist.items.length} 项` : '等待'" storage-key="decision.checklist">
+      <TraderChecklist :checklist="checklist" :show-header="false" :open-groups="['entry']" />
+    </DisclosureSection>
+
+    <DisclosureSection v-if="portfolioEnabled" title="组合研究" :default-open="false" storage-key="decision.portfolio" tone="research">
       <div v-if="portfolioEnabled" class="dd-risk-row">
         <span>组合研究</span>
         <strong :class="(graph?.portfolio ?? 0) >= 0 ? 'green' : 'red'">{{ money(graph?.portfolio) }}</strong>
       </div>
-    </section>
+    </DisclosureSection>
 
-    <section class="dd-section">
-      <h3 class="dd-h">Profile</h3>
+    <DisclosureSection title="Profile" :meta="autoProfile ? '回放辅助' : activeProfileId" :default-open="false" storage-key="decision.profile" tone="muted">
       <div class="dd-profile-tabs">
         <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">回放辅助</button>
         <button
@@ -115,21 +130,21 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
           <em>回撤 {{ money(item.replay.maxDrawdown) }} · {{ item.replay.tradeCount }} 次</em>
         </li>
       </ul>
-    </section>
+    </DisclosureSection>
 
-    <section v-if="replayEnabled" class="dd-section">
-      <h3 class="dd-h">回放历史</h3>
+    <DisclosureSection v-if="replayEnabled" title="回放历史" :meta="replayMeta" :default-open="false" storage-key="decision.replay" tone="muted">
       <ReplayPanel :replay="replay" :profile-replays="profileReplays" :active-profile-id="activeProfileId" />
-    </section>
+    </DisclosureSection>
+
+    <DisclosureSection title="解读" :default-open="false" storage-key="decision.reason" tone="muted">
+      <p class="dd-reason-text">{{ reasonText }}</p>
+    </DisclosureSection>
   </div>
 </template>
 
 <style>
-.dd-drawer { display: grid; gap: 16px; min-width: 0; }
+.dd-drawer { display: grid; gap: 0; min-width: 0; }
 .dd-drawer > * { min-width: 0; }
-.dd-section { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); min-width: 0; }
-.dd-section:last-child { border-bottom: none; }
-.dd-h { margin: 0; color: var(--green); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
 .dd-reason-text { margin: 0; font-size: 0.95rem; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
 .dd-action-card { padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-alt); min-width: 0; }
 .dd-action-card header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
@@ -139,6 +154,7 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
 .dd-action-grid div { display: grid; gap: 1px; min-width: 0; }
 .dd-action-grid span { color: var(--muted); font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
 .dd-action-grid strong { font-size: 0.84rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dd-empty-note { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.45; }
 .dd-risk-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); min-width: 0; }
 .dd-risk-row span { color: var(--muted); font-size: 0.66rem; font-weight: 800; text-transform: uppercase; flex-shrink: 0; }
 .dd-risk-row strong { font-size: 0.82rem; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
