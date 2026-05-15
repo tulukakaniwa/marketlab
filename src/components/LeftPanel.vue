@@ -105,6 +105,7 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           :overlays="lab.chartOverlays"
           :feature-flags="lab.featureFlags"
           :profile-list="lab.strategyProfileList"
+          :graph="lab.graph"
           :theme="theme"
           @override-tdpy="(sym, val) => emit('override-tdpy', sym, val)"
           @reset-tdpy="(sym) => emit('reset-tdpy', sym)"

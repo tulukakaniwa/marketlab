@@ -3,6 +3,7 @@ import { computed } from 'vue'
 
 const props = defineProps({
   input: { type: Object, required: true },
+  graph: { type: Object, default: null },
 })
 
 // 百分号转换：输入 0.05（5%）→ 显示 5；输入 5 → 存储 0.05
@@ -12,13 +13,24 @@ function pctOut(v) { return Number.isFinite(v) ? Number((v * 100).toFixed(2)) : 
 // 波动率、目标回报、无风险利率 三个百分号字段
 const ivP = computed({ get: () => pctOut(props.input.iv), set: (v) => { props.input.iv = pctIn(v) } })
 const trP = computed({ get: () => pctOut(props.input.targetReturn), set: (v) => { props.input.targetReturn = pctIn(v) } })
+
+const bandText = computed(() => {
+  const band = props.graph?.deltaBands?.long
+  if (!band) return '等待市场样本'
+  return `${fmt(band.low)} / ${fmt(band.cost)} / ${fmt(band.high)}`
+})
+
+function fmt(value) {
+  if (!Number.isFinite(value)) return '—'
+  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(value)
+}
 </script>
 
 <template>
   <div class="si-card">
     <div class="si-card-head">
-      <strong>默认价格带</strong>
-      <small>进入模拟挂单的主链输入</small>
+      <strong>GetDelta 价格带</strong>
+      <small>入场价 + IV + 窗口 + 目标</small>
     </div>
 
     <div class="si-form">
@@ -27,6 +39,7 @@ const trP = computed({ get: () => pctOut(props.input.targetReturn), set: (v) => 
       <label><span>波动率%</span><input v-model.number="ivP" type="number" step="0.5" /></label>
       <label><span>目标%</span><input v-model.number="trP" type="number" step="0.5" /></label>
     </div>
+    <p class="si-link">多头低/成本/高：{{ bandText }}。模拟挂单继续叠加成本带、策略档位和账户权益。</p>
   </div>
 </template>
 
@@ -40,4 +53,5 @@ const trP = computed({ get: () => pctOut(props.input.targetReturn), set: (v) => 
 .si-form span { color: var(--muted); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
 .si-form input, .si-form select { min-height: 28px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 .si-form select { font-weight: 600; }
+.si-link { margin: 0; color: var(--muted); font-size: 0.66rem; line-height: 1.4; overflow-wrap: anywhere; }
 </style>

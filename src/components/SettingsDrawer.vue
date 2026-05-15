@@ -14,6 +14,7 @@ defineProps({
   observationDate: { type: String, default: '' },
   featureFlags: { type: Object, required: true },
   profileList: { type: Array, required: true },
+  graph: { type: Object, default: null },
   tdpyMeta: { type: Object, required: true },
   effectiveTdpy: { type: Number, required: true },
   symbol: { type: String, default: '' },
@@ -42,12 +43,12 @@ const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all
 
     <section class="sd-section">
       <h3 class="sd-h">模拟参数</h3>
-      <SimulationInputs :input="input" />
+      <SimulationInputs :input="input" :graph="graph" />
     </section>
 
     <section class="sd-section">
       <h3 class="sd-h">策略参数</h3>
-      <StrategyProfileInputs :input="input" :profile-list="profileList" />
+      <StrategyProfileInputs :input="input" :profile-list="profileList" :graph="graph" />
     </section>
 
     <section class="sd-section">
