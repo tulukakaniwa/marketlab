@@ -165,7 +165,7 @@ const brief = computed(() => {
         <ChainFlow :graph="lab.graph" :market="lab.market" :active-id="lab.activeFormulaId" @select="lab.activeFormulaId = $event" />
 
         <section class="wb-chart">
-          <MarketChart :rows="lab.rows" :cost-path="lab.costPath" :formula-path="lab.formulaPath" :entry-price="lab.input.entryPrice" :replay="lab.replay" @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }" />
+          <MarketChart :rows="lab.rows" :cost-path="lab.costPath" :formula-path="lab.formulaPath" :entry-price="lab.input.entryPrice" :graph="lab.graph" :replay="lab.replay" @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }" />
         </section>
 
         <section class="wb-formula">

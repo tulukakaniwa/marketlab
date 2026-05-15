@@ -87,7 +87,7 @@ export const formulaStages = [
     id: 'liquidity-fingerprint',
     layer: 'LP',
     label: '流动性指纹',
-    role: '研究如何把连续分布离散成真实 LP 区间权重；未作为默认策略输入',
+    role: '右侧竖仓展示价格带上的挂单/密度分布，辅助订单流视角；未作为默认策略输入',
     inputs: ['目标分布', '价格网格', '区间权重'],
     outputs: ['Laplace 指纹', 'log-Laplace 指纹', '分段权重'],
     formulas: ['研究式: L_i = ∫_{range_i} f(p) dp / ∫ f(p) dp', '待补: tick 边界、手续费层级、离散化误差'],
