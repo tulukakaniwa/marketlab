@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
 import { ammCurve, asianOption, bachelierOption, deviationScore, gammaPnl, liquidityFingerprint, meanReversionHalfLife, netCarry, netLpEfficiency, numoenSnapshot, riskSurface, volConfidence } from '../domain/formulas/core.js'
+import LiquidityFingerprintRack from './LiquidityFingerprintRack.vue'
 
 const props = defineProps({
   formulaId: { type: String, required: true },
@@ -9,10 +10,17 @@ const props = defineProps({
   market: { type: Object, default: null },
   rows: { type: Array, default: () => [] },
   costPath: { type: Array, default: () => [] },
+  formulaPath: { type: Array, default: () => [] },
+  cursor: { type: Number, default: null },
 })
 
 const stage = computed(() => formulaStages.find((s) => s.id === props.formulaId))
 const researchInputs = computed(() => props.graph.researchInputs ?? {})
+const activeIndex = computed(() => {
+  if (!props.rows.length) return 0
+  const next = Number.isFinite(props.cursor) ? props.cursor : props.rows.length - 1
+  return Math.max(0, Math.min(props.rows.length - 1, next))
+})
 
 function fmt(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
 function f4(v) { return Number.isFinite(v) ? v.toFixed(4) : '—' }
@@ -481,58 +489,15 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
     </svg>
 
     <!-- LIQUIDITY FINGERPRINT -->
-    <svg v-else-if="formulaId === 'liquidity-fingerprint' && fingerprintData" :viewBox="`0 0 ${W} ${H+30}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">流动性指纹 · LP 区间权重</text>
-
-      <!-- Price axis -->
-      <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
-      <text :x="PL" :y="sy(0)+18" text-anchor="middle" class="fc-tick">{{ fmt(fingerprintData.lower) }}</text>
-      <text :x="W-PR" :y="sy(0)+18" text-anchor="end" class="fc-tick">{{ fmt(fingerprintData.upper) }}</text>
-      <text :x="W/2" :y="sy(0)+18" text-anchor="middle" class="fc-tick">价格区间</text>
-
-      <!-- Entry price marker -->
-      <line :x1="sx((fingerprintData.entryPrice - fingerprintData.lower) / (fingerprintData.upper - fingerprintData.lower))" :x2="sx((fingerprintData.entryPrice - fingerprintData.lower) / (fingerprintData.upper - fingerprintData.lower))" :y1="sy(0)" :y2="sy(1.05)" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3,3" />
-      <text :x="sx((fingerprintData.entryPrice - fingerprintData.lower) / (fingerprintData.upper - fingerprintData.lower))" :y="sy(1.05)+12" text-anchor="middle" class="fc-tick">入场 {{ fmt(fingerprintData.entryPrice) }}</text>
-
-      <!-- Density curve as polygon -->
-      <polygon
-        :points="fingerprintData.prices.map((p, i) => {
-          const rx = PL + (i / (fingerprintData.prices.length - 1)) * pw
-          const ry = sy(0) - (p.density / fingerprintData.maxDensity) * ph
-          return `${rx},${ry}`
-        }).join(' ') + ` ${PL + pw},${sy(0)} ${PL},${sy(0)}`"
-        fill="var(--blue-dim)"
-        stroke="var(--blue)"
-        stroke-width="1"
+    <div v-else-if="formulaId === 'liquidity-fingerprint' && fingerprintData" class="fc-liquidity-rack">
+      <LiquidityFingerprintRack
+        :rows="rows"
+        :cost-path="costPath"
+        :formula-path="formulaPath"
+        :graph="graph"
+        :active-index="activeIndex"
       />
-
-      <!-- Entry price dot on curve -->
-      <circle
-        :cx="sx((fingerprintData.entryPrice - fingerprintData.lower) / (fingerprintData.upper - fingerprintData.lower))"
-        :cy="sy(0) - (fingerprintData.prices.find(p => Math.abs(p.price - fingerprintData.entryPrice) < (fingerprintData.upper - fingerprintData.lower) / 100)?.density || 0) / fingerprintData.maxDensity * ph"
-        r="4" fill="var(--green)"
-      />
-
-      <!-- LP segment weight bars -->
-      <g v-for="(seg, si) in fingerprintData.segments" :key="'s'+si">
-        <rect
-          :x="sx((seg.lower - fingerprintData.lower) / (fingerprintData.upper - fingerprintData.lower))"
-          :y="sy(-0.15) - seg.weight * ph * 0.15"
-          :width="Math.max(2, pw / fingerprintData.segments.length - 2)"
-          :height="seg.weight * ph * 0.15"
-          :fill="si % 2 === 0 ? 'var(--green)' : 'var(--blue)'"
-          :opacity="0.5 + seg.weight * 0.5"
-          rx="1"
-        />
-        <text
-          v-if="seg.weight > 0.05"
-          :x="sx((seg.lower - fingerprintData.lower) / (fingerprintData.upper - fingerprintData.lower)) + pw / fingerprintData.segments.length / 2"
-          :y="sy(-0.15) - seg.weight * ph * 0.15 - 2"
-          text-anchor="middle" class="fc-tick"
-        >{{ (seg.weight * 100).toFixed(0) }}%</text>
-      </g>
-      <text :x="W/2" :y="sy(-0.15)+12" text-anchor="middle" class="fc-tick">积分归一化 LP 分片权重 ({{ fingerprintData.params.distribution }}) · Σ={{ fingerprintData.segments.reduce((s, seg) => s + seg.weight, 0).toFixed(3) }}</text>
-    </svg>
+    </div>
 
     <!-- AMM GEOMETRY -->
     <svg v-else-if="formulaId === 'amm-geometry' && ammData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
@@ -825,6 +790,10 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 .fc-guide { margin: 0 10px 10px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--surface-alt); }
 .fc-guide-title { display: block; font-size: 0.68rem; font-weight: 900; color: var(--green); margin-bottom: 4px; }
 .fc-guide-body { margin: 0; font-size: 0.74rem; color: var(--ink); line-height: 1.45; }
+.fc-liquidity-rack { height: min(680px, 72vh); min-height: 520px; background: var(--surface); }
 .green { color: var(--green); }
 .red { color: var(--red); }
+@media (max-width: 760px) {
+  .fc-liquidity-rack { height: 620px; min-height: 620px; }
+}
 </style>

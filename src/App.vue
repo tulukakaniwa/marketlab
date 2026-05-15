@@ -149,7 +149,15 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
             </div>
           </header>
 
-          <FormulaChart :formula-id="lab.activeFormulaId" :graph="lab.graph" :market="lab.market" :rows="lab.rows" :cost-path="lab.costPath" />
+          <FormulaChart
+            :formula-id="lab.activeFormulaId"
+            :graph="lab.graph"
+            :market="lab.market"
+            :rows="lab.rows"
+            :cost-path="lab.costPath"
+            :formula-path="lab.formulaPath"
+            :cursor="lab.cursor"
+          />
 
           <div class="wf-io">
             <div><b>输入</b><span>{{ lab.activeFormula.inputs.join(' / ') }}</span></div>
