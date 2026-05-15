@@ -28,8 +28,9 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   let base = initialPrice > 0 ? initialBaseNotional / initialPrice : 0
   let costBasis = initialBaseNotional
   let nextSignalIndex = WARMUP
+  let pendingOrder = null
 
-  for (let index = WARMUP; index < rows.length - 1; index += 1) {
+  for (let index = WARMUP; index < rows.length; index += 1) {
     const row = rows[index]
     const market = states[index]
     const accountAction = accountExit({ row, index, market, cash, base, costBasis, fee, profile })
@@ -39,10 +40,28 @@ export function buildDailyReplay(rows, input, marketStates = null) {
       costBasis = accountAction.costBasis
       events.push(accountAction.event)
       nextSignalIndex = index + profile.buyCooldown
+      pendingOrder = null
     }
+
+    if (pendingOrder && pendingOrder.expiresAt < index) pendingOrder = null
+    if (pendingOrder) {
+      const fill = fillPendingOrder({ row, index, pendingOrder })
+      if (fill) {
+        const applied = applyFill({ pendingOrder, fill, cash, base, costBasis, fee })
+        if (applied) {
+          cash = applied.cash
+          base = applied.base
+          costBasis = applied.costBasis
+          events.push(applied.event)
+          nextSignalIndex = index + (pendingOrder.order.side === 'buy' ? profile.buyCooldown : profile.sellCooldown)
+        }
+        pendingOrder = null
+      }
+    }
+
     const equity = cash + base * row.close
     equityCurve.push({ date: row.date, equity: equity - accountCapital })
-    if (index < nextSignalIndex) continue
+    if (index >= rows.length - 1 || index < nextSignalIndex || pendingOrder) continue
 
     const graph = buildDecisionGraph({
       market,
@@ -51,57 +70,14 @@ export function buildDailyReplay(rows, input, marketStates = null) {
     })
     const order = chooseAccountOrder(graph, { cash, base, markPrice: row.close })
     if (!order) continue
-
-    const fill = findFill({ rows, signalIndex: index, order, holdingDays: graph.inputs.holdingDays })
-    if (!fill) continue
-
-    if (order.side === 'buy') {
-      const spend = Math.min(order.notional, cash)
-      if (spend <= 0) continue
-      const acquired = (spend * (1 - fee)) / fill.price
-      cash -= spend
-      base += acquired
-      costBasis += spend
-      events.push(eventRow({
-        order,
-        signalDate: row.date,
-        fill,
-        pnl: 0,
-        reason: '建仓',
-        notional: spend,
-        baseAmount: acquired,
-        investedCost: spend,
-      }))
-    } else {
-      const sellBase = Math.min(base, order.notional / fill.price)
-      if (sellBase <= 0) continue
-      const averageCost = base > 0 ? costBasis / base : 0
-      const proceeds = sellBase * fill.price * (1 - fee)
-      const removedCost = averageCost * sellBase
-      cash += proceeds
-      base -= sellBase
-      costBasis = Math.max(0, costBasis - removedCost)
-      if (base < 1e-12) {
-        base = 0
-        costBasis = 0
-      }
-      events.push(eventRow({
-        order,
-        signalDate: row.date,
-        fill,
-        pnl: proceeds - removedCost,
-        reason: '减仓',
-        notional: sellBase * fill.price,
-        baseAmount: sellBase,
-        investedCost: removedCost,
-      }))
+    pendingOrder = {
+      order,
+      signalDate: row.date,
+      signalIndex: index,
+      expiresAt: Math.min(rows.length - 1, index + 1),
     }
-    nextSignalIndex = fill.index + (order.side === 'buy' ? profile.buyCooldown : profile.sellCooldown)
   }
 
-  const last = rows.at(-1)
-  const finalEquity = cash + base * last.close
-  equityCurve.push({ date: last.date, equity: finalEquity - accountCapital })
   return summarize({ rows, events, equityCurve, cash, base, costBasis, capital: accountCapital, profile })
 }
 
@@ -170,6 +146,8 @@ function replayInput(input, market, profile) {
     ...input,
     strategyProfile: profile.id,
     entryPrice: market.markPrice,
+    // Replay 只评估下一根日线是否触发，不消费用户设定的未来持有窗口。
+    holdingDays: 1,
     iv: market.annualVol,
     strikePrice: market.markPrice * 1.05,
     startPrice: market.costAnchor,
@@ -186,20 +164,46 @@ function chooseAccountOrder(graph, account) {
   return null
 }
 
-function findFill({ rows, signalIndex, order, holdingDays }) {
-  const horizon = Math.min(rows.length - 1, signalIndex + Math.max(holdingDays, 1))
-  for (let index = signalIndex + 1; index <= horizon; index += 1) {
-    const row = rows[index]
-    if (order.side === 'buy' && row.low <= order.price) return { index, date: row.date, price: order.price }
-    if (order.side === 'sell' && row.high >= order.price) return { index, date: row.date, price: order.price }
-  }
+function fillPendingOrder({ row, index, pendingOrder }) {
+  const { order } = pendingOrder
+  if (index <= pendingOrder.signalIndex) return null
+  if (order.side === 'buy' && row.low <= order.price) return { index, date: row.date, price: order.price }
+  if (order.side === 'sell' && row.high >= order.price) return { index, date: row.date, price: order.price }
   return null
 }
 
-function eventRow({ order, signalDate, fill, pnl, reason, notional, baseAmount, investedCost }) {
+function applyFill({ pendingOrder, fill, cash, base, costBasis, fee }) {
+  const { order, signalDate } = pendingOrder
+  if (order.side === 'buy') {
+    const spend = Math.min(order.notional, cash)
+    if (spend <= 0) return null
+    const acquired = (spend * (1 - fee)) / fill.price
+    return {
+      cash: cash - spend,
+      base: base + acquired,
+      costBasis: costBasis + spend,
+      event: eventRow({ order, signalDate, signalIndex: pendingOrder.signalIndex, fill, pnl: 0, reason: '建仓', notional: spend, baseAmount: acquired, investedCost: spend }),
+    }
+  }
+  const sellBase = Math.min(base, order.notional / fill.price)
+  if (sellBase <= 0) return null
+  const averageCost = base > 0 ? costBasis / base : 0
+  const proceeds = sellBase * fill.price * (1 - fee)
+  const removedCost = averageCost * sellBase
+  const nextBase = Math.max(0, base - sellBase)
+  return {
+    cash: cash + proceeds,
+    base: nextBase < 1e-12 ? 0 : nextBase,
+    costBasis: nextBase < 1e-12 ? 0 : Math.max(0, costBasis - removedCost),
+    event: eventRow({ order, signalDate, signalIndex: pendingOrder.signalIndex, fill, pnl: proceeds - removedCost, reason: '减仓', notional: sellBase * fill.price, baseAmount: sellBase, investedCost: removedCost }),
+  }
+}
+
+function eventRow({ order, signalDate, signalIndex = null, fill, pnl, reason, notional, baseAmount, investedCost }) {
   return {
     side: order.side,
     signalDate,
+    signalIndex,
     fillDate: fill.date,
     exitDate: fill.date,
     exitIndex: fill.index,
@@ -215,10 +219,27 @@ function eventRow({ order, signalDate, fill, pnl, reason, notional, baseAmount, 
 
 function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, profile }) {
   let peak = 0
+  let peakDate = null
   let maxDrawdown = 0
+  let maxDrawdownPct = 0
+  let maxDrawdownStart = null
+  let maxDrawdownEnd = null
+  const drawdownCurve = []
   for (const point of equityCurve) {
-    peak = Math.max(peak, point.equity)
-    maxDrawdown = Math.min(maxDrawdown, point.equity - peak)
+    if (point.equity >= peak) {
+      peak = point.equity
+      peakDate = point.date
+    }
+    const drawdown = point.equity - peak
+    const accountPeak = capital + peak
+    const drawdownPct = accountPeak > 0 ? drawdown / accountPeak : 0
+    drawdownCurve.push({ date: point.date, drawdown, drawdownPct })
+    if (drawdown < maxDrawdown) {
+      maxDrawdown = drawdown
+      maxDrawdownPct = drawdownPct
+      maxDrawdownStart = peakDate
+      maxDrawdownEnd = point.date
+    }
   }
   const realized = events.filter((event) => event.side === 'sell')
   const wins = realized.filter((event) => event.pnl > 0).length
@@ -238,6 +259,10 @@ function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, 
     totalNotional,
     returnOnUsedNotional: capital > 0 ? totalPnl / capital : 0,
     maxDrawdown,
+    maxDrawdownPct,
+    maxDrawdownStart,
+    maxDrawdownEnd,
+    drawdownCurve,
     cash,
     base,
     openValue: base * lastClose,
@@ -264,6 +289,10 @@ function emptyReplay() {
     totalNotional: 0,
     returnOnUsedNotional: 0,
     maxDrawdown: 0,
+    maxDrawdownPct: 0,
+    maxDrawdownStart: null,
+    maxDrawdownEnd: null,
+    drawdownCurve: [],
     cash: 0,
     base: 0,
     openValue: 0,

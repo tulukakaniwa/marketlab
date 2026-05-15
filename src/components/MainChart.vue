@@ -243,20 +243,33 @@ function buildMarkers() {
 function buildReplayMarkers(trades) {
   return trades.flatMap((trade, i) => {
     const isBuy = trade.side === 'buy'
+    const markers = []
+    if (trade.signalDate && trade.signalDate !== trade.fillDate) {
+      markers.push({
+        time: trade.signalDate,
+        position: isBuy ? 'belowBar' : 'aboveBar',
+        shape: 'circle',
+        color: isBuy ? '#0e7558' : '#a93226',
+        text: `${isBuy ? '买入' : '卖出'}信号`,
+        id: `signal-${i}`,
+      })
+    }
     if (trade.fillDate === trade.exitDate) {
-      return [{
+      markers.push({
         time: trade.fillDate,
         position: isBuy ? 'belowBar' : 'aboveBar',
         shape: isBuy ? 'arrowUp' : 'arrowDown',
         color: isBuy ? '#0e7558' : '#a93226',
-        text: `${trade.reason} ${isBuy ? '@' + money(trade.fillPrice) : signedMoney(trade.pnl)}`,
-        id: `event-${i}`,
-      }]
+        text: `${trade.reason} ${isBuy ? '成交 @' + money(trade.fillPrice) : signedMoney(trade.pnl)}`,
+        id: `fill-${i}`,
+      })
+      return markers
     }
-    return [
-      { time: trade.fillDate, position: isBuy ? 'belowBar' : 'aboveBar', shape: isBuy ? 'arrowUp' : 'arrowDown', color: isBuy ? '#0e7558' : '#a93226', text: `${isBuy ? '+' : '-'} ${money(trade.fillPrice)}`, id: `fill-${i}` },
+    markers.push(
+      { time: trade.fillDate, position: isBuy ? 'belowBar' : 'aboveBar', shape: isBuy ? 'arrowUp' : 'arrowDown', color: isBuy ? '#0e7558' : '#a93226', text: `${isBuy ? '买入' : '卖出'}成交 ${money(trade.fillPrice)}`, id: `fill-${i}` },
       { time: trade.exitDate, position: trade.pnl >= 0 ? 'aboveBar' : 'belowBar', shape: 'circle', color: trade.pnl >= 0 ? '#0e7558' : '#a93226', text: `${trade.reason} ${signedMoney(trade.pnl)}`, id: `exit-${i}` },
-    ]
+    )
+    return markers
   })
 }
 

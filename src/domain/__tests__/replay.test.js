@@ -44,6 +44,8 @@ describe('buildDailyReplay', () => {
     const r = buildDailyReplay(rows, baseInput)
     expect(Number.isFinite(r.totalPnl)).toBe(true)
     expect(Number.isFinite(r.maxDrawdown)).toBe(true)
+    expect(Number.isFinite(r.maxDrawdownPct)).toBe(true)
+    expect(r.drawdownCurve).toHaveLength(r.equityCurve.length)
     expect(Number.isFinite(r.winRate)).toBe(true)
   })
 
@@ -58,8 +60,10 @@ describe('buildDailyReplay', () => {
     for (const r of [r1, r2]) {
       expect(Number.isFinite(r.totalPnl)).toBe(true)
       expect(Number.isFinite(r.maxDrawdown)).toBe(true)
+      expect(Number.isFinite(r.maxDrawdownPct)).toBe(true)
       expect(Number.isFinite(r.winRate)).toBe(true)
       expect(Array.isArray(r.equityCurve)).toBe(true)
+      expect(Array.isArray(r.drawdownCurve)).toBe(true)
       expect(Array.isArray(r.trades)).toBe(true)
     }
     // 长度等于错位 marketStates 时应回退到内部计算（A5 规约）
@@ -80,6 +84,15 @@ describe('buildDailyReplay', () => {
         else expect(t.baseAmount).toBeLessThanOrEqual(base + 1e-9)
         if (t.side === 'sell') base -= t.baseAmount
       }
+    }
+  })
+
+  it('回放成交不会早于信号日，也不会用未来窗口搜成交', () => {
+    const r = buildDailyReplay(rows, baseInput)
+    for (const trade of r.trades) {
+      if (!trade.signalDate) continue
+      expect(trade.fillDate >= trade.signalDate).toBe(true)
+      expect(trade.exitIndex - trade.signalIndex).toBeLessThanOrEqual(1)
     }
   })
 })

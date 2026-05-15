@@ -21,7 +21,7 @@ function pct(value) {
     <header>
       <span>日线回放</span>
       <strong>{{ money(replay.totalPnl) }}</strong>
-      <small>{{ replay.status === 'disabled' ? '未启用' : replay.status === 'missing-account-input' ? '缺少账户输入' : (replay.range || '等待样本') }}</small>
+      <small>{{ replay.status === 'disabled' ? '未启用' : replay.status === 'missing-account-input' ? '缺少账户输入' : `${replay.range || '等待样本'} · 下一根 K 线验证` }}</small>
     </header>
     <div class="replay-grid">
       <article>
@@ -38,7 +38,7 @@ function pct(value) {
       </article>
       <article>
         <span>回撤</span>
-        <strong>{{ money(replay.maxDrawdown) }}</strong>
+        <strong>{{ money(replay.maxDrawdown) }} · {{ pct(replay.maxDrawdownPct) }}</strong>
       </article>
       <article>
         <span>现金</span>
@@ -57,7 +57,7 @@ function pct(value) {
       >
         <span>{{ item.profile.label }}</span>
         <strong>{{ pct(item.replay.returnOnUsedNotional) }}</strong>
-        <small>回撤 {{ money(item.replay.maxDrawdown) }} / {{ item.replay.tradeCount }} 次</small>
+        <small>回撤 {{ money(item.replay.maxDrawdown) }} · {{ pct(item.replay.maxDrawdownPct) }} / {{ item.replay.tradeCount }} 次</small>
       </article>
     </div>
     <table v-if="replay.trades.length">
