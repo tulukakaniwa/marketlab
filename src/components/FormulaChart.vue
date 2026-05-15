@@ -12,6 +12,7 @@ const props = defineProps({
 })
 
 const stage = computed(() => formulaStages.find((s) => s.id === props.formulaId))
+const researchInputs = computed(() => props.graph.researchInputs ?? {})
 
 function fmt(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
 function f4(v) { return Number.isFinite(v) ? v.toFixed(4) : '—' }
@@ -69,11 +70,11 @@ const lpV3Curve = computed(() => {
   if (!mp) return ''
   try {
     const lo = mp * 0.5; const hi = mp * 2; const n = 50
-    const rangeW = Number(props.graph.inputs?.rangeWidth) || 0.1
-    const skew = Math.max(Number(props.graph.inputs?.skew) || 1, 0.01)
+    const rangeW = Number(researchInputs.value.rangeWidth) || 0.1
+    const skew = Math.max(Number(researchInputs.value.skew) || 1, 0.01)
     const lowerP = props.graph.lpV3Hedged?.lowerPrice || mp * Math.max(1 - rangeW, 0.001)
     const upperP = props.graph.lpV3Hedged?.upperPrice || mp * (1 + rangeW * skew)
-    const L = Math.max(Number(props.graph.inputs?.liquidity) || 1, 0.001)
+    const L = Math.max(Number(researchInputs.value.liquidity) || 1, 0.001)
     const pts = []; const svgH = 200 - PT - PB
     for (let i = 0; i <= n; i++) {
       const p = lo + (hi - lo) * i / n
@@ -101,8 +102,8 @@ const lpV3Bounds = computed(() => {
   try {
     const mp = props.market?.markPrice; if (!mp) return { loX: PL, hiX: PL + pw }
     const lo = mp * 0.5; const hi = mp * 2
-    const rangeW = Number(props.graph.inputs?.rangeWidth) || 0.1
-    const skew = Math.max(Number(props.graph.inputs?.skew) || 1, 0.01)
+    const rangeW = Number(researchInputs.value.rangeWidth) || 0.1
+    const skew = Math.max(Number(researchInputs.value.skew) || 1, 0.01)
     const lp = props.graph.lpV3Hedged?.lowerPrice || mp * Math.max(1 - rangeW, 0.001)
     const up = props.graph.lpV3Hedged?.upperPrice || mp * (1 + rangeW * skew)
     return { loX: PL + ((lp - lo) / (hi - lo)) * pw, hiX: PL + ((up - lo) / (hi - lo)) * pw }
@@ -576,9 +577,9 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
     <!-- CAPITAL EFFICIENCY -->
     <svg v-else-if="formulaId === 'capital-efficiency' && ceData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">资本效率 · 效率 vs 区间宽度</text>
-      <polyline :points="ceCurve.value" fill="none" stroke="var(--green)" stroke-width="2" />
-      <circle :cx="ceDot.value?.cx ?? PL" :cy="ceDot.value?.cy ?? sy(0)" r="5" fill="var(--ink)" />
-      <text :x="(ceDot.value?.cx ?? PL) + 8" :y="(ceDot.value?.cy ?? sy(0)) - 6" class="fc-tick">{{ ceData.efficiency.toFixed(1) }}× @ {{ ((1 - ceData.lower) * 100).toFixed(1) }}%</text>
+      <polyline :points="ceCurve" fill="none" stroke="var(--green)" stroke-width="2" />
+      <circle :cx="ceDot?.cx ?? PL" :cy="ceDot?.cy ?? sy(0)" r="5" fill="var(--ink)" />
+      <text :x="(ceDot?.cx ?? PL) + 8" :y="(ceDot?.cy ?? sy(0)) - 6" class="fc-tick">{{ ceData.efficiency.toFixed(1) }}× @ {{ ((1 - ceData.lower) * 100).toFixed(1) }}%</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0%</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">100%</text>
@@ -608,8 +609,8 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
         <text :x="PL" :y="H-4" class="fc-tick">组合曲线: 黑 combined · 绿 LP · 蓝 option · 红 hedge</text>
       </g>
       <!-- Waterfall bars -->
-      <rect v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars.value" :key="i" :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="bar.fill" rx="2" />
-      <text v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars.value" :key="'t'+i" :x="bar.x + bar.w/2" :y="bar.y - 4" text-anchor="middle" class="fc-tick">{{ bar.label }} {{ fmt(bar.val) }}</text>
+      <rect v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars" :key="i" :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="bar.fill" rx="2" />
+      <text v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars" :key="'t'+i" :x="bar.x + bar.w/2" :y="bar.y - 4" text-anchor="middle" class="fc-tick">{{ bar.label }} {{ fmt(bar.val) }}</text>
     </svg>
 
     <!-- ORDER PLAN -->
@@ -666,11 +667,11 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
     <svg v-else-if="formulaId === 'deviation-score' && devScoreData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">偏离强度 · Z={{ devScoreData.z.toFixed(2) }}σ · {{ devScoreData.regime }}{{ devScoreData.strength }}</text>
       <!-- Normal distribution curve -->
-      <polyline :points="normalCurve.value" fill="var(--blue-dim)" stroke="var(--blue)" stroke-width="1.5" />
+      <polyline :points="normalCurve" fill="var(--blue-dim)" stroke="var(--blue)" stroke-width="1.5" />
       <!-- Z-score marker -->
-      <line :x1="zMarker.value?.x ?? PL" :x2="zMarker.value?.x ?? PL" :y1="sy(1)" :y2="sy(0.02)" stroke="var(--ink)" stroke-width="2" />
-      <circle :cx="zMarker.value?.x ?? PL" :cy="zMarker.value?.y ?? sy(0)" r="5" fill="var(--red)" />
-      <text :x="(zMarker.value?.x ?? PL) + 6" :y="(zMarker.value?.y ?? sy(0)) - 6" class="fc-tick" fill="var(--red)">Z={{ devScoreData.z.toFixed(2) }}</text>
+      <line :x1="zMarker?.x ?? PL" :x2="zMarker?.x ?? PL" :y1="sy(1)" :y2="sy(0.02)" stroke="var(--ink)" stroke-width="2" />
+      <circle :cx="zMarker?.x ?? PL" :cy="zMarker?.y ?? sy(0)" r="5" fill="var(--red)" />
+      <text :x="(zMarker?.x ?? PL) + 6" :y="(zMarker?.y ?? sy(0)) - 6" class="fc-tick" fill="var(--red)">Z={{ devScoreData.z.toFixed(2) }}</text>
       <!-- Zero line -->
       <line :x1="W/2" :x2="W/2" :y1="sy(1)" :y2="sy(0.02)" stroke="var(--line)" stroke-width="1" stroke-dasharray="3,3" />
       <text :x="W/2" :y="sy(0)+18" text-anchor="middle" class="fc-tick">0σ</text>
@@ -734,11 +735,11 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">均值回归 · 半衰期 {{ mrData.halfLifeDays !== null ? Math.round(mrData.halfLifeDays) + '天' : '∞' }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Decay curve: e^(-θ×t) -->
-      <polyline :points="decayCurve.value" fill="none" stroke="var(--green)" stroke-width="2" />
+      <polyline :points="decayCurve" fill="none" stroke="var(--green)" stroke-width="2" />
       <!-- Half-life marker -->
-      <line v-if="mrData.halfLifeDays !== null" :x1="hlMarker.value?.x ?? PL" :x2="hlMarker.value?.x ?? PL" :y1="sy(0)" :y2="sy(0.55)" stroke="var(--red)" stroke-width="1" stroke-dasharray="4,3" />
-      <circle v-if="mrData.halfLifeDays !== null" :cx="hlMarker.value?.x ?? PL" :cy="hlMarker.value?.y ?? sy(0)" r="4" fill="var(--red)" />
-      <text v-if="mrData.halfLifeDays !== null" :x="(hlMarker.value?.x ?? PL) + 6" :y="(hlMarker.value?.y ?? sy(0)) - 4" class="fc-tick" fill="var(--red)">t½={{ Math.round(mrData.halfLifeDays) }}天</text>
+      <line v-if="mrData.halfLifeDays !== null" :x1="hlMarker?.x ?? PL" :x2="hlMarker?.x ?? PL" :y1="sy(0)" :y2="sy(0.55)" stroke="var(--red)" stroke-width="1" stroke-dasharray="4,3" />
+      <circle v-if="mrData.halfLifeDays !== null" :cx="hlMarker?.x ?? PL" :cy="hlMarker?.y ?? sy(0)" r="4" fill="var(--red)" />
+      <text v-if="mrData.halfLifeDays !== null" :x="(hlMarker?.x ?? PL) + 6" :y="(hlMarker?.y ?? sy(0)) - 4" class="fc-tick" fill="var(--red)">t½={{ Math.round(mrData.halfLifeDays) }}天</text>
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">{{ Math.round(mrData.halfLifeDays * 3) || 90 }}天</text>
       <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">ρ={{ mrData.rho.toFixed(3) }} · θ={{ mrData.theta.toFixed(4) }} · {{ mrData.speed }}</text>
@@ -750,10 +751,10 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <line :x1="W/2" :x2="W/2" :y1="sy(1)" :y2="sy(0)" stroke="var(--line)" stroke-width="0.5" stroke-dasharray="3,3" />
       <!-- Parabola: ½Γx² -->
-      <polyline :points="gammaCurve.value" fill="var(--green-dim)" stroke="var(--green)" stroke-width="2" />
+      <polyline :points="gammaCurve" fill="var(--green-dim)" stroke="var(--green)" stroke-width="2" />
       <!-- Current PnL marker -->
-      <circle :cx="gpMarker.value?.cx ?? PL" :cy="gpMarker.value?.cy ?? sy(0)" r="4" fill="var(--ink)" />
-      <text :x="(gpMarker.value?.cx ?? PL) + 6" :y="(gpMarker.value?.cy ?? sy(0)) - 4" class="fc-tick">{{ fmt(gpData.gammaPnl) }}</text>
+      <circle :cx="gpMarker?.cx ?? PL" :cy="gpMarker?.cy ?? sy(0)" r="4" fill="var(--ink)" />
+      <text :x="(gpMarker?.cx ?? PL) + 6" :y="(gpMarker?.cy ?? sy(0)) - 4" class="fc-tick">{{ fmt(gpData.gammaPnl) }}</text>
       <text :x="W/2" :y="sy(0)+16" text-anchor="middle" class="fc-tick">ΔP=0</text>
       <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">{{ gpData.convexityNote }}</text>
     </svg>

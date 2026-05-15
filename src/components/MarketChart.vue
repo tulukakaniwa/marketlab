@@ -19,6 +19,7 @@ const props = defineProps({
   formulaPath: { type: Array, required: true },
   entryPrice: { type: Number, required: true },
   graph: { type: Object, required: true },
+  cursor: { type: Number, default: null },
 })
 
 const emit = defineEmits(['cursor-change'])
@@ -30,7 +31,7 @@ let themeObserver = null
 const series = {}
 const resizeObserver = new ResizeObserver(() => resize())
 
-const activeIndex = computed(() => hoverIndex.value ?? Math.max(0, props.rows.length - 1))
+const activeIndex = computed(() => clampIndex(hoverIndex.value ?? props.cursor ?? props.rows.length - 1))
 const activeRow = computed(() => props.rows[activeIndex.value])
 const activeCost = computed(() => props.costPath[activeIndex.value])
 const activeFormula = computed(() => props.formulaPath[activeIndex.value])
@@ -206,6 +207,12 @@ function regimeColor(close, cost) {
 
 function finiteOrNull(value) {
   return Number.isFinite(value) ? value : null
+}
+
+function clampIndex(index) {
+  if (!props.rows.length) return 0
+  const next = Number.isFinite(index) ? index : props.rows.length - 1
+  return Math.max(0, Math.min(props.rows.length - 1, next))
 }
 
 function money(value) {

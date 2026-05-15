@@ -131,7 +131,7 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
         <ChainFlow :graph="lab.graph" :market="lab.market" :active-id="lab.activeFormulaId" @select="lab.activeFormulaId = $event" />
 
         <section class="wb-chart">
-          <MarketChart :rows="lab.rows" :cost-path="lab.costPath" :formula-path="lab.formulaPath" :entry-price="lab.input.entryPrice" :graph="lab.graph" @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }" />
+          <MarketChart :rows="lab.rows" :cost-path="lab.costPath" :formula-path="lab.formulaPath" :entry-price="lab.input.entryPrice" :graph="lab.graph" :cursor="lab.cursor" @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }" />
         </section>
 
         <section class="wb-formula">
@@ -203,6 +203,18 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
           <template v-if="lab.activeMode === 'risk'">
             <div class="risk-box"><span>失效线</span><strong>{{ money(lab.graph.plan.invalidation.lower) }} / {{ money(lab.graph.plan.invalidation.upper) }}</strong></div>
             <div class="risk-box"><span>缺失输入</span><strong>{{ lab.graph.decision?.missingInputs?.join(' / ') || '无' }}</strong></div>
+          </template>
+          <template v-if="lab.activeMode === 'formula'">
+            <div class="risk-box formula-box">
+              <span>{{ lab.activeFormula.layer }} · {{ lab.activeFormula.label }}</span>
+              <strong>{{ lab.activeFormula.status }}</strong>
+              <small>{{ lab.activeFormula.role }}</small>
+            </div>
+            <div class="risk-box formula-box">
+              <span>输入</span>
+              <strong>{{ lab.activeFormula.inputs.join(' / ') }}</strong>
+              <small>输出：{{ lab.activeFormula.outputs.join(' / ') }}</small>
+            </div>
           </template>
         </template>
       </aside>
@@ -284,6 +296,8 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
 
 .risk-box { display: grid; gap: 2px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .risk-box span { color: var(--green); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }
+.formula-box strong { overflow-wrap: anywhere; font-size: 0.82rem; }
+.formula-box small { color: var(--muted); line-height: 1.35; }
 .green { color: var(--green); }
 .red { color: var(--red); }
 
