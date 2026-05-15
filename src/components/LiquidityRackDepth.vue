@@ -161,8 +161,8 @@ function pct(value) {
     <div v-if="showTable" class="lf-table">
       <div class="lf-table-head">
         <span>价格区间</span>
-        <span>密度</span>
-        <span>挂单净值</span>
+        <span>模型密度</span>
+        <span>计划挂单</span>
       </div>
       <div v-for="shelf in tableShelves" :key="`row-${shelf.lower}`" class="lf-table-row">
         <span>{{ fmt(shelf.lower) }} - {{ fmt(shelf.upper) }}</span>

@@ -72,7 +72,7 @@ function pct(value) {
     <header class="lf-head">
       <div>
         <span>流动性指纹</span>
-        <strong>价格仓</strong>
+        <strong>{{ compactModel.meta.title }}</strong>
       </div>
       <div class="lf-actions">
         <button type="button" title="展开精读" @click="openExpanded">
@@ -81,6 +81,11 @@ function pct(value) {
         <em>研究层</em>
       </div>
     </header>
+
+    <div class="lf-source">
+      <b>{{ compactModel.meta.orderLabel }}</b>
+      <span>{{ compactModel.meta.compositionLabel }}</span>
+    </div>
 
     <div class="lf-range">
       <span>{{ fmt(compactModel.range.upper) }}</span>
@@ -103,7 +108,7 @@ function pct(value) {
         <header class="lf-panel-head">
           <div>
             <span>流动性指纹 · 精读仓</span>
-            <strong>价格层级 / 密度 / 挂单刻度</strong>
+            <strong>{{ expandedModel.meta.title }} / 密度 / 挂单刻度</strong>
           </div>
           <div class="lf-toolbar">
             <button type="button" title="缩小" @click="zoomBy(-1)" :disabled="zoom <= 0">
@@ -128,6 +133,32 @@ function pct(value) {
           <div><span>精度</span><b>{{ expandedModel.binCount }} 档</b></div>
         </div>
 
+        <div class="lf-explain">
+          <article>
+            <span>构成</span>
+            <strong>{{ expandedModel.meta.compositionLabel }}</strong>
+            <small>{{ expandedModel.meta.sourceLabel }}</small>
+          </article>
+          <article>
+            <span>目的</span>
+            <strong>解释挂单在目标密度上的位置</strong>
+            <small>{{ expandedModel.meta.purpose[0] }}</small>
+          </article>
+          <article>
+            <span>缺失</span>
+            <strong>真实市场构成未接入</strong>
+            <small>{{ expandedModel.meta.missing.slice(0, 2).join(' / ') }}</small>
+          </article>
+        </div>
+
+        <div class="lf-layer-row">
+          <div v-for="layer in expandedModel.meta.layers" :key="layer.label">
+            <b>{{ layer.label }}</b>
+            <span>{{ layer.value }}</span>
+            <small>{{ layer.note }}</small>
+          </div>
+        </div>
+
         <LiquidityRackDepth
           :model="expandedModel"
           variant="expanded"
@@ -142,7 +173,7 @@ function pct(value) {
 <style scoped>
 .lf-rack {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   min-width: 0;
   border-left: 1px solid var(--line);
   background: var(--surface);
@@ -219,6 +250,25 @@ function pct(value) {
   white-space: nowrap;
 }
 
+.lf-source {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.lf-source b {
+  color: var(--ink);
+  font-size: 0.62rem;
+}
+
+.lf-source span {
+  color: var(--muted);
+  font-size: 0.56rem;
+  line-height: 1.25;
+}
+
 .lf-range {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -277,7 +327,7 @@ function pct(value) {
   width: min(1120px, 96vw);
   height: min(820px, 92vh);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   border: 1px solid var(--line);
   background: var(--surface);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
@@ -314,6 +364,42 @@ function pct(value) {
   background: var(--line);
 }
 
+.lf-explain,
+.lf-layer-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
+.lf-explain article,
+.lf-layer-row div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--surface);
+}
+
+.lf-explain strong,
+.lf-layer-row b {
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.lf-explain small,
+.lf-layer-row span,
+.lf-layer-row small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.lf-layer-row small {
+  color: var(--ink);
+}
+
 .lf-panel-strip div {
   display: grid;
   gap: 2px;
@@ -343,6 +429,11 @@ function pct(value) {
 
   .lf-panel-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lf-explain,
+  .lf-layer-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>
