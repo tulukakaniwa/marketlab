@@ -8,6 +8,7 @@ describe('useChartOverlays', () => {
       window.localStorage.removeItem('lab.chartOverlays.v2')
       window.localStorage.removeItem('lab.chartOverlays.v3')
       window.localStorage.removeItem('lab.chartOverlays.v4')
+      window.localStorage.removeItem('lab.chartOverlays.v5')
     }
   })
 
@@ -17,7 +18,7 @@ describe('useChartOverlays', () => {
     expect(o.entryLine).toBe(true)
     expect(o.volBand).toBe(true)
     expect(o.volume).toBe(true)
-    expect(o.replayMarkers).toBe(false)
+    expect(o.replayMarkers).toBe(true)
     expect(o.replayMarkerLabels).toBe(false)
     expect(o.currentDecision).toBe(true)
     expect(o.deltaPane).toBe(false)
@@ -36,7 +37,7 @@ describe('useChartOverlays', () => {
     if (typeof window === 'undefined') return
     // 写入只含部分字段的旧数据
     window.localStorage.setItem(
-      'lab.chartOverlays.v4',
+      'lab.chartOverlays.v5',
       JSON.stringify({ costBand: false, deltaPane: true })
     )
     const o = useChartOverlays()

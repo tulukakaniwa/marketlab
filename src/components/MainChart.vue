@@ -14,6 +14,7 @@ import ChartStatusBar from './ChartStatusBar.vue'
 import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
 
+const MAX_REPLAY_MARKER_TRADES = 120
 const MAX_REPLAY_TEXT_LABELS = 6
 
 const props = defineProps({
@@ -243,12 +244,15 @@ function buildMarkers() {
 }
 
 function buildReplayMarkers(trades) {
+  const start = Math.max(0, trades.length - MAX_REPLAY_MARKER_TRADES)
+  const visibleTrades = trades.slice(start)
   const showTextFrom = props.overlays.replayMarkerLabels
-    ? Math.max(0, trades.length - MAX_REPLAY_TEXT_LABELS)
+    ? Math.max(0, visibleTrades.length - MAX_REPLAY_TEXT_LABELS)
     : Infinity
-  return trades.flatMap((trade, i) => {
+  return visibleTrades.flatMap((trade, localIndex) => {
+    const i = start + localIndex
     const isBuy = trade.side === 'buy'
-    const showText = i >= showTextFrom
+    const showText = localIndex >= showTextFrom
     const markers = []
     if (trade.signalDate && trade.signalDate !== trade.fillDate) {
       markers.push(withMarkerText({
