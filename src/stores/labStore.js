@@ -10,6 +10,7 @@ import { useMarketState } from '../composables/useMarketState.js'
 import { useReplay } from '../composables/useReplay.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
 import { useChartOverlays } from '../composables/useChartOverlays.js'
+import { persistedReactive } from '../composables/usePersisted.js'
 
 /**
  * Lab 工作台 facade store
@@ -31,6 +32,9 @@ export const useLabStore = defineStore('lab', () => {
   // 2. 数据加载
   const data = useDataLoader(input)
   const { rows, cursor } = data
+  const observationDates = persistedReactive('lab.observationDates.v1', {})
+  const sourceKey = computed(() => data.source.value?.id ?? data.source.value?.symbol ?? data.source.value?.label ?? '')
+  const observationDate = computed(() => sourceKey.value ? (observationDates[sourceKey.value] ?? '') : '')
 
   // 3. tdpy：按品种自动 + 用户覆盖
   const tdpyMeta = computed(() => inferTdpy(data.source.value))
@@ -49,9 +53,10 @@ export const useLabStore = defineStore('lab', () => {
 
   // 5. 市场态只吃事实输入；不被回放或研究层反向污染。
   const marketState = useMarketState(rows, cursor, baseInput)
+  const activeMarketStates = computed(() => marketState.marketStateFull.value.slice(0, cursor.value + 1))
 
   // 6. ReplayAccount 是显式开启的旁路查询；只有 replayAutoProfile 打开才参与 profile 选择。
-  const replayLayer = useReplay(rows, input, baseInput, marketState.marketStateFull, planning.featureFlags)
+  const replayLayer = useReplay(marketState.activeRows, input, baseInput, activeMarketStates, planning.featureFlags)
 
   const effectiveInput = computed(() => ({
     ...baseInput.value,
@@ -84,19 +89,47 @@ export const useLabStore = defineStore('lab', () => {
 
   const sourceLabel = computed(() => data.source.value?.label ?? '未载入')
 
-  // 加载新 rows 时回填输入参数（用 effectiveTdpy 而非 input.tradingDaysPerYear）
+  // 加载新 rows 时按观察日期定位，不把观察日期之后的数据送入默认计划或回放。
   watch(rows, (next) => {
     if (!next.length) return
-    const tdpy = effectiveTdpy.value
-    const lastMarket = buildMarketStatePath(next, tdpy).at(-1)
-    if (!lastMarket) return
-    input.entryPrice = round(lastMarket.markPrice, 2)
-    input.iv = round(lastMarket.annualVol, 4)
-    input.strikePrice = round(lastMarket.markPrice * 1.05, 2)
-    input.startPrice = round(lastMarket.costAnchor, 2)
-    input.perpTwap = round(lastMarket.markPrice, 2)
-    input.spotTwap = round(lastMarket.costAnchor, 2)
+    const savedDate = observationDate.value
+    const index = savedDate ? findDateIndex(next, savedDate) : next.length - 1
+    setCursorIndex(index)
   })
+
+  function syncInputFromCursor() {
+    const currentRows = rows.value
+    if (!currentRows.length) return
+    const tdpy = effectiveTdpy.value
+    const market = buildMarketStatePath(currentRows, tdpy)[cursor.value]
+    if (!market) return
+    input.entryPrice = round(market.markPrice, 2)
+    input.iv = round(market.annualVol, 4)
+    input.strikePrice = round(market.markPrice * 1.05, 2)
+    input.startPrice = round(market.costAnchor, 2)
+    input.perpTwap = round(market.markPrice, 2)
+    input.spotTwap = round(market.costAnchor, 2)
+  }
+
+  function setCursorIndex(index) {
+    const currentRows = rows.value
+    if (!currentRows.length) return
+    const next = clampIndex(index, currentRows.length)
+    cursor.value = next
+    if (sourceKey.value) observationDates[sourceKey.value] = currentRows[next]?.date ?? ''
+    syncInputFromCursor()
+  }
+
+  function setObservationDate(date) {
+    if (!date) return useLatestObservation()
+    if (sourceKey.value) observationDates[sourceKey.value] = date
+    if (rows.value.length) setCursorIndex(findDateIndex(rows.value, date))
+  }
+
+  function useLatestObservation() {
+    if (!rows.value.length) return
+    setCursorIndex(rows.value.length - 1)
+  }
 
   function useCursorCloseAsEntry() {
     const close = marketState.activeRows.value.at(-1)?.close
@@ -119,6 +152,11 @@ export const useLabStore = defineStore('lab', () => {
     loadingSampleId: data.loadingSampleId,
     error: data.error,
     cursor: data.cursor,
+    observationDate,
+    observationDates,
+    setCursorIndex,
+    setObservationDate,
+    useLatestObservation,
     loadBtcHistory: data.loadBtcHistory,
     loadSample: data.loadSample,
     selectSample,
@@ -183,4 +221,17 @@ export const useLabStore = defineStore('lab', () => {
 
 function round(value, digits) {
   return Number.isFinite(value) ? Number(value.toFixed(digits)) : 0
+}
+
+function clampIndex(index, length) {
+  const n = Number(index)
+  if (!Number.isFinite(n)) return Math.max(0, length - 1)
+  return Math.max(0, Math.min(length - 1, Math.round(n)))
+}
+
+function findDateIndex(rows, date) {
+  const exact = rows.findIndex((row) => row.date === date)
+  if (exact >= 0) return exact
+  const next = rows.findIndex((row) => row.date > date)
+  return next <= 0 ? 0 : next - 1
 }

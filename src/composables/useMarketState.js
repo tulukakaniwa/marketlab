@@ -32,8 +32,8 @@ export function useMarketState(rows, cursor, input) {
   const activeRows = computed(() => rows.value.slice(0, cursor.value + 1))
   const marketStateFull = computed(() => rows.value.length ? getMarketStatePath(rows.value) : [])
   const market = computed(() => marketStateFull.value[cursor.value] ?? null)
-  const costPath = computed(() => buildCostPath(rows.value))
-  const formulaPath = computed(() => buildFormulaPath(rows.value, isRef(input) ? input.value : input))
+  const costPath = computed(() => buildCostPath(activeRows.value))
+  const formulaPath = computed(() => buildFormulaPath(activeRows.value, isRef(input) ? input.value : input))
 
   return { activeRows, marketStateFull, market, costPath, formulaPath }
 }

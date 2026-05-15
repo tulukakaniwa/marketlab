@@ -71,6 +71,50 @@ describe('useLabStore（v3 重写后契约）', () => {
     expect(lab.input.iv).toBeGreaterThanOrEqual(0)
   })
 
+  it('观察日期限制市场态和回放只使用当日前数据', async () => {
+    const lab = useLabStore()
+    const csv = ['date,open,high,low,close,volume',
+      ...Array.from({ length: 90 }, (_, i) => {
+        const close = 100 + i
+        const date = new Date(Date.UTC(2024, 0, i + 1)).toISOString().slice(0, 10)
+        return `${date},${close},${close + 1},${close - 1},${close},1000`
+      })].join('\n')
+    lab.importText(csv, '观察日期测试')
+    await new Promise(r => setTimeout(r, 50))
+    lab.setObservationDate('2024-01-30')
+    expect(lab.cursor).toBe(29)
+    expect(lab.activeRows).toHaveLength(30)
+    expect(lab.market.markPrice).toBe(129)
+    expect(lab.observationDate).toBe('2024-01-30')
+    expect(lab.observationDates['观察日期测试']).toBe('2024-01-30')
+    lab.useLatestObservation()
+    expect(lab.cursor).toBe(89)
+    expect(lab.activeRows).toHaveLength(90)
+  })
+
+  it('观察日期按数据源隔离，避免不同用户样本串时间', async () => {
+    const lab = useLabStore()
+    const csvA = ['date,open,high,low,close,volume',
+      '2024-01-01,10,11,9,10,100',
+      '2024-01-02,11,12,10,11,100',
+      '2024-01-03,12,13,11,12,100'].join('\n')
+    const csvB = ['date,open,high,low,close,volume',
+      '2025-02-01,20,21,19,20,100',
+      '2025-02-02,21,22,20,21,100',
+      '2025-02-03,22,23,21,22,100'].join('\n')
+    lab.importText(csvA, '用户A样本')
+    await new Promise(r => setTimeout(r, 20))
+    lab.setObservationDate('2024-01-02')
+    expect(lab.observationDate).toBe('2024-01-02')
+    lab.importText(csvB, '用户B样本')
+    await new Promise(r => setTimeout(r, 20))
+    expect(lab.observationDate).toBe('2025-02-03')
+    lab.setObservationDate('2025-02-02')
+    lab.importText(csvA, '用户A样本')
+    await new Promise(r => setTimeout(r, 20))
+    expect(lab.observationDate).toBe('2024-01-02')
+  })
+
   it('A3 回归：tdpy 切换不污染缓存', () => {
     const lab = useLabStore()
     const csv = ['date,open,high,low,close,volume',

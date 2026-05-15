@@ -1,12 +1,16 @@
 <script setup>
 import SimulationInputs from './SimulationInputs.vue'
 import OptionPortfolioInputs from './OptionPortfolioInputs.vue'
+import ObservationDateControl from './ObservationDateControl.vue'
 import AdvancedSettingsContent from './AdvancedSettingsContent.vue'
 import ChartOverlayToggles from './ChartOverlayToggles.vue'
 import StartupConfigPanel from './StartupConfigPanel.vue'
 
 defineProps({
   input: { type: Object, required: true },
+  rows: { type: Array, required: true },
+  cursor: { type: Number, required: true },
+  observationDate: { type: String, default: '' },
   featureFlags: { type: Object, required: true },
   tdpyMeta: { type: Object, required: true },
   effectiveTdpy: { type: Number, required: true },
@@ -16,12 +20,23 @@ defineProps({
 })
 
 // 四个 emit 事件：计算口径覆盖、计算口径重置、主题切换、全量重置
-const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all'])
+const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all', 'set-observation-date', 'latest-observation'])
 </script>
 
 <template>
   <div class="sd-drawer">
     <StartupConfigPanel :input="input" :feature-flags="featureFlags" :overlays="overlays" />
+
+    <section class="sd-section">
+      <h3 class="sd-h">样本时间</h3>
+      <ObservationDateControl
+        :rows="rows"
+        :cursor="cursor"
+        :observation-date="observationDate"
+        @set-date="(date) => emit('set-observation-date', date)"
+        @latest="emit('latest-observation')"
+      />
+    </section>
 
     <section class="sd-section">
       <h3 class="sd-h">模拟参数</h3>

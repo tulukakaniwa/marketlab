@@ -100,11 +100,11 @@ export function useDataLoader(input, resetCachesOnApply = () => {}) {
 
   function applyRows(nextRows, nextSource) {
     if (!nextRows.length) throw kindError('empty', '没有可用 K 线')
-    rows.value = nextRows
     source.value = {
       ...nextSource,
       range: `${nextRows[0].date} ~ ${nextRows.at(-1).date}`,
     }
+    rows.value = nextRows
     cursor.value = nextRows.length - 1
     resetCachesOnApply()
   }

@@ -92,6 +92,9 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
         <SettingsDrawer
           v-else-if="activeTab === 'settings'"
           :input="lab.input"
+          :rows="lab.rows"
+          :cursor="lab.cursor"
+          :observation-date="lab.observationDate"
           :tdpy-meta="lab.tdpyMeta"
           :effective-tdpy="lab.effectiveTdpy"
           :symbol="lab.source?.symbol ?? ''"
@@ -102,6 +105,8 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           @reset-tdpy="(sym) => emit('reset-tdpy', sym)"
           @set-theme="(t) => emit('set-theme', t)"
           @reset-all="emit('reset-all')"
+          @set-observation-date="(date) => lab.setObservationDate(date)"
+          @latest-observation="lab.useLatestObservation"
         />
       </div>
     </template>

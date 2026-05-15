@@ -203,8 +203,8 @@ const rootStyle = computed(() => ({
 
       <main class="app-main">
         <MainChart
-          v-if="lab.rows.length"
-          :rows="lab.rows"
+          v-if="lab.activeRows.length"
+          :rows="lab.activeRows"
           :cost-path="lab.costPath"
           :formula-path="lab.formulaPath"
           :entry-price="lab.input.entryPrice"
@@ -213,7 +213,6 @@ const rootStyle = computed(() => ({
           :decision="lab.graph?.decision"
           :overlays="lab.chartOverlays"
           :input="lab.input"
-          @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }"
           @param-change="onParamChange"
         />
         <div v-else class="empty-state">
