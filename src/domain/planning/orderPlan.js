@@ -1,9 +1,14 @@
 import {
   blackScholes,
+  asianOption,
+  bachelierOption,
   capitalEfficiency,
   fundingRate,
   getDeltaBands,
+  hedgedLpPortfolioCurve,
   impermanentLoss,
+  liquidityFingerprint,
+  numoenSnapshot,
   portfolioValue,
   uniswapV2Inventory,
   uniswapV3HedgedInventory,
@@ -262,7 +267,7 @@ function buildExecutableContext({ market, input }) {
   const deltaBands = getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, tradingDaysPerYear: tdpy })
 
   return {
-    inputs: { entryPrice, holdingDays, iv, targetReturn, capital, costAnchor: market.costAnchor },
+    inputs: { entryPrice, holdingDays, iv, targetReturn, capital, costAnchor: market.costAnchor, tradingDaysPerYear: tdpy },
     deltaBands,
   }
 }
@@ -271,56 +276,127 @@ function buildResearchSnapshot({ market, input, executable }) {
   const { entryPrice, holdingDays, iv, capital } = executable.inputs
   const rangeWidth = Math.max(Number(input.rangeWidth) || 0.01, 0.001)
   const tdpy = Number(input.tradingDaysPerYear) || 365
+  const strikePrice = positive(input.strikePrice) || entryPrice * 1.05
+  const startPrice = positive(input.startPrice) || market.costAnchor
+  const liquidity = Math.max(Number(input.liquidity) || 0, 0)
+  const hedgeSize = Number(input.hedgeSize) || 0
+  const fees = Number(input.fees) || 0
+  const skew = Math.max(Number(input.skew) || 1, 0.01)
   const option = blackScholes({
     entryPrice,
-    strikePrice: positive(input.strikePrice) || entryPrice * 1.05,
+    strikePrice,
+    holdingDays,
+    iv,
+    riskFreeRate: Number(input.riskFreeRate) || 0,
+    dividendYield: Number(input.dividendYield) || 0,
+    type: input.optionType,
+    tradingDaysPerYear: tdpy,
+  })
+  const asian = asianOption({
+    entryPrice,
+    strikePrice,
     holdingDays,
     iv,
     riskFreeRate: Number(input.riskFreeRate) || 0,
     type: input.optionType,
     tradingDaysPerYear: tdpy,
   })
+  const bachelier = bachelierOption({
+    entryPrice,
+    strikePrice,
+    holdingDays,
+    normalVol: iv * entryPrice,
+    riskFreeRate: Number(input.riskFreeRate) || 0,
+    type: input.optionType,
+    tradingDaysPerYear: tdpy,
+  })
   const lp = uniswapV2Inventory({
     markPrice: entryPrice,
-    startPrice: positive(input.startPrice) || market.costAnchor,
-    liquidity: Math.max(Number(input.liquidity) || 0, 0),
-    hedgeSize: Number(input.hedgeSize) || 0,
-    fees: Number(input.fees) || 0,
+    startPrice,
+    liquidity,
+    hedgeSize,
+    fees,
   })
   const lowerPrice = entryPrice * Math.max(1 - rangeWidth, 0.001)
-  const upperPrice = entryPrice * (1 + rangeWidth * Math.max(Number(input.skew) || 1, 0.01))
+  const upperPrice = entryPrice * (1 + rangeWidth * skew)
   const rangeFactor = Math.sqrt(upperPrice / lowerPrice)
   const lpV3Raw = uniswapV3Inventory({
     markPrice: entryPrice,
     lowerPrice,
     upperPrice,
-    liquidity: Math.max(Number(input.liquidity) || 0, 0),
+    liquidity,
   })
   const lpV3Hedged = uniswapV3HedgedInventory({
     markPrice: entryPrice,
-    strikePrice: positive(input.startPrice) || market.costAnchor,
+    strikePrice: startPrice,
     rangeFactor,
-    liquidity: Math.max(Number(input.liquidity) || 0, 0),
-    hedgeSize: Number(input.hedgeSize) || 0,
-    fees: Number(input.fees) || 0,
+    liquidity,
+    hedgeSize,
+    fees,
   })
   const il = impermanentLoss({
     markPrice: entryPrice,
-    startPrice: positive(input.startPrice) || market.costAnchor,
-    liquidity: Math.max(Number(input.liquidity) || 0, 0),
+    startPrice,
+    liquidity,
   })
   const funding = fundingRate({
     perpTwap: positive(input.perpTwap) || entryPrice,
     spotTwap: positive(input.spotTwap) || market.costAnchor,
     hours: holdingDays * 24,
   })
+  const optionBase = option?.price ?? 0
+  const lpPortfolio = hedgedLpPortfolioCurve({
+    startPrice: entryPrice,
+    lowerPrice,
+    upperPrice,
+    liquidity,
+    hedgeSize,
+    fees,
+    fundingCost: Math.abs(funding?.funding ?? 0) * capital,
+    optionWeight: 1,
+    optionPricer: (price) => {
+      const priced = blackScholes({
+        entryPrice: price,
+        strikePrice,
+        holdingDays,
+        iv,
+        riskFreeRate: Number(input.riskFreeRate) || 0,
+        dividendYield: Number(input.dividendYield) || 0,
+        type: input.optionType,
+        tradingDaysPerYear: tdpy,
+      })
+      return (priced?.price ?? 0) - optionBase
+    },
+  })
+  const fingerprint = liquidityFingerprint({
+    entryPrice: startPrice,
+    priceGrid: 120,
+    distribution: 'log-laplace',
+    lambda: Number(input.fingerprintLambda) || 2.6,
+    kappa: Number(input.fingerprintKappa) || 0.77,
+    lowerFactor: Math.max(0.05, lowerPrice / startPrice),
+    upperFactor: Math.min(20, upperPrice / startPrice),
+    segmentCount: 12,
+  })
+  const numoen = numoenSnapshot({
+    R1: Number(input.numoenR1) || 8.7,
+    s: Number(input.numoenShares) || 1.649981319214726,
+    u: Number(input.numoenU) || 4,
+    dy: Number(input.numoenDy) || 0.1,
+  })
   return {
+    researchInputs: { rangeWidth, skew, liquidity, hedgeSize, fees, strikePrice, startPrice },
     option,
+    asian,
+    bachelier,
     lp,
     lpV3: lpV3Raw,
     lpV3Hedged,
+    lpPortfolio,
+    liquidityFingerprint: fingerprint,
+    numoen,
     impermanentLoss: il,
-    efficiency: capitalEfficiency({ rangeWidth, skew: Math.max(Number(input.skew) || 1, 0.01) }),
+    efficiency: capitalEfficiency({ rangeWidth, skew }),
     funding,
     portfolio: portfolioValue({
       lpValue: lpV3Hedged?.value ?? 0,

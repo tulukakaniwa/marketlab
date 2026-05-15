@@ -125,10 +125,17 @@ describe('buildDecisionGraph', () => {
       fees: 42,
       perpTwap: 130,
       spotTwap: 75,
+      dividendYield: 0.12,
+      fingerprintLambda: 9,
+      fingerprintKappa: 0.25,
+      numoenR1: 12,
+      numoenDy: 0.4,
     }
     const base = buildDecisionGraph({ market: buyMarket, input: executableInput })
     const changed = buildDecisionGraph({ market: buyMarket, input: researchChangedInput })
     expect(changed.research).toBeTruthy()
+    expect(changed.research.numoen.status).toBe('protocol-unverified')
+    expect(changed.research.liquidityFingerprint.segments.reduce((sum, seg) => sum + seg.weight, 0)).toBeCloseTo(1, 5)
     expect(changed.plan.primaryOrders.map(o => o.price)).toEqual(base.plan.primaryOrders.map(o => o.price))
     expect(changed.plan.primaryOrders.map(o => o.notional)).toEqual(base.plan.primaryOrders.map(o => o.notional))
   })

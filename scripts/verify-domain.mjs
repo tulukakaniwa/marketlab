@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import {
+  lambertW,
   fundingRate,
   getDeltaBands,
+  liquidityFingerprint,
+  numoenSnapshot,
   portfolioValue,
   uniswapV3Inventory,
 } from '../src/domain/formulas/core.js'
@@ -19,8 +22,15 @@ assert.ok(bands.long.cost < bands.long.high)
 assert.ok(bands.short.low < bands.short.cost)
 assert.ok(bands.short.cost < bands.short.high)
 assert.ok(formulaStages.length >= 12)
-assert.ok(formulaStages.some((stage) => stage.id === 'liquidity-fingerprint' && stage.status === 'mapped'))
+assert.ok(formulaStages.some((stage) => stage.id === 'liquidity-fingerprint' && stage.status === 'research-only'))
+assert.ok(formulaStages.some((stage) => stage.id === 'amm-geometry' && stage.status === 'protocol-unverified'))
 assert.deepEqual(strategyProfileList.map((profile) => profile.id), ['conservative', 'balanced', 'aggressive'])
+
+const fp = liquidityFingerprint({ entryPrice: 100, lowerFactor: 0.8, upperFactor: 1.2, segmentCount: 10 })
+assert.ok(Math.abs(fp.segments.reduce((sum, seg) => sum + seg.weight, 0) - 1) < 1e-6)
+const w = lambertW(1)
+assert.ok(Math.abs(w * Math.exp(w) - 1) < 1e-8)
+assert.equal(numoenSnapshot().status, 'protocol-unverified')
 
 const lpV3 = uniswapV3Inventory({ markPrice: 100, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
 assert.ok(lpV3.token0 > 0)

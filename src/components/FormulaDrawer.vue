@@ -60,8 +60,15 @@ const currentValues = computed(() => {
       v.push(['价格', fmt(g.option?.price)])
       v.push(['Delta', f4(g.option?.delta)])
       v.push(['Gamma', f4(g.option?.gamma)])
-      v.push(['Theta', f4(g.option?.theta)])
+      v.push(['Theta/日', f4(g.option?.thetaDaily ?? g.option?.theta)])
       v.push(['Vega', f4(g.option?.vega)])
+      v.push(['Rho', f4(g.option?.rho)])
+      break
+    case 'asian-option':
+      v.push(['Asian 价格', fmt(g.asian?.price)])
+      v.push(['Asian Δ/Γ', `${f4(g.asian?.delta)} / ${f4(g.asian?.gamma)}`])
+      v.push(['Bachelier 价格', fmt(g.bachelier?.price)])
+      v.push(['Bachelier Δ/Γ', `${f4(g.bachelier?.delta)} / ${f4(g.bachelier?.gamma)}`])
       break
     case 'lp-inventory':
       v.push(['LP 价值', fmt(g.lpV3?.value)])
@@ -79,6 +86,15 @@ const currentValues = computed(() => {
       break
     case 'portfolio':
       v.push(['组合价值', fmt(g.portfolio)])
+      v.push(['组合曲线点', g.lpPortfolio?.points?.length ?? 0])
+      break
+    case 'liquidity-fingerprint':
+      v.push(['分片数', g.liquidityFingerprint?.segments?.length ?? 0])
+      v.push(['权重合计', f4(g.liquidityFingerprint?.segments?.reduce((s, seg) => s + seg.weight, 0))])
+      break
+    case 'amm-geometry':
+      v.push(['Numoen 状态', g.numoen?.status ?? 'protocol-unverified'])
+      v.push(['Numoen slip', f4(g.numoen?.slippageY)])
       break
     case 'order-plan':
       v.push(['挂单档数', g.plan?.primaryOrders?.length ?? 0])
@@ -100,11 +116,11 @@ const decisionImpact = computed(() => {
     cost: '决定挂单的成本锚、上下沿、回归目标',
     volatility: '决定挂单间距与失效阈值',
     'delta-band': '直接生成挂单价格梯队（试仓/加仓/极值）',
-    'option-greeks': '提供方向风险（Delta）与曲率（Gamma）参考',
-    'asian-option': '研究层：Asian/Bachelier 与 LP payoff 的贴合关系未完成',
+    'option-greeks': '研究层提供方向、曲率、时间、波动和利率敏感度参考',
+    'asian-option': '研究层：Asian/Bachelier 用于 LP payoff 贴合实验，不进入默认挂单',
     'lp-inventory': '展示 LP 库存暴露；不进入默认挂单',
-    'liquidity-fingerprint': '研究层：主图右侧竖仓展示挂单/密度分布；积分、tick 离散化和真实 LP 权重仍未完成',
-    'amm-geometry': '研究层：Lambert W / Numoen / AMM 关系待按原图和协议逐式重读',
+    'liquidity-fingerprint': '研究层：连续密度已做积分离散；真实 tick、手续费层级和链上 LP 权重仍未接入',
+    'amm-geometry': '研究层：Lambert W 可数值展示；Numoen 标为 protocol-unverified，不输出策略判断',
     'capital-efficiency': '展示区间效率估计；不进入默认挂单',
     funding: '研究层：仅 TWAP 估计，未接真实永续资金费率和结算制度',
     portfolio: '研究层：组合视图不参与默认挂单',
