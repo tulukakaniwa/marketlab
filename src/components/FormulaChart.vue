@@ -248,7 +248,7 @@ const guide = computed(() => {
     'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 很小说明 Delta 变化慢，不需要频繁调仓。Theta ${fmt(o?.theta)} 是每天的时间损耗（年化值需除 365）。` },
     'asian-option': { title: '研究层：亚式近似', body: `这里只展示 σ/√3 的几何均价近似。Asian/Bachelier 与 LP payoff 的贴合关系还没有逐式确认，不能作为 LP 对冲或挂单结论。` },
     'lp-inventory': { title: '怎么看 LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}。无常损失 ${pctFmt(il?.impermanentLoss)}，${(il?.impermanentLoss ?? 0) > -0.01 ? '几乎可以忽略，价格没有大幅偏离入场价。' : '需要关注，价格偏离较大。'} 相比 HODL，LP 额外赚了手续费但承担了无常损失风险。` },
-    'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `当前只是把连续密度按 8 段做粗分片展示。真实 LP 区间权重还需要写出积分、tick 离散化、手续费层级和边界规则；不能直接当 LP 配置建议。` },
+    'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `主图右侧竖仓把连续密度和挂单刻度放到同一条价格轴上，辅助订单流视角。真实 LP 区间权重还需要写出积分、tick 离散化、手续费层级和边界规则；不能直接当 LP 配置建议。` },
     'amm-geometry': { title: '研究层：AMM 几何', body: `这里只画恒定乘积曲线。Lambert W、高斯和 AMM/Numoen Math 的关系仍需按原图和协议机制逐式重读，不能作为交易信号。` },
     'capital-efficiency': { title: '怎么看资本效率', body: `${(g.efficiency?.efficiency ?? 0).toFixed(1)} 倍意味着你的资金利用率是分散做市的 ${(g.efficiency?.efficiency ?? 0).toFixed(0)} 倍。区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}] 是相对入场价的范围。${(g.efficiency?.efficiency ?? 0) > 5 ? '效率很高，但区间很窄 → 需要更频繁地调仓。' : '效率适中，区间宽度合理。'}` },
     funding: { title: '研究层：资金费率', body: `当前只有 perp TWAP / spot TWAP - 1 的估计：${pctFmt(g.funding?.ratio)}。还没有接真实永续资金费率、结算周期、交易所制度和历史结算数据，不能作为持仓结论。` },

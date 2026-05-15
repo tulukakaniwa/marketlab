@@ -103,7 +103,7 @@ const decisionImpact = computed(() => {
     'option-greeks': '提供方向风险（Delta）与曲率（Gamma）参考',
     'asian-option': '研究层：Asian/Bachelier 与 LP payoff 的贴合关系未完成',
     'lp-inventory': '展示 LP 库存暴露；不进入默认挂单',
-    'liquidity-fingerprint': '研究层：连续分布到真实 LP 区间权重的积分和离散化规则未完成',
+    'liquidity-fingerprint': '研究层：主图右侧竖仓展示挂单/密度分布；积分、tick 离散化和真实 LP 权重仍未完成',
     'amm-geometry': '研究层：Lambert W / Numoen / AMM 关系待按原图和协议逐式重读',
     'capital-efficiency': '展示区间效率估计；不进入默认挂单',
     funding: '研究层：仅 TWAP 估计，未接真实永续资金费率和结算制度',

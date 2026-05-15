@@ -11,6 +11,7 @@ import {
 } from 'lightweight-charts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
+import LiquidityFingerprintRack from './LiquidityFingerprintRack.vue'
 
 const stageNames = Object.fromEntries(formulaStages.map(s => [s.id, s.label]))
 
@@ -19,6 +20,7 @@ const props = defineProps({
   costPath: { type: Array, required: true },
   formulaPath: { type: Array, required: true },
   entryPrice: { type: Number, required: true },
+  graph: { type: Object, required: true },
   replay: { type: Object, required: true },
 })
 
@@ -320,6 +322,15 @@ function signedMoney(value) {
         <small>折价 / 回归 / 溢价，随光标查看每根 K 的判断</small>
       </article>
     </div>
-    <div ref="el" class="market-chart" />
+    <div class="chart-main-row">
+      <div ref="el" class="market-chart" />
+      <LiquidityFingerprintRack
+        :rows="rows"
+        :cost-path="costPath"
+        :formula-path="formulaPath"
+        :graph="graph"
+        :active-index="activeIndex"
+      />
+    </div>
   </div>
 </template>
