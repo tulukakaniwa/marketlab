@@ -31,6 +31,25 @@ const rfrP = computed({ get: () => pctOut(props.input.riskFreeRate), set: (v) =>
         <option value="call">认购 call</option>
       </select>
     </label>
+    <label><span>期权组合</span>
+      <select v-model="input.optionStrategy">
+        <option value="single">单腿</option>
+        <option value="vertical">价差</option>
+        <option value="straddle">跨式</option>
+        <option value="strangle">宽跨式</option>
+        <option value="collar">领口</option>
+      </select>
+    </label>
+    <label><span>期权方向</span>
+      <select v-model="input.optionSide">
+        <option value="long">多 legs</option>
+        <option value="short">空 legs</option>
+      </select>
+    </label>
+    <label><span>第二行权价</span><input v-model.number="input.strikePrice2" type="number" step="0.01" /></label>
+    <label><span>合约数量</span><input v-model.number="input.optionQuantity" type="number" min="0" step="1" /></label>
+    <label><span>合约乘数</span><input v-model.number="input.optionMultiplier" type="number" min="0.0001" step="1" /></label>
+    <label><span>权利金</span><input v-model.number="input.optionPremium" type="number" min="0" step="0.01" /></label>
     <label><span>区间宽度</span><input v-model.number="input.rangeWidth" type="number" step="0.01" /></label>
   </div>
 </template>

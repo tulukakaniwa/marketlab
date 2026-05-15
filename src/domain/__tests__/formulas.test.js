@@ -3,6 +3,7 @@ import {
   asianOption,
   bachelierOption,
   blackScholes,
+  buildOptionPortfolio,
   capitalEfficiency,
   fundingRate,
   getDeltaBands,
@@ -11,6 +12,7 @@ import {
   liquidityFingerprint,
   numoenSnapshot,
   normalCdf,
+  optionLegsFromTemplate,
   uniswapV3Inventory,
 } from '../formulas/core.js'
 
@@ -82,6 +84,50 @@ describe('Asian / Bachelier research formulas', () => {
     expect(Number.isFinite(bach.gamma)).toBe(true)
     expect(asianOption({ entryPrice: 0, strikePrice: 105, holdingDays: 30, iv: 0.4 })).toBeNull()
     expect(bachelierOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, normalVol: 0 })).toBeNull()
+  })
+})
+
+describe('Option portfolio research model', () => {
+  it('支持多腿组合并聚合 Greeks', () => {
+    const legs = optionLegsFromTemplate({
+      strategy: 'straddle',
+      side: 'long',
+      entryPrice: 100,
+      strikePrice: 100,
+      quantity: 2,
+    })
+    const combo = buildOptionPortfolio({
+      entryPrice: 100,
+      holdingDays: 30,
+      iv: 0.3,
+      riskFreeRate: 0.02,
+      legs,
+    })
+    expect(combo.status).toBe('research-only')
+    expect(combo.legs).toHaveLength(2)
+    expect(Number.isFinite(combo.delta)).toBe(true)
+    expect(combo.gamma).toBeGreaterThan(0)
+    expect(combo.points.length).toBeGreaterThan(20)
+  })
+
+  it('价差组合允许 long/short legs 抵消部分风险', () => {
+    const legs = optionLegsFromTemplate({
+      strategy: 'vertical',
+      side: 'long',
+      optionType: 'call',
+      entryPrice: 100,
+      strikePrice: 100,
+      strikePrice2: 110,
+    })
+    const combo = buildOptionPortfolio({ entryPrice: 100, holdingDays: 45, iv: 0.25, legs })
+    expect(combo.legs.map((item) => item.side)).toEqual(['long', 'short'])
+    expect(Math.abs(combo.delta)).toBeLessThan(1)
+    expect(combo.scope).toContain('LP replication only')
+  })
+
+  it('非法或空 legs 返回 null', () => {
+    expect(buildOptionPortfolio({ entryPrice: 100, holdingDays: 30, iv: 0.2, legs: [] })).toBeNull()
+    expect(buildOptionPortfolio({ entryPrice: 0, holdingDays: 30, iv: 0.2, legs: [{ type: 'call', strikePrice: 100, quantity: 1 }] })).toBeNull()
   })
 })
 

@@ -2,12 +2,14 @@ import {
   asianOption,
   bachelierOption,
   blackScholes,
+  buildOptionPortfolio,
   capitalEfficiency,
   fundingRate,
   hedgedLpPortfolioCurve,
   impermanentLoss,
   liquidityFingerprint,
   numoenSnapshot,
+  optionLegsFromTemplate,
   portfolioValue,
   uniswapV2Inventory,
   uniswapV3HedgedInventory,
@@ -33,6 +35,27 @@ export function buildResearchSnapshot({ market, input, executable }) {
     dividendYield: Number(input.dividendYield) || 0,
     type: input.optionType,
     tradingDaysPerYear: tdpy,
+  })
+  const optionLegs = optionLegsFromTemplate({
+    strategy: input.optionStrategy,
+    side: input.optionSide,
+    optionType: input.optionType,
+    entryPrice,
+    strikePrice,
+    strikePrice2: Number(input.strikePrice2),
+    quantity: Number(input.optionQuantity) || 1,
+    widthPct: Number(input.optionWidthPct) || rangeWidth,
+    premium: Number.isFinite(Number(input.optionPremium)) ? Number(input.optionPremium) : null,
+  })
+  const optionPortfolio = buildOptionPortfolio({
+    entryPrice,
+    holdingDays,
+    iv,
+    riskFreeRate: Number(input.riskFreeRate) || 0,
+    dividendYield: Number(input.dividendYield) || 0,
+    tradingDaysPerYear: tdpy,
+    contractMultiplier: Number(input.optionMultiplier) || 1,
+    legs: optionLegs,
   })
   const asian = asianOption({
     entryPrice,
@@ -109,6 +132,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
   return {
     researchInputs: { rangeWidth, skew, liquidity, hedgeSize, fees, strikePrice, startPrice },
     option,
+    optionPortfolio,
     asian,
     bachelier,
     lp,

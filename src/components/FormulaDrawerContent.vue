@@ -46,6 +46,9 @@ const currentValues = computed(() => {
       v.push(['Gamma', f4(g.option?.gamma)])
       v.push(['Theta', f4(g.option?.theta)])
       v.push(['Vega', f4(g.option?.vega)])
+      v.push(['组合 legs', g.optionPortfolio?.legs?.length ?? 0])
+      v.push(['组合 Delta', f4(g.optionPortfolio?.delta)])
+      v.push(['组合 Gamma', f4(g.optionPortfolio?.gamma)])
       break
     case 'lp-inventory':
       v.push(['LP 价值', fmt(g.lpV3?.value)])
