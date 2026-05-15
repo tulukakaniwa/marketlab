@@ -11,6 +11,9 @@ import TraderChecklist from './TraderChecklist.vue'
 const props = defineProps({
   graph: { type: Object, required: true },
   market: { type: Object, default: null },
+  sourceLabel: { type: String, default: '未载入' },
+  rows: { type: Array, default: () => [] },
+  observationDate: { type: String, default: '' },
   replay: { type: Object, required: true },
   profileReplays: { type: Array, default: () => [] },
   activeProfileId: { type: String, default: 'balanced' },
@@ -18,13 +21,13 @@ const props = defineProps({
   replayEnabled: { type: Boolean, default: false },
   portfolioEnabled: { type: Boolean, default: false },
   profileList: { type: Array, required: true },
-  input: { type: Object, default: null },
+  input: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['set-profile', 'set-auto-profile'])
 
-const DEFAULT_SECTION_ORDER = ['facts', 'triggers', 'orders', 'checklist', 'profile', 'replay', 'reason', 'portfolio']
-const sectionOrder = persistedRef('lab.decisionSectionOrder.v1', DEFAULT_SECTION_ORDER)
+const DEFAULT_SECTION_ORDER = ['sample', 'account', 'facts', 'triggers', 'orders', 'replay', 'profile', 'checklist', 'reason', 'portfolio']
+const sectionOrder = persistedRef('lab.decisionSectionOrder.v2', DEFAULT_SECTION_ORDER)
 
 const reasonText = computed(() => {
   const decision = props.graph?.decision
@@ -69,6 +72,19 @@ const replayMeta = computed(() => {
 const hasRunnableProfileReplay = computed(() =>
   props.replayEnabled && props.profileReplays.some(item => !item.replay?.status)
 )
+const accountMeta = computed(() => {
+  const capital = Math.max(Number(props.input?.capital) || 0, 0)
+  const base = Math.max(Number(props.input?.baseNotional) || 0, 0)
+  if (capital > 0 && base > 0) return '资金+底仓'
+  if (capital > 0) return '仅现金'
+  if (base > 0) return '仅底仓'
+  return '缺输入'
+})
+const sampleMeta = computed(() => {
+  const count = props.rows.length
+  const asOf = props.observationDate || props.rows.at(-1)?.date || '—'
+  return `${count} K · ${asOf}`
+})
 const normalizedSectionOrder = computed(() => {
   const stored = Array.isArray(sectionOrder.value) ? sectionOrder.value : []
   const known = new Set(DEFAULT_SECTION_ORDER)
@@ -106,6 +122,51 @@ function moveSection(id, delta) {
 
 <template>
   <div class="dd-drawer">
+    <DisclosureSection
+      title="样本"
+      :meta="sampleMeta"
+      movable
+      :can-move-up="canMoveSection('sample', -1)"
+      :can-move-down="canMoveSection('sample', 1)"
+      :style="sectionStyle('sample')"
+      @move-up="moveSection('sample', -1)"
+      @move-down="moveSection('sample', 1)"
+    >
+      <article class="dd-context-card">
+        <header>
+          <strong>{{ sourceLabel }}</strong>
+          <em>{{ observationDate || rows.at(-1)?.date || '—' }}</em>
+        </header>
+        <div class="dd-context-grid">
+          <div><span>K 线</span><strong>{{ rows.length }}</strong></div>
+          <div><span>现价</span><strong>{{ money(market?.markPrice) }}</strong></div>
+          <div><span>成本锚</span><strong>{{ money(market?.costAnchor) }}</strong></div>
+        </div>
+      </article>
+    </DisclosureSection>
+
+    <DisclosureSection
+      title="账户边界"
+      :meta="accountMeta"
+      movable
+      :can-move-up="canMoveSection('account', -1)"
+      :can-move-down="canMoveSection('account', 1)"
+      :style="sectionStyle('account')"
+      @move-up="moveSection('account', -1)"
+      @move-down="moveSection('account', 1)"
+    >
+      <div class="dd-account-inputs">
+        <label>
+          <span>账户资金</span>
+          <input v-model.number="input.capital" type="number" min="0" step="100" />
+        </label>
+        <label>
+          <span>底仓名义</span>
+          <input v-model.number="input.baseNotional" type="number" min="0" step="100" />
+        </label>
+      </div>
+    </DisclosureSection>
+
     <DisclosureSection
       title="当前事实"
       :meta="`${factMeta} · ${matchText}`"
@@ -275,6 +336,18 @@ function moveSection(id, delta) {
 .dd-drawer > * { min-width: 0; }
 .dd-reason-text { margin: 0; font-size: 0.95rem; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
 .dd-action-card { padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-alt); min-width: 0; }
+.dd-context-card { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-alt); min-width: 0; }
+.dd-context-card header { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; min-width: 0; }
+.dd-context-card header strong { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-context-card header em { flex-shrink: 0; color: var(--muted); font-style: normal; font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.dd-context-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.dd-context-grid div { display: grid; gap: 1px; min-width: 0; }
+.dd-context-grid span { color: var(--muted); font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
+.dd-context-grid strong { font-size: 0.8rem; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-account-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.dd-account-inputs label { display: grid; gap: 3px; min-width: 0; }
+.dd-account-inputs span { color: var(--muted); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
+.dd-account-inputs input { min-width: 0; min-height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; background: var(--bg); color: var(--ink); font-variant-numeric: tabular-nums; }
 .dd-action-card header { display: flex; gap: 8px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
 .dd-action-card header strong { font-size: 1rem; }
 .dd-action-card header em { font-style: normal; color: var(--muted); font-size: 0.72rem; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
