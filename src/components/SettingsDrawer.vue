@@ -1,5 +1,6 @@
 <script setup>
 import SimulationInputs from './SimulationInputs.vue'
+import OptionPortfolioInputs from './OptionPortfolioInputs.vue'
 import AdvancedSettingsContent from './AdvancedSettingsContent.vue'
 import ChartOverlayToggles from './ChartOverlayToggles.vue'
 import StartupConfigPanel from './StartupConfigPanel.vue'
@@ -25,6 +26,11 @@ const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all
     <section class="sd-section">
       <h3 class="sd-h">模拟参数</h3>
       <SimulationInputs :input="input" />
+    </section>
+
+    <section class="sd-section">
+      <h3 class="sd-h">期权组合研究</h3>
+      <OptionPortfolioInputs :input="input" />
     </section>
 
     <section class="sd-section">
