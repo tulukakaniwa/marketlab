@@ -246,20 +246,20 @@ const guide = computed(() => {
     volatility: { title: '怎么看波动口径', body: `年化波动 ${pctFmt(m?.annualVol)} 意味着价格在一年内约 68% 概率在 ±${pctFmt(m?.annualVol)} 范围内。${(m?.annualVol ?? 0) > 0.4 ? '波动偏高，挂单间距应该拉大，仓位要轻。' : '波动适中，可以正常操作。'} ATR ${pctFmt(m?.atrPercent)} 是日均波动幅度，用来设止损。` },
     'delta-band': { title: '怎么看 GetDelta 成本带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，多头买入的安全区是 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。${(m?.markPrice ?? 0) < (b?.long?.low ?? 0) ? '现价已跌破多头下沿，这是罕见的深度折价。' : (m?.markPrice ?? 0) > (b?.long?.high ?? 0) ? '现价已突破上沿，不适合追多。' : '现价在波动带内，等待更好的价格。'}空头区同理，但 Lab 不主动做空。` },
     'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 很小说明 Delta 变化慢，不需要频繁调仓。Theta ${fmt(o?.theta)} 是每天的时间损耗（年化值需除 365）。` },
-    'asian-option': { title: '怎么看亚式近似', body: `亚式期权用平均价格结算，波动比普通期权低约 42%（因为 σ/√3 的平滑效应）。波动低 → 权利金便宜 → 更适合做 LP 对冲工具。跟普通 Greeks 对比，Delta 绝对值更小、Gamma 更平缓。` },
+    'asian-option': { title: '研究层：亚式近似', body: `这里只展示 σ/√3 的几何均价近似。Asian/Bachelier 与 LP payoff 的贴合关系还没有逐式确认，不能作为 LP 对冲或挂单结论。` },
     'lp-inventory': { title: '怎么看 LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}。无常损失 ${pctFmt(il?.impermanentLoss)}，${(il?.impermanentLoss ?? 0) > -0.01 ? '几乎可以忽略，价格没有大幅偏离入场价。' : '需要关注，价格偏离较大。'} 相比 HODL，LP 额外赚了手续费但承担了无常损失风险。` },
-    'liquidity-fingerprint': { title: '怎么看流动性指纹', body: `曲线高点在入场价 ${fmt(m?.markPrice)} 附近 → LP 流动性应该集中在这里。两端权重低 → 价格到达两端概率小，不需要在极端价位放太多流动性。8 个分片权重加起来 = 100%，每个分片代表一个 LP 仓位。` },
-    'amm-geometry': { title: '怎么看 AMM 几何', body: `xy = k 是恒定乘积曲线：Token0 数量 × Token1 数量 = 常数。曲线越往左（x 小），价格越高（y/x 大）。当前储备点 (${f4(ammData.value?.currentX)}, ${fmt(ammData.value?.currentY)}) 对应价格 ${fmt(ammData.value?.price)}。交易会沿着曲线移动。` },
+    'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `当前只是把连续密度按 8 段做粗分片展示。真实 LP 区间权重还需要写出积分、tick 离散化、手续费层级和边界规则；不能直接当 LP 配置建议。` },
+    'amm-geometry': { title: '研究层：AMM 几何', body: `这里只画恒定乘积曲线。Lambert W、高斯和 AMM/Numoen Math 的关系仍需按原图和协议机制逐式重读，不能作为交易信号。` },
     'capital-efficiency': { title: '怎么看资本效率', body: `${(g.efficiency?.efficiency ?? 0).toFixed(1)} 倍意味着你的资金利用率是分散做市的 ${(g.efficiency?.efficiency ?? 0).toFixed(0)} 倍。区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}] 是相对入场价的范围。${(g.efficiency?.efficiency ?? 0) > 5 ? '效率很高，但区间很窄 → 需要更频繁地调仓。' : '效率适中，区间宽度合理。'}` },
-    funding: { title: '怎么看资金费率', body: `永续价格比现货 ${pctFmt(g.funding?.ratio)}。${(g.funding?.ratio ?? 0) < 0 ? '负费率 = 空头付钱给多头 = 市场偏空。做多可以收资金费，做空要付钱。' : '正费率 = 多头付钱给空头 = 市场偏多。'} 持仓 ${g.inputs?.holdingDays || 30} 天的累计资金成本约 ${pctFmt(g.funding?.funding)}。` },
-    portfolio: { title: '怎么看组合价值', body: `组合总价值 ${fmt(g.portfolio)}。分解：LP PnL ${fmt(g.lpV3Hedged?.lpPnl)} + 期权 ${fmt(o?.price)} + 对冲 ${fmt(g.lpV3Hedged?.hedgePnl)} + 手续费 ${fmt(g.lpV3Hedged?.feeIncome)}。${(g.portfolio ?? 0) >= 0 ? '组合整体盈利。' : '组合整体亏损，主要因为价格偏离了成本锚。'}` },
+    funding: { title: '研究层：资金费率', body: `当前只有 perp TWAP / spot TWAP - 1 的估计：${pctFmt(g.funding?.ratio)}。还没有接真实永续资金费率、结算周期、交易所制度和历史结算数据，不能作为持仓结论。` },
+    portfolio: { title: '研究层：组合价值', body: `组合视图只是把 LP、期权、对冲、手续费和资金费率估计放在一起检查。由于 LP payoff、资金费率和真实区间权重仍未校准，这里不参与默认挂单。` },
     'order-plan': { title: '怎么看挂单计划', body: g.plan?.primaryOrders?.length ? `${g.plan.primaryOrders.length} 档挂单，从试仓到加仓到极值。分批买入降低平均成本，跌破失效线不补仓。` : `当前没有挂单：${g.decision?.timing?.reason || '价格未触发入场条件'}。置信度 ${Math.round((g.decision?.confidence ?? 0) * 100)}%。等待价格给出更好的成本差再行动。` },
     'deviation-score': { title: '怎么看偏离强度', body: `Z-score ${ds?.z?.toFixed(2)}：${Math.abs(ds?.z ?? 0) < 0.5 ? '偏离不到半个标准差，统计上不算显著。市场处于"正常波动"范围。' : Math.abs(ds?.z ?? 0) < 1.5 ? '偏离超过 0.5σ，有一定统计意义。可以开始关注入场机会。' : '偏离超过 1.5σ，统计上显著！这是较强的交易信号。'}回归概率 ${ds?.regressionProb ? (ds.regressionProb * 100).toFixed(0) : '—'}%。` },
     'risk-surface': { title: '怎么看风险曲面', body: `在 GetDelta 价格带 [${fmt(b?.long?.low)}, ${fmt(b?.long?.high)}] 上展开 Greeks：Delta 曲线（绿）从虚值到实值，Gamma（蓝）在入场价附近最大 → 这里风险敏感度最高，调仓最频繁。越远离入场价，Gamma 越小 → 风险变化平缓。` },
-    'net-lp-efficiency': { title: '怎么看 LP 净效率', body: `CE ${(g.efficiency?.efficiency ?? 0).toFixed(1)} 倍放大收益，但要扣除无常损失 ${pctFmt(il?.impermanentLoss)}。${nl?.efficient ? '净效率为正 → 在当前区间做市是赚钱的。集中流动性的收益超过了无常损失的代价。' : '净效率为负 → 无常损失超过了效率增益。需要调整区间或降低杠杆。'}加上手续费后净效率 ${nl?.totalNet?.toFixed(1)} 倍。` },
-    'net-carry': { title: '怎么看持仓净收益', body: `成本偏离带来的回归收益 ${pctFmt(Math.abs(m?.costDistance ?? 0))}，减去资金成本 ${pctFmt(nc?.fundingCost)} = 净收益 ${pctFmt(nc?.netReturn)}。${nc?.viable ? '回归收益 > 资金成本，持仓有利可图。' : '资金成本太高，回归收益不够覆盖。建议：缩短持仓时间、寻找费率更低的市场、或等待更大的偏离。'}` },
+    'net-lp-efficiency': { title: '研究层：LP 净效率', body: `当前净效率 ${nl ? nl.totalNet.toFixed(1) : '—'}× 只是 IL × CE 的估计。真实 LP 区间权重、手续费制度和再平衡规则未完成，不能判断“可行/赚钱”。` },
+    'net-carry': { title: '研究层：持仓净收益', body: `当前净收益估计 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
     'mean-reversion': { title: '怎么看均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}：${Math.abs(mrData.value?.rho ?? 0) > 0.8 ? '偏离高度持续，回归很慢。' : Math.abs(mrData.value?.rho ?? 0) > 0.5 ? '有一定持续性，回归速度中等。' : '偏离衰减快，市场均值回归效率高。'}半衰期 ${mrData.value?.halfLifeDays ? Math.round(mrData.value.halfLifeDays) + ' 天' : '∞'}：偏离幅度衰减到一半所需天数。${mrData.value?.speed === '极慢' || mrData.value?.speed === '慢' ? '速度偏慢 → 不要押注快速回归，需要更多耐心。' : '速度快 → 回归交易窗口短，需要敏捷执行。'}` },
-    'gamma-pnl': { title: '怎么看 Gamma PnL', body: `Dollar Gamma ${fmt(gpData.value?.dollarGamma)}：标的价格变动 1 元，Delta 变化这么多。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性收益 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。Gamma PnL = ½·Γ·(ΔP)²，凸性收益来自波动的平方——这也是为什么波动大的资产做 LP 更赚钱（凸性收益 > 无常损失时）。` },
+    'gamma-pnl': { title: '怎么看 Gamma PnL', body: `Dollar Gamma ${fmt(gpData.value?.dollarGamma)}：标的价格变动 1 元，Delta 变化这么多。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。Gamma PnL = ½·Γ·(ΔP)²；这里仅展示波动平方项，不推导 LP 策略结论。` },
     'vol-confidence': { title: '怎么看波动率置信', body: `基于 ${vcData.value?.sampleSize} 天样本，真实波动率落在 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}] 区间内（68% 置信）。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)} → ${vcData.value?.quality}。${vcData.value?.quality === '低精度' || vcData.value?.quality === '不可靠' ? '样本太少或波动变化太大 → 所有依赖波动率的计算（Delta 带、Greeks）都需要用更保守的估计。' : '波动率估计可靠 → 可以信任当前的公式输出。'}` },
   }
   return guides[id] || null
@@ -648,7 +648,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
     <!-- NET LP EFFICIENCY -->
     <svg v-else-if="formulaId === 'net-lp-efficiency' && netLpData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">LP 净效率 · {{ netLpData.efficient ? '有利 ✓' : '亏损 ✗' }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">LP 净效率 · 研究层</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- CE gain bar -->
       <rect x="80" :y="sy(netLpData.grossGain / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1))" width="50" :height="Math.max(2, (netLpData.grossGain / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) * ph)" fill="var(--green)" rx="2" opacity="0.7" />
@@ -667,7 +667,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
     <!-- NET CARRY -->
     <svg v-else-if="formulaId === 'net-carry' && netCarryData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">持仓净收益 · {{ netCarryData.viable ? '可行 ✓' : '不推荐 ✗' }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">持仓净收益 · 研究层</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Cost distance bar (potential gain) -->
       <rect x="80" :y="sy(Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" width="60" :height="Math.max(2, (Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) * ph)" fill="var(--green)" rx="2" opacity="0.6" />
@@ -678,7 +678,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
       <!-- Net result -->
       <line :x1="PL" :x2="W-PR" :y1="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" :y2="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" stroke="var(--ink)" stroke-width="2" />
       <text :x="W-PR" :y="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 3" text-anchor="end" class="fc-tick">净 {{ pctFmt(netCarryData.netReturn) }}</text>
-      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">盈亏平衡 @ {{ pctFmt(netCarryData.breakEven) }} · {{ netCarryData.viable ? '回归收益覆盖资金成本' : '资金成本超过回归收益' }}</text>
+      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">盈亏平衡估计 @ {{ pctFmt(netCarryData.breakEven) }} · 未接真实资金费率</text>
     </svg>
 
     <!-- MEAN REVERSION -->

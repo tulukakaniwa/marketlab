@@ -18,7 +18,7 @@ const pipeline = computed(() => [
   { id: 'delta-band', label: 'Δ带', val: fmt(props.graph.deltaBands?.long?.low), sub: fmt(props.graph.deltaBands?.long?.high), tone: 'band' },
   { id: 'option-greeks', label: 'Greeks', val: fmt(props.graph.option?.price), sub: `Δ ${f4(props.graph.option?.delta)}`, tone: (props.graph.option?.delta ?? 0) > 0 ? 'up' : 'down' },
   { id: 'lp-inventory', label: 'LP库', val: fmt(props.graph.lpV3?.value), sub: `IL ${pctFmt(props.graph.impermanentLoss?.impermanentLoss)}` },
-  { id: 'portfolio', label: '组合', val: fmt(props.graph.portfolio), tone: (props.graph.portfolio ?? 0) >= 0 ? 'up' : 'down' },
+  { id: 'portfolio', label: '组合', val: fmt(props.graph.portfolio), sub: '研究', tone: 'band' },
   { id: 'order-plan', label: '挂单', val: props.graph.plan?.primaryOrders?.length ? `${props.graph.plan.primaryOrders.length}档` : '—', sub: props.graph.decision?.state ?? '等待' },
 ])
 
@@ -31,8 +31,8 @@ const fusion = computed(() => {
   return [
     { id: 'deviation-score', label: '偏离强度', val: ds ? `${ds.z.toFixed(2)}σ` : '—', sub: ds ? `${(ds.regressionProb * 100).toFixed(0)}%回归` : '', tone: ds?.regime === '折价' ? 'lo' : 'hi', sources: ['cost', 'volatility'] },
     { id: 'risk-surface', label: '风险曲面', val: 'Greeks×Δ带', sub: '曲面', tone: 'band', sources: ['delta-band', 'option-greeks'] },
-    { id: 'net-lp-efficiency', label: 'LP净效率', val: nl ? `${nl.totalNet.toFixed(1)}×` : '—', sub: nl?.efficient ? '可行' : '亏', tone: nl?.efficient ? 'up' : 'down', sources: ['lp-inventory', 'capital-efficiency'] },
-    { id: 'net-carry', label: '持仓净收', val: nc ? pctFmt(nc.netReturn) : '—', sub: nc?.viable ? '可行' : '不推荐', tone: nc?.viable ? 'up' : 'down', sources: ['cost', 'funding'] },
+    { id: 'net-lp-efficiency', label: 'LP净效率', val: nl ? `${nl.totalNet.toFixed(1)}×` : '—', sub: '研究层', tone: 'band', sources: ['lp-inventory', 'capital-efficiency'] },
+    { id: 'net-carry', label: '持仓净收', val: nc ? pctFmt(nc.netReturn) : '—', sub: '研究层', tone: 'band', sources: ['cost', 'funding'] },
   ]
 })
 
