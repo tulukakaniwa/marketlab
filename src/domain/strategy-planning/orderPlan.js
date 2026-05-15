@@ -1,67 +1,26 @@
 import { getDeltaBands } from '../formulas/core.js'
+import {
+  resolveExecutableProfile,
+  resolveProfile,
+  scaleProfileToMarket,
+  strategyProfileList,
+  strategyProfiles,
+} from './strategyProfile.js'
 
 const LADDER_WEIGHTS = [0.2, 0.3, 0.5]
 
-// Base strategy templates — actual thresholds are scaled by market stats
-const baseProfiles = {
-  conservative: {
-    id: 'conservative', label: '保守',
-    edgeSigma: 1.15, momentumSigma: 0.6, costSlopeSigma: 0.75,
-    riskPct: 0.008, exposurePct: 0.18,
-    firstWeight: 0.32, cooldownFactor: 2.5,
-    takeProfitSigma: 1.0, cutLossSigma: 1.2,
-  },
-  balanced: {
-    id: 'balanced', label: '均衡',
-    edgeSigma: 0.8, momentumSigma: 0, costSlopeSigma: 0.6,
-    riskPct: 0.012, exposurePct: 0.30,
-    firstWeight: 0.42, cooldownFactor: 1.5,
-    takeProfitSigma: 0.8, cutLossSigma: 1.1,
-  },
-  aggressive: {
-    id: 'aggressive', label: '激进',
-    edgeSigma: 0.55, momentumSigma: -0.5, costSlopeSigma: 0.45,
-    riskPct: 0.02, exposurePct: 0.45,
-    firstWeight: 0.5, cooldownFactor: 1.0,
-    takeProfitSigma: 0.6, cutLossSigma: 1.0,
-  },
+export {
+  resolveExecutableProfile,
+  resolveProfile,
+  scaleProfileToMarket,
+  strategyProfileList,
+  strategyProfiles,
 }
-
-export const strategyProfiles = baseProfiles
-
-export function scaleProfileToMarket(profile, market) {
-  const atr = market?.atrPercent || 0.02
-  const annVol = market?.annualVol || 0.4
-  const dailyVol = annVol / Math.sqrt(365)
-  const volRatio = dailyVol / 0.02 // normalize to ~40% annual vol baseline
-
-  return {
-    ...profile,
-    edgeAtr: profile.edgeSigma,
-    minEdge: Math.max(profile.edgeSigma * atr * 0.3, 0.005),
-    momentumMin: profile.momentumSigma * dailyVol,
-    costSlopeAtr: profile.costSlopeSigma * volRatio,
-    costSlopeMin: Math.max(profile.costSlopeSigma * dailyVol * 0.3, 0.003),
-    riskMin: Math.max(profile.riskPct * 0.4, 0.003),
-    riskMax: Math.max(profile.riskPct, 0.008),
-    exposureMin: Math.max(profile.exposurePct * 0.4, 0.05),
-    exposureMax: Math.max(profile.exposurePct, 0.15),
-    firstWeight: profile.firstWeight,
-    buyCooldown: Math.max(Math.round(profile.cooldownFactor * 3), 2),
-    sellCooldown: Math.max(Math.round(profile.cooldownFactor), 1),
-    takeProfitAtr: profile.takeProfitSigma,
-    takeProfitMin: Math.max(profile.takeProfitSigma * atr * 0.3, 0.01),
-    cutMomentumAtr: profile.cutLossSigma,
-    cutMomentumMin: Math.max(profile.cutLossSigma * dailyVol * 0.4, 0.015),
-  }
-}
-
-export const strategyProfileList = Object.values(strategyProfiles)
 
 export function buildDecisionGraph({ market, input, account }) {
   if (!market) return emptyGraph()
   const executable = buildExecutableContext({ market, input })
-  const profile = resolveExecutableProfile(input?.strategyProfile, market)
+  const profile = resolveExecutableProfile(input?.strategyProfile, market, input)
   const nextAccount = buildAccount({ account, input, markPrice: market.markPrice })
   const timing = buildEntryTiming(market, executable.deltaBands, profile)
   const position = buildPositionPlan(timing, executable.deltaBands, nextAccount, profile, market)
@@ -293,14 +252,6 @@ export function buildExecutionPlan(position, bands, account, market) {
       upper: position.side === 'sell' ? position.stopPrice : market.costHigh,
     },
   }
-}
-
-export function resolveProfile(id) {
-  return strategyProfiles[id] ?? strategyProfiles.balanced
-}
-
-export function resolveExecutableProfile(id, market) {
-  return scaleProfileToMarket(resolveProfile(id), market)
 }
 
 function ensureExecutableProfile(profile, market) {

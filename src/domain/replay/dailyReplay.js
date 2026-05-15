@@ -16,7 +16,7 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   const initialPrice = rows[WARMUP]?.close ?? rows[0]?.close ?? 0
   const accountCapital = capital + initialBaseNotional
   const fee = feeRate(input)
-  const profile = resolveProfile(input.strategyProfile)
+  const profile = resolveProfile(input.strategyProfile, input)
   // 优先复用外部传入的 market states，避免重复计算。
   // 当未传入或长度不一致时回退到内部计算（与外部 tdpy 保持一致）。
   const states = (Array.isArray(marketStates) && marketStates.length === rows.length)

@@ -18,8 +18,8 @@ function makeRows(n, gen) {
 }
 
 describe('strategyProfileList', () => {
-  it('三档顺序固定：保守 / 均衡 / 激进', () => {
-    expect(strategyProfileList.map(p => p.id)).toEqual(['conservative', 'balanced', 'aggressive'])
+  it('档位顺序固定：保守 / 均衡 / 激进 / 自定义', () => {
+    expect(strategyProfileList.map(p => p.id)).toEqual(['conservative', 'balanced', 'aggressive', 'custom'])
   })
 })
 
@@ -240,6 +240,34 @@ describe('buildDecisionGraph', () => {
     if (c.position.side && a.position.side) {
       expect(a.position.riskBudget).toBeGreaterThanOrEqual(c.position.riskBudget)
     }
+  })
+
+  it('自定义策略参数进入领域层并改变风险预算', () => {
+    const buyMarket = {
+      rows: 120,
+      markPrice: 90,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: -0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentum5: 0.03,
+      momentum20: 0.01,
+      costSlope5: 0,
+    }
+    const small = buildDecisionGraph({
+      market: buyMarket,
+      input: { ...baseInput, entryPrice: 100, iv: 0.4, strategyProfile: 'custom', strategyRiskPct: 0.005, strategyExposurePct: 0.1 },
+    })
+    const large = buildDecisionGraph({
+      market: buyMarket,
+      input: { ...baseInput, entryPrice: 100, iv: 0.4, strategyProfile: 'custom', strategyRiskPct: 0.04, strategyExposurePct: 0.8 },
+    })
+    expect(small.profile.id).toBe('custom')
+    expect(large.profile.riskMax).toBeGreaterThan(small.profile.riskMax)
+    expect(large.position.maxNotional).toBeGreaterThan(small.position.maxNotional)
   })
 
   it('无市场态返回空图', () => {

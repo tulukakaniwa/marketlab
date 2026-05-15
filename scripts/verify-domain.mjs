@@ -23,7 +23,7 @@ assert.ok(bands.short.cost < bands.short.high)
 assert.ok(formulaStages.length >= 12)
 assert.ok(formulaStages.some((stage) => stage.id === 'liquidity-fingerprint' && stage.status === 'research-only'))
 assert.ok(formulaStages.some((stage) => stage.id === 'amm-geometry' && stage.status === 'protocol-unverified'))
-assert.deepEqual(strategyProfileList.map((profile) => profile.id), ['conservative', 'balanced', 'aggressive'])
+assert.deepEqual(strategyProfileList.map((profile) => profile.id), ['conservative', 'balanced', 'aggressive', 'custom'])
 
 const fp = liquidityFingerprint({ entryPrice: 100, lowerFactor: 0.8, upperFactor: 1.2, segmentCount: 10 })
 assert.ok(Math.abs(fp.segments.reduce((sum, seg) => sum + seg.weight, 0) - 1) < 1e-6)
