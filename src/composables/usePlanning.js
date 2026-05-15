@@ -87,5 +87,6 @@ export function buildExecutionBrief(graph, profile, autoProfile) {
     stop: graph?.position?.stopPrice ?? null,
     target: graph?.position?.targetPrice ?? null,
     reason: graph?.decision?.timing?.reason ?? graph?.position?.rule ?? '等待真实 K 线。',
+    confidence: Math.round((graph?.decision?.confidence ?? 0) * 100),
   }
 }

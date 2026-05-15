@@ -15,7 +15,6 @@ import ReplayPanel from './components/ReplayPanel.vue'
 import TopBar from './components/TopBar.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
-import { inferTdpy } from './domain/market/tdpy.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
@@ -56,11 +55,6 @@ function setProfile(id) {
   lab.input.strategyProfile = id
 }
 
-function selectSample(sample) {
-  lab.input.tradingDaysPerYear = inferTdpy(sample).value
-  lab.loadSample(sample)
-}
-
 const allSamples = computed(() => {
   const curated = new Map(lab.marketSamples.map(s => [s.symbol, s]))
   for (const s of stockIndex) {
@@ -88,21 +82,6 @@ function rPct(v) { return Number.isFinite(v) ? Number((v * 100).toFixed(2)) : 0 
 const ivP = computed({ get: () => rPct(lab.input.iv), set: (v) => { lab.input.iv = cPct(v) } })
 const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { lab.input.targetReturn = cPct(v) } })
 
-const brief = computed(() => {
-  const g = lab.graph; const s = g?.decision?.state ?? '未载入'
-  const side = g?.position?.side
-  const verb = side === 'buy' ? '低价买入' : side === 'sell' && g?.plan?.primaryOrders?.length ? '底仓减压' : '等待低价'
-  return {
-    title: verb === s ? s : `${verb} · ${s}`,
-    bias: side === 'buy' ? '安全低价买入' : side === 'sell' ? '卖出只做仓位保护' : '等待低价不追高',
-    notional: g?.plan?.primaryOrders?.[0]?.notional ?? 0,
-    price: g?.plan?.primaryOrders?.[0]?.price ?? null,
-    stop: g?.position?.stopPrice ?? null,
-    target: g?.position?.targetPrice ?? null,
-    reason: g?.decision?.timing?.reason ?? '载入 K 线开始分析',
-    confidence: Math.round((g?.decision?.confidence ?? 0) * 100),
-  }
-})
 </script>
 
 <template>
@@ -201,21 +180,21 @@ const brief = computed(() => {
           :samples="allSamples"
           :current-source="lab.source"
           :loading-sample-id="lab.loadingSampleId"
-          @select-sample="selectSample"
+          @select-sample="lab.selectSample"
         />
 
         <template v-if="lab.rows.length">
           <div class="exec-strip">
-            <span>决策 · {{ brief.confidence }}% 置信</span>
-            <strong>{{ brief.title }}</strong>
-            <em>{{ brief.bias }}</em>
+            <span>决策 · {{ lab.executionBrief.confidence }}% 置信</span>
+            <strong>{{ lab.executionBrief.title }}</strong>
+            <em>{{ lab.executionBrief.bias }}</em>
             <div class="exec-nums">
-              <div><span>首笔</span><strong>{{ money(brief.notional) }}</strong></div>
-              <div><span>挂单</span><strong>{{ money(brief.price) }}</strong></div>
-              <div><span>失效</span><strong>{{ money(brief.stop) }}</strong></div>
-              <div><span>目标</span><strong>{{ money(brief.target) }}</strong></div>
+              <div><span>首笔</span><strong>{{ money(lab.executionBrief.notional) }}</strong></div>
+              <div><span>挂单</span><strong>{{ money(lab.executionBrief.price) }}</strong></div>
+              <div><span>失效</span><strong>{{ money(lab.executionBrief.stop) }}</strong></div>
+              <div><span>目标</span><strong>{{ money(lab.executionBrief.target) }}</strong></div>
             </div>
-            <small>{{ brief.reason }}</small>
+            <small>{{ lab.executionBrief.reason }}</small>
           </div>
 
           <div class="mode-tabs">

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
 import { buildMarketStatePath } from '../domain/market/cost.js'
 import { marketSamples } from '../domain/market/ohlcv.js'
+import { inferTdpy } from '../domain/market/tdpy.js'
 import { buildDecisionGraph } from '../domain/planning/orderPlan.js'
 import { useDataLoader } from '../composables/useDataLoader.js'
 import { useMarketState } from '../composables/useMarketState.js'
@@ -76,6 +77,11 @@ export const useLabStore = defineStore('lab', () => {
     if (Number.isFinite(close) && close > 0) input.entryPrice = round(close, 2)
   }
 
+  function selectSample(sample) {
+    input.tradingDaysPerYear = inferTdpy(sample).value
+    return data.loadSample(sample)
+  }
+
   return {
     // 数据层
     rows: data.rows,
@@ -86,6 +92,7 @@ export const useLabStore = defineStore('lab', () => {
     cursor: data.cursor,
     loadBtcHistory: data.loadBtcHistory,
     loadSample: data.loadSample,
+    selectSample,
     retryLast: data.retryLast,
     dismissError: data.dismissError,
     importText: data.importText,
