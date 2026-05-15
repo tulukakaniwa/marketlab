@@ -5,6 +5,7 @@ const props = defineProps({
   replay: { type: Object, required: true },
   profileReplays: { type: Array, default: () => [] },
   activeProfileId: { type: String, default: 'balanced' },
+  input: { type: Object, default: null },
 })
 
 const isDisabled = computed(() => props.replay.status === 'disabled')
@@ -97,5 +98,15 @@ function pct(value) {
     <p v-else class="replay-empty">
       {{ emptyText }}
     </p>
+    <div v-if="isMissingAccount && input" class="replay-account-inputs">
+      <label>
+        <span>账户资金</span>
+        <input v-model.number="input.capital" type="number" min="0" step="100" />
+      </label>
+      <label>
+        <span>底仓名义</span>
+        <input v-model.number="input.baseNotional" type="number" min="0" step="100" />
+      </label>
+    </div>
   </section>
 </template>

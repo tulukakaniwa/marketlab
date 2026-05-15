@@ -23,7 +23,7 @@ const DEFAULTS = {
 }
 
 export function useChartOverlays() {
-  return persistedReactive('lab.chartOverlays.v3', DEFAULTS)
+  return persistedReactive('lab.chartOverlays.v4', DEFAULTS)
 }
 
 export const CHART_OVERLAY_DEFAULTS = DEFAULTS

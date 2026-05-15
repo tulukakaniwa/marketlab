@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { summarizeReason } from '../domain/decision/narrative.js'
 import { buildTraderChecklist } from '../domain/workbench/traderChecklist.js'
+import { persistedRef } from '../composables/usePersisted.js'
 import DisclosureSection from './DisclosureSection.vue'
 import OrderTable from './OrderTable.vue'
 import ReplayPanel from './ReplayPanel.vue'
@@ -17,9 +18,13 @@ const props = defineProps({
   replayEnabled: { type: Boolean, default: false },
   portfolioEnabled: { type: Boolean, default: false },
   profileList: { type: Array, required: true },
+  input: { type: Object, default: null },
 })
 
 const emit = defineEmits(['set-profile', 'set-auto-profile'])
+
+const DEFAULT_SECTION_ORDER = ['facts', 'triggers', 'orders', 'checklist', 'profile', 'replay', 'reason', 'portfolio']
+const sectionOrder = persistedRef('lab.decisionSectionOrder.v1', DEFAULT_SECTION_ORDER)
 
 const reasonText = computed(() => {
   const decision = props.graph?.decision
@@ -64,14 +69,53 @@ const replayMeta = computed(() => {
 const hasRunnableProfileReplay = computed(() =>
   props.replayEnabled && props.profileReplays.some(item => !item.replay?.status)
 )
+const normalizedSectionOrder = computed(() => {
+  const stored = Array.isArray(sectionOrder.value) ? sectionOrder.value : []
+  const known = new Set(DEFAULT_SECTION_ORDER)
+  const ordered = stored.filter(id => known.has(id))
+  return [...ordered, ...DEFAULT_SECTION_ORDER.filter(id => !ordered.includes(id))]
+})
+const visibleSectionOrder = computed(() => normalizedSectionOrder.value.filter((id) => {
+  if (id === 'portfolio') return props.portfolioEnabled
+  if (id === 'replay') return props.replayEnabled
+  return true
+}))
 
 function money(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
 function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
+function sectionPosition(id) { return visibleSectionOrder.value.indexOf(id) }
+function sectionStyle(id) { return { order: sectionPosition(id) } }
+function canMoveSection(id, delta) {
+  const index = sectionPosition(id)
+  return index >= 0 && index + delta >= 0 && index + delta < visibleSectionOrder.value.length
+}
+function moveSection(id, delta) {
+  const visible = visibleSectionOrder.value
+  const index = visible.indexOf(id)
+  const targetId = visible[index + delta]
+  if (!targetId) return
+  const order = normalizedSectionOrder.value.slice()
+  const from = order.indexOf(id)
+  const to = order.indexOf(targetId)
+  if (from < 0 || to < 0) return
+  const [item] = order.splice(from, 1)
+  order.splice(to, 0, item)
+  sectionOrder.value = order
+}
 </script>
 
 <template>
   <div class="dd-drawer">
-    <DisclosureSection title="当前事实" :meta="`${factMeta} · ${matchText}`" storage-key="decision.facts">
+    <DisclosureSection
+      title="当前事实"
+      :meta="`${factMeta} · ${matchText}`"
+      movable
+      :can-move-up="canMoveSection('facts', -1)"
+      :can-move-down="canMoveSection('facts', 1)"
+      :style="sectionStyle('facts')"
+      @move-up="moveSection('facts', -1)"
+      @move-down="moveSection('facts', 1)"
+    >
       <article class="dd-action-card">
         <header>
           <strong>{{ graph?.decision?.state || '等待数据' }}</strong>
@@ -89,7 +133,16 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
       </article>
     </DisclosureSection>
 
-    <DisclosureSection title="触发条件" :meta="triggerMeta" storage-key="decision.triggers">
+    <DisclosureSection
+      title="触发条件"
+      :meta="triggerMeta"
+      movable
+      :can-move-up="canMoveSection('triggers', -1)"
+      :can-move-down="canMoveSection('triggers', 1)"
+      :style="sectionStyle('triggers')"
+      @move-up="moveSection('triggers', -1)"
+      @move-down="moveSection('triggers', 1)"
+    >
       <div class="dd-risk-row">
         <span>失效线</span>
         <strong>{{ money(graph?.plan?.invalidation?.lower) }} / {{ money(graph?.plan?.invalidation?.upper) }}</strong>
@@ -104,22 +157,65 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
       </div>
     </DisclosureSection>
 
-    <DisclosureSection title="计划单" :meta="`${primaryOrders.length} 档`" :default-open="primaryOrders.length > 0">
+    <DisclosureSection
+      title="计划单"
+      :meta="`${primaryOrders.length} 档`"
+      :default-open="primaryOrders.length > 0"
+      movable
+      :can-move-up="canMoveSection('orders', -1)"
+      :can-move-down="canMoveSection('orders', 1)"
+      :style="sectionStyle('orders')"
+      @move-up="moveSection('orders', -1)"
+      @move-down="moveSection('orders', 1)"
+    >
       <OrderTable :title="ordersTitle" :orders="primaryOrders" />
     </DisclosureSection>
 
-    <DisclosureSection title="交易员检查单" :meta="checklist.items?.length ? `${checklist.items.length} 项` : '等待'" storage-key="decision.checklist">
+    <DisclosureSection
+      title="交易员检查单"
+      :meta="checklist.items?.length ? `${checklist.items.length} 项` : '等待'"
+      movable
+      :can-move-up="canMoveSection('checklist', -1)"
+      :can-move-down="canMoveSection('checklist', 1)"
+      :style="sectionStyle('checklist')"
+      @move-up="moveSection('checklist', -1)"
+      @move-down="moveSection('checklist', 1)"
+    >
       <TraderChecklist :checklist="checklist" :show-header="false" :open-groups="['entry']" />
     </DisclosureSection>
 
-    <DisclosureSection v-if="portfolioEnabled" title="组合研究" :default-open="false" storage-key="decision.portfolio" tone="research">
+    <DisclosureSection
+      v-if="portfolioEnabled"
+      title="组合研究"
+      :default-open="false"
+      storage-key="decision.portfolio"
+      tone="research"
+      movable
+      :can-move-up="canMoveSection('portfolio', -1)"
+      :can-move-down="canMoveSection('portfolio', 1)"
+      :style="sectionStyle('portfolio')"
+      @move-up="moveSection('portfolio', -1)"
+      @move-down="moveSection('portfolio', 1)"
+    >
       <div v-if="portfolioEnabled" class="dd-risk-row">
         <span>组合研究</span>
         <strong :class="(graph?.portfolio ?? 0) >= 0 ? 'green' : 'red'">{{ money(graph?.portfolio) }}</strong>
       </div>
     </DisclosureSection>
 
-    <DisclosureSection title="Profile" :meta="autoProfile ? '回放辅助' : activeProfileId" :default-open="false" storage-key="decision.profile" tone="muted">
+    <DisclosureSection
+      title="Profile"
+      :meta="autoProfile ? '回放辅助' : activeProfileId"
+      :default-open="false"
+      storage-key="decision.profile"
+      tone="muted"
+      movable
+      :can-move-up="canMoveSection('profile', -1)"
+      :can-move-down="canMoveSection('profile', 1)"
+      :style="sectionStyle('profile')"
+      @move-up="moveSection('profile', -1)"
+      @move-down="moveSection('profile', 1)"
+    >
       <div class="dd-profile-tabs">
         <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">回放辅助</button>
         <button
@@ -140,11 +236,35 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
       </ul>
     </DisclosureSection>
 
-    <DisclosureSection v-if="replayEnabled" title="回放历史" :meta="replayMeta" :default-open="false" storage-key="decision.replay" tone="muted">
-      <ReplayPanel :replay="replay" :profile-replays="profileReplays" :active-profile-id="activeProfileId" />
+    <DisclosureSection
+      v-if="replayEnabled"
+      title="回放历史"
+      :meta="replayMeta"
+      :default-open="false"
+      storage-key="decision.replay"
+      tone="muted"
+      movable
+      :can-move-up="canMoveSection('replay', -1)"
+      :can-move-down="canMoveSection('replay', 1)"
+      :style="sectionStyle('replay')"
+      @move-up="moveSection('replay', -1)"
+      @move-down="moveSection('replay', 1)"
+    >
+      <ReplayPanel :replay="replay" :profile-replays="profileReplays" :active-profile-id="activeProfileId" :input="input" />
     </DisclosureSection>
 
-    <DisclosureSection title="解读" :default-open="false" storage-key="decision.reason" tone="muted">
+    <DisclosureSection
+      title="解读"
+      :default-open="false"
+      storage-key="decision.reason"
+      tone="muted"
+      movable
+      :can-move-up="canMoveSection('reason', -1)"
+      :can-move-down="canMoveSection('reason', 1)"
+      :style="sectionStyle('reason')"
+      @move-up="moveSection('reason', -1)"
+      @move-down="moveSection('reason', 1)"
+    >
       <p class="dd-reason-text">{{ reasonText }}</p>
     </DisclosureSection>
   </div>

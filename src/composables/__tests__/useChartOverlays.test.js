@@ -7,6 +7,7 @@ describe('useChartOverlays', () => {
       window.localStorage.removeItem('lab.chartOverlays.v1')
       window.localStorage.removeItem('lab.chartOverlays.v2')
       window.localStorage.removeItem('lab.chartOverlays.v3')
+      window.localStorage.removeItem('lab.chartOverlays.v4')
     }
   })
 
@@ -35,7 +36,7 @@ describe('useChartOverlays', () => {
     if (typeof window === 'undefined') return
     // 写入只含部分字段的旧数据
     window.localStorage.setItem(
-      'lab.chartOverlays.v3',
+      'lab.chartOverlays.v4',
       JSON.stringify({ costBand: false, deltaPane: true })
     )
     const o = useChartOverlays()

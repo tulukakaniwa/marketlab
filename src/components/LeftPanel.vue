@@ -74,6 +74,7 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           :auto-profile="lab.featureFlags.replayAutoProfile"
           :replay-enabled="lab.featureFlags.replayAccount"
           :profile-list="lab.strategyProfileList"
+          :input="lab.input"
           @set-profile="(id) => emit('set-profile', id)"
           @set-auto-profile="(v) => emit('set-auto-profile', v)"
         />
