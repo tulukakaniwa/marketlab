@@ -7,7 +7,6 @@ import {
   LineSeries,
   LineStyle,
   createChart,
-  createSeriesMarkers,
 } from 'lightweight-charts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
@@ -21,7 +20,6 @@ const props = defineProps({
   formulaPath: { type: Array, required: true },
   entryPrice: { type: Number, required: true },
   graph: { type: Object, required: true },
-  replay: { type: Object, required: true },
 })
 
 const emit = defineEmits(['cursor-change'])
@@ -29,7 +27,6 @@ const emit = defineEmits(['cursor-change'])
 const el = ref(null)
 const hoverIndex = ref(null)
 let chart = null
-let markersApi = null
 let themeObserver = null
 const series = {}
 const resizeObserver = new ResizeObserver(() => resize())
@@ -58,7 +55,7 @@ onBeforeUnmount(() => {
   chart?.remove()
 })
 
-watch(() => [props.rows, props.costPath, props.formulaPath, props.entryPrice, props.replay], syncChart, { deep: true })
+watch(() => [props.rows, props.costPath, props.formulaPath, props.entryPrice], syncChart, { deep: true })
 
 function createSeries() {
   series.candle = chart.addSeries(CandlestickSeries, {
@@ -87,28 +84,9 @@ function createSeries() {
   series.bsDelta = chart.addSeries(LineSeries, deltaLine(stageNames['option-greeks'] + ' Δ', '#a93226'), 2)
   series.lpDelta = chart.addSeries(LineSeries, deltaLine(stageNames['lp-inventory'] + ' Δ', '#0e7558'), 2)
   series.zero = chart.addSeries(LineSeries, deltaLine('Δ=0', '#888', LineStyle.Dashed), 2)
-  // pane 3：回放权益曲线（与 K 线时间轴对齐，可视化看到决策的累计盈亏）
-  series.equity = chart.addSeries(LineSeries, {
-    title: '回放权益',
-    color: '#1f5fbf',
-    lineWidth: 2,
-    priceLineVisible: false,
-    lastValueVisible: true,
-    priceFormat: { type: 'price', precision: 0, minMove: 1 },
-  }, 3)
-  series.equityZero = chart.addSeries(LineSeries, {
-    title: '盈亏=0',
-    color: '#888',
-    lineWidth: 1,
-    lineStyle: LineStyle.Dashed,
-    priceLineVisible: false,
-    lastValueVisible: false,
-  }, 3)
-  markersApi = createSeriesMarkers(series.candle, [])
   chart.panes()[0]?.setStretchFactor(0.62)
   chart.panes()[1]?.setStretchFactor(0.08)
-  chart.panes()[2]?.setStretchFactor(0.18)
-  chart.panes()[3]?.setStretchFactor(0.12)
+  chart.panes()[2]?.setStretchFactor(0.30)
 }
 
 function syncChart() {
@@ -153,14 +131,6 @@ function syncChart() {
   setLine(series.bsDelta, props.formulaPath.map((row) => row.optionDelta))
   setLine(series.lpDelta, props.formulaPath.map((row) => row.lpInventoryDelta))
   setLine(series.zero, props.rows.map(() => 0))
-  // 权益曲线：把 replay.equityCurve 按 date 对齐到 rows
-  const equityByDate = new Map((props.replay?.equityCurve ?? []).map((p) => [p.date, p.equity]))
-  series.equity.setData(props.rows
-    .map((row) => ({ time: row.date, value: equityByDate.has(row.date) ? equityByDate.get(row.date) : null }))
-    .filter((p) => p.value !== null)
-  )
-  series.equityZero.setData(props.rows.map((row) => ({ time: row.date, value: 0 })))
-  markersApi?.setMarkers(buildMarkers(props.replay?.trades ?? []))
   chart.timeScale().fitContent()
 }
 
@@ -192,40 +162,6 @@ function setLine(lineSeries, values) {
     time: row.date,
     value: finiteOrNull(values[index]),
   })).filter((point) => point.value !== null))
-}
-
-function buildMarkers(trades) {
-  return trades.flatMap((trade, index) => {
-    const isBuy = trade.side === 'buy'
-    if (trade.fillDate === trade.exitDate) {
-      return [{
-        time: trade.fillDate,
-        position: isBuy ? 'belowBar' : 'aboveBar',
-        shape: isBuy ? 'arrowUp' : 'arrowDown',
-        color: isBuy ? '#0e7558' : '#a93226',
-        text: `${trade.reason} ${isBuy ? '@' + money(trade.fillPrice) : signedMoney(trade.pnl)}`,
-        id: `event-${index}`,
-      }]
-    }
-    return [
-      {
-        time: trade.fillDate,
-        position: isBuy ? 'belowBar' : 'aboveBar',
-        shape: isBuy ? 'arrowUp' : 'arrowDown',
-        color: isBuy ? '#0e7558' : '#a93226',
-        text: `${isBuy ? '+' : '-'} ${money(trade.fillPrice)}`,
-        id: `fill-${index}`,
-      },
-      {
-        time: trade.exitDate,
-        position: trade.pnl >= 0 ? 'aboveBar' : 'belowBar',
-        shape: 'circle',
-        color: trade.pnl >= 0 ? '#0e7558' : '#a93226',
-        text: `${trade.reason} ${signedMoney(trade.pnl)}`,
-        id: `exit-${index}`,
-      },
-    ]
-  })
 }
 
 function handleCrosshair(param) {
@@ -297,10 +233,6 @@ function money(value) {
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(value)
 }
 
-function signedMoney(value) {
-  if (!Number.isFinite(value)) return '无'
-  return `${value >= 0 ? '+' : ''}${money(value)}`
-}
 </script>
 
 <template>

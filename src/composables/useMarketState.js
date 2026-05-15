@@ -7,7 +7,7 @@ import { buildFormulaPath } from '../domain/market/formulaPath.js'
  *
  * 二级缓存：rows → tdpy → marketStates
  * - 同一 rows 不同 tdpy 互不污染（修复 A3）
- * - 全局唯一 marketStates 来源，回放层不再重复计算（修复 A5）
+ * - 全局唯一 marketStates 来源，避免各组件重复计算市场路径
  *
  * @param {Ref<Array>} rows
  * @param {Ref<number>} cursor

@@ -249,7 +249,7 @@ export const formulaCapabilities = [
   {
     id: 'market-path',
     label: '市场路径引擎',
-    role: '把 K 线统一成成本、波动和可回放路径',
+    role: '把 K 线统一成成本、波动和公式路径',
     stages: ['path', 'cost', 'volatility'],
     action: '回答现在离市场成本有多远，波动是否允许挂单。',
   },
