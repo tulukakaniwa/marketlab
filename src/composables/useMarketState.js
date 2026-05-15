@@ -1,4 +1,4 @@
-import { computed } from 'vue'
+import { computed, isRef } from 'vue'
 import { buildCostPath, buildMarketStatePath } from '../domain/market-data/cost.js'
 import { buildFormulaPath } from '../domain/market-data/formulaPath.js'
 
@@ -18,7 +18,8 @@ export function useMarketState(rows, cursor, input) {
   const marketStatePathCache = new WeakMap()
 
   function getMarketStatePath(r) {
-    const tdpy = Number(input.tradingDaysPerYear) || 365
+    const currentInput = isRef(input) ? input.value : input
+    const tdpy = Number(currentInput.tradingDaysPerYear) || 365
     let bucket = marketStatePathCache.get(r)
     if (!bucket) {
       bucket = new Map()
@@ -32,7 +33,7 @@ export function useMarketState(rows, cursor, input) {
   const marketStateFull = computed(() => rows.value.length ? getMarketStatePath(rows.value) : [])
   const market = computed(() => marketStateFull.value[cursor.value] ?? null)
   const costPath = computed(() => buildCostPath(rows.value))
-  const formulaPath = computed(() => buildFormulaPath(rows.value, input))
+  const formulaPath = computed(() => buildFormulaPath(rows.value, isRef(input) ? input.value : input))
 
   return { activeRows, marketStateFull, market, costPath, formulaPath }
 }

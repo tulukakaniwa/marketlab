@@ -1,0 +1,54 @@
+.replay-panel {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+}
+
+.replay-panel header {
+  display: grid;
+  gap: 4px;
+}
+
+.replay-panel header strong {
+  font-size: 1.3rem;
+}
+
+.replay-panel small {
+  color: var(--muted);
+}
+
+.replay-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  gap: 6px;
+}
+
+.replay-grid article {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+}
+
+.replay-grid strong,
+.replay-panel td {
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  table-layout: fixed;
+}
+
+.replay-panel td {
+  border-top: 1px solid var(--line);
+  padding: 5px 3px;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.replay-panel td:last-child {
+  text-align: right;
+}

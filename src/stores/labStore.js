@@ -7,7 +7,9 @@ import { buildResearchSnapshot } from '../domain/formula-research/researchSnapsh
 import { buildDecisionGraph } from '../domain/strategy-planning/orderPlan.js'
 import { useDataLoader } from '../composables/useDataLoader.js'
 import { useMarketState } from '../composables/useMarketState.js'
+import { useReplay } from '../composables/useReplay.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
+import { useChartOverlays } from '../composables/useChartOverlays.js'
 
 /**
  * Lab 工作台 facade store
@@ -15,10 +17,11 @@ import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
  * 依赖图（线性，无循环）：
  *   planning.input
  *     → data (rows/cursor)
- *     → marketState (market/marketStateFull/costPath/formulaPath)
- *     → effectiveInput → graph → executionBrief
+ *     → baseInput → marketState
+ *     → optional replayResearch
+ *     → effectiveInput → planningGraph + researchGraph → executionBrief
  *
- * 对外 API 面向当前工作台组件；旧回测字段已删除。
+ * 对外 API 面向三栏工作台；回放只保留空查询模型，不参与默认计划。
  */
 export const useLabStore = defineStore('lab', () => {
   // 1. 输入与 UI 状态
@@ -29,17 +32,35 @@ export const useLabStore = defineStore('lab', () => {
   const data = useDataLoader(input)
   const { rows, cursor } = data
 
-  // 3. 市场态（带 tdpy 二级缓存）
-  const marketState = useMarketState(rows, cursor, input)
+  // 3. tdpy：按品种自动 + 用户覆盖
+  const tdpyMeta = computed(() => inferTdpy(data.source.value))
+  const effectiveTdpy = computed(() => {
+    const sym = data.source.value?.symbol
+    const override = sym ? planning.tdpyOverride[sym] : null
+    return Number.isFinite(override) && override > 0 ? override : tdpyMeta.value.value
+  })
 
-  // 4. 决策输入
-  //    回测系统已从默认决策链下架，profile 只来自用户手动选择。
-  const effectiveInput = computed(() => ({
+  // 4. baseInput：合并 tdpy；默认 profile 只来自用户手动选择。
+  const baseInput = computed(() => ({
     ...input,
+    tradingDaysPerYear: effectiveTdpy.value,
     strategyProfile: input.strategyProfile,
   }))
 
-  // 5. 默认条件图 + 研究层快照并列组合。
+  // 5. 市场态只吃事实输入；不被回放或研究层反向污染。
+  const marketState = useMarketState(rows, cursor, baseInput)
+
+  // 6. ReplayAccount 是显式开启的旁路查询；只有 replayAutoProfile 打开才参与 profile 选择。
+  const replayLayer = useReplay(rows, input, baseInput, marketState.marketStateFull, planning.featureFlags)
+
+  const effectiveInput = computed(() => ({
+    ...baseInput.value,
+    strategyProfile: planning.featureFlags.replayAccount && planning.featureFlags.replayAutoProfile
+      ? replayLayer.recommendedProfile.value.id
+      : input.strategyProfile,
+  }))
+
+  // 7. 默认条件图 + 研究层快照并列组合。
   //    StrategyPlanning 不直接依赖研究层，facade 只为 UI 组装查询模型。
   const planningGraph = computed(() => buildDecisionGraph({
     market: marketState.market.value,
@@ -62,10 +83,11 @@ export const useLabStore = defineStore('lab', () => {
   const executionBrief = computed(() => buildExecutionBrief(graph.value))
 
   const sourceLabel = computed(() => data.source.value?.label ?? '未载入')
-  // 加载新 rows 时回填输入参数
+
+  // 加载新 rows 时回填输入参数（用 effectiveTdpy 而非 input.tradingDaysPerYear）
   watch(rows, (next) => {
     if (!next.length) return
-    const tdpy = Number(input.tradingDaysPerYear) || 365
+    const tdpy = effectiveTdpy.value
     const lastMarket = buildMarketStatePath(next, tdpy).at(-1)
     if (!lastMarket) return
     input.entryPrice = round(lastMarket.markPrice, 2)
@@ -86,6 +108,9 @@ export const useLabStore = defineStore('lab', () => {
     return data.loadSample(sample)
   }
 
+  // chartOverlays 在 store 顶层初始化一次（同一份在所有组件间共享）
+  const chartOverlays = useChartOverlays()
+
   return {
     // 数据层
     rows: data.rows,
@@ -103,6 +128,13 @@ export const useLabStore = defineStore('lab', () => {
     sourceLabel,
     marketSamples,
 
+    // tdpy 层（PR-1）
+    tdpyMeta,
+    effectiveTdpy,
+    setTdpyOverride: planning.setTdpyOverride,
+    clearTdpyOverride: planning.clearTdpyOverride,
+    tdpyOverride: planning.tdpyOverride,
+
     // 市场态层
     activeRows: marketState.activeRows,
     market: marketState.market,
@@ -111,18 +143,38 @@ export const useLabStore = defineStore('lab', () => {
 
     // 决策层
     input: planning.input,
+    featureFlags: planning.featureFlags,
+    baseInput,
     effectiveInput,
     graph,
     executionBrief,
-    activeMode: planning.activeMode,
+    activeFormula: planning.activeFormula,
+    activeFormulaId: planning.activeFormulaId,
     activeCapability: planning.activeCapability,
     activeCapabilityId: planning.activeCapabilityId,
     activeCapabilityStages: planning.activeCapabilityStages,
-    activeFormula: planning.activeFormula,
-    activeFormulaId: planning.activeFormulaId,
     formulaCapabilities: planning.formulaCapabilities,
     strategyProfileList: planning.strategyProfileList,
     selectCapability: planning.selectCapability,
+
+    // 三栏面板态 + 主图叠加（v3.1）+ 面板宽度（v3.2）
+    leftPanelOpen: planning.leftPanelOpen,
+    rightPanelOpen: planning.rightPanelOpen,
+    activeLeftTab: planning.activeLeftTab,
+    toggleLeftPanel: planning.toggleLeftPanel,
+    toggleRightPanel: planning.toggleRightPanel,
+    leftPanelW: planning.leftPanelW,
+    rightPanelW: planning.rightPanelW,
+    setLeftPanelW: planning.setLeftPanelW,
+    setRightPanelW: planning.setRightPanelW,
+    resetLeftPanelW: planning.resetLeftPanelW,
+    resetRightPanelW: planning.resetRightPanelW,
+    chartOverlays,
+
+    // 回放层：显式开关默认关闭；关闭时返回空模型。
+    profileReplays: replayLayer.profileReplays,
+    recommendedProfile: replayLayer.recommendedProfile,
+    replay: replayLayer.replay,
 
     // 杂项
     useCursorCloseAsEntry,

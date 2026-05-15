@@ -11,8 +11,7 @@ import { persistedReactive, persistedRef } from './usePersisted.js'
 /**
  * 输入参数 + UI 选中态层
  *
- * input 与 UI 选中态都通过 localStorage 持久化（key 带版本号）。
- * 字段升级时仅合并已知 key，不被旧数据污染。
+ * input 保持默认事实工作台语义；三栏、拖宽、公式选中态属于 ViewModel UI 状态。
  */
 export function usePlanning() {
   const input = persistedReactive('lab.input.v2', {
@@ -38,10 +37,30 @@ export function usePlanning() {
     tradingDaysPerYear: 365,
   })
 
-  const activeMode = persistedRef('lab.activeMode.v1', 'orders')
-  const activeCapabilityId = persistedRef('lab.activeCapabilityId.v1', 'move-derivative')
-  const activeFormulaId = persistedRef('lab.activeFormulaId.v1', 'delta-band')
+  const featureFlags = persistedReactive('lab.featureFlags.v1', {
+    replayAccount: false,
+    replayAutoProfile: false,
+    portfolioResearch: false,
+  })
 
+  // 按 symbol 存 tdpy 覆盖值
+  const tdpyOverride = persistedReactive('lab.tdpyOverride.v1', {})
+
+  function setTdpyOverride(symbol, value) {
+    if (!symbol) return
+    if (value === null || !Number.isFinite(value) || value <= 0) {
+      delete tdpyOverride[symbol]
+      return
+    }
+    tdpyOverride[symbol] = value
+  }
+
+  function clearTdpyOverride(symbol) {
+    if (symbol) delete tdpyOverride[symbol]
+  }
+
+  const activeFormulaId = persistedRef('lab.activeFormulaId.v1', 'delta-band')
+  const activeCapabilityId = persistedRef('lab.activeCapabilityId.v1', 'move-derivative')
   const activeCapability = computed(() => getFormulaCapability(activeCapabilityId.value))
   const activeCapabilityStages = computed(() => getCapabilityStages(activeCapabilityId.value))
   const activeFormula = computed(() => getFormulaStage(activeFormulaId.value))
@@ -51,9 +70,43 @@ export function usePlanning() {
     activeFormulaId.value = getCapabilityStages(id)[0]?.id ?? activeFormulaId.value
   }
 
+  // 三栏面板状态：左/右面板开闭 + 左面板当前 tab
+  const leftPanelOpen = persistedRef('lab.leftPanelOpen.v1', true)
+  const rightPanelOpen = persistedRef('lab.rightPanelOpen.v1', true)
+  const activeLeftTab = persistedRef('lab.activeLeftTab.v1', 'decision')
+
+  function toggleLeftPanel() { leftPanelOpen.value = !leftPanelOpen.value }
+  function toggleRightPanel() { rightPanelOpen.value = !rightPanelOpen.value }
+
+  // 面板宽度（v3.2 拖宽）
+  const LEFT_MIN  = 200, LEFT_MAX  = 400
+  const RIGHT_MIN = 200, RIGHT_MAX = 380
+  const LEFT_DEFAULT  = 280
+  const RIGHT_DEFAULT = 240
+
+  const leftPanelW  = persistedRef('lab.leftPanelW.v1', LEFT_DEFAULT)
+  const rightPanelW = persistedRef('lab.rightPanelW.v1', RIGHT_DEFAULT)
+
+  function setLeftPanelW(w) {
+    leftPanelW.value = clamp(w, LEFT_MIN, LEFT_MAX)
+  }
+  function setRightPanelW(w) {
+    rightPanelW.value = clamp(w, RIGHT_MIN, RIGHT_MAX)
+  }
+  function resetLeftPanelW()  { leftPanelW.value  = LEFT_DEFAULT }
+  function resetRightPanelW() { rightPanelW.value = RIGHT_DEFAULT }
+
+  function clamp(value, min, max) {
+    if (!Number.isFinite(value)) return min
+    return Math.min(max, Math.max(min, Math.round(value)))
+  }
+
   return {
     input,
-    activeMode,
+    featureFlags,
+    tdpyOverride,
+    setTdpyOverride,
+    clearTdpyOverride,
     activeCapabilityId,
     activeFormulaId,
     activeCapability,
@@ -62,13 +115,24 @@ export function usePlanning() {
     formulaCapabilities,
     strategyProfileList,
     selectCapability,
+    leftPanelOpen,
+    rightPanelOpen,
+    activeLeftTab,
+    toggleLeftPanel,
+    toggleRightPanel,
+    leftPanelW,
+    rightPanelW,
+    setLeftPanelW,
+    setRightPanelW,
+    resetLeftPanelW,
+    resetRightPanelW,
   }
 }
 
 export function buildExecutionBrief(graph) {
+  const state = graph?.decision?.state ?? '未载入路径'
   const orders = graph?.plan?.primaryOrders ?? []
   const firstOrder = orders[0]
-  const state = graph?.decision?.state ?? '未载入路径'
   const blocked = graph?.decision?.blockedReasons ?? []
   const missing = graph?.decision?.missingInputs ?? []
   return {

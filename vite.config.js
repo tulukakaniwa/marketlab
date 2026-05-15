@@ -27,6 +27,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    setupFiles: ['./src/test/setupLocalStorage.js'],
     include: ['src/**/*.{test,spec}.{js,mjs}'],
     exclude: ['node_modules', 'dist'],
   },

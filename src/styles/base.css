@@ -96,6 +96,7 @@ button:disabled {
 .control-panel span,
 .risk-box span,
 .decision-panel span,
+.replay-panel span,
 .formula-graph span {
   color: var(--green);
   font-size: 0.73rem;
@@ -132,6 +133,8 @@ button:disabled {
 .decision-hero,
 .decision-grid article,
 .decision-list,
+.replay-panel,
+.replay-grid article,
 .formula-node,
 .capability-node,
 .formula-detail {
@@ -260,7 +263,8 @@ button:disabled {
 }
 
 .order-table {
-  overflow: auto;
+  /* 不再强制横向滚动；表格 fixed 布局后让列折行而非溢出 */
+  overflow: hidden;
 }
 
 .order-table header {
@@ -272,15 +276,17 @@ button:disabled {
 .order-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.86rem;
+  font-size: 0.78rem;
+  table-layout: fixed;
 }
 
 .order-table th,
 .order-table td {
   border-bottom: 1px solid var(--line);
-  padding: 8px 10px;
+  padding: 5px 4px;
   text-align: right;
-  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .order-table th:first-child,

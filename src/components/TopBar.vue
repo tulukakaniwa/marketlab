@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { Moon, Sun } from 'lucide-vue-next'
+import { Database, Moon, Sun } from 'lucide-vue-next'
 import { summarizeRegime } from '../domain/decision/narrative.js'
-import { deriveWindows } from '../domain/market-data/cost.js'
+import { deriveWindows } from '../domain/market/cost.js'
 import ProfileChip from './ProfileChip.vue'
 
 const props = defineProps({
@@ -10,44 +10,53 @@ const props = defineProps({
   market: { type: Object, default: null },
   rows: { type: Array, default: () => [] },
   decision: { type: Object, default: null },
+  confidence: { type: Number, default: 0 },
   profileId: { type: String, required: true },
+  autoProfile: { type: Boolean, required: true },
   profileList: { type: Array, required: true },
+  recommendedId: { type: String, default: 'balanced' },
   theme: { type: String, default: 'light' },
 })
 
-const emit = defineEmits(['set-profile', 'toggle-theme', 'reset'])
+const emit = defineEmits([
+  'set-profile',
+  'set-auto-profile',
+  'toggle-theme',
+  'reset',
+])
 
 const dailyChange = computed(() => {
-  const rows = props.rows
-  if (rows.length < 2) return null
-  const last = rows.at(-1).close
-  const previous = rows.at(-2).close
-  if (!Number.isFinite(last) || !Number.isFinite(previous) || previous <= 0) return null
-  return (last - previous) / previous
+  const r = props.rows
+  if (r.length < 2) return null
+  const last = r.at(-1).close
+  const prev = r.at(-2).close
+  if (!Number.isFinite(last) || !Number.isFinite(prev) || prev <= 0) return null
+  return (last - prev) / prev
 })
 
 const narrativeText = computed(() => {
-  const market = props.market
-  if (!market) return '右侧市场列表选择数据集'
+  const m = props.market
+  if (!m) return '载入 K 线后判断'
   const window = props.rows.length ? deriveWindows(props.rows.length).cost : 60
   return summarizeRegime({
-    costDistance: market.costDistance,
+    markPrice: m.markPrice,
+    costAnchor: m.costAnchor,
+    costDistance: m.costDistance,
     costWindow: window,
   })
 })
 
-const status = computed(() => props.decision?.state ?? null)
+const recommendation = computed(() => {
+  const d = props.decision
+  if (!d) return null
+  return d.state || null
+})
 
-function money(value) {
-  return Number.isFinite(value)
-    ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(value)
-    : '-'
-}
-
-function pctSign(value) {
-  if (!Number.isFinite(value)) return '-'
-  const sign = value >= 0 ? '+' : ''
-  return `${sign}${(value * 100).toFixed(2)}%`
+function money(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
+function pctSign(v) {
+  if (!Number.isFinite(v)) return '—'
+  const sign = v >= 0 ? '+' : ''
+  return `${sign}${(v * 100).toFixed(2)}%`
 }
 </script>
 
@@ -58,53 +67,51 @@ function pctSign(value) {
       <h1>公式工作台</h1>
     </div>
 
-    <div class="tb-summary">
-      <div class="tb-segment tb-source">
-        <span>{{ source?.market ?? '市场' }}</span>
-        <strong>{{ source?.symbol ?? '未选择' }}</strong>
-      </div>
-      <div v-if="market" class="tb-segment tb-price">
+    <div v-if="market" class="tb-summary">
+      <div class="tb-segment tb-price">
         <strong>{{ money(market.markPrice) }}</strong>
         <em :class="{ up: (dailyChange ?? 0) >= 0, down: (dailyChange ?? 0) < 0 }">{{ pctSign(dailyChange) }}</em>
       </div>
       <div class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
-      <div v-if="status" class="tb-segment tb-action">
+      <div v-if="recommendation" class="tb-segment tb-action">
         <span>状态</span>
-        <strong>{{ status }}</strong>
-        <em>{{ props.decision?.missingInputs?.length ? '缺输入' : '事实' }}</em>
+        <strong>{{ recommendation }}</strong>
+        <em>强度 {{ Math.round(confidence * 100) }}%</em>
       </div>
     </div>
 
     <div class="tb-actions">
       <ProfileChip
         :profile-id="profileId"
+        :auto-profile="autoProfile"
         :profile-list="profileList"
+        :recommended-id="recommendedId"
         @set="(id) => emit('set-profile', id)"
+        @set-auto="(v) => emit('set-auto-profile', v)"
       />
-      <button class="tb-theme" type="button" title="切换主题" @click="emit('toggle-theme')">
+      <button class="tb-theme" type="button" @click="$emit('toggle-theme')" title="切换主题">
         <Moon v-if="theme === 'light'" :size="14" />
         <Sun v-else :size="14" />
       </button>
-      <button class="tb-reset" type="button" title="清空持久化参数" @click="emit('reset')">重置</button>
+      <button class="tb-reset" type="button" @click="$emit('reset')" title="清空持久化参数">重置</button>
     </div>
   </header>
 </template>
 
 <style>
-.topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 7px 14px; background: var(--panel); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.topbar { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 7px 14px; background: var(--panel); border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .tb-brand { display: flex; flex-direction: column; gap: 1px; }
 .tb-brand span { color: var(--green); font-size: 0.6rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
-.tb-brand h1 { margin: 0; font-size: 0.96rem; line-height: 1; white-space: nowrap; }
-.tb-summary { display: flex; gap: 12px; align-items: center; min-width: 0; }
-.tb-segment { display: inline-flex; gap: 5px; align-items: baseline; min-width: 0; padding: 0 10px; border-left: 1px solid var(--line); white-space: nowrap; }
+.tb-brand h1 { margin: 0; font-size: 0.96rem; line-height: 1; }
+.tb-summary { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.tb-segment { display: inline-flex; gap: 5px; align-items: baseline; padding: 0 10px; border-left: 1px solid var(--line); white-space: nowrap; }
 .tb-segment:first-child { border-left: none; padding-left: 0; }
-.tb-source span, .tb-action span { color: var(--muted); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
-.tb-source strong { font-size: 0.86rem; font-variant-numeric: tabular-nums; }
 .tb-price strong { font-size: 1rem; font-variant-numeric: tabular-nums; font-weight: 800; }
 .tb-price em { font-style: normal; font-size: 0.78rem; font-weight: 700; }
 .tb-price em.up { color: var(--green); }
 .tb-price em.down { color: var(--red); }
 .tb-narrative { color: var(--ink); font-size: 0.85rem; line-height: 1.3; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-action span { color: var(--muted); font-size: 0.6rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
 .tb-action strong { font-size: 0.86rem; font-weight: 800; }
 .tb-action em { font-style: normal; color: var(--muted); font-size: 0.7rem; font-variant-numeric: tabular-nums; }
 .tb-actions { display: flex; gap: 6px; align-items: center; }
@@ -116,10 +123,7 @@ function pctSign(value) {
 @media (max-width: 1100px) {
   .tb-summary .tb-action { display: none; }
 }
-
 @media (max-width: 800px) {
-  .topbar { grid-template-columns: 1fr auto; gap: 8px; }
-  .tb-summary { grid-column: 1 / -1; order: 3; overflow-x: auto; padding-bottom: 2px; }
   .tb-summary .tb-narrative { display: none; }
 }
 </style>
