@@ -14,6 +14,8 @@ import ChartStatusBar from './ChartStatusBar.vue'
 import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
 
+const MAX_REPLAY_TEXT_LABELS = 6
+
 const props = defineProps({
   rows: { type: Array, required: true },
   costPath: { type: Array, required: true },
@@ -241,36 +243,42 @@ function buildMarkers() {
 }
 
 function buildReplayMarkers(trades) {
+  const showTextFrom = props.overlays.replayMarkerLabels
+    ? Math.max(0, trades.length - MAX_REPLAY_TEXT_LABELS)
+    : Infinity
   return trades.flatMap((trade, i) => {
     const isBuy = trade.side === 'buy'
+    const showText = i >= showTextFrom
     const markers = []
     if (trade.signalDate && trade.signalDate !== trade.fillDate) {
-      markers.push({
+      markers.push(withMarkerText({
         time: trade.signalDate,
         position: isBuy ? 'belowBar' : 'aboveBar',
         shape: 'circle',
         color: isBuy ? '#0e7558' : '#a93226',
-        text: `${isBuy ? '买入' : '卖出'}信号`,
         id: `signal-${i}`,
-      })
+      }, showText, `${isBuy ? '买入' : '卖出'}信号`))
     }
     if (trade.fillDate === trade.exitDate) {
-      markers.push({
+      markers.push(withMarkerText({
         time: trade.fillDate,
         position: isBuy ? 'belowBar' : 'aboveBar',
         shape: isBuy ? 'arrowUp' : 'arrowDown',
         color: isBuy ? '#0e7558' : '#a93226',
-        text: `${trade.reason} ${isBuy ? '成交 @' + money(trade.fillPrice) : signedMoney(trade.pnl)}`,
         id: `fill-${i}`,
-      })
+      }, showText, `${trade.reason} ${isBuy ? '成交 @' + money(trade.fillPrice) : signedMoney(trade.pnl)}`))
       return markers
     }
     markers.push(
-      { time: trade.fillDate, position: isBuy ? 'belowBar' : 'aboveBar', shape: isBuy ? 'arrowUp' : 'arrowDown', color: isBuy ? '#0e7558' : '#a93226', text: `${isBuy ? '买入' : '卖出'}成交 ${money(trade.fillPrice)}`, id: `fill-${i}` },
-      { time: trade.exitDate, position: trade.pnl >= 0 ? 'aboveBar' : 'belowBar', shape: 'circle', color: trade.pnl >= 0 ? '#0e7558' : '#a93226', text: `${trade.reason} ${signedMoney(trade.pnl)}`, id: `exit-${i}` },
+      withMarkerText({ time: trade.fillDate, position: isBuy ? 'belowBar' : 'aboveBar', shape: isBuy ? 'arrowUp' : 'arrowDown', color: isBuy ? '#0e7558' : '#a93226', id: `fill-${i}` }, showText, `${isBuy ? '买入' : '卖出'}成交 ${money(trade.fillPrice)}`),
+      withMarkerText({ time: trade.exitDate, position: trade.pnl >= 0 ? 'aboveBar' : 'belowBar', shape: 'circle', color: trade.pnl >= 0 ? '#0e7558' : '#a93226', id: `exit-${i}` }, showText, `${trade.reason} ${signedMoney(trade.pnl)}`),
     )
     return markers
   })
+}
+
+function withMarkerText(marker, show, text) {
+  return show ? { ...marker, text } : marker
 }
 
 function addLine(title, color, width, style = LineStyle.Solid) {

@@ -3,18 +3,18 @@ defineProps({
   overlays: { type: Object, required: true },
 })
 
-// 10 个主图叠加项配置
 const TOGGLES = [
   { key: 'costBand', label: '成本锚带' },
   { key: 'entryLine', label: '入场价线' },
   { key: 'volBand', label: '波动带' },
   { key: 'volume', label: '成交量' },
-  { key: 'kdjPane', label: 'KDJ 子图' },
-  { key: 'rsiPane', label: 'RSI 子图' },
   { key: 'replayMarkers', label: 'Replay 标记' },
+  { key: 'replayMarkerLabels', label: 'Replay 文字' },
   { key: 'currentDecision', label: '当前决策点' },
   { key: 'deltaPane', label: 'Δ 子图' },
   { key: 'equityPane', label: '权益子图' },
+  { key: 'kdjPane', label: 'KDJ 子图' },
+  { key: 'rsiPane', label: 'RSI 子图' },
 ]
 </script>
 
