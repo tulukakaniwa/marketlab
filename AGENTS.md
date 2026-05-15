@@ -14,6 +14,16 @@
 - `src/styles/`：按界面域拆 CSS。
 - `public/data/`：静态数据集。
 
+## 架构约束
+
+- 整体实现必须满足 DDD、MVVM、高内聚、低耦合和 CQRS。
+- DDD：公式、市场状态、挂单计划、回放、账户模拟等业务规则必须先沉到 `src/domain/`，用明确输入输出表达领域概念；组件和 store 不写隐式业务公式。
+- MVVM：Vue 组件只负责视图和交互，Pinia store / composable 承担 ViewModel 编排，把 domain 结果映射成 UI 可消费状态。
+- 高内聚：同一模块只处理一个稳定职责；新增行为前先判断应放在公式、市场、计划、回放、ViewModel 还是展示组件里。
+- 低耦合：`src/domain/` 不依赖 Vue、Pinia、DOM、图表库或浏览器 API；组件之间不要互相读取内部状态，通过 props、emit、store 或 domain 输出连接。
+- CQRS：计算/查询路径和命令/修改路径分开。查询函数保持纯计算和可测试；导入数据、修改输入、切换模式、触发回放等命令集中在 store/composable 层。
+- 默认挂单结论只能消费经过 domain 明确建模的查询结果；研究层可视化必须标注来源和状态，不能绕过 CQRS 直接改写计划。
+
 ## 产品规则
 
 - Lab 是工作台，不是文章。
