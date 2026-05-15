@@ -50,7 +50,7 @@ function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
       <article class="dd-action-card">
         <header>
           <strong>{{ graph?.decision?.state || '等待数据' }}</strong>
-          <em>信号强度 {{ Math.round((graph?.decision?.signalStrength ?? 0) * 100) }}%</em>
+          <em>条件匹配 {{ Math.round((graph?.decision?.signalStrength ?? 0) * 100) }}%</em>
         </header>
         <div class="dd-action-grid">
           <div><span>候选首笔</span><strong>{{ money(graph?.position?.firstNotional) }}</strong></div>

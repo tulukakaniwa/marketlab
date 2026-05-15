@@ -52,8 +52,23 @@ export function useFormulaChartModel(props) {
 
   /* ── greeks ── */
   const greeksData = computed(() => {
+    const portfolio = props.graph.optionPortfolio
+    if (portfolio) {
+      return {
+        price: portfolio.value,
+        delta: portfolio.delta,
+        gamma: portfolio.gamma,
+        thetaDaily: portfolio.thetaDaily,
+        thetaAnnual: portfolio.thetaDaily * (props.graph.inputs?.tradingDaysPerYear || 365),
+        vega: portfolio.vega,
+        rho: portfolio.rho,
+        legs: portfolio.legs?.length ?? 0,
+        strategyClass: portfolio.strategyClass,
+        isPortfolio: true,
+      }
+    }
     const o = props.graph.option; if (!o) return null
-    return { price: o.price, delta: o.delta, gamma: o.gamma, theta: o.theta, thetaDaily: o.thetaDaily, thetaAnnual: o.thetaAnnual, vega: o.vega, rho: o.rho, d1: o.d1, d2: o.d2 }
+    return { price: o.price, delta: o.delta, gamma: o.gamma, theta: o.theta, thetaDaily: o.thetaDaily, thetaAnnual: o.thetaAnnual, vega: o.vega, rho: o.rho, d1: o.d1, d2: o.d2, legs: 1, isPortfolio: false }
   })
 
   /* ── lp-inventory + V2 + IL ── */
@@ -263,7 +278,7 @@ export function useFormulaChartModel(props) {
   /* ── 小白指南 ── */
   const guide = computed(() => {
     const id = props.formulaId; const m = props.market; const g = props.graph
-    const b = g.deltaBands; const o = g.option; const il = g.impermanentLoss
+    const b = g.deltaBands; const o = greeksData.value; const il = g.impermanentLoss
     const ds = devScoreData.value; const nc = netCarryData.value; const nl = netLpData.value
 
     const guides = {
@@ -271,7 +286,7 @@ export function useFormulaChartModel(props) {
       cost: { title: '市场成本事实', body: `成本锚 ${fmt(m?.costAnchor)} 是滚动成交量加权价格。现价 ${fmt(m?.markPrice)}，相对成本偏离 ${pctFmt(m?.costDistance)}。成本带上沿和下沿只表示当前样本内的成本区间，不单独构成操作结论。` },
       volatility: { title: '波动口径事实', body: `年化波动 ${pctFmt(m?.annualVol)}，ATR ${pctFmt(m?.atrPercent)}。这些数值只描述样本波动，不代表未来波动或仓位建议。` },
       'delta-band': { title: 'GetDelta 价格带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，GetDelta 输出多头带 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。该带是公式输出，进入默认计划前还需要市场成本状态和账户输入共同满足。` },
-      'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。` },
+      'option-greeks': { title: '怎么看期权 Greeks', body: `${o?.isPortfolio ? '组合' : '单腿'} Delta ${f4(o?.delta)}：标的涨 1 元，模型价值约变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 偏多暴露' : '负 Delta = 偏空/保护暴露'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。该页是 research-only 风险拆解。` },
       'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单结论。` },
       'lp-inventory': { title: '研究层：LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}，无常损失估计 ${pctFmt(il?.impermanentLoss)}。这些值来自研究层输入，不等于真实链上 LP 仓位。` },
       'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在通过数值积分归一化，再离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。真实 tick、手续费层级和链上 LP NFT 权重仍未接入。` },

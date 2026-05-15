@@ -10,6 +10,7 @@ import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
+const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
 
 // 主题持久化
 const theme = persistedRef('lab.theme.v1', 'light')
@@ -27,7 +28,7 @@ function resetWorkbench() {
   window.location.reload()
 }
 
-// 窄屏自动折叠：< 900px 时强制收两侧（不写回 store，保留用户持久值）
+// 窄屏不再强制锁死两侧面板；只在打开一侧时收起另一侧，避免交易员无法选标的。
 const narrowScreen = ref(false)
 let mediaQuery = null
 function syncNarrowScreen() {
@@ -39,13 +40,17 @@ onMounted(() => {
     syncNarrowScreen()
     mediaQuery.addEventListener('change', syncNarrowScreen)
   }
+  if (lastSampleId.value && !lab.rows.length) {
+    const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
+    if (sample) lab.loadSample(sample)
+  }
 })
 onBeforeUnmount(() => {
   mediaQuery?.removeEventListener('change', syncNarrowScreen)
 })
 
-const effectiveLeftOpen = computed(() => !narrowScreen.value && lab.leftPanelOpen)
-const effectiveRightOpen = computed(() => !narrowScreen.value && lab.rightPanelOpen)
+const effectiveLeftOpen = computed(() => lab.leftPanelOpen)
+const effectiveRightOpen = computed(() => lab.rightPanelOpen)
 
 // 合并 marketSamples + stockIndex 给搜索
 const allSamples = computed(() => {
@@ -72,6 +77,23 @@ function onSetProfile(id) {
 function onSetAutoProfile(v) {
   lab.featureFlags.replayAutoProfile = v
   if (v) lab.featureFlags.replayAccount = true
+}
+
+function selectSample(sample) {
+  lastSampleId.value = sample.id
+  lab.loadSample(sample)
+}
+
+function toggleLeftPanel() {
+  const opening = !lab.leftPanelOpen
+  lab.toggleLeftPanel()
+  if (narrowScreen.value && opening) lab.rightPanelOpen = false
+}
+
+function toggleRightPanel() {
+  const opening = !lab.rightPanelOpen
+  lab.toggleRightPanel()
+  if (narrowScreen.value && opening) lab.leftPanelOpen = false
 }
 
 // 拖宽逻辑（v3.2）
@@ -160,7 +182,7 @@ const rootStyle = computed(() => ({
         :active-tab="lab.activeLeftTab"
         :lab="lab"
         :theme="theme"
-        @toggle="lab.toggleLeftPanel"
+        @toggle="toggleLeftPanel"
         @set-tab="(name) => lab.activeLeftTab = name"
         @set-profile="onSetProfile"
         @set-auto-profile="onSetAutoProfile"
@@ -215,8 +237,8 @@ const rootStyle = computed(() => ({
         :samples="allSamples"
         :current-source="lab.source"
         :loading-sample-id="lab.loadingSampleId"
-        @toggle="lab.toggleRightPanel"
-        @select-sample="lab.loadSample"
+        @toggle="toggleRightPanel"
+        @select-sample="selectSample"
       />
     </div>
   </div>

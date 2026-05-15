@@ -41,14 +41,20 @@ const currentValues = computed(() => {
       v.push(['e_T', f4(g.deltaBands?.wave)])
       break
     case 'option-greeks':
-      v.push(['价格', fmt(g.option?.price)])
-      v.push(['Delta', f4(g.option?.delta)])
-      v.push(['Gamma', f4(g.option?.gamma)])
-      v.push(['Theta', f4(g.option?.theta)])
-      v.push(['Vega', f4(g.option?.vega)])
-      v.push(['组合 legs', g.optionPortfolio?.legs?.length ?? 0])
-      v.push(['组合 Delta', f4(g.optionPortfolio?.delta)])
-      v.push(['组合 Gamma', f4(g.optionPortfolio?.gamma)])
+      if (g.optionPortfolio) {
+        v.push(['组合价值', fmt(g.optionPortfolio.value)])
+        v.push(['组合 Delta', f4(g.optionPortfolio.delta)])
+        v.push(['组合 Gamma', f4(g.optionPortfolio.gamma)])
+        v.push(['Theta/日', f4(g.optionPortfolio.thetaDaily)])
+        v.push(['Vega', f4(g.optionPortfolio.vega)])
+        v.push(['Legs', g.optionPortfolio.legs?.length ?? 0])
+      } else {
+        v.push(['价格', fmt(g.option?.price)])
+        v.push(['Delta', f4(g.option?.delta)])
+        v.push(['Gamma', f4(g.option?.gamma)])
+        v.push(['Theta', f4(g.option?.theta)])
+        v.push(['Vega', f4(g.option?.vega)])
+      }
       break
     case 'lp-inventory':
       v.push(['LP 价值', fmt(g.lpV3?.value)])
@@ -86,7 +92,7 @@ const decisionImpact = computed(() => {
     cost: '决定挂单的成本锚、上下沿、回归目标',
     volatility: '决定挂单间距与失效阈值',
     'delta-band': '直接生成挂单价格梯队（试仓/加仓/极值）',
-    'option-greeks': '提供方向风险（Delta）与曲率（Gamma）参考',
+    'option-greeks': '研究层风险拆解；默认计划不消费期权组合',
     'lp-inventory': 'LP 库存暴露 → 组合 Delta 一部分',
     'capital-efficiency': '决定 LP 区间是否值得收窄',
     funding: '永续持仓的累计成本，影响 net carry',

@@ -76,7 +76,7 @@ function pctSign(v) {
       <div v-if="recommendation" class="tb-segment tb-action">
         <span>状态</span>
         <strong>{{ recommendation }}</strong>
-        <em>强度 {{ Math.round(confidence * 100) }}%</em>
+        <em>匹配 {{ Math.round(confidence * 100) }}%</em>
       </div>
     </div>
 

@@ -105,16 +105,19 @@ const {
 
     <!-- OPTION GREEKS -->
     <div v-else-if="formulaId === 'option-greeks' && greeksData" class="fc-card">
-      <span class="fc-ttl">期权 Greeks</span>
+      <span class="fc-ttl">{{ greeksData.isPortfolio ? '期权组合 Greeks' : '期权 Greeks' }}</span>
       <div class="fc-gr4">
-        <div class="fc-gi"><b>价格</b><span>{{ fmt(greeksData.price) }}</span></div>
+        <div class="fc-gi"><b>{{ greeksData.isPortfolio ? '组合价值' : '价格' }}</b><span>{{ fmt(greeksData.price) }}</span></div>
         <div class="fc-gi"><b>Δ</b><span :class="greeksData.delta > 0 ? 'green' : 'red'">{{ f4(greeksData.delta) }}</span></div>
         <div class="fc-gi"><b>Γ</b><span>{{ f4(greeksData.gamma) }}</span></div>
         <div class="fc-gi"><b>Θ/日</b><span>{{ f4(greeksData.thetaDaily ?? greeksData.theta) }}</span></div>
         <div class="fc-gi"><b>ν</b><span>{{ f4(greeksData.vega) }}</span></div>
         <div class="fc-gi"><b>ρ</b><span>{{ f4(greeksData.rho) }}</span></div>
       </div>
-      <div class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }} · Θ/年 {{ f4(greeksData.thetaAnnual) }}</div>
+      <div v-if="greeksData.isPortfolio" class="fc-meta">
+        {{ greeksData.legs }} legs · {{ greeksData.strategyClass }} · Θ/年 {{ f4(greeksData.thetaAnnual) }} · research-only
+      </div>
+      <div v-else class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }} · Θ/年 {{ f4(greeksData.thetaAnnual) }}</div>
     </div>
 
     <!-- LP INVENTORY -->
