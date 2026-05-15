@@ -1,24 +1,26 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { Activity, Database, Moon, Play, Sun } from 'lucide-vue-next'
+import { Activity } from 'lucide-vue-next'
 import ChainFlow from './components/ChainFlow.vue'
 import DecisionPanel from './components/DecisionPanel.vue'
 import FormulaChart from './components/FormulaChart.vue'
 import FormulaDrawer from './components/FormulaDrawer.vue'
 import FormulaNav from './components/FormulaNav.vue'
+import MarketListPanel from './components/MarketListPanel.vue'
 import MarketChart from './components/MarketChart.vue'
 import MetricStrip from './components/MetricStrip.vue'
 import OrderTable from './components/OrderTable.vue'
 import QuestionNav from './components/QuestionNav.vue'
 import ReplayPanel from './components/ReplayPanel.vue'
+import TopBar from './components/TopBar.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
+import { inferTdpy } from './domain/market/tdpy.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
 
-const tickerSearch = ref('')
-const searchInput = ref(null)
+const marketPanel = ref(null)
 const showAllFormulas = ref(false)
 const drawerOpen = ref(false)
 
@@ -41,13 +43,24 @@ function resetWorkbench() {
 }
 
 function focusSearch() {
-  searchInput.value?.focus()
+  marketPanel.value?.focusFilter()
 }
 
 function openDrawer(formulaId) {
   if (formulaId) lab.activeFormulaId = formulaId
   drawerOpen.value = true
 }
+
+function setProfile(id) {
+  lab.input.autoProfile = false
+  lab.input.strategyProfile = id
+}
+
+function selectSample(sample) {
+  lab.input.tradingDaysPerYear = inferTdpy(sample).value
+  lab.loadSample(sample)
+}
+
 const allSamples = computed(() => {
   const curated = new Map(lab.marketSamples.map(s => [s.symbol, s]))
   for (const s of stockIndex) {
@@ -55,17 +68,6 @@ const allSamples = computed(() => {
   }
   return [...curated.values()]
 })
-const filteredSamples = computed(() => {
-  const q = tickerSearch.value.trim().toLowerCase()
-  if (!q) return lab.marketSamples
-  return allSamples.value.filter(s =>
-    s.symbol.toLowerCase().includes(q) || s.label.toLowerCase().includes(q)
-  )
-})
-
-function onSearchEnter() {
-  if (filteredSamples.value.length) lab.loadSample(filteredSamples.value[0])
-}
 
 const metrics = computed(() => {
   const m = lab.market; const g = lab.graph
@@ -105,31 +107,22 @@ const brief = computed(() => {
 
 <template>
   <div class="app-root">
-    <header class="top-bar">
-      <div><span>Market Lab</span><h1>公式工作台</h1></div>
-      <div class="bar-act">
-        <input
-          ref="searchInput"
-          v-model="tickerSearch"
-          class="ticker-search"
-          type="search"
-          placeholder="搜代码/名称…"
-          list="ticker-list"
-          @keydown.enter="onSearchEnter"
-        />
-        <datalist id="ticker-list">
-          <option v-for="s in allSamples" :key="s.id" :value="s.symbol" />
-        </datalist>
-        <button v-for="s in filteredSamples" :key="s.id" :class="{ on: lab.source?.id === s.id }" :disabled="lab.loadingSampleId === s.id" @click="lab.loadSample(s)">
-          <Database :size="14" />{{ lab.loadingSampleId === s.id ? '…' : s.symbol }}
-        </button>
-        <button class="theme-btn" @click="toggleTheme" title="切换主题">
-          <Moon v-if="theme === 'light'" :size="14" />
-          <Sun v-else :size="14" />
-        </button>
-        <button class="reset-btn" @click="resetWorkbench" title="清空持久化参数">重置</button>
-      </div>
-    </header>
+    <TopBar
+      :source="lab.source"
+      :market="lab.market"
+      :rows="lab.rows"
+      :decision="lab.graph.decision"
+      :confidence="lab.graph.decision?.confidence ?? 0"
+      :profile-id="lab.input.strategyProfile"
+      :auto-profile="lab.input.autoProfile"
+      :profile-list="lab.strategyProfileList"
+      :recommended-id="lab.recommendedProfile.id"
+      :theme="theme"
+      @set-profile="setProfile"
+      @set-auto-profile="lab.input.autoProfile = $event"
+      @toggle-theme="toggleTheme"
+      @reset="resetWorkbench"
+    />
     <p v-if="lab.error" class="err-bar" :class="`kind-${lab.error.kind}`">
       <span class="err-msg">{{ lab.error.message }}</span>
       <button v-if="lab.error.sample" class="err-btn" @click="lab.retryLast()" :disabled="lab.loading">
@@ -138,7 +131,7 @@ const brief = computed(() => {
       <button class="err-btn err-dismiss" @click="lab.dismissError()">关闭</button>
     </p>
 
-    <div v-if="lab.rows.length" class="workbench">
+    <div class="workbench">
       <aside class="wb-left">
         <QuestionNav
           :active-formula-id="lab.activeFormulaId"
@@ -156,7 +149,7 @@ const brief = computed(() => {
         </details>
       </aside>
 
-      <main class="wb-center">
+      <main v-if="lab.rows.length" class="wb-center">
         <div class="cursor-bar" v-if="lab.rows.length">
           <span>光标 {{ lab.rows[lab.cursor]?.date || lab.rows.at(-1)?.date }}</span>
           <span>数据 {{ lab.cursor + 1 }} / {{ lab.rows.length }} 条（仅用左侧）</span>
@@ -193,46 +186,54 @@ const brief = computed(() => {
         </section>
       </main>
 
+      <main v-else class="wb-center wb-center-empty">
+        <div class="empty-state">
+          <Activity :size="36" />
+          <strong>Market Lab</strong>
+          <small v-if="lab.loading">加载中…{{ lab.loadingSampleId ? ' ' + lab.loadingSampleId : '' }}</small>
+          <small v-else>从右侧市场列表选择数据集加载 K 线</small>
+        </div>
+      </main>
+
       <aside class="wb-right">
-        <div class="exec-strip">
-          <span>决策 · {{ brief.confidence }}% 置信</span>
-          <strong>{{ brief.title }}</strong>
-          <em>{{ brief.bias }}</em>
-          <div class="exec-nums">
-            <div><span>首笔</span><strong>{{ money(brief.notional) }}</strong></div>
-            <div><span>挂单</span><strong>{{ money(brief.price) }}</strong></div>
-            <div><span>失效</span><strong>{{ money(brief.stop) }}</strong></div>
-            <div><span>目标</span><strong>{{ money(brief.target) }}</strong></div>
+        <MarketListPanel
+          ref="marketPanel"
+          :samples="allSamples"
+          :current-source="lab.source"
+          :loading-sample-id="lab.loadingSampleId"
+          @select-sample="selectSample"
+        />
+
+        <template v-if="lab.rows.length">
+          <div class="exec-strip">
+            <span>决策 · {{ brief.confidence }}% 置信</span>
+            <strong>{{ brief.title }}</strong>
+            <em>{{ brief.bias }}</em>
+            <div class="exec-nums">
+              <div><span>首笔</span><strong>{{ money(brief.notional) }}</strong></div>
+              <div><span>挂单</span><strong>{{ money(brief.price) }}</strong></div>
+              <div><span>失效</span><strong>{{ money(brief.stop) }}</strong></div>
+              <div><span>目标</span><strong>{{ money(brief.target) }}</strong></div>
+            </div>
+            <small>{{ brief.reason }}</small>
           </div>
-          <small>{{ brief.reason }}</small>
-        </div>
 
-        <div class="mode-tabs">
-          <button :class="{ active: lab.activeMode === 'orders' }" @click="lab.activeMode = 'orders'">计划</button>
-          <button :class="{ active: lab.activeMode === 'risk' }" @click="lab.activeMode = 'risk'">风险</button>
-          <button :class="{ active: lab.activeMode === 'formula' }" @click="lab.activeMode = 'formula'">依据</button>
-        </div>
-        <div class="prof-tabs">
-          <button :class="{ active: lab.input.autoProfile }" @click="lab.input.autoProfile = true">接管</button>
-          <button v-for="p in lab.strategyProfileList" :key="p.id" :class="{ active: !lab.input.autoProfile && lab.input.strategyProfile === p.id }" @click="lab.input.autoProfile = false; lab.input.strategyProfile = p.id">{{ p.label }}</button>
-        </div>
+          <div class="mode-tabs">
+            <button :class="{ active: lab.activeMode === 'orders' }" @click="lab.activeMode = 'orders'">计划</button>
+            <button :class="{ active: lab.activeMode === 'risk' }" @click="lab.activeMode = 'risk'">风险</button>
+            <button :class="{ active: lab.activeMode === 'formula' }" @click="lab.activeMode = 'formula'">依据</button>
+          </div>
 
-        <DecisionPanel :graph="lab.graph" :market="lab.market" />
-        <ReplayPanel :replay="lab.replay" :profile-replays="lab.profileReplays" :active-profile-id="lab.effectiveInput.strategyProfile" />
+          <DecisionPanel :graph="lab.graph" :market="lab.market" />
+          <ReplayPanel :replay="lab.replay" :profile-replays="lab.profileReplays" :active-profile-id="lab.effectiveInput.strategyProfile" />
 
-        <OrderTable v-if="lab.activeMode === 'orders'" :title="lab.graph.decision?.timing?.side === 'sell' ? '底仓减压' : '分批低价买入'" :orders="lab.graph.plan.primaryOrders" />
-        <template v-if="lab.activeMode === 'risk'">
-          <div class="risk-box"><span>失效线</span><strong>{{ money(lab.graph.plan.invalidation.lower) }} / {{ money(lab.graph.plan.invalidation.upper) }}</strong></div>
-          <div class="risk-box"><span>组合价值</span><strong :class="(lab.graph.portfolio ?? 0) >= 0 ? 'green' : 'red'">{{ money(lab.graph.portfolio) }}</strong></div>
+          <OrderTable v-if="lab.activeMode === 'orders'" :title="lab.graph.decision?.timing?.side === 'sell' ? '底仓减压' : '分批低价买入'" :orders="lab.graph.plan.primaryOrders" />
+          <template v-if="lab.activeMode === 'risk'">
+            <div class="risk-box"><span>失效线</span><strong>{{ money(lab.graph.plan.invalidation.lower) }} / {{ money(lab.graph.plan.invalidation.upper) }}</strong></div>
+            <div class="risk-box"><span>组合价值</span><strong :class="(lab.graph.portfolio ?? 0) >= 0 ? 'green' : 'red'">{{ money(lab.graph.portfolio) }}</strong></div>
+          </template>
         </template>
       </aside>
-    </div>
-
-    <div v-else class="empty-state">
-      <Activity :size="36" />
-      <strong>Market Lab</strong>
-      <small v-if="lab.loading">加载中…{{ lab.loadingSampleId ? ' ' + lab.loadingSampleId : '' }}</small>
-      <small v-else>点击上方数据集加载 K 线（首次加载约 1~2 秒）</small>
     </div>
 
     <FormulaDrawer
@@ -248,18 +249,6 @@ const brief = computed(() => {
 <style>
 /* ── Root ── */
 .app-root { width: 100vw; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); color: var(--ink); }
-.top-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0; border-bottom: 1px solid var(--line); padding: 6px 12px; background: var(--panel); }
-.top-bar span { color: var(--green); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; }
-.top-bar h1 { margin: 0; font-size: 1rem; line-height: 1.1; }
-.bar-act { display: flex; gap: 5px; align-items: center; }
-.bar-act button { display: inline-flex; gap: 4px; align-items: center; min-height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 9px; background: var(--bg); color: var(--ink); font-weight: 700; font-size: 0.76rem; }
-.bar-act button.on, .bar-act button:hover { border-color: var(--green); }
-.bar-act button:disabled { opacity: 0.5; }
-.ticker-search { width: 100px; min-height: 26px; border: 1px solid var(--line); border-radius: 5px; padding: 2px 6px; background: var(--bg); color: var(--ink); font-size: 0.72rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.ticker-search::placeholder { color: var(--muted); font-weight: 400; }
-.theme-btn { min-width: 28px; justify-content: center; border-radius: 99px; }
-.reset-btn { font-size: 0.66rem !important; opacity: 0.7; }
-.reset-btn:hover { opacity: 1; }
 .err-bar { flex-shrink: 0; display: flex; gap: 10px; align-items: center; margin: 0; padding: 5px 12px; background: var(--red); color: #fff; font-size: 0.76rem; }
 .err-bar.kind-empty { background: #b8860b; }
 .err-bar.kind-parse { background: #884d22; }
@@ -282,6 +271,7 @@ const brief = computed(() => {
 .wb-formulas-toggle[open] summary { color: var(--green); border-style: solid; }
 .wb-formulas-toggle[open] { display: grid; gap: 6px; }
 .wb-center { display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden; min-width: 0; }
+.wb-center-empty { min-height: 0; }
 .wb-right { border-left: 1px solid var(--line); padding: 8px; overflow-y: auto; background: var(--panel); display: grid; gap: 7px; align-content: start; }
 
 /* ── Center ── */
@@ -315,11 +305,10 @@ const brief = computed(() => {
 .exec-nums div { display: grid; gap: 1px; }
 .exec-nums strong { font-size: 0.82rem; }
 
-.mode-tabs, .prof-tabs { display: grid; gap: 3px; }
+.mode-tabs { display: grid; gap: 3px; }
 .mode-tabs { grid-template-columns: repeat(3, 1fr); }
-.prof-tabs { grid-template-columns: repeat(4, 1fr); }
-.mode-tabs button, .prof-tabs button { min-height: 26px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); font-weight: 800; font-size: 0.72rem; }
-.mode-tabs button.active, .prof-tabs button.active { border-color: var(--green); background: var(--surface-active); }
+.mode-tabs button { min-height: 26px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); font-weight: 800; font-size: 0.72rem; }
+.mode-tabs button.active { border-color: var(--green); background: var(--surface-active); }
 
 .risk-box { display: grid; gap: 2px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .risk-box span { color: var(--green); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; }

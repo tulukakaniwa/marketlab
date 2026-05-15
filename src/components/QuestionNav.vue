@@ -20,7 +20,7 @@ const questions = [
   {
     id: 'q-symbol',
     title: '1 · 看什么品种与周期？',
-    hint: '右上角搜索框选择数据集',
+    hint: '右侧市场列表选择数据集',
     formulas: ['path', 'cost'],
     action: 'focus-search',
   },
