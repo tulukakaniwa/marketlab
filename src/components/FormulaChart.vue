@@ -274,7 +274,7 @@ const guide = computed(() => {
     volatility: { title: '怎么看波动口径', body: `年化波动 ${pctFmt(m?.annualVol)} 意味着价格在一年内约 68% 概率在 ±${pctFmt(m?.annualVol)} 范围内。${(m?.annualVol ?? 0) > 0.4 ? '波动偏高，挂单间距应该拉大，仓位要轻。' : '波动适中，可以正常操作。'} ATR ${pctFmt(m?.atrPercent)} 是日均波动幅度，用来设止损。` },
     'delta-band': { title: '怎么看 GetDelta 成本带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，多头买入的安全区是 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。${(m?.markPrice ?? 0) < (b?.long?.low ?? 0) ? '现价已跌破多头下沿，这是罕见的深度折价。' : (m?.markPrice ?? 0) > (b?.long?.high ?? 0) ? '现价已突破上沿，不适合追多。' : '现价在波动带内，等待更好的价格。'}空头区同理，但 Lab 不主动做空。` },
     'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。` },
-    'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单或回放结论。` },
+    'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单结论。` },
     'lp-inventory': { title: '怎么看 LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}。无常损失 ${pctFmt(il?.impermanentLoss)}，${(il?.impermanentLoss ?? 0) > -0.01 ? '几乎可以忽略，价格没有大幅偏离入场价。' : '需要关注，价格偏离较大。'} 相比 HODL，LP 额外赚了手续费但承担了无常损失风险。` },
     'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在通过数值积分归一化，再离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。真实 tick、手续费层级和链上 LP NFT 权重仍未接入。` },
     'amm-geometry': { title: '研究层：AMM 几何', body: `绿线是恒定乘积，蓝线是 Lambert W 研究曲线，Numoen 快照只展示 reverse-engineered invariant / quoter / slippage，状态为 protocol-unverified，不能作为交易信号。` },

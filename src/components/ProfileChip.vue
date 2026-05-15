@@ -3,12 +3,10 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 const props = defineProps({
   profileId: { type: String, required: true },
-  autoProfile: { type: Boolean, required: true },
   profileList: { type: Array, required: true },
-  recommendedId: { type: String, default: 'balanced' },
 })
 
-const emit = defineEmits(['set', 'set-auto'])
+const emit = defineEmits(['set'])
 
 const open = ref(false)
 const wrapper = ref(null)
@@ -20,12 +18,10 @@ const profileTone = {
 }
 
 const activeLabel = computed(() => {
-  const id = props.autoProfile ? props.recommendedId : props.profileId
-  return props.profileList.find((profile) => profile.id === id)?.label ?? '均衡'
+  return props.profileList.find((profile) => profile.id === props.profileId)?.label ?? '均衡'
 })
 
 const tone = computed(() => {
-  if (props.autoProfile) return 'tone-neutral'
   return profileTone[props.profileId] ?? 'tone-neutral'
 })
 
@@ -43,11 +39,6 @@ function onOutside(event) {
   if (wrapper.value && !wrapper.value.contains(event.target)) close()
 }
 
-function setAuto() {
-  emit('set-auto', true)
-  close()
-}
-
 function setProfile(id) {
   emit('set', id)
   close()
@@ -60,20 +51,16 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside))
   <div ref="wrapper" :class="['profile-chip', tone]">
     <button type="button" class="pc-trigger" @click="toggle">
       <span class="pc-dot" />
-      {{ autoProfile ? `自动 · ${activeLabel}` : activeLabel }}
+      {{ activeLabel }}
       <span class="pc-arrow">▾</span>
     </button>
     <ul v-if="open" class="pc-menu">
-      <li :class="{ active: autoProfile }" @click="setAuto">
-        <span class="pc-dot tone-neutral" />
-        自动（按回测推荐）
-      </li>
       <li
         v-for="profile in profileList"
         :key="profile.id"
         :class="[
           `tone-${profile.id === 'conservative' ? 'blue' : profile.id === 'balanced' ? 'green' : 'orange'}`,
-          { active: !autoProfile && profileId === profile.id },
+          { active: profileId === profile.id },
         ]"
         @click="setProfile(profile.id)"
       >

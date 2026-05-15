@@ -6,7 +6,6 @@ import { inferTdpy } from '../domain/market/tdpy.js'
 import { buildDecisionGraph } from '../domain/planning/orderPlan.js'
 import { useDataLoader } from '../composables/useDataLoader.js'
 import { useMarketState } from '../composables/useMarketState.js'
-import { useReplay } from '../composables/useReplay.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
 
 /**
@@ -16,10 +15,9 @@ import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
  *   planning.input
  *     → data (rows/cursor)
  *     → marketState (market/marketStateFull/costPath/formulaPath)
- *     → replay (profileReplays/recommendedProfile/replay)
  *     → effectiveInput → graph → executionBrief
  *
- * 对外 API 保持向后兼容：组件 import 路径与字段名不变。
+ * 对外 API 面向当前工作台组件；旧回测字段已删除。
  */
 export const useLabStore = defineStore('lab', () => {
   // 1. 输入与 UI 状态
@@ -33,16 +31,12 @@ export const useLabStore = defineStore('lab', () => {
   // 3. 市场态（带 tdpy 二级缓存）
   const marketState = useMarketState(rows, cursor, input)
 
-  // 4. 回放（复用 marketStateFull，避免重算）
-  //    effectiveInput 在更下层组合，但 useReplay 只需 input 与 effectiveInput 的引用，先用占位 computed
+  // 4. 决策输入
+  //    回测系统已从默认决策链下架，profile 只来自用户手动选择。
   const effectiveInput = computed(() => ({
     ...input,
-    strategyProfile: input.autoProfile && replayLayer
-      ? replayLayer.recommendedProfile.value.id
-      : input.strategyProfile,
+    strategyProfile: input.strategyProfile,
   }))
-  // 占位（initialize-after-use 模式）：先声明 replayLayer 再初始化
-  let replayLayer = useReplay(rows, input, effectiveInput, marketState.marketStateFull)
 
   // 5. 决策图
   const graph = computed(() => buildDecisionGraph({
@@ -50,14 +44,9 @@ export const useLabStore = defineStore('lab', () => {
     input: effectiveInput.value,
   }))
 
-  const executionBrief = computed(() => buildExecutionBrief(
-    graph.value,
-    replayLayer.recommendedProfile.value,
-    input.autoProfile,
-  ))
+  const executionBrief = computed(() => buildExecutionBrief(graph.value))
 
   const sourceLabel = computed(() => data.source.value?.label ?? '未载入')
-
   // 加载新 rows 时回填输入参数
   watch(rows, (next) => {
     if (!next.length) return
@@ -119,11 +108,6 @@ export const useLabStore = defineStore('lab', () => {
     formulaCapabilities: planning.formulaCapabilities,
     strategyProfileList: planning.strategyProfileList,
     selectCapability: planning.selectCapability,
-
-    // 回放层
-    profileReplays: replayLayer.profileReplays,
-    recommendedProfile: replayLayer.recommendedProfile,
-    replay: replayLayer.replay,
 
     // 杂项
     useCursorCloseAsEntry,

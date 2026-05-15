@@ -12,13 +12,11 @@ const props = defineProps({
   decision: { type: Object, default: null },
   confidence: { type: Number, default: 0 },
   profileId: { type: String, required: true },
-  autoProfile: { type: Boolean, required: true },
   profileList: { type: Array, required: true },
-  recommendedId: { type: String, default: 'balanced' },
   theme: { type: String, default: 'light' },
 })
 
-const emit = defineEmits(['set-profile', 'set-auto-profile', 'toggle-theme', 'reset'])
+const emit = defineEmits(['set-profile', 'toggle-theme', 'reset'])
 
 const dailyChange = computed(() => {
   const rows = props.rows
@@ -81,11 +79,8 @@ function pctSign(value) {
     <div class="tb-actions">
       <ProfileChip
         :profile-id="profileId"
-        :auto-profile="autoProfile"
         :profile-list="profileList"
-        :recommended-id="recommendedId"
         @set="(id) => emit('set-profile', id)"
-        @set-auto="(value) => emit('set-auto-profile', value)"
       />
       <button class="tb-theme" type="button" title="切换主题" @click="emit('toggle-theme')">
         <Moon v-if="theme === 'light'" :size="14" />

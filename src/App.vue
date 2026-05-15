@@ -11,7 +11,6 @@ import MarketChart from './components/MarketChart.vue'
 import MetricStrip from './components/MetricStrip.vue'
 import OrderTable from './components/OrderTable.vue'
 import QuestionNav from './components/QuestionNav.vue'
-import ReplayPanel from './components/ReplayPanel.vue'
 import TopBar from './components/TopBar.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
@@ -51,7 +50,6 @@ function openDrawer(formulaId) {
 }
 
 function setProfile(id) {
-  lab.input.autoProfile = false
   lab.input.strategyProfile = id
 }
 
@@ -93,12 +91,9 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
       :decision="lab.graph.decision"
       :confidence="lab.graph.decision?.confidence ?? 0"
       :profile-id="lab.input.strategyProfile"
-      :auto-profile="lab.input.autoProfile"
       :profile-list="lab.strategyProfileList"
-      :recommended-id="lab.recommendedProfile.id"
       :theme="theme"
       @set-profile="setProfile"
-      @set-auto-profile="lab.input.autoProfile = $event"
       @toggle-theme="toggleTheme"
       @reset="resetWorkbench"
     />
@@ -137,7 +132,7 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
         <ChainFlow :graph="lab.graph" :market="lab.market" :active-id="lab.activeFormulaId" @select="lab.activeFormulaId = $event" />
 
         <section class="wb-chart">
-          <MarketChart :rows="lab.rows" :cost-path="lab.costPath" :formula-path="lab.formulaPath" :entry-price="lab.input.entryPrice" :graph="lab.graph" :replay="lab.replay" @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }" />
+          <MarketChart :rows="lab.rows" :cost-path="lab.costPath" :formula-path="lab.formulaPath" :entry-price="lab.input.entryPrice" :graph="lab.graph" @cursor-change="(idx) => { if (idx !== null) lab.cursor = idx }" />
         </section>
 
         <section class="wb-formula">
@@ -204,7 +199,6 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
           </div>
 
           <DecisionPanel :graph="lab.graph" :market="lab.market" />
-          <ReplayPanel :replay="lab.replay" :profile-replays="lab.profileReplays" :active-profile-id="lab.effectiveInput.strategyProfile" />
 
           <OrderTable v-if="lab.activeMode === 'orders'" :title="lab.graph.decision?.timing?.side === 'sell' ? '底仓减压' : '分批低价买入'" :orders="lab.graph.plan.primaryOrders" />
           <template v-if="lab.activeMode === 'risk'">

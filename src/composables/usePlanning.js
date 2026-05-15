@@ -22,7 +22,6 @@ export function usePlanning() {
     targetReturn: 0.3,
     capital: 10000,
     baseNotional: 0,
-    autoProfile: true,
     strategyProfile: 'balanced',
     strikePrice: 0,
     riskFreeRate: 0.04,
@@ -36,7 +35,6 @@ export function usePlanning() {
     perpTwap: 0,
     spotTwap: 0,
     pathUsesScenarioInputs: false,
-    replayFeeRate: 0.001,
     tradingDaysPerYear: 365,
   })
 
@@ -67,7 +65,7 @@ export function usePlanning() {
   }
 }
 
-export function buildExecutionBrief(graph, profile, autoProfile) {
+export function buildExecutionBrief(graph) {
   const state = graph?.decision?.state ?? '未载入路径'
   const orders = graph?.plan?.primaryOrders ?? []
   const side = graph?.position?.side
@@ -81,7 +79,7 @@ export function buildExecutionBrief(graph, profile, autoProfile) {
   return {
     title: verb === state ? state : `${verb} · ${state}`,
     bias,
-    profileLabel: autoProfile ? `自动选择 ${profile?.label ?? '均衡'}` : `手动 ${graph?.profile?.label ?? '均衡'}`,
+    profileLabel: `手动 ${graph?.profile?.label ?? '均衡'}`,
     price: firstOrder?.price ?? null,
     notional: firstOrder?.notional ?? 0,
     stop: graph?.position?.stopPrice ?? null,

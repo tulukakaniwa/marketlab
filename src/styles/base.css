@@ -96,7 +96,6 @@ button:disabled {
 .control-panel span,
 .risk-box span,
 .decision-panel span,
-.replay-panel span,
 .formula-graph span {
   color: var(--green);
   font-size: 0.73rem;
@@ -133,8 +132,6 @@ button:disabled {
 .decision-hero,
 .decision-grid article,
 .decision-list,
-.replay-panel,
-.replay-grid article,
 .formula-node,
 .capability-node,
 .formula-detail {
@@ -339,58 +336,6 @@ button:disabled {
 .decision-list p {
   margin: 0;
   font-size: 0.9rem;
-}
-
-.replay-panel {
-  display: grid;
-  gap: 9px;
-  padding: 12px;
-}
-
-.replay-panel header {
-  display: grid;
-  gap: 4px;
-}
-
-.replay-panel header strong {
-  font-size: 1.3rem;
-}
-
-.replay-panel small {
-  color: var(--muted);
-}
-
-.replay-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-auto-rows: min-content;
-  gap: 6px;
-}
-
-.replay-grid article {
-  display: grid;
-  gap: 3px;
-  padding: 8px;
-}
-
-.replay-grid strong,
-.replay-panel td {
-  font-variant-numeric: tabular-nums;
-}
-
-.replay-panel table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-
-.replay-panel td {
-  border-top: 1px solid var(--line);
-  padding: 6px 4px;
-}
-
-.replay-panel td:last-child {
-  text-align: right;
 }
 
 .positive {

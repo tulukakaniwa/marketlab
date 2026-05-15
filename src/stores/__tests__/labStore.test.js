@@ -22,10 +22,6 @@ describe('useLabStore（D2 拆分后契约）', () => {
     expect(lab.input).toBeDefined()
     expect(lab.graph).toBeDefined()
     expect(lab.effectiveInput).toBeDefined()
-    // 回放
-    expect(lab.replay).toBeDefined()
-    expect(lab.profileReplays).toBeDefined()
-    expect(lab.recommendedProfile).toBeDefined()
     // UI
     expect(lab.activeMode).toBeDefined()
     expect(typeof lab.selectCapability).toBe('function')
@@ -36,7 +32,12 @@ describe('useLabStore（D2 拆分后契约）', () => {
     expect(lab.input.holdingDays).toBe(30)
     expect(lab.input.targetReturn).toBe(0.3)
     expect(lab.input.tradingDaysPerYear).toBe(365)
-    expect(lab.input.autoProfile).toBe(true)
+  })
+
+  it('默认计划 profile 只来自手动选择', () => {
+    const lab = useLabStore()
+    lab.input.strategyProfile = 'conservative'
+    expect(lab.effectiveInput.strategyProfile).toBe('conservative')
   })
 
   it('importText 解析 CSV 并触发输入回填', async () => {
