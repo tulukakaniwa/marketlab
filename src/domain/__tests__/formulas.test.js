@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  asianOption,
+  bachelierOption,
   blackScholes,
   capitalEfficiency,
   fundingRate,
   getDeltaBands,
   impermanentLoss,
+  lambertW,
+  liquidityFingerprint,
+  numoenSnapshot,
   normalCdf,
   uniswapV3Inventory,
 } from '../formulas/core.js'
@@ -44,16 +49,39 @@ describe('getDeltaBands', () => {
 })
 
 describe('blackScholes', () => {
+  it('匹配标准 Black-Scholes call benchmark', () => {
+    const o = blackScholes({ entryPrice: 100, strikePrice: 100, holdingDays: 365, iv: 0.2, riskFreeRate: 0.05, type: 'call' })
+    expect(o.price).toBeCloseTo(10.4506, 2)
+    expect(o.delta).toBeCloseTo(0.6368, 2)
+    expect(Number.isFinite(o.rho)).toBe(true)
+    expect(Number.isFinite(o.thetaDaily)).toBe(true)
+    expect(Number.isFinite(o.thetaAnnual)).toBe(true)
+  })
   it('看跌的 delta 在 [-1, 0]', () => {
     const o = blackScholes({ entryPrice: 100, strikePrice: 100, holdingDays: 30, iv: 0.4, riskFreeRate: 0.04, type: 'put' })
     expect(o.delta).toBeLessThanOrEqual(0)
     expect(o.delta).toBeGreaterThanOrEqual(-1)
     expect(o.gamma).toBeGreaterThan(0)
+    expect(o.rho).toBeLessThanOrEqual(0)
   })
   it('看涨的 delta 在 [0, 1]', () => {
     const o = blackScholes({ entryPrice: 100, strikePrice: 100, holdingDays: 30, iv: 0.4, riskFreeRate: 0.04, type: 'call' })
     expect(o.delta).toBeGreaterThanOrEqual(0)
     expect(o.delta).toBeLessThanOrEqual(1)
+    expect(o.rho).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('Asian / Bachelier research formulas', () => {
+  it('输出有限研究值并拒绝非法参数', () => {
+    const asian = asianOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, iv: 0.4, riskFreeRate: 0.02, type: 'put' })
+    const bach = bachelierOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, normalVol: 40, riskFreeRate: 0.02, type: 'put' })
+    expect(Number.isFinite(asian.price)).toBe(true)
+    expect(Number.isFinite(asian.gamma)).toBe(true)
+    expect(Number.isFinite(bach.price)).toBe(true)
+    expect(Number.isFinite(bach.gamma)).toBe(true)
+    expect(asianOption({ entryPrice: 0, strikePrice: 105, holdingDays: 30, iv: 0.4 })).toBeNull()
+    expect(bachelierOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, normalVol: 0 })).toBeNull()
   })
 })
 
@@ -76,5 +104,27 @@ describe('LP / IL / CE / Funding', () => {
   it('fundingRate 永续溢价时为正', () => {
     const f = fundingRate({ perpTwap: 101, spotTwap: 100, hours: 8 })
     expect(f.funding).toBeGreaterThan(0)
+  })
+})
+
+describe('Liquidity / AMM research formulas', () => {
+  it('流动性指纹按积分离散且权重归一', () => {
+    const fp = liquidityFingerprint({ entryPrice: 100, priceGrid: 80, segmentCount: 12, lowerFactor: 0.8, upperFactor: 1.3 })
+    const total = fp.segments.reduce((sum, seg) => sum + seg.weight, 0)
+    expect(total).toBeCloseTo(1, 5)
+    expect(fp.segments.every((seg, index, arr) => index === 0 || seg.lower >= arr[index - 1].upper)).toBe(true)
+  })
+
+  it('Lambert W principal branch 满足定义', () => {
+    const w = lambertW(1)
+    expect(w * Math.exp(w)).toBeCloseTo(1, 8)
+  })
+
+  it('Numoen 快照有限且保持 protocol-unverified', () => {
+    const n = numoenSnapshot()
+    expect(n.status).toBe('protocol-unverified')
+    expect(Number.isFinite(n.R0)).toBe(true)
+    expect(Number.isFinite(n.R1)).toBe(true)
+    expect(Number.isFinite(n.slippageY)).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
-import { ammCurve, asianOption, deviationScore, gammaPnl, liquidityFingerprint, meanReversionHalfLife, netCarry, netLpEfficiency, riskSurface, volConfidence } from '../domain/formulas/core.js'
+import { ammCurve, asianOption, bachelierOption, deviationScore, gammaPnl, liquidityFingerprint, meanReversionHalfLife, netCarry, netLpEfficiency, numoenSnapshot, riskSurface, volConfidence } from '../domain/formulas/core.js'
 
 const props = defineProps({
   formulaId: { type: String, required: true },
@@ -55,7 +55,7 @@ const bandData = computed(() => {
 /* ── greeks ── */
 const greeksData = computed(() => {
   const o = props.graph.option; if (!o) return null
-  return { price: o.price, delta: o.delta, gamma: o.gamma, theta: o.theta, vega: o.vega, d1: o.d1, d2: o.d2 }
+  return { price: o.price, delta: o.delta, gamma: o.gamma, theta: o.theta, thetaDaily: o.thetaDaily, thetaAnnual: o.thetaAnnual, vega: o.vega, rho: o.rho, d1: o.d1, d2: o.d2 }
 })
 
 /* ── lp-inventory + V2 + IL ── */
@@ -143,7 +143,7 @@ const fundData = computed(() => { const f = props.graph.funding; return f ? { ra
 const portData = computed(() => {
   const p = props.graph.portfolio; const h = props.graph.lpV3Hedged
   if (!Number.isFinite(p)) return null
-  return { total: p, lpPnl: h?.lpPnl ?? 0, hedgePnl: h?.hedgePnl ?? 0, feeIncome: h?.feeIncome ?? 0, optionVal: props.graph.option?.price ?? 0 }
+  return { total: p, lpPnl: h?.lpPnl ?? 0, hedgePnl: h?.hedgePnl ?? 0, feeIncome: h?.feeIncome ?? 0, optionVal: props.graph.option?.price ?? 0, curve: props.graph.lpPortfolio?.points ?? [] }
 })
 const waterfallBars = computed(() => {
   const p = portData.value; if (!p) return []
@@ -164,28 +164,56 @@ const waterfallBars = computed(() => {
     return { x, y, w: barW, h, fill, label: item.label, val: item.val || 0 }
   })
 })
+const portfolioCurves = computed(() => {
+  const points = portData.value?.curve ?? []
+  if (points.length < 2) return null
+  const minP = Math.min(...points.map(p => p.price))
+  const maxP = Math.max(...points.map(p => p.price))
+  const vals = points.flatMap(p => [p.lpPnl, p.optionValue, p.hedgePnl, p.combined]).filter(Number.isFinite)
+  const minV = Math.min(...vals, 0)
+  const maxV = Math.max(...vals, 1)
+  const spanP = maxP - minP || 1
+  const spanV = maxV - minV || 1
+  const line = (key) => points
+    .map(p => `${PL + ((p.price - minP) / spanP) * pw},${PT + (1 - ((p[key] - minV) / spanV)) * ph}`)
+    .join(' ')
+  return { lp: line('lpPnl'), option: line('optionValue'), hedge: line('hedgePnl'), combined: line('combined'), minP, maxP, minV, maxV }
+})
 
 /* ── asian-option ── */
 const asianData = computed(() => {
+  if (props.graph.asian) return props.graph.asian
   const m = props.market; const g = props.graph
   const ep = m?.markPrice || g.inputs?.entryPrice
   const iv = m?.annualVol || g.inputs?.iv
   if (!ep || !iv) return null
   return asianOption({ entryPrice: ep, strikePrice: ep * 1.05, holdingDays: g.inputs?.holdingDays || 30, iv, riskFreeRate: 0.04, type: 'put' })
 })
+const bachelierData = computed(() => {
+  if (props.graph.bachelier) return props.graph.bachelier
+  const m = props.market; const g = props.graph
+  const ep = m?.markPrice || g.inputs?.entryPrice
+  const iv = m?.annualVol || g.inputs?.iv
+  if (!ep || !iv) return null
+  return bachelierOption({ entryPrice: ep, strikePrice: ep * 1.05, holdingDays: g.inputs?.holdingDays || 30, normalVol: iv * ep, riskFreeRate: 0.04, type: 'put' })
+})
 
 /* ── amm-geometry ── */
 const ammData = computed(() => {
   const mp = props.market?.markPrice || props.graph.inputs?.entryPrice
   if (!mp) return null
-  return ammCurve({ price: mp, invariant: mp, n: 50 })
+  return {
+    curve: ammCurve({ price: mp, invariant: mp, n: 50 }),
+    numoen: props.graph.numoen ?? numoenSnapshot(),
+  }
 })
 
 /* ── liquidity-fingerprint ── */
 const fingerprintData = computed(() => {
+  if (props.graph.liquidityFingerprint) return props.graph.liquidityFingerprint
   const mp = props.market?.markPrice || props.graph.inputs?.entryPrice
   if (!mp) return null
-  return liquidityFingerprint({ entryPrice: mp, priceGrid: 60, distribution: 'log-laplace', lambda: 2, kappa: 1 })
+  return liquidityFingerprint({ entryPrice: mp, priceGrid: 60, distribution: 'log-laplace', lambda: 2, kappa: 1, segmentCount: 12 })
 })
 
 /* ── Fusion: deviation-score ── */
@@ -245,11 +273,11 @@ const guide = computed(() => {
     cost: { title: '怎么看市场成本', body: `成本锚 ${fmt(m?.costAnchor)} 是过去 60 天成交量加权的"市场合理价"。现价 ${fmt(m?.markPrice)} 偏离 ${pctFmt(m?.costDistance)}，${(m?.costDistance ?? 0) < 0 ? '低于成本 → 折价区，适合找买点' : '高于成本 → 溢价区，适合减仓' }。成本带上沿是卖出参考，下沿是买入参考。` },
     volatility: { title: '怎么看波动口径', body: `年化波动 ${pctFmt(m?.annualVol)} 意味着价格在一年内约 68% 概率在 ±${pctFmt(m?.annualVol)} 范围内。${(m?.annualVol ?? 0) > 0.4 ? '波动偏高，挂单间距应该拉大，仓位要轻。' : '波动适中，可以正常操作。'} ATR ${pctFmt(m?.atrPercent)} 是日均波动幅度，用来设止损。` },
     'delta-band': { title: '怎么看 GetDelta 成本带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，多头买入的安全区是 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。${(m?.markPrice ?? 0) < (b?.long?.low ?? 0) ? '现价已跌破多头下沿，这是罕见的深度折价。' : (m?.markPrice ?? 0) > (b?.long?.high ?? 0) ? '现价已突破上沿，不适合追多。' : '现价在波动带内，等待更好的价格。'}空头区同理，但 Lab 不主动做空。` },
-    'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 很小说明 Delta 变化慢，不需要频繁调仓。Theta ${fmt(o?.theta)} 是每天的时间损耗（年化值需除 365）。` },
-    'asian-option': { title: '研究层：亚式近似', body: `这里只展示 σ/√3 的几何均价近似。Asian/Bachelier 与 LP payoff 的贴合关系还没有逐式确认，不能作为 LP 对冲或挂单结论。` },
+    'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。` },
+    'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单或回放结论。` },
     'lp-inventory': { title: '怎么看 LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}。无常损失 ${pctFmt(il?.impermanentLoss)}，${(il?.impermanentLoss ?? 0) > -0.01 ? '几乎可以忽略，价格没有大幅偏离入场价。' : '需要关注，价格偏离较大。'} 相比 HODL，LP 额外赚了手续费但承担了无常损失风险。` },
-    'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `主图右侧竖仓把连续密度和挂单刻度放到同一条价格轴上，辅助订单流视角。真实 LP 区间权重还需要写出积分、tick 离散化、手续费层级和边界规则；不能直接当 LP 配置建议。` },
-    'amm-geometry': { title: '研究层：AMM 几何', body: `这里只画恒定乘积曲线。Lambert W、高斯和 AMM/Numoen Math 的关系仍需按原图和协议机制逐式重读，不能作为交易信号。` },
+    'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在通过数值积分归一化，再离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。真实 tick、手续费层级和链上 LP NFT 权重仍未接入。` },
+    'amm-geometry': { title: '研究层：AMM 几何', body: `绿线是恒定乘积，蓝线是 Lambert W 研究曲线，Numoen 快照只展示 reverse-engineered invariant / quoter / slippage，状态为 protocol-unverified，不能作为交易信号。` },
     'capital-efficiency': { title: '怎么看资本效率', body: `${(g.efficiency?.efficiency ?? 0).toFixed(1)} 倍意味着你的资金利用率是分散做市的 ${(g.efficiency?.efficiency ?? 0).toFixed(0)} 倍。区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}] 是相对入场价的范围。${(g.efficiency?.efficiency ?? 0) > 5 ? '效率很高，但区间很窄 → 需要更频繁地调仓。' : '效率适中，区间宽度合理。'}` },
     funding: { title: '研究层：资金费率', body: `当前只有 perp TWAP / spot TWAP - 1 的估计：${pctFmt(g.funding?.ratio)}。还没有接真实永续资金费率、结算周期、交易所制度和历史结算数据，不能作为持仓结论。` },
     portfolio: { title: '研究层：组合价值', body: `组合视图只是把 LP、期权、对冲、手续费和资金费率估计放在一起检查。由于 LP payoff、资金费率和真实区间权重仍未校准，这里不参与默认挂单。` },
@@ -427,10 +455,11 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
         <div class="fc-gi"><b>价格</b><span>{{ fmt(greeksData.price) }}</span></div>
         <div class="fc-gi"><b>Δ</b><span :class="greeksData.delta > 0 ? 'green' : 'red'">{{ f4(greeksData.delta) }}</span></div>
         <div class="fc-gi"><b>Γ</b><span>{{ f4(greeksData.gamma) }}</span></div>
-        <div class="fc-gi"><b>Θ</b><span>{{ f4(greeksData.theta) }}</span></div>
+        <div class="fc-gi"><b>Θ/日</b><span>{{ f4(greeksData.thetaDaily ?? greeksData.theta) }}</span></div>
         <div class="fc-gi"><b>ν</b><span>{{ f4(greeksData.vega) }}</span></div>
+        <div class="fc-gi"><b>ρ</b><span>{{ f4(greeksData.rho) }}</span></div>
       </div>
-      <div class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }}</div>
+      <div class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }} · Θ/年 {{ f4(greeksData.thetaAnnual) }}</div>
     </div>
 
     <!-- LP INVENTORY -->
@@ -501,7 +530,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
           text-anchor="middle" class="fc-tick"
         >{{ (seg.weight * 100).toFixed(0) }}%</text>
       </g>
-      <text :x="W/2" :y="sy(-0.15)+12" text-anchor="middle" class="fc-tick">LP 分片权重 ({{ fingerprintData.params.distribution }})</text>
+      <text :x="W/2" :y="sy(-0.15)+12" text-anchor="middle" class="fc-tick">积分归一化 LP 分片权重 ({{ fingerprintData.params.distribution }}) · Σ={{ fingerprintData.segments.reduce((s, seg) => s + seg.weight, 0).toFixed(3) }}</text>
     </svg>
 
     <!-- AMM GEOMETRY -->
@@ -514,25 +543,34 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
       <!-- Hyperbola xy = k -->
       <polyline
-        :points="ammData.points.map(p => {
-          const rx = PL + (p.x / (ammData.currentX * 3)) * pw
-          const ry = sy(0) - (p.y / (ammData.currentY * 3)) * ph
+        :points="ammData.curve.points.map(p => {
+          const rx = PL + (p.x / (ammData.curve.currentX * 3)) * pw
+          const ry = sy(0) - (p.y / (ammData.curve.currentY * 3)) * ph
           return `${rx},${ry}`
         }).join(' ')"
         fill="none" stroke="var(--green)" stroke-width="2"
       />
+      <polyline
+        :points="ammData.curve.points.filter(p => Number.isFinite(p.lambertY)).map(p => {
+          const rx = PL + (p.x / (ammData.curve.currentX * 3)) * pw
+          const ry = sy(0) - (p.lambertY / (ammData.curve.currentY * 3)) * ph
+          return `${rx},${ry}`
+        }).join(' ')"
+        fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="4,3"
+      />
 
       <!-- Current reserve point -->
-      <line :x1="PL" :x2="sx(ammData.currentX / (ammData.currentX * 3))" :y1="sy(0) - (ammData.currentY / (ammData.currentY * 3)) * ph" :y2="sy(0) - (ammData.currentY / (ammData.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
-      <line :x1="sx(ammData.currentX / (ammData.currentX * 3))" :x2="sx(ammData.currentX / (ammData.currentX * 3))" :y1="sy(0)" :y2="sy(0) - (ammData.currentY / (ammData.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
-      <circle :cx="sx(ammData.currentX / (ammData.currentX * 3))" :cy="sy(0) - (ammData.currentY / (ammData.currentY * 3)) * ph" r="5" fill="var(--ink)" />
-      <text :x="sx(ammData.currentX / (ammData.currentX * 3)) + 8" :y="sy(0) - (ammData.currentY / (ammData.currentY * 3)) * ph - 6" class="fc-tick">储备 ({{ f4(ammData.currentX) }}, {{ f4(ammData.currentY) }})</text>
+      <line :x1="PL" :x2="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :y1="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" :y2="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
+      <line :x1="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :x2="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :y1="sy(0)" :y2="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
+      <circle :cx="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :cy="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" r="5" fill="var(--ink)" />
+      <text :x="sx(ammData.curve.currentX / (ammData.curve.currentX * 3)) + 8" :y="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph - 6" class="fc-tick">储备 ({{ f4(ammData.curve.currentX) }}, {{ f4(ammData.curve.currentY) }})</text>
 
       <!-- Labels -->
       <text :x="W-PR" :y="sy(0.05)" text-anchor="end" class="fc-tick">x (Token0)</text>
       <text :x="PL+4" :y="sy(0.95)" class="fc-tick">y (Token1)</text>
 
-      <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">L = {{ f4(ammData.L) }} · k = {{ fmt(ammData.invariant) }} · P = {{ fmt(ammData.price) }}</text>
+      <text :x="W-PR" :y="H-18" text-anchor="end" class="fc-tick">绿 xy=k · 蓝 Lambert W 研究曲线 · Numoen {{ ammData.numoen.status }}</text>
+      <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">L = {{ f4(ammData.curve.L) }} · k = {{ fmt(ammData.curve.invariant) }} · slip {{ f4(ammData.numoen.slippageY) }}</text>
     </svg>
 
     <!-- CAPITAL EFFICIENCY -->
@@ -562,9 +600,16 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
     <svg v-else-if="formulaId === 'portfolio' && portData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">组合价值 {{ fmt(portData.total) }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
+      <g v-if="portfolioCurves">
+        <polyline :points="portfolioCurves.lp" fill="none" stroke="var(--green)" stroke-width="1.4" />
+        <polyline :points="portfolioCurves.option" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="4,3" />
+        <polyline :points="portfolioCurves.hedge" fill="none" stroke="var(--red)" stroke-width="1" stroke-dasharray="3,3" />
+        <polyline :points="portfolioCurves.combined" fill="none" stroke="var(--ink)" stroke-width="2" />
+        <text :x="PL" :y="H-4" class="fc-tick">组合曲线: 黑 combined · 绿 LP · 蓝 option · 红 hedge</text>
+      </g>
       <!-- Waterfall bars -->
-      <rect v-for="(bar, i) in waterfallBars.value" :key="i" :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="bar.fill" rx="2" />
-      <text v-for="(bar, i) in waterfallBars.value" :key="'t'+i" :x="bar.x + bar.w/2" :y="bar.y - 4" text-anchor="middle" class="fc-tick">{{ bar.label }} {{ fmt(bar.val) }}</text>
+      <rect v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars.value" :key="i" :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="bar.fill" rx="2" />
+      <text v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars.value" :key="'t'+i" :x="bar.x + bar.w/2" :y="bar.y - 4" text-anchor="middle" class="fc-tick">{{ bar.label }} {{ fmt(bar.val) }}</text>
     </svg>
 
     <!-- ORDER PLAN -->
@@ -607,11 +652,14 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
         <div class="fc-meta">σ_geo = σ / √3 ≈ {{ (asianData.regularIv / 1.732).toFixed(4) }} → 降低 {{ ((1 - 1/1.732) * 100).toFixed(0) }}% 有效波动</div>
       </div>
       <div class="fc-gr4">
-        <div class="fc-gi"><b>价格</b><span>{{ fmt(asianData.price) }}</span></div>
+        <div class="fc-gi"><b>Asian 价格</b><span>{{ fmt(asianData.price) }}</span></div>
         <div class="fc-gi"><b>Δ</b><span :class="asianData.delta > 0 ? 'green' : 'red'">{{ f4(asianData.delta) }}</span></div>
-        <div class="fc-gi"><b>d₁</b><span>{{ f4(asianData.d1) }}</span></div>
-        <div class="fc-gi"><b>d₂</b><span>{{ f4(asianData.d2) }}</span></div>
+        <div class="fc-gi"><b>Γ</b><span>{{ f4(asianData.gamma) }}</span></div>
+        <div class="fc-gi"><b>Bachelier</b><span>{{ fmt(bachelierData?.price) }}</span></div>
+        <div class="fc-gi"><b>B-Δ</b><span :class="(bachelierData?.delta ?? 0) > 0 ? 'green' : 'red'">{{ f4(bachelierData?.delta) }}</span></div>
+        <div class="fc-gi"><b>B-Γ</b><span>{{ f4(bachelierData?.gamma) }}</span></div>
       </div>
+      <div class="fc-meta">Bachelier 使用 normal vol = S·σ；Asian/Bachelier 只用于 LP payoff fit 研究，不进入挂单。</div>
     </div>
 
     <!-- DEVIATION SCORE -->
