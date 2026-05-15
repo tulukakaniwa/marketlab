@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildLiquidityRackModel } from '../market/liquidityRack.js'
+import { buildLiquidityRackModel } from '../research-visualization/liquidityRackModel.js'
 
 describe('buildLiquidityRackModel', () => {
   it('构建价格仓查询模型，不修改挂单计划', () => {

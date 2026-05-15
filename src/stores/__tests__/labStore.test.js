@@ -55,6 +55,8 @@ describe('useLabStore（D2 拆分后契约）', () => {
     expect(lab.rows.length).toBeGreaterThan(0)
     expect(lab.input.entryPrice).toBeGreaterThan(0)
     expect(lab.input.iv).toBeGreaterThanOrEqual(0)
+    expect(lab.graph.research).toBeTruthy()
+    expect(lab.graph.portfolioResearch?.status).toBe('research-only')
   })
 
   it('selectCapability 切换 active 公式', () => {

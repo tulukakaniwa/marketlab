@@ -46,17 +46,21 @@ src/
 │   ├── formulas/
 │   │   ├── core.js        # GetDelta / BS / LP / IL / CE / Asian / Fusion / 二阶
 │   │   └── registry.js    # 21 个公式 + 6 个能力的元数据
-│   ├── market/
+│   ├── market-data/
 │   │   ├── cost.js        # 滚动 VWAP 成本带 + 市场态路径（窗口由 rows.length 自适应）
 │   │   ├── ohlcv.js       # CSV 解析 + 数据集清单
 │   │   └── formulaPath.js # 公式输出沿 K 线展开
-│   └── planning/orderPlan.js   # 默认条件图：timing → position → plan
+│   ├── formula-research/        # 研究层公式快照，不能驱动默认候选订单
+│   ├── research-visualization/  # 研究层图表/精读仓 view model
+│   └── strategy-planning/       # 默认条件图：timing → position → plan
 ├── components/            # 视图层（8 个组件）
 └── styles/                # 4 个 CSS（base / chart / decision / status）
 
 public/data/               # 165+ CSV：A 股 / 港股 / 美股 / ETF / BTC
 scripts/verify-domain.mjs  # 构建前数值断言（domain 层集成测试）
 ```
+
+完整 DDD / BC 边界见 [docs/bounded-context-map.md](./docs/bounded-context-map.md)。源文件必须保持 500 行以内，`pnpm run check:size` 会在构建前执行。
 
 ## 决策模型
 

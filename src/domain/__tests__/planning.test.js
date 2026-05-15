@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildMarketStatePath } from '../market/cost.js'
-import { buildDecisionGraph, strategyProfileList } from '../planning/orderPlan.js'
+import { buildMarketStatePath } from '../market-data/cost.js'
+import { buildDecisionGraph, strategyProfileList } from '../strategy-planning/orderPlan.js'
 
 function makeRows(n, gen) {
   return Array.from({ length: n }, (_, i) => {
@@ -170,11 +170,9 @@ describe('buildDecisionGraph', () => {
     }
     const base = buildDecisionGraph({ market: buyMarket, input: executableInput })
     const changed = buildDecisionGraph({ market: buyMarket, input: researchChangedInput })
-    expect(changed.research).toBeTruthy()
+    expect(changed.research).toBeUndefined()
     expect(changed.portfolio).toBeUndefined()
-    expect(changed.portfolioResearch.status).toBe('research-only')
-    expect(changed.research.numoen.status).toBe('protocol-unverified')
-    expect(changed.research.liquidityFingerprint.segments.reduce((sum, seg) => sum + seg.weight, 0)).toBeCloseTo(1, 5)
+    expect(changed.portfolioResearch).toBeUndefined()
     expect(changed.plan.primaryOrders.map(o => o.price)).toEqual(base.plan.primaryOrders.map(o => o.price))
     expect(changed.plan.primaryOrders.map(o => o.notional)).toEqual(base.plan.primaryOrders.map(o => o.notional))
   })
