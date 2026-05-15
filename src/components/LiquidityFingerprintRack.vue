@@ -1,6 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-vue-next'
 import { buildLiquidityRackModel } from '../domain/market/liquidityRack.js'
+import LiquidityRackDepth from './LiquidityRackDepth.vue'
 
 const props = defineProps({
   rows: { type: Array, required: true },
@@ -10,37 +12,58 @@ const props = defineProps({
   activeIndex: { type: Number, required: true },
 })
 
-const model = computed(() => buildLiquidityRackModel({
-  rows: props.rows,
-  costPath: props.costPath,
-  formulaPath: props.formulaPath,
-  graph: props.graph,
-  activeIndex: props.activeIndex,
+const expanded = ref(false)
+const zoom = ref(1)
+
+const compactModel = computed(() => rackModel({ binCount: 36, visibleWindow: 120 }))
+const expandedModel = computed(() => rackModel({
+  binCount: 48 + zoom.value * 24,
+  visibleWindow: 120 + zoom.value * 40,
 }))
 
-const markerRows = computed(() => {
-  const rows = model.value.markers
-    .map((marker) => ({ ...marker, labelY: marker.y }))
-    .sort((a, b) => a.y - b.y)
-  let last = -Infinity
-  for (const row of rows) {
-    row.labelY = Math.max(row.y, last + 7)
-    last = row.labelY
-  }
-  for (let i = rows.length - 1; i >= 0; i -= 1) {
-    rows[i].labelY = Math.min(rows[i].labelY, 96 - (rows.length - 1 - i) * 7)
-  }
-  return rows
+const precision = computed(() => {
+  const step = expanded.value ? expandedModel.value.priceStep : compactModel.value.priceStep
+  if (!Number.isFinite(step)) return 2
+  if (step < 0.01) return 6
+  if (step < 1) return 4
+  return 2
 })
 
-function fmt(value) {
+function rackModel(extra) {
+  return buildLiquidityRackModel({
+    rows: props.rows,
+    costPath: props.costPath,
+    formulaPath: props.formulaPath,
+    graph: props.graph,
+    activeIndex: props.activeIndex,
+    ...extra,
+  })
+}
+
+function openExpanded() {
+  expanded.value = true
+}
+
+function closeExpanded() {
+  expanded.value = false
+}
+
+function zoomBy(delta) {
+  zoom.value = Math.max(0, Math.min(3, zoom.value + delta))
+}
+
+function resetZoom() {
+  zoom.value = 1
+}
+
+function fmt(value, digits = precision.value) {
   return Number.isFinite(value)
-    ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(value)
-    : '—'
+    ? new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: digits }).format(value)
+    : '-'
 }
 
 function pct(value) {
-  return Number.isFinite(value) ? `${(value * 100).toFixed(0)}%` : '—'
+  return Number.isFinite(value) ? `${(value * 100).toFixed(0)}%` : '-'
 }
 </script>
 
@@ -51,105 +74,69 @@ function pct(value) {
         <span>流动性指纹</span>
         <strong>价格仓</strong>
       </div>
-      <div class="lf-tags">
-        <em>订单流辅助</em>
+      <div class="lf-actions">
+        <button type="button" title="展开精读" @click="openExpanded">
+          <Maximize2 :size="14" />
+        </button>
         <em>研究层</em>
       </div>
     </header>
 
     <div class="lf-range">
-      <span>{{ fmt(model.range.upper) }}</span>
-      <b>深度 / 密度 / 挂单</b>
-      <span>{{ fmt(model.range.lower) }}</span>
+      <span>{{ fmt(compactModel.range.upper) }}</span>
+      <b>{{ compactModel.binCount }} 档</b>
+      <span>{{ fmt(compactModel.range.lower) }}</span>
     </div>
 
-    <svg class="lf-depth" viewBox="0 0 220 300" preserveAspectRatio="none" role="img">
-      <defs>
-        <linearGradient id="lf-bid" x1="1" x2="0" y1="0" y2="0">
-          <stop offset="0" stop-color="var(--green)" stop-opacity="0.78" />
-          <stop offset="1" stop-color="var(--blue)" stop-opacity="0.08" />
-        </linearGradient>
-        <linearGradient id="lf-ask" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stop-color="var(--red)" stop-opacity="0.68" />
-          <stop offset="1" stop-color="var(--blue)" stop-opacity="0.08" />
-        </linearGradient>
-        <linearGradient id="lf-density" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stop-color="var(--blue)" stop-opacity="0.16" />
-          <stop offset="0.5" stop-color="var(--green)" stop-opacity="0.38" />
-          <stop offset="1" stop-color="var(--blue)" stop-opacity="0.16" />
-        </linearGradient>
-      </defs>
-
-      <rect x="0" y="0" width="220" height="300" class="lf-bg" />
-      <g class="lf-grid">
-        <line x1="0" x2="220" y1="75" y2="75" />
-        <line x1="0" x2="220" y1="150" y2="150" />
-        <line x1="0" x2="220" y1="225" y2="225" />
-        <line x1="110" x2="110" y1="0" y2="300" />
-      </g>
-
-      <g class="lf-density">
-        <rect
-          v-for="shelf in model.shelves"
-          :key="`d-${shelf.lower}`"
-          :x="110 - shelf.densityWidth * 0.38"
-          :y="shelf.top * 3"
-          :width="shelf.densityWidth * 0.76"
-          :height="Math.max(2, shelf.height * 3)"
-          rx="5"
-        />
-      </g>
-
-      <g class="lf-depth-bars">
-        <rect
-          v-for="shelf in model.shelves"
-          :key="`b-${shelf.lower}`"
-          :class="['lf-shelf', shelf.side]"
-          :x="shelf.side === 'bid' ? 110 - shelf.densityWidth * 0.86 : 110"
-          :y="shelf.top * 3"
-          :width="shelf.densityWidth * 0.86"
-          :height="Math.max(2, shelf.height * 3 - 1)"
-          rx="4"
-        />
-      </g>
-
-      <g class="lf-orders">
-        <rect
-          v-for="order in model.orderTicks"
-          :key="`${order.side}-${order.price}-${order.role}`"
-          :class="['lf-order', order.side]"
-          :x="order.side === 'buy' ? 110 - order.width * 0.82 : 110"
-          :y="order.y * 3 - 4"
-          :width="order.width * 0.82"
-          height="8"
-          rx="2"
-        />
-      </g>
-
-      <g class="lf-markers">
-        <g v-for="marker in markerRows" :key="marker.label">
-          <line :class="`tone-${marker.tone}`" x1="0" x2="220" :y1="marker.y * 3" :y2="marker.y * 3" />
-          <path
-            :class="`tone-${marker.tone}`"
-            :d="`M3 ${marker.labelY * 3 - 6} H78 L86 ${marker.y * 3} H108`"
-          />
-          <text class="lf-marker-label" x="6" :y="marker.labelY * 3 - 9">{{ marker.label }}</text>
-          <text class="lf-marker-price" x="76" :y="marker.labelY * 3 - 9" text-anchor="end">{{ fmt(marker.price) }}</text>
-        </g>
-      </g>
-
-      <g class="lf-axis-labels">
-        <text x="10" y="14">BID</text>
-        <text x="210" y="14" text-anchor="end">ASK</text>
-      </g>
-    </svg>
+    <LiquidityRackDepth :model="compactModel" variant="compact" :precision="precision" />
 
     <footer class="lf-foot">
-      <div><b>{{ pct(model.stats.peakWeight) }}</b><span>峰值热度</span></div>
-      <div><b>{{ pct(model.stats.belowShare) }}</b><span>下方密度</span></div>
-      <div><b>{{ model.stats.orderCount }}</b><span>挂单刻度</span></div>
+      <div><b>{{ pct(compactModel.stats.peakWeight) }}</b><span>峰值热度</span></div>
+      <div><b>{{ pct(compactModel.stats.belowShare) }}</b><span>下方密度</span></div>
+      <div><b>{{ compactModel.stats.orderCount }}</b><span>挂单刻度</span></div>
     </footer>
   </aside>
+
+  <Teleport to="body">
+    <div v-if="expanded" class="lf-modal" @click.self="closeExpanded" @keydown.esc="closeExpanded" tabindex="-1">
+      <section class="lf-panel">
+        <header class="lf-panel-head">
+          <div>
+            <span>流动性指纹 · 精读仓</span>
+            <strong>价格层级 / 密度 / 挂单刻度</strong>
+          </div>
+          <div class="lf-toolbar">
+            <button type="button" title="缩小" @click="zoomBy(-1)" :disabled="zoom <= 0">
+              <Minus :size="15" />
+            </button>
+            <button type="button" title="重置" @click="resetZoom">
+              <RotateCcw :size="15" />
+            </button>
+            <button type="button" title="放大" @click="zoomBy(1)" :disabled="zoom >= 3">
+              <Plus :size="15" />
+            </button>
+            <button type="button" title="关闭" @click="closeExpanded">
+              <X :size="16" />
+            </button>
+          </div>
+        </header>
+
+        <div class="lf-panel-strip">
+          <div><span>价格上沿</span><b>{{ fmt(expandedModel.range.upper) }}</b></div>
+          <div><span>价格下沿</span><b>{{ fmt(expandedModel.range.lower) }}</b></div>
+          <div><span>单档跨度</span><b>{{ fmt(expandedModel.priceStep) }}</b></div>
+          <div><span>精度</span><b>{{ expandedModel.binCount }} 档</b></div>
+        </div>
+
+        <LiquidityRackDepth
+          :model="expandedModel"
+          variant="expanded"
+          :precision="precision"
+          show-table
+        />
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -176,7 +163,9 @@ function pct(value) {
 }
 
 .lf-head span,
-.lf-range b {
+.lf-range b,
+.lf-panel-head span,
+.lf-panel-strip span {
   color: var(--green);
   font-size: 0.58rem;
   font-weight: 900;
@@ -188,14 +177,38 @@ function pct(value) {
   line-height: 1.05;
 }
 
-.lf-tags {
-  display: flex;
+.lf-actions {
+  display: flex !important;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: 4px;
 }
 
-.lf-tags em {
+.lf-actions button,
+.lf-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.lf-actions button:hover,
+.lf-toolbar button:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.lf-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lf-actions em {
   border: 1px solid var(--line);
   border-radius: 999px;
   padding: 1px 6px;
@@ -220,96 +233,6 @@ function pct(value) {
 
 .lf-range span:last-child {
   text-align: right;
-}
-
-.lf-depth {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  display: block;
-}
-
-.lf-bg {
-  fill: var(--surface);
-}
-
-.lf-grid line {
-  stroke: var(--line);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.lf-density rect {
-  fill: url(#lf-density);
-}
-
-.lf-shelf {
-  opacity: 0.68;
-}
-
-.lf-shelf.bid {
-  fill: url(#lf-bid);
-}
-
-.lf-shelf.ask {
-  fill: url(#lf-ask);
-}
-
-.lf-order.buy {
-  fill: var(--blue);
-}
-
-.lf-order.sell {
-  fill: var(--red);
-}
-
-.lf-markers line {
-  stroke-width: 1.4;
-  stroke-dasharray: 4 4;
-  vector-effect: non-scaling-stroke;
-}
-
-.lf-markers path {
-  fill: none;
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.lf-markers .tone-price {
-  stroke: var(--ink);
-  stroke-dasharray: 3 3;
-}
-
-.lf-markers .tone-cost {
-  stroke: var(--green);
-}
-
-.lf-markers .tone-upper,
-.lf-markers .tone-lower {
-  stroke: var(--blue);
-}
-
-.lf-marker-label,
-.lf-marker-price,
-.lf-axis-labels text {
-  fill: var(--ink);
-  font-size: 9px;
-  font-weight: 900;
-  dominant-baseline: middle;
-  paint-order: stroke;
-  stroke: var(--surface);
-  stroke-width: 3px;
-  stroke-linejoin: round;
-}
-
-.lf-marker-price {
-  font-variant-numeric: tabular-nums;
-}
-
-.lf-axis-labels text {
-  fill: var(--muted);
-  font-size: 8px;
-  letter-spacing: 0.08em;
 }
 
 .lf-foot {
@@ -338,5 +261,88 @@ function pct(value) {
   font-size: 0.53rem;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.lf-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(16, 18, 15, 0.42);
+}
+
+.lf-panel {
+  width: min(1120px, 96vw);
+  height: min(820px, 92vh);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+.lf-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lf-panel-head div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.lf-panel-head strong {
+  font-size: 1rem;
+}
+
+.lf-toolbar {
+  display: flex;
+  gap: 6px;
+}
+
+.lf-panel-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border-bottom: 1px solid var(--line);
+  background: var(--line);
+}
+
+.lf-panel-strip div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--panel);
+}
+
+.lf-panel-strip b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 760px) {
+  .lf-modal {
+    padding: 8px;
+  }
+
+  .lf-panel {
+    width: 100%;
+    height: 94vh;
+  }
+
+  .lf-panel-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

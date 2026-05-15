@@ -1,7 +1,7 @@
 import { liquidityFingerprint } from '../formulas/core.js'
 
 const DEFAULT_VISIBLE_WINDOW = 120
-const DEFAULT_BINS = 24
+const DEFAULT_BINS = 32
 
 export function buildLiquidityRackModel({
   rows,
@@ -34,16 +34,17 @@ export function buildLiquidityRackModel({
   const basis = activeCost?.anchor || activeRow?.close || graph?.inputs?.entryPrice
   if (!Number.isFinite(basis) || basis <= 0 || range.upper <= range.lower) return emptyRack(range)
 
+  const count = normalizeBinCount(binCount)
   const fingerprint = liquidityFingerprint({
     entryPrice: basis,
-    priceGrid: 160,
+    priceGrid: Math.max(240, count * 8),
     distribution: 'log-laplace',
     lowerFactor: Math.max(0.05, range.lower / basis),
     upperFactor: Math.min(20, range.upper / basis),
     lambda: 2,
     kappa: 1,
   })
-  const shelves = buildShelves({ range, fingerprint, orders, activePrice: activeRow?.close, binCount })
+  const shelves = buildShelves({ range, fingerprint, orders, activePrice: activeRow?.close, binCount: count })
   const markers = [
     buildMarker('现价', activeRow?.close, 'price', range),
     buildMarker('成本', activeCost?.anchor, 'cost', range),
@@ -64,6 +65,9 @@ export function buildLiquidityRackModel({
   return {
     range,
     basis,
+    binCount: count,
+    priceStep: (range.upper - range.lower) / count,
+    ticks: buildPriceTicks(range),
     shelves,
     markers,
     orderTicks,
@@ -89,7 +93,7 @@ function buildPriceRange({ rows, activeIndex, visibleWindow, activeRow, activeCo
 }
 
 function buildShelves({ range, fingerprint, orders, activePrice, binCount }) {
-  const count = Math.max(12, Math.min(40, Math.round(binCount)))
+  const count = normalizeBinCount(binCount)
   const step = (range.upper - range.lower) / count
   const bins = Array.from({ length: count }, (_, i) => {
     const lower = range.lower + step * i
@@ -111,6 +115,7 @@ function buildShelves({ range, fingerprint, orders, activePrice, binCount }) {
 
   const maxDensity = Math.max(...bins.map((bin) => bin.density), 0.001)
   const maxOrder = Math.max(...bins.map((bin) => Math.max(bin.buyNotional, bin.sellNotional)), 1)
+  const totalDensity = bins.reduce((sum, bin) => sum + bin.density, 0)
   return bins.reverse().map((bin) => {
     const top = priceToY(bin.upper, range)
     const bottom = priceToY(bin.lower, range)
@@ -129,6 +134,8 @@ function buildShelves({ range, fingerprint, orders, activePrice, binCount }) {
       buyWidth,
       sellWidth,
       intensity,
+      densityShare: totalDensity > 0 ? bin.density / totalDensity : 0,
+      netNotional: bin.buyNotional - bin.sellNotional,
     }
   })
 }
@@ -158,6 +165,14 @@ function binIndex(price, range, count) {
   return Math.min(count - 1, Math.max(0, Math.floor(((price - range.lower) / (range.upper - range.lower)) * count)))
 }
 
+function buildPriceTicks(range) {
+  const steps = 5
+  return Array.from({ length: steps }, (_, i) => {
+    const price = range.upper - ((range.upper - range.lower) * i) / (steps - 1)
+    return { price, y: priceToY(price, range) }
+  })
+}
+
 function priceToY(price, range) {
   if (!Number.isFinite(price) || range.upper <= range.lower) return 50
   return Math.max(1, Math.min(99, ((range.upper - price) / (range.upper - range.lower)) * 100))
@@ -173,6 +188,10 @@ function clampIndex(index, length) {
   return Math.max(0, Math.min(length - 1, Math.round(index)))
 }
 
+function normalizeBinCount(binCount) {
+  return Math.max(12, Math.min(120, Math.round(Number(binCount) || DEFAULT_BINS)))
+}
+
 function emptyRack(range = { lower: null, upper: null }) {
-  return { range, basis: null, shelves: [], markers: [], orderTicks: [], stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 } }
+  return { range, basis: null, binCount: 0, priceStep: null, ticks: [], shelves: [], markers: [], orderTicks: [], stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 } }
 }
