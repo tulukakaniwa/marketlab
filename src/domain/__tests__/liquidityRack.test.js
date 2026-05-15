@@ -20,6 +20,8 @@ describe('buildLiquidityRackModel', () => {
     expect(model.shelves).toHaveLength(72)
     expect(model.ticks).toHaveLength(5)
     expect(model.priceStep).toBeGreaterThan(0)
+    expect(model.meta.compositionLabel).toContain('不是市场盘口')
+    expect(model.meta.orderLabel).toBe('挂单刻度来自 OrderPlan')
     expect(model.markers.map((m) => m.label)).toEqual(['现价', '成本', 'Δ上', 'Δ下'])
     expect(model.orderTicks).toHaveLength(2)
     expect(graph.plan.primaryOrders).toBe(primaryOrders)

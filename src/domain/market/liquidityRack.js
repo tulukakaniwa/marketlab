@@ -63,6 +63,7 @@ export function buildLiquidityRackModel({
     }))
 
   return {
+    meta: buildMeta({ orders }),
     range,
     basis,
     binCount: count,
@@ -160,6 +161,31 @@ function buildStats({ shelves, orders, activePrice }) {
   }
 }
 
+function buildMeta({ orders }) {
+  return {
+    title: '模型目标仓',
+    sourceLabel: 'OHLCV 成本锚 + log-Laplace 目标分布 + 本策略挂单',
+    compositionLabel: '不是市场盘口，也不是链上真实 LP 构成',
+    orderLabel: orders.length ? '挂单刻度来自 OrderPlan' : '当前 OrderPlan 未生成挂单',
+    purpose: [
+      '把目标风险密度离散成价格层级，观察挂单是否落在合理密度区。',
+      '辅助订单流视角看成本、现价、Delta 带和计划挂单的相对位置。',
+      '只做研究层解释，不参与默认挂单结论。',
+    ],
+    layers: [
+      { label: '密度', value: '模型目标 LP 分布', note: '由成本锚附近的 log-Laplace 分布生成' },
+      { label: 'BID/ASK', value: '相对现价分侧', note: '低于现价归 BID，高于现价归 ASK' },
+      { label: '挂单', value: '我们的计划刻度', note: '来自 domain OrderPlan，不是市场订单簿' },
+    ],
+    missing: [
+      '真实池子 tick / liquidityGross / liquidityNet',
+      '手续费层级、tick spacing、区块时间',
+      '真实钱包 LP NFT 区间和本金',
+      '盘口深度、成交队列、撤单行为',
+    ],
+  }
+}
+
 function binIndex(price, range, count) {
   if (!Number.isFinite(price) || price < range.lower || price > range.upper) return -1
   return Math.min(count - 1, Math.max(0, Math.floor(((price - range.lower) / (range.upper - range.lower)) * count)))
@@ -193,5 +219,5 @@ function normalizeBinCount(binCount) {
 }
 
 function emptyRack(range = { lower: null, upper: null }) {
-  return { range, basis: null, binCount: 0, priceStep: null, ticks: [], shelves: [], markers: [], orderTicks: [], stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 } }
+  return { meta: buildMeta({ orders: [] }), range, basis: null, binCount: 0, priceStep: null, ticks: [], shelves: [], markers: [], orderTicks: [], stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 } }
 }
