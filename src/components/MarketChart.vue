@@ -10,7 +10,6 @@ import {
 } from 'lightweight-charts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
-import LiquidityFingerprintRack from './LiquidityFingerprintRack.vue'
 
 const stageNames = Object.fromEntries(formulaStages.map(s => [s.id, s.label]))
 
@@ -81,12 +80,8 @@ function createSeries() {
     priceFormat: { type: 'volume' },
     priceScaleId: '',
   }, 1)
-  series.bsDelta = chart.addSeries(LineSeries, deltaLine(stageNames['option-greeks'] + ' Δ', '#a93226'), 2)
-  series.lpDelta = chart.addSeries(LineSeries, deltaLine(stageNames['lp-inventory'] + ' Δ', '#0e7558'), 2)
-  series.zero = chart.addSeries(LineSeries, deltaLine('Δ=0', '#888', LineStyle.Dashed), 2)
-  chart.panes()[0]?.setStretchFactor(0.62)
-  chart.panes()[1]?.setStretchFactor(0.08)
-  chart.panes()[2]?.setStretchFactor(0.30)
+  chart.panes()[0]?.setStretchFactor(0.88)
+  chart.panes()[1]?.setStretchFactor(0.12)
 }
 
 function syncChart() {
@@ -128,9 +123,6 @@ function syncChart() {
     const zone = cost ? regimeColor(row.close, cost) : null
     return zone ? { time: row.date, value: 1, color: zone } : { time: row.date, value: 0 }
   }))
-  setLine(series.bsDelta, props.formulaPath.map((row) => row.optionDelta))
-  setLine(series.lpDelta, props.formulaPath.map((row) => row.lpInventoryDelta))
-  setLine(series.zero, props.rows.map(() => 0))
   chart.timeScale().fitContent()
 }
 
@@ -143,18 +135,6 @@ function addLine(title, color, width, style = LineStyle.Solid) {
     priceLineVisible: false,
     lastValueVisible: true,
   })
-}
-
-function deltaLine(title, color, style = LineStyle.Solid) {
-  return {
-    title,
-    color,
-    lineWidth: 1,
-    lineStyle: style,
-    priceLineVisible: false,
-    lastValueVisible: false,
-    priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
-  }
 }
 
 function setLine(lineSeries, values) {
@@ -256,13 +236,6 @@ function money(value) {
     </div>
     <div class="chart-main-row">
       <div ref="el" class="market-chart" />
-      <LiquidityFingerprintRack
-        :rows="rows"
-        :cost-path="costPath"
-        :formula-path="formulaPath"
-        :graph="graph"
-        :active-index="activeIndex"
-      />
     </div>
   </div>
 </template>

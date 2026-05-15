@@ -15,12 +15,12 @@ import { persistedReactive, persistedRef } from './usePersisted.js'
  * 字段升级时仅合并已知 key，不被旧数据污染。
  */
 export function usePlanning() {
-  const input = persistedReactive('lab.input.v1', {
+  const input = persistedReactive('lab.input.v2', {
     entryPrice: 0,
     holdingDays: 30,
     iv: 0,
     targetReturn: 0.3,
-    capital: 10000,
+    capital: 0,
     baseNotional: 0,
     strategyProfile: 'balanced',
     strikePrice: 0,
@@ -66,25 +66,22 @@ export function usePlanning() {
 }
 
 export function buildExecutionBrief(graph) {
-  const state = graph?.decision?.state ?? '未载入路径'
   const orders = graph?.plan?.primaryOrders ?? []
-  const side = graph?.position?.side
-  const verb = side === 'buy' ? '低价买入' : side === 'sell' && orders.length ? '底仓减压' : '等待低价'
   const firstOrder = orders[0]
-  const bias = side === 'buy'
-    ? '主策略：安全低价买入'
-    : side === 'sell'
-      ? '卖出只做仓位保护'
-      : '主策略等待低价，不追高'
+  const state = graph?.decision?.state ?? '未载入路径'
+  const blocked = graph?.decision?.blockedReasons ?? []
+  const missing = graph?.decision?.missingInputs ?? []
   return {
-    title: verb === state ? state : `${verb} · ${state}`,
-    bias,
+    title: state,
+    bias: orders.length ? '已生成候选订单' : '默认条件未触发或缺少必要输入',
     profileLabel: `手动 ${graph?.profile?.label ?? '均衡'}`,
     price: firstOrder?.price ?? null,
-    notional: firstOrder?.notional ?? 0,
+    notional: firstOrder?.notional ?? null,
     stop: graph?.position?.stopPrice ?? null,
     target: graph?.position?.targetPrice ?? null,
-    reason: graph?.decision?.timing?.reason ?? graph?.position?.rule ?? '等待真实 K 线。',
-    confidence: Math.round((graph?.decision?.confidence ?? 0) * 100),
+    reason: blocked[0] ?? missing[0] ?? graph?.decision?.timing?.reason ?? '等待真实 K 线。',
+    triggeredConditions: graph?.decision?.triggeredConditions ?? [],
+    blockedReasons: blocked,
+    missingInputs: missing,
   }
 }

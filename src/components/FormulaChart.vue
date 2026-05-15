@@ -141,7 +141,7 @@ const fundData = computed(() => { const f = props.graph.funding; return f ? { ra
 
 /* ── portfolio ── */
 const portData = computed(() => {
-  const p = props.graph.portfolio; const h = props.graph.lpV3Hedged
+  const p = props.graph.portfolioResearch?.value; const h = props.graph.lpV3Hedged
   if (!Number.isFinite(p)) return null
   return { total: p, lpPnl: h?.lpPnl ?? 0, hedgePnl: h?.hedgePnl ?? 0, feeIncome: h?.feeIncome ?? 0, optionVal: props.graph.option?.price ?? 0, curve: props.graph.lpPortfolio?.points ?? [] }
 })
@@ -270,25 +270,25 @@ const guide = computed(() => {
 
   const guides = {
     path: { title: '怎么看价格路径', body: `这里有 ${m?.rows || '—'} 天的 K 线数据。对数收益是把涨跌幅取对数，用来算波动率。区间跨越 ${m ? '多年' : '—'} ，数据量足够让公式稳定工作。` },
-    cost: { title: '怎么看市场成本', body: `成本锚 ${fmt(m?.costAnchor)} 是过去 60 天成交量加权的"市场合理价"。现价 ${fmt(m?.markPrice)} 偏离 ${pctFmt(m?.costDistance)}，${(m?.costDistance ?? 0) < 0 ? '低于成本 → 折价区，适合找买点' : '高于成本 → 溢价区，适合减仓' }。成本带上沿是卖出参考，下沿是买入参考。` },
-    volatility: { title: '怎么看波动口径', body: `年化波动 ${pctFmt(m?.annualVol)} 意味着价格在一年内约 68% 概率在 ±${pctFmt(m?.annualVol)} 范围内。${(m?.annualVol ?? 0) > 0.4 ? '波动偏高，挂单间距应该拉大，仓位要轻。' : '波动适中，可以正常操作。'} ATR ${pctFmt(m?.atrPercent)} 是日均波动幅度，用来设止损。` },
-    'delta-band': { title: '怎么看 GetDelta 成本带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，多头买入的安全区是 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。${(m?.markPrice ?? 0) < (b?.long?.low ?? 0) ? '现价已跌破多头下沿，这是罕见的深度折价。' : (m?.markPrice ?? 0) > (b?.long?.high ?? 0) ? '现价已突破上沿，不适合追多。' : '现价在波动带内，等待更好的价格。'}空头区同理，但 Lab 不主动做空。` },
+    cost: { title: '市场成本事实', body: `成本锚 ${fmt(m?.costAnchor)} 是滚动成交量加权价格。现价 ${fmt(m?.markPrice)}，相对成本偏离 ${pctFmt(m?.costDistance)}。成本带上沿和下沿只表示当前样本内的成本区间，不单独构成操作结论。` },
+    volatility: { title: '波动口径事实', body: `年化波动 ${pctFmt(m?.annualVol)}，ATR ${pctFmt(m?.atrPercent)}。这些数值只描述样本波动，不代表未来波动或仓位建议。` },
+    'delta-band': { title: 'GetDelta 价格带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，GetDelta 输出多头带 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。该带是公式输出，进入默认计划前还需要市场成本状态和账户输入共同满足。` },
     'option-greeks': { title: '怎么看期权 Greeks', body: `Delta ${f4(o?.delta)}：标的涨 1 元，期权价值变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 看涨暴露' : '负 Delta = 看跌保护'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。` },
     'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单结论。` },
-    'lp-inventory': { title: '怎么看 LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}。无常损失 ${pctFmt(il?.impermanentLoss)}，${(il?.impermanentLoss ?? 0) > -0.01 ? '几乎可以忽略，价格没有大幅偏离入场价。' : '需要关注，价格偏离较大。'} 相比 HODL，LP 额外赚了手续费但承担了无常损失风险。` },
+    'lp-inventory': { title: '研究层：LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}，无常损失估计 ${pctFmt(il?.impermanentLoss)}。这些值来自研究层输入，不等于真实链上 LP 仓位。` },
     'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在通过数值积分归一化，再离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。真实 tick、手续费层级和链上 LP NFT 权重仍未接入。` },
     'amm-geometry': { title: '研究层：AMM 几何', body: `绿线是恒定乘积，蓝线是 Lambert W 研究曲线，Numoen 快照只展示 reverse-engineered invariant / quoter / slippage，状态为 protocol-unverified，不能作为交易信号。` },
-    'capital-efficiency': { title: '怎么看资本效率', body: `${(g.efficiency?.efficiency ?? 0).toFixed(1)} 倍意味着你的资金利用率是分散做市的 ${(g.efficiency?.efficiency ?? 0).toFixed(0)} 倍。区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}] 是相对入场价的范围。${(g.efficiency?.efficiency ?? 0) > 5 ? '效率很高，但区间很窄 → 需要更频繁地调仓。' : '效率适中，区间宽度合理。'}` },
+    'capital-efficiency': { title: '研究层：资本效率', body: `资本效率 ${(g.efficiency?.efficiency ?? 0).toFixed(1)}×，区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}]。该值只描述区间宽度函数，不判断仓位是否有效。` },
     funding: { title: '研究层：资金费率', body: `当前只有 perp TWAP / spot TWAP - 1 的估计：${pctFmt(g.funding?.ratio)}。还没有接真实永续资金费率、结算周期、交易所制度和历史结算数据，不能作为持仓结论。` },
-    portfolio: { title: '研究层：组合价值', body: `组合视图只是把 LP、期权、对冲、手续费和资金费率估计放在一起检查。由于 LP payoff、资金费率和真实区间权重仍未校准，这里不参与默认挂单。` },
-    'order-plan': { title: '怎么看挂单计划', body: g.plan?.primaryOrders?.length ? `${g.plan.primaryOrders.length} 档挂单，从试仓到加仓到极值。分批买入降低平均成本，跌破失效线不补仓。` : `当前没有挂单：${g.decision?.timing?.reason || '价格未触发入场条件'}。置信度 ${Math.round((g.decision?.confidence ?? 0) * 100)}%。等待价格给出更好的成本差再行动。` },
-    'deviation-score': { title: '怎么看偏离强度', body: `Z-score ${ds?.z?.toFixed(2)}：${Math.abs(ds?.z ?? 0) < 0.5 ? '偏离不到半个标准差，统计上不算显著。市场处于"正常波动"范围。' : Math.abs(ds?.z ?? 0) < 1.5 ? '偏离超过 0.5σ，有一定统计意义。可以开始关注入场机会。' : '偏离超过 1.5σ，统计上显著！这是较强的交易信号。'}回归概率 ${ds?.regressionProb ? (ds.regressionProb * 100).toFixed(0) : '—'}%。` },
+    portfolio: { title: '研究层：组合研究', body: `组合视图只是把 LP、期权、对冲、手续费和资金费率估计放在一起检查。由于 LP payoff、资金费率和真实区间权重仍未校准，这里不参与默认挂单。` },
+    'order-plan': { title: '默认条件表', body: g.plan?.primaryOrders?.length ? `${g.plan.primaryOrders.length} 条候选订单来自已满足的默认条件和账户输入。` : `当前没有候选订单：${g.decision?.blockedReasons?.[0] || g.decision?.missingInputs?.[0] || '默认条件未触发'}。` },
+    'deviation-score': { title: '偏离强度事实', body: `Z-score ${ds?.z?.toFixed(2)}，样本内偏离状态为 ${ds?.strength ?? '—'}。该值只衡量成本偏离强度，不单独构成交易信号。` },
     'risk-surface': { title: '怎么看风险曲面', body: `在 GetDelta 价格带 [${fmt(b?.long?.low)}, ${fmt(b?.long?.high)}] 上展开 Greeks：Delta 曲线（绿）从虚值到实值，Gamma（蓝）在入场价附近最大 → 这里风险敏感度最高，调仓最频繁。越远离入场价，Gamma 越小 → 风险变化平缓。` },
     'net-lp-efficiency': { title: '研究层：LP 净效率', body: `当前净效率 ${nl ? nl.totalNet.toFixed(1) : '—'}× 只是 IL × CE 的估计。真实 LP 区间权重、手续费制度和再平衡规则未完成，不能判断“可行/赚钱”。` },
     'net-carry': { title: '研究层：持仓净收益', body: `当前净收益估计 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
-    'mean-reversion': { title: '怎么看均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}：${Math.abs(mrData.value?.rho ?? 0) > 0.8 ? '偏离高度持续，回归很慢。' : Math.abs(mrData.value?.rho ?? 0) > 0.5 ? '有一定持续性，回归速度中等。' : '偏离衰减快，市场均值回归效率高。'}半衰期 ${mrData.value?.halfLifeDays ? Math.round(mrData.value.halfLifeDays) + ' 天' : '∞'}：偏离幅度衰减到一半所需天数。${mrData.value?.speed === '极慢' || mrData.value?.speed === '慢' ? '速度偏慢 → 不要押注快速回归，需要更多耐心。' : '速度快 → 回归交易窗口短，需要敏捷执行。'}` },
+    'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays ? Math.round(mrData.value.halfLifeDays) + ' 天' : '∞'}。该指标只描述历史偏离衰减速度。` },
     'gamma-pnl': { title: '怎么看 Gamma PnL', body: `Dollar Gamma ${fmt(gpData.value?.dollarGamma)}：标的价格变动 1 元，Delta 变化这么多。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。Gamma PnL = ½·Γ·(ΔP)²；这里仅展示波动平方项，不推导 LP 策略结论。` },
-    'vol-confidence': { title: '怎么看波动率置信', body: `基于 ${vcData.value?.sampleSize} 天样本，真实波动率落在 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}] 区间内（68% 置信）。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)} → ${vcData.value?.quality}。${vcData.value?.quality === '低精度' || vcData.value?.quality === '不可靠' ? '样本太少或波动变化太大 → 所有依赖波动率的计算（Delta 带、Greeks）都需要用更保守的估计。' : '波动率估计可靠 → 可以信任当前的公式输出。'}` },
+    'vol-confidence': { title: '波动率区间估计', body: `基于 ${vcData.value?.sampleSize} 天样本，波动率区间估计为 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}]。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)}，精度标签 ${vcData.value?.quality}。` },
   }
   return guides[id] || null
 })
@@ -598,7 +598,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
     <!-- PORTFOLIO -->
     <svg v-else-if="formulaId === 'portfolio' && portData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">组合价值 {{ fmt(portData.total) }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">组合研究值 {{ fmt(portData.total) }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <g v-if="portfolioCurves">
         <polyline :points="portfolioCurves.lp" fill="none" stroke="var(--green)" stroke-width="1.4" />
@@ -614,7 +614,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
     <!-- ORDER PLAN -->
     <div v-else-if="formulaId === 'order-plan'" class="fc-card">
-      <span class="fc-ttl">挂单计划</span>
+      <span class="fc-ttl">默认条件表</span>
       <template v-if="orderData">
         <div class="fc-orders">
           <div v-for="(o, i) in orderData" :key="i" class="fc-orow">
@@ -632,7 +632,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
           <div><b>状态</b><span>{{ props.graph.decision?.state || '—' }}</span></div>
           <div><b>失效下沿</b><span>{{ fmt(props.graph.plan?.invalidation?.lower) }}</span></div>
           <div><b>失效上沿</b><span>{{ fmt(props.graph.plan?.invalidation?.upper) }}</span></div>
-          <div><b>置信度</b><span>{{ Math.round((props.graph.decision?.confidence ?? 0) * 100) }}%</span></div>
+          <div><b>缺失输入</b><span>{{ props.graph.decision?.missingInputs?.join(' / ') || '无' }}</span></div>
         </div>
         <div class="fc-meta" v-if="props.graph.decision?.invalidations?.length">
           <div v-for="(inv, idx) in props.graph.decision.invalidations" :key="idx">• {{ inv }}</div>
@@ -760,7 +760,7 @@ const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
     <!-- VOL CONFIDENCE -->
     <svg v-else-if="formulaId === 'vol-confidence' && vcData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">波动率置信 · {{ vcData.quality }} · ±{{ pctFmt(vcData.relativeUncertainty) }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">波动率区间 · {{ vcData.quality }} · ±{{ pctFmt(vcData.relativeUncertainty) }}</text>
       <!-- Center line -->
       <line :x1="PL" :x2="W-PR" :y1="sy(0.5)" :y2="sy(0.5)" stroke="var(--green)" stroke-width="2" />
       <text :x="PL-4" :y="sy(0.5)+4" text-anchor="end" class="fc-tick">{{ pctFmt(vcData.annualVol) }}</text>

@@ -46,11 +46,18 @@ describe('buildDecisionGraph', () => {
     perpTwap: market.markPrice,
     spotTwap: market.costAnchor,
   }
+  const noAccountInput = {
+    ...baseInput,
+    capital: 0,
+    baseNotional: 0,
+  }
 
   it('返回结构包含 timing/position/plan', () => {
     const g = buildDecisionGraph({ market, input: baseInput })
     expect(['buy', 'sell', null]).toContain(g.decision.timing.side)
-    expect(Number.isFinite(g.position.maxNotional)).toBe(true)
+    expect(g.decision.triggeredConditions).toBeDefined()
+    expect(g.decision.blockedReasons).toBeDefined()
+    expect(g.decision.missingInputs).toBeDefined()
     expect(g.plan.primaryOrders.every(o => Number.isFinite(o.price))).toBe(true)
   })
 
@@ -75,6 +82,36 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.timing.side).toBe('buy')
     expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
     expect(g.plan.primaryOrders.every(o => o.side === 'buy')).toBe(true)
+  })
+
+  it('无账户资金输入时不生成名义金额和候选订单', () => {
+    const buyMarket = {
+      rows: 120,
+      markPrice: 90,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: -0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentum5: 0.03,
+      momentum20: 0.01,
+      costSlope5: 0,
+    }
+    const g = buildDecisionGraph({ market: buyMarket, input: { ...noAccountInput, entryPrice: 100, iv: 0.4 } })
+    expect(g.decision.timing.side).toBe('buy')
+    expect(g.position.maxNotional).toBeNull()
+    expect(g.position.riskBudget).toBeNull()
+    expect(g.decision.missingInputs).toContain('account.capital')
+    expect(g.plan.primaryOrders).toEqual([])
+  })
+
+  it('未触发默认条件时仍暴露账户资金缺口', () => {
+    const g = buildDecisionGraph({ market, input: noAccountInput })
+    expect(g.plan.primaryOrders).toEqual([])
+    expect(g.position.maxNotional).toBeNull()
+    expect(g.decision.missingInputs).toContain('account.capital')
   })
 
   it('有底仓溢价时使用市场缩放 profile 生成减仓挂单', () => {
@@ -134,6 +171,8 @@ describe('buildDecisionGraph', () => {
     const base = buildDecisionGraph({ market: buyMarket, input: executableInput })
     const changed = buildDecisionGraph({ market: buyMarket, input: researchChangedInput })
     expect(changed.research).toBeTruthy()
+    expect(changed.portfolio).toBeUndefined()
+    expect(changed.portfolioResearch.status).toBe('research-only')
     expect(changed.research.numoen.status).toBe('protocol-unverified')
     expect(changed.research.liquidityFingerprint.segments.reduce((sum, seg) => sum + seg.weight, 0)).toBeCloseTo(1, 5)
     expect(changed.plan.primaryOrders.map(o => o.price)).toEqual(base.plan.primaryOrders.map(o => o.price))
@@ -147,7 +186,7 @@ describe('buildDecisionGraph', () => {
     }
   })
 
-  it('保守 vs 激进：风险预算不同', () => {
+  it('保守 vs 激进：账户输入存在时风险预算不同', () => {
     const c = buildDecisionGraph({ market, input: { ...baseInput, strategyProfile: 'conservative' } })
     const a = buildDecisionGraph({ market, input: { ...baseInput, strategyProfile: 'aggressive' } })
     if (c.position.side && a.position.side) {

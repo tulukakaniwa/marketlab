@@ -54,8 +54,7 @@
 }
 
 .chart-main-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  display: block;
   min-height: 0;
   height: 100%;
 }
@@ -97,6 +96,6 @@
   }
 
   .chart-main-row {
-    grid-template-columns: minmax(0, 1fr) 156px;
+    display: block;
   }
 }

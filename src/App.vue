@@ -68,7 +68,7 @@ const metrics = computed(() => {
     { label: '成本锚', value: money(m?.costAnchor), unit: pct(m?.costDistance) },
     { label: 'IV', value: pct(g.inputs?.iv), unit: `ATR ${pct(m?.atrPercent)}` },
     { label: '波动带', value: money(g.deltaBands?.long?.low), unit: money(g.deltaBands?.long?.high) },
-    { label: '组合价值', value: money(g.portfolio), unit: g?.decision?.state ?? '等待' },
+    { label: '触发状态', value: g?.decision?.state ?? '等待数据', unit: (g?.decision?.blockedReasons ?? [])[0] ?? '事实观察' },
   ]
 })
 
@@ -89,7 +89,6 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
       :market="lab.market"
       :rows="lab.rows"
       :decision="lab.graph.decision"
-      :confidence="lab.graph.decision?.confidence ?? 0"
       :profile-id="lab.input.strategyProfile"
       :profile-list="lab.strategyProfileList"
       :theme="theme"
@@ -180,30 +179,30 @@ const trP = computed({ get: () => rPct(lab.input.targetReturn), set: (v) => { la
 
         <template v-if="lab.rows.length">
           <div class="exec-strip">
-            <span>决策 · {{ lab.executionBrief.confidence }}% 置信</span>
+            <span>事实状态</span>
             <strong>{{ lab.executionBrief.title }}</strong>
             <em>{{ lab.executionBrief.bias }}</em>
             <div class="exec-nums">
-              <div><span>首笔</span><strong>{{ money(lab.executionBrief.notional) }}</strong></div>
-              <div><span>挂单</span><strong>{{ money(lab.executionBrief.price) }}</strong></div>
+              <div><span>候选名义</span><strong>{{ money(lab.executionBrief.notional) }}</strong></div>
+              <div><span>候选价格</span><strong>{{ money(lab.executionBrief.price) }}</strong></div>
               <div><span>失效</span><strong>{{ money(lab.executionBrief.stop) }}</strong></div>
-              <div><span>目标</span><strong>{{ money(lab.executionBrief.target) }}</strong></div>
+              <div><span>观察锚</span><strong>{{ money(lab.executionBrief.target) }}</strong></div>
             </div>
             <small>{{ lab.executionBrief.reason }}</small>
           </div>
 
           <div class="mode-tabs">
-            <button :class="{ active: lab.activeMode === 'orders' }" @click="lab.activeMode = 'orders'">计划</button>
-            <button :class="{ active: lab.activeMode === 'risk' }" @click="lab.activeMode = 'risk'">风险</button>
+            <button :class="{ active: lab.activeMode === 'orders' }" @click="lab.activeMode = 'orders'">条件</button>
+            <button :class="{ active: lab.activeMode === 'risk' }" @click="lab.activeMode = 'risk'">边界</button>
             <button :class="{ active: lab.activeMode === 'formula' }" @click="lab.activeMode = 'formula'">依据</button>
           </div>
 
           <DecisionPanel :graph="lab.graph" :market="lab.market" />
 
-          <OrderTable v-if="lab.activeMode === 'orders'" :title="lab.graph.decision?.timing?.side === 'sell' ? '底仓减压' : '分批低价买入'" :orders="lab.graph.plan.primaryOrders" />
+          <OrderTable v-if="lab.activeMode === 'orders'" title="候选订单" :orders="lab.graph.plan.primaryOrders" />
           <template v-if="lab.activeMode === 'risk'">
             <div class="risk-box"><span>失效线</span><strong>{{ money(lab.graph.plan.invalidation.lower) }} / {{ money(lab.graph.plan.invalidation.upper) }}</strong></div>
-            <div class="risk-box"><span>组合价值</span><strong :class="(lab.graph.portfolio ?? 0) >= 0 ? 'green' : 'red'">{{ money(lab.graph.portfolio) }}</strong></div>
+            <div class="risk-box"><span>缺失输入</span><strong>{{ lab.graph.decision?.missingInputs?.join(' / ') || '无' }}</strong></div>
           </template>
         </template>
       </aside>
