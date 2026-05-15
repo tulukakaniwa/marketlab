@@ -1,3 +1,11 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+coverage/
+
 # Logs
 logs
 *.log
@@ -7,19 +15,39 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Environment / local secrets
+.env
+.env.*
+!.env.example
 *.local
 
-# Playwright
+# Vite / test caches
+.vite/
+.vitest/
+.cache/
+
+# Browser and Playwright artifacts
 .playwright-mcp/
+playwright-report/
+test-results/
+
+# Local verification artifacts
+page-snapshot*.md
+*-snapshot.md
+*-check.md
+*-loaded.md
+*-screenshot.png
+*-loaded.png
+fullpage-*.png
+result-panel-*.png
+market-lab-*.png
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
