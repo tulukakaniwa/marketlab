@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { loadMarketCsv } from '../data/generated/market-csv-index.js'
 import { btcHistorySource, parseCsvText } from '../domain/market/ohlcv.js'
 
 /**
@@ -32,16 +33,7 @@ export function useDataLoader(input, resetCachesOnApply = () => {}) {
     loadingSampleId.value = sample.id
     error.value = null
     try {
-      let response
-      try {
-        response = await fetch(sample.url)
-      } catch (netErr) {
-        throw kindError('network', `网络异常：${netErr.message || '无法连接'}`)
-      }
-      if (!response.ok) {
-        throw kindError('network', `数据读取失败：HTTP ${response.status}（${sample.url}）`)
-      }
-      const text = await response.text()
+      const text = await loadSampleText(sample)
       let nextRows
       try {
         nextRows = parseCsvText(text)
@@ -113,6 +105,22 @@ export function useDataLoader(input, resetCachesOnApply = () => {}) {
     rows, source, loading, loadingSampleId, error, cursor,
     loadBtcHistory, loadSample, retryLast, dismissError, importText, applyRows,
   }
+}
+
+async function loadSampleText(sample) {
+  const bundled = await loadMarketCsv(sample.url)
+  if (bundled !== null) return bundled
+
+  let response
+  try {
+    response = await fetch(sample.url)
+  } catch (netErr) {
+    throw kindError('network', `网络异常：${netErr.message || '无法连接'}`)
+  }
+  if (!response.ok) {
+    throw kindError('network', `数据读取失败：HTTP ${response.status}（${sample.url}）`)
+  }
+  return response.text()
 }
 
 function kindError(kind, message) {

@@ -32,6 +32,8 @@ playwright-report/
 test-results/
 
 # Local verification artifacts
+src/data/generated/
+src/data/.generated-*/
 page-snapshot*.md
 *-snapshot.md
 *-check.md

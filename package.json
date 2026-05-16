@@ -5,16 +5,17 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "pnpm run check:size && pnpm run check:data && pnpm run verify:domain && vite build && pnpm run check:dist-data",
+    "dev": "pnpm run generate:data && vite",
+    "build": "pnpm run generate:data && pnpm run check:size && pnpm run check:data && pnpm run check:generated-data && pnpm run verify:domain && vite build",
+    "generate:data": "node scripts/csv2js.mjs",
     "verify:domain": "node scripts/verify-domain.mjs",
     "audit:formulas": "uv run --no-project --with poetry poetry check && uv run --no-project python scripts/source_coverage_audit.py && uv run --no-project python scripts/formula_inventory_audit.py && uv run --no-project python scripts/formula_wiring_audit.py && uv run --no-project python scripts/chart_formula_audit.py && uv run --no-project python scripts/formula_audit.py",
     "verify:pine": "node scripts/verify-pine.mjs",
     "check:data": "node scripts/check-data-index.mjs",
-    "check:dist-data": "node scripts/check-dist-data.mjs",
+    "check:generated-data": "node scripts/check-generated-data.mjs",
     "check:size": "node scripts/check-file-size.mjs",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "pnpm run generate:data && vitest run",
+    "test:watch": "pnpm run generate:data && vitest",
     "preview": "vite preview"
   },
   "dependencies": {
