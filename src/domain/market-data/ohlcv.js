@@ -6,38 +6,38 @@ export const btcHistorySource = {
   symbol: 'BTCUSDT',
   interval: '1日',
   source: 'Binance 公共数据',
-  url: '/data/btcusdt-1d-2017-2025.csv',
+  url: '/datasets/btcusdt-1d-2017-2025.csv',
 }
 
 export const marketSamples = [
   btcHistorySource,
 
   // ── 美股 ──
-  { id: 'us-spy-1d', label: 'SPY', symbol: 'SPY', interval: '1日', source: 'Yahoo Finance', url: '/data/SPY-1d.csv' },
-  { id: 'us-qqq-1d', label: 'QQQ', symbol: 'QQQ', interval: '1日', source: 'Yahoo Finance', url: '/data/QQQ-1d.csv' },
-  { id: 'us-aapl-1d', label: 'AAPL', symbol: 'AAPL', interval: '1日', source: 'Yahoo Finance', url: '/data/AAPL-1d.csv' },
-  { id: 'us-msft-1d', label: 'MSFT', symbol: 'MSFT', interval: '1日', source: 'Yahoo Finance', url: '/data/MSFT-1d.csv' },
-  { id: 'us-goog-1d', label: 'GOOG', symbol: 'GOOG', interval: '1日', source: 'Yahoo Finance', url: '/data/GOOG-1d.csv' },
-  { id: 'us-amzn-1d', label: 'AMZN', symbol: 'AMZN', interval: '1日', source: 'Yahoo Finance', url: '/data/AMZN-1d.csv' },
-  { id: 'us-meta-1d', label: 'META', symbol: 'META', interval: '1日', source: 'Yahoo Finance', url: '/data/META-1d.csv' },
-  { id: 'us-avgo-1d', label: 'AVGO', symbol: 'AVGO', interval: '1日', source: 'Yahoo Finance', url: '/data/AVGO-1d.csv' },
-  { id: 'us-nvda-1d', label: 'NVDA', symbol: 'NVDA', interval: '1日', source: 'Yahoo Finance', url: '/data/NVDA-1d.csv' },
-  { id: 'us-tsla-1d', label: 'TSLA', symbol: 'TSLA', interval: '1日', source: 'Yahoo Finance', url: '/data/TSLA-1d.csv' },
+  { id: 'us-spy-1d', label: 'SPY', symbol: 'SPY', interval: '1日', source: 'Yahoo Finance', url: '/datasets/SPY-1d.csv' },
+  { id: 'us-qqq-1d', label: 'QQQ', symbol: 'QQQ', interval: '1日', source: 'Yahoo Finance', url: '/datasets/QQQ-1d.csv' },
+  { id: 'us-aapl-1d', label: 'AAPL', symbol: 'AAPL', interval: '1日', source: 'Yahoo Finance', url: '/datasets/AAPL-1d.csv' },
+  { id: 'us-msft-1d', label: 'MSFT', symbol: 'MSFT', interval: '1日', source: 'Yahoo Finance', url: '/datasets/MSFT-1d.csv' },
+  { id: 'us-goog-1d', label: 'GOOG', symbol: 'GOOG', interval: '1日', source: 'Yahoo Finance', url: '/datasets/GOOG-1d.csv' },
+  { id: 'us-amzn-1d', label: 'AMZN', symbol: 'AMZN', interval: '1日', source: 'Yahoo Finance', url: '/datasets/AMZN-1d.csv' },
+  { id: 'us-meta-1d', label: 'META', symbol: 'META', interval: '1日', source: 'Yahoo Finance', url: '/datasets/META-1d.csv' },
+  { id: 'us-avgo-1d', label: 'AVGO', symbol: 'AVGO', interval: '1日', source: 'Yahoo Finance', url: '/datasets/AVGO-1d.csv' },
+  { id: 'us-nvda-1d', label: 'NVDA', symbol: 'NVDA', interval: '1日', source: 'Yahoo Finance', url: '/datasets/NVDA-1d.csv' },
+  { id: 'us-tsla-1d', label: 'TSLA', symbol: 'TSLA', interval: '1日', source: 'Yahoo Finance', url: '/datasets/TSLA-1d.csv' },
 
   // ── 港股 ──
-  { id: 'hk-0700-1d', label: '腾讯', symbol: '0700.HK', interval: '1日', source: 'Yahoo Finance', url: '/data/0700_HK-1d.csv' },
-  { id: 'hk-9988-1d', label: '阿里巴巴', symbol: '9988.HK', interval: '1日', source: 'Yahoo Finance', url: '/data/9988_HK-1d.csv' },
-  { id: 'hk-1810-1d', label: '小米', symbol: '1810.HK', interval: '1日', source: 'Yahoo Finance', url: '/data/1810_HK-1d.csv' },
-  { id: 'hk-3690-1d', label: '美团', symbol: '3690.HK', interval: '1日', source: 'Yahoo Finance', url: '/data/3690_HK-1d.csv' },
-  { id: 'hk-1211-1d', label: '比亚迪', symbol: '1211.HK', interval: '1日', source: 'Yahoo Finance', url: '/data/1211_HK-1d.csv' },
+  { id: 'hk-0700-1d', label: '腾讯', symbol: '0700.HK', interval: '1日', source: 'Yahoo Finance', url: '/datasets/0700_HK-1d.csv' },
+  { id: 'hk-9988-1d', label: '阿里巴巴', symbol: '9988.HK', interval: '1日', source: 'Yahoo Finance', url: '/datasets/9988_HK-1d.csv' },
+  { id: 'hk-1810-1d', label: '小米', symbol: '1810.HK', interval: '1日', source: 'Yahoo Finance', url: '/datasets/1810_HK-1d.csv' },
+  { id: 'hk-3690-1d', label: '美团', symbol: '3690.HK', interval: '1日', source: 'Yahoo Finance', url: '/datasets/3690_HK-1d.csv' },
+  { id: 'hk-1211-1d', label: '比亚迪', symbol: '1211.HK', interval: '1日', source: 'Yahoo Finance', url: '/datasets/1211_HK-1d.csv' },
 
   // ── A股 ──
-  { id: 'cn-600519-1d', label: '贵州茅台', symbol: '600519', interval: '1日', source: 'Yahoo Finance', url: '/data/600519-1d.csv' },
-  { id: 'cn-002594-1d', label: '比亚迪', symbol: '002594', interval: '1日', source: 'Yahoo Finance', url: '/data/002594-1d.csv' },
-  { id: 'cn-300750-1d', label: '宁德时代', symbol: '300750', interval: '1日', source: 'Yahoo Finance', url: '/data/300750-1d.csv' },
-  { id: 'cn-601899-1d', label: '紫金矿业', symbol: '601899', interval: '1日', source: 'Yahoo Finance', url: '/data/601899-1d.csv' },
-  { id: 'cn-300308-1d', label: '中际旭创', symbol: '300308', interval: '1日', source: 'Yahoo Finance', url: '/data/300308-1d.csv' },
-  { id: 'cn-688256-1d', label: '寒武纪', symbol: '688256', interval: '1日', source: 'Yahoo Finance', url: '/data/688256-1d.csv' },
+  { id: 'cn-600519-1d', label: '贵州茅台', symbol: '600519', interval: '1日', source: 'Yahoo Finance', url: '/datasets/600519-1d.csv' },
+  { id: 'cn-002594-1d', label: '比亚迪', symbol: '002594', interval: '1日', source: 'Yahoo Finance', url: '/datasets/002594-1d.csv' },
+  { id: 'cn-300750-1d', label: '宁德时代', symbol: '300750', interval: '1日', source: 'Yahoo Finance', url: '/datasets/300750-1d.csv' },
+  { id: 'cn-601899-1d', label: '紫金矿业', symbol: '601899', interval: '1日', source: 'Yahoo Finance', url: '/datasets/601899-1d.csv' },
+  { id: 'cn-300308-1d', label: '中际旭创', symbol: '300308', interval: '1日', source: 'Yahoo Finance', url: '/datasets/300308-1d.csv' },
+  { id: 'cn-688256-1d', label: '寒武纪', symbol: '688256', interval: '1日', source: 'Yahoo Finance', url: '/datasets/688256-1d.csv' },
 ]
 
 export function parseCsvText(text) {

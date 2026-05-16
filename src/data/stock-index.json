@@ -6,7 +6,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/000568-1d.csv",
+    "url": "/datasets/000568-1d.csv",
     "rows": 183
   },
   {
@@ -16,7 +16,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/000596-1d.csv",
+    "url": "/datasets/000596-1d.csv",
     "rows": 183
   },
   {
@@ -26,7 +26,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/000625-1d.csv",
+    "url": "/datasets/000625-1d.csv",
     "rows": 183
   },
   {
@@ -36,7 +36,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/000799-1d.csv",
+    "url": "/datasets/000799-1d.csv",
     "rows": 183
   },
   {
@@ -46,7 +46,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/000858-1d.csv",
+    "url": "/datasets/000858-1d.csv",
     "rows": 183
   },
   {
@@ -56,7 +56,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/000988-1d.csv",
+    "url": "/datasets/000988-1d.csv",
     "rows": 183
   },
   {
@@ -66,7 +66,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002050-1d.csv",
+    "url": "/datasets/002050-1d.csv",
     "rows": 183
   },
   {
@@ -76,7 +76,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002230-1d.csv",
+    "url": "/datasets/002230-1d.csv",
     "rows": 183
   },
   {
@@ -86,7 +86,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002261-1d.csv",
+    "url": "/datasets/002261-1d.csv",
     "rows": 183
   },
   {
@@ -96,7 +96,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002281-1d.csv",
+    "url": "/datasets/002281-1d.csv",
     "rows": 183
   },
   {
@@ -106,7 +106,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002304-1d.csv",
+    "url": "/datasets/002304-1d.csv",
     "rows": 183
   },
   {
@@ -116,7 +116,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002456-1d.csv",
+    "url": "/datasets/002456-1d.csv",
     "rows": 183
   },
   {
@@ -126,7 +126,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002463-1d.csv",
+    "url": "/datasets/002463-1d.csv",
     "rows": 183
   },
   {
@@ -136,7 +136,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002475-1d.csv",
+    "url": "/datasets/002475-1d.csv",
     "rows": 183
   },
   {
@@ -146,7 +146,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002594-1d.csv",
+    "url": "/datasets/002594-1d.csv",
     "rows": 183
   },
   {
@@ -156,7 +156,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002645-1d.csv",
+    "url": "/datasets/002645-1d.csv",
     "rows": 183
   },
   {
@@ -166,7 +166,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002837-1d.csv",
+    "url": "/datasets/002837-1d.csv",
     "rows": 183
   },
   {
@@ -176,7 +176,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/002891-1d.csv",
+    "url": "/datasets/002891-1d.csv",
     "rows": 183
   },
   {
@@ -186,7 +186,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/0175_HK-1d.csv",
+    "url": "/datasets/0175_HK-1d.csv",
     "rows": 188
   },
   {
@@ -196,7 +196,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/0522_HK-1d.csv",
+    "url": "/datasets/0522_HK-1d.csv",
     "rows": 188
   },
   {
@@ -206,7 +206,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/0700_HK-1d.csv",
+    "url": "/datasets/0700_HK-1d.csv",
     "rows": 188
   },
   {
@@ -216,7 +216,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/0916_HK-1d.csv",
+    "url": "/datasets/0916_HK-1d.csv",
     "rows": 188
   },
   {
@@ -226,7 +226,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/0981_HK-1d.csv",
+    "url": "/datasets/0981_HK-1d.csv",
     "rows": 188
   },
   {
@@ -236,7 +236,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/0992_HK-1d.csv",
+    "url": "/datasets/0992_HK-1d.csv",
     "rows": 188
   },
   {
@@ -246,7 +246,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/1211_HK-1d.csv",
+    "url": "/datasets/1211_HK-1d.csv",
     "rows": 188
   },
   {
@@ -256,7 +256,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/1810_HK-1d.csv",
+    "url": "/datasets/1810_HK-1d.csv",
     "rows": 188
   },
   {
@@ -266,7 +266,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/1816_HK-1d.csv",
+    "url": "/datasets/1816_HK-1d.csv",
     "rows": 188
   },
   {
@@ -276,7 +276,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/2015_HK-1d.csv",
+    "url": "/datasets/2015_HK-1d.csv",
     "rows": 188
   },
   {
@@ -286,7 +286,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/2380_HK-1d.csv",
+    "url": "/datasets/2380_HK-1d.csv",
     "rows": 188
   },
   {
@@ -296,7 +296,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/2899_HK-1d.csv",
+    "url": "/datasets/2899_HK-1d.csv",
     "rows": 188
   },
   {
@@ -306,7 +306,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300124-1d.csv",
+    "url": "/datasets/300124-1d.csv",
     "rows": 183
   },
   {
@@ -316,7 +316,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300308-1d.csv",
+    "url": "/datasets/300308-1d.csv",
     "rows": 183
   },
   {
@@ -326,7 +326,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300394-1d.csv",
+    "url": "/datasets/300394-1d.csv",
     "rows": 183
   },
   {
@@ -336,7 +336,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300502-1d.csv",
+    "url": "/datasets/300502-1d.csv",
     "rows": 183
   },
   {
@@ -346,7 +346,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300718-1d.csv",
+    "url": "/datasets/300718-1d.csv",
     "rows": 183
   },
   {
@@ -356,7 +356,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300750-1d.csv",
+    "url": "/datasets/300750-1d.csv",
     "rows": 183
   },
   {
@@ -366,7 +366,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/300866-1d.csv",
+    "url": "/datasets/300866-1d.csv",
     "rows": 183
   },
   {
@@ -376,7 +376,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/301308-1d.csv",
+    "url": "/datasets/301308-1d.csv",
     "rows": 183
   },
   {
@@ -386,7 +386,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/3690_HK-1d.csv",
+    "url": "/datasets/3690_HK-1d.csv",
     "rows": 188
   },
   {
@@ -396,7 +396,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/3888_HK-1d.csv",
+    "url": "/datasets/3888_HK-1d.csv",
     "rows": 188
   },
   {
@@ -406,7 +406,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600104-1d.csv",
+    "url": "/datasets/600104-1d.csv",
     "rows": 183
   },
   {
@@ -416,7 +416,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600406-1d.csv",
+    "url": "/datasets/600406-1d.csv",
     "rows": 183
   },
   {
@@ -426,7 +426,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600519-1d.csv",
+    "url": "/datasets/600519-1d.csv",
     "rows": 183
   },
   {
@@ -436,7 +436,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600580-1d.csv",
+    "url": "/datasets/600580-1d.csv",
     "rows": 183
   },
   {
@@ -446,7 +446,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600584-1d.csv",
+    "url": "/datasets/600584-1d.csv",
     "rows": 183
   },
   {
@@ -456,7 +456,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600779-1d.csv",
+    "url": "/datasets/600779-1d.csv",
     "rows": 183
   },
   {
@@ -466,7 +466,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/600809-1d.csv",
+    "url": "/datasets/600809-1d.csv",
     "rows": 183
   },
   {
@@ -476,7 +476,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/601127-1d.csv",
+    "url": "/datasets/601127-1d.csv",
     "rows": 183
   },
   {
@@ -486,7 +486,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/601238-1d.csv",
+    "url": "/datasets/601238-1d.csv",
     "rows": 183
   },
   {
@@ -496,7 +496,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/601360-1d.csv",
+    "url": "/datasets/601360-1d.csv",
     "rows": 183
   },
   {
@@ -506,7 +506,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/601899-1d.csv",
+    "url": "/datasets/601899-1d.csv",
     "rows": 183
   },
   {
@@ -516,7 +516,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/603019-1d.csv",
+    "url": "/datasets/603019-1d.csv",
     "rows": 183
   },
   {
@@ -526,7 +526,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/603369-1d.csv",
+    "url": "/datasets/603369-1d.csv",
     "rows": 183
   },
   {
@@ -536,7 +536,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/603986-1d.csv",
+    "url": "/datasets/603986-1d.csv",
     "rows": 183
   },
   {
@@ -546,7 +546,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/688017-1d.csv",
+    "url": "/datasets/688017-1d.csv",
     "rows": 183
   },
   {
@@ -556,7 +556,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/688041-1d.csv",
+    "url": "/datasets/688041-1d.csv",
     "rows": 183
   },
   {
@@ -566,7 +566,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/688111-1d.csv",
+    "url": "/datasets/688111-1d.csv",
     "rows": 183
   },
   {
@@ -576,7 +576,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/688169-1d.csv",
+    "url": "/datasets/688169-1d.csv",
     "rows": 183
   },
   {
@@ -586,7 +586,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/688256-1d.csv",
+    "url": "/datasets/688256-1d.csv",
     "rows": 183
   },
   {
@@ -596,7 +596,7 @@
     "market": "A股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/688521-1d.csv",
+    "url": "/datasets/688521-1d.csv",
     "rows": 173
   },
   {
@@ -606,7 +606,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/9698_HK-1d.csv",
+    "url": "/datasets/9698_HK-1d.csv",
     "rows": 188
   },
   {
@@ -616,7 +616,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/9863_HK-1d.csv",
+    "url": "/datasets/9863_HK-1d.csv",
     "rows": 188
   },
   {
@@ -626,7 +626,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/9866_HK-1d.csv",
+    "url": "/datasets/9866_HK-1d.csv",
     "rows": 188
   },
   {
@@ -636,7 +636,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/9868_HK-1d.csv",
+    "url": "/datasets/9868_HK-1d.csv",
     "rows": 188
   },
   {
@@ -646,7 +646,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/9888_HK-1d.csv",
+    "url": "/datasets/9888_HK-1d.csv",
     "rows": 188
   },
   {
@@ -656,7 +656,7 @@
     "market": "港股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/9988_HK-1d.csv",
+    "url": "/datasets/9988_HK-1d.csv",
     "rows": 188
   },
   {
@@ -666,7 +666,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AAOI-1d.csv",
+    "url": "/datasets/AAOI-1d.csv",
     "rows": 193
   },
   {
@@ -676,7 +676,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AAPL-1d.csv",
+    "url": "/datasets/AAPL-1d.csv",
     "rows": 193
   },
   {
@@ -686,7 +686,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ADBE-1d.csv",
+    "url": "/datasets/ADBE-1d.csv",
     "rows": 193
   },
   {
@@ -696,7 +696,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ALAB-1d.csv",
+    "url": "/datasets/ALAB-1d.csv",
     "rows": 193
   },
   {
@@ -706,7 +706,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AMAT-1d.csv",
+    "url": "/datasets/AMAT-1d.csv",
     "rows": 193
   },
   {
@@ -716,7 +716,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AMD-1d.csv",
+    "url": "/datasets/AMD-1d.csv",
     "rows": 193
   },
   {
@@ -726,7 +726,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AMKR-1d.csv",
+    "url": "/datasets/AMKR-1d.csv",
     "rows": 193
   },
   {
@@ -736,7 +736,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AMZN-1d.csv",
+    "url": "/datasets/AMZN-1d.csv",
     "rows": 193
   },
   {
@@ -746,7 +746,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ANET-1d.csv",
+    "url": "/datasets/ANET-1d.csv",
     "rows": 193
   },
   {
@@ -756,7 +756,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/APH-1d.csv",
+    "url": "/datasets/APH-1d.csv",
     "rows": 193
   },
   {
@@ -766,7 +766,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/APLD-1d.csv",
+    "url": "/datasets/APLD-1d.csv",
     "rows": 193
   },
   {
@@ -776,7 +776,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/APP-1d.csv",
+    "url": "/datasets/APP-1d.csv",
     "rows": 193
   },
   {
@@ -786,7 +786,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ARM-1d.csv",
+    "url": "/datasets/ARM-1d.csv",
     "rows": 193
   },
   {
@@ -796,7 +796,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AS-1d.csv",
+    "url": "/datasets/AS-1d.csv",
     "rows": 193
   },
   {
@@ -806,7 +806,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ASML-1d.csv",
+    "url": "/datasets/ASML-1d.csv",
     "rows": 193
   },
   {
@@ -816,7 +816,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/AVGO-1d.csv",
+    "url": "/datasets/AVGO-1d.csv",
     "rows": 193
   },
   {
@@ -826,7 +826,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/BE-1d.csv",
+    "url": "/datasets/BE-1d.csv",
     "rows": 193
   },
   {
@@ -836,7 +836,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CCJ-1d.csv",
+    "url": "/datasets/CCJ-1d.csv",
     "rows": 193
   },
   {
@@ -846,7 +846,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CDNS-1d.csv",
+    "url": "/datasets/CDNS-1d.csv",
     "rows": 193
   },
   {
@@ -856,7 +856,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CEG-1d.csv",
+    "url": "/datasets/CEG-1d.csv",
     "rows": 193
   },
   {
@@ -866,7 +866,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CIEN-1d.csv",
+    "url": "/datasets/CIEN-1d.csv",
     "rows": 193
   },
   {
@@ -876,7 +876,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/COHR-1d.csv",
+    "url": "/datasets/COHR-1d.csv",
     "rows": 193
   },
   {
@@ -886,7 +886,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/COIN-1d.csv",
+    "url": "/datasets/COIN-1d.csv",
     "rows": 193
   },
   {
@@ -896,7 +896,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/COPX-1d.csv",
+    "url": "/datasets/COPX-1d.csv",
     "rows": 193
   },
   {
@@ -906,7 +906,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CRDO-1d.csv",
+    "url": "/datasets/CRDO-1d.csv",
     "rows": 193
   },
   {
@@ -916,7 +916,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CRM-1d.csv",
+    "url": "/datasets/CRM-1d.csv",
     "rows": 193
   },
   {
@@ -926,7 +926,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CRWD-1d.csv",
+    "url": "/datasets/CRWD-1d.csv",
     "rows": 193
   },
   {
@@ -936,7 +936,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/CRWV-1d.csv",
+    "url": "/datasets/CRWV-1d.csv",
     "rows": 193
   },
   {
@@ -946,7 +946,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/DDOG-1d.csv",
+    "url": "/datasets/DDOG-1d.csv",
     "rows": 193
   },
   {
@@ -956,7 +956,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/DELL-1d.csv",
+    "url": "/datasets/DELL-1d.csv",
     "rows": 193
   },
   {
@@ -966,7 +966,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/EME-1d.csv",
+    "url": "/datasets/EME-1d.csv",
     "rows": 193
   },
   {
@@ -976,7 +976,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/EOSE-1d.csv",
+    "url": "/datasets/EOSE-1d.csv",
     "rows": 193
   },
   {
@@ -986,7 +986,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ETN-1d.csv",
+    "url": "/datasets/ETN-1d.csv",
     "rows": 193
   },
   {
@@ -996,7 +996,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/FCX-1d.csv",
+    "url": "/datasets/FCX-1d.csv",
     "rows": 193
   },
   {
@@ -1006,7 +1006,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/FIX-1d.csv",
+    "url": "/datasets/FIX-1d.csv",
     "rows": 193
   },
   {
@@ -1016,7 +1016,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/FLNC-1d.csv",
+    "url": "/datasets/FLNC-1d.csv",
     "rows": 193
   },
   {
@@ -1026,7 +1026,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/FN-1d.csv",
+    "url": "/datasets/FN-1d.csv",
     "rows": 193
   },
   {
@@ -1036,7 +1036,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/FSLY-1d.csv",
+    "url": "/datasets/FSLY-1d.csv",
     "rows": 193
   },
   {
@@ -1046,7 +1046,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/GDXU-1d.csv",
+    "url": "/datasets/GDXU-1d.csv",
     "rows": 193
   },
   {
@@ -1056,7 +1056,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/GEV-1d.csv",
+    "url": "/datasets/GEV-1d.csv",
     "rows": 193
   },
   {
@@ -1066,7 +1066,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/GLD-1d.csv",
+    "url": "/datasets/GLD-1d.csv",
     "rows": 193
   },
   {
@@ -1076,7 +1076,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/GOOG-1d.csv",
+    "url": "/datasets/GOOG-1d.csv",
     "rows": 193
   },
   {
@@ -1086,7 +1086,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/GTLB-1d.csv",
+    "url": "/datasets/GTLB-1d.csv",
     "rows": 193
   },
   {
@@ -1096,7 +1096,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/HIMS-1d.csv",
+    "url": "/datasets/HIMS-1d.csv",
     "rows": 193
   },
   {
@@ -1106,7 +1106,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/HUBB-1d.csv",
+    "url": "/datasets/HUBB-1d.csv",
     "rows": 193
   },
   {
@@ -1116,7 +1116,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/INTC-1d.csv",
+    "url": "/datasets/INTC-1d.csv",
     "rows": 193
   },
   {
@@ -1126,7 +1126,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/INTU-1d.csv",
+    "url": "/datasets/INTU-1d.csv",
     "rows": 193
   },
   {
@@ -1136,7 +1136,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ISRG-1d.csv",
+    "url": "/datasets/ISRG-1d.csv",
     "rows": 193
   },
   {
@@ -1146,7 +1146,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/KLAC-1d.csv",
+    "url": "/datasets/KLAC-1d.csv",
     "rows": 193
   },
   {
@@ -1156,7 +1156,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/LITE-1d.csv",
+    "url": "/datasets/LITE-1d.csv",
     "rows": 193
   },
   {
@@ -1166,7 +1166,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/LRCX-1d.csv",
+    "url": "/datasets/LRCX-1d.csv",
     "rows": 193
   },
   {
@@ -1176,7 +1176,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MAGS-1d.csv",
+    "url": "/datasets/MAGS-1d.csv",
     "rows": 193
   },
   {
@@ -1186,7 +1186,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/META-1d.csv",
+    "url": "/datasets/META-1d.csv",
     "rows": 193
   },
   {
@@ -1196,7 +1196,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MOD-1d.csv",
+    "url": "/datasets/MOD-1d.csv",
     "rows": 193
   },
   {
@@ -1206,7 +1206,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MP-1d.csv",
+    "url": "/datasets/MP-1d.csv",
     "rows": 193
   },
   {
@@ -1216,7 +1216,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MRVL-1d.csv",
+    "url": "/datasets/MRVL-1d.csv",
     "rows": 193
   },
   {
@@ -1226,7 +1226,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MSFT-1d.csv",
+    "url": "/datasets/MSFT-1d.csv",
     "rows": 193
   },
   {
@@ -1236,7 +1236,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MSTR-1d.csv",
+    "url": "/datasets/MSTR-1d.csv",
     "rows": 193
   },
   {
@@ -1246,7 +1246,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/MU-1d.csv",
+    "url": "/datasets/MU-1d.csv",
     "rows": 193
   },
   {
@@ -1256,7 +1256,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/NBIS-1d.csv",
+    "url": "/datasets/NBIS-1d.csv",
     "rows": 193
   },
   {
@@ -1266,7 +1266,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/NET-1d.csv",
+    "url": "/datasets/NET-1d.csv",
     "rows": 193
   },
   {
@@ -1276,7 +1276,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/NOW-1d.csv",
+    "url": "/datasets/NOW-1d.csv",
     "rows": 193
   },
   {
@@ -1286,7 +1286,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/NTAP-1d.csv",
+    "url": "/datasets/NTAP-1d.csv",
     "rows": 193
   },
   {
@@ -1296,7 +1296,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/NVDA-1d.csv",
+    "url": "/datasets/NVDA-1d.csv",
     "rows": 193
   },
   {
@@ -1306,7 +1306,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/OKLO-1d.csv",
+    "url": "/datasets/OKLO-1d.csv",
     "rows": 193
   },
   {
@@ -1316,7 +1316,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ORCL-1d.csv",
+    "url": "/datasets/ORCL-1d.csv",
     "rows": 193
   },
   {
@@ -1326,7 +1326,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/PANW-1d.csv",
+    "url": "/datasets/PANW-1d.csv",
     "rows": 193
   },
   {
@@ -1336,7 +1336,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/PLTR-1d.csv",
+    "url": "/datasets/PLTR-1d.csv",
     "rows": 193
   },
   {
@@ -1346,7 +1346,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/POWL-1d.csv",
+    "url": "/datasets/POWL-1d.csv",
     "rows": 193
   },
   {
@@ -1356,7 +1356,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/PSTG-1d.csv",
+    "url": "/datasets/PSTG-1d.csv",
     "rows": 193
   },
   {
@@ -1366,7 +1366,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/PWR-1d.csv",
+    "url": "/datasets/PWR-1d.csv",
     "rows": 193
   },
   {
@@ -1376,7 +1376,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/QCOM-1d.csv",
+    "url": "/datasets/QCOM-1d.csv",
     "rows": 193
   },
   {
@@ -1386,7 +1386,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/QQQ-1d.csv",
+    "url": "/datasets/QQQ-1d.csv",
     "rows": 193
   },
   {
@@ -1396,7 +1396,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/RDDT-1d.csv",
+    "url": "/datasets/RDDT-1d.csv",
     "rows": 193
   },
   {
@@ -1406,7 +1406,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SCCO-1d.csv",
+    "url": "/datasets/SCCO-1d.csv",
     "rows": 193
   },
   {
@@ -1416,7 +1416,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SMCI-1d.csv",
+    "url": "/datasets/SMCI-1d.csv",
     "rows": 193
   },
   {
@@ -1426,7 +1426,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SMR-1d.csv",
+    "url": "/datasets/SMR-1d.csv",
     "rows": 193
   },
   {
@@ -1436,7 +1436,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SNDK-1d.csv",
+    "url": "/datasets/SNDK-1d.csv",
     "rows": 193
   },
   {
@@ -1446,7 +1446,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SNOW-1d.csv",
+    "url": "/datasets/SNOW-1d.csv",
     "rows": 193
   },
   {
@@ -1456,7 +1456,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SNPS-1d.csv",
+    "url": "/datasets/SNPS-1d.csv",
     "rows": 193
   },
   {
@@ -1466,7 +1466,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SOXX-1d.csv",
+    "url": "/datasets/SOXX-1d.csv",
     "rows": 193
   },
   {
@@ -1476,7 +1476,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/SPY-1d.csv",
+    "url": "/datasets/SPY-1d.csv",
     "rows": 193
   },
   {
@@ -1486,7 +1486,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/STX-1d.csv",
+    "url": "/datasets/STX-1d.csv",
     "rows": 193
   },
   {
@@ -1496,7 +1496,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TEAM-1d.csv",
+    "url": "/datasets/TEAM-1d.csv",
     "rows": 193
   },
   {
@@ -1506,7 +1506,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TECK-1d.csv",
+    "url": "/datasets/TECK-1d.csv",
     "rows": 193
   },
   {
@@ -1516,7 +1516,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TER-1d.csv",
+    "url": "/datasets/TER-1d.csv",
     "rows": 193
   },
   {
@@ -1526,7 +1526,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TLT-1d.csv",
+    "url": "/datasets/TLT-1d.csv",
     "rows": 193
   },
   {
@@ -1536,7 +1536,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TSLA-1d.csv",
+    "url": "/datasets/TSLA-1d.csv",
     "rows": 193
   },
   {
@@ -1546,7 +1546,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TSM-1d.csv",
+    "url": "/datasets/TSM-1d.csv",
     "rows": 193
   },
   {
@@ -1556,7 +1556,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/TT-1d.csv",
+    "url": "/datasets/TT-1d.csv",
     "rows": 193
   },
   {
@@ -1566,7 +1566,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/URA-1d.csv",
+    "url": "/datasets/URA-1d.csv",
     "rows": 193
   },
   {
@@ -1576,7 +1576,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/URNM-1d.csv",
+    "url": "/datasets/URNM-1d.csv",
     "rows": 193
   },
   {
@@ -1586,7 +1586,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/VRT-1d.csv",
+    "url": "/datasets/VRT-1d.csv",
     "rows": 193
   },
   {
@@ -1596,7 +1596,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/VST-1d.csv",
+    "url": "/datasets/VST-1d.csv",
     "rows": 193
   },
   {
@@ -1606,7 +1606,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/WDC-1d.csv",
+    "url": "/datasets/WDC-1d.csv",
     "rows": 193
   },
   {
@@ -1616,7 +1616,7 @@
     "market": "美股",
     "interval": "1日",
     "source": "Yahoo Finance",
-    "url": "/data/ZS-1d.csv",
+    "url": "/datasets/ZS-1d.csv",
     "rows": 193
   }
 ]

@@ -39,7 +39,7 @@ if (!Array.isArray(index)) {
 
 // 收集 url → 实际文件名
 const indexFiles = new Set(
-  index.map((entry) => entry.url?.replace(/^\/data\//, '')).filter(Boolean),
+  index.map((entry) => dataFileName(entry.url)).filter(Boolean),
 )
 
 // 列出 public/data 实际文件
@@ -54,7 +54,7 @@ const csvSet = new Set(csvFiles)
 
 // 检查 index 中每个 url 都有对应文件
 for (const entry of index) {
-  const file = entry.url?.replace(/^\/data\//, '')
+  const file = dataFileName(entry.url)
   if (!file) {
     errors.push(`entry ${entry.id} 缺 url`)
     continue
@@ -86,3 +86,7 @@ if (errors.length) {
 }
 
 console.log('\n✅ 数据索引一致性 OK')
+
+function dataFileName(url) {
+  return String(url ?? '').replace(/^\/(?:data|datasets)\//, '')
+}

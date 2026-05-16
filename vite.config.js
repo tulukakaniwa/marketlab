@@ -42,7 +42,7 @@ function copyStaticData() {
     apply: 'build',
     async closeBundle() {
       const source = resolve(process.cwd(), 'public/data')
-      const target = resolve(process.cwd(), 'dist/data')
+      const target = resolve(process.cwd(), 'dist/datasets')
       await mkdir(target, { recursive: true })
       await cp(source, target, { recursive: true, force: true })
     },
