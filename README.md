@@ -1,135 +1,150 @@
 # Market Lab
 
-市场路径实验台。一个独立的纯静态前端工作台，用来把 OHLCV 路径、成本锚、波动带、公式研究层和候选挂单计划放在同一个可检查界面里。
+Market Lab is a static market workbench for inspecting OHLCV paths, cost anchors, volatility bands, formula research outputs, and candidate order plans in one compact interface.
 
-在线访问：[https://www.0xff.tools/](https://www.0xff.tools/)
+Live site: [https://www.0xff.tools/](https://www.0xff.tools/)
 
-Market Lab 不是 blog，也不是自动交易机器人。它更像一张紧凑的研究和执行前检查桌：数据、公式、图表、控件、来源状态、风险提示和模拟计划都在界面里；长篇解释、研究日志和公式推导放在 `docs/` 或外部 blog。
+中文简介：Market Lab 是一个纯静态市场路径实验台，用来把 K 线数据、成本锚、波动带、公式研究层和模拟挂单计划放在同一个可检查工作台里。
 
-## 功能概览
+Market Lab is not a blog, an auto-trading bot, or financial advice. It is a research and pre-execution workbench: charts, controls, state labels, source status, risk hints, and simulated plans belong in the app; long essays, research notes, and derivations belong in `docs/` or the external blog.
 
-- 三栏市场工作台：标的/公式导航、主图、事实与计划面板。
-- 静态 OHLCV 数据集：A 股、港股、美股、ETF、BTC 等日线样本。
-- 成本与波动状态：滚动 VWAP 成本锚、成本带、ATR、年化波动、动量和观察日期。
-- `GetDelta` 价格带：用入场价、持仓时间、IV 和目标收益生成多空价格带。
-- 候选挂单计划：只消费 domain 建模后的成本状态、价格带、账户输入和策略档位。
-- 研究层可视化：期权 Greeks、LP 库存、资金费率、AMM 几何、组合研究和流动性指纹以研究状态展示。
-- 回放旁路：显式开启的 spot path replay，不把研究层指标冒充成默认交易结论。
+## Features
 
-## 快速开始
+- Three-panel market workbench: instrument/formula navigation, main chart, facts and plan panel.
+- Static OHLCV datasets for A-shares, Hong Kong stocks, US stocks, ETFs, and BTC.
+- Market state modeling: rolling VWAP cost anchor, cost band, ATR, annualized volatility, momentum, and observation date.
+- `GetDelta` price bands from entry price, holding time, IV, and target return.
+- Candidate order planning that consumes explicit domain outputs: cost state, formula bands, account inputs, and strategy profile.
+- Research-only visualization for option Greeks, LP inventory, funding, AMM geometry, portfolio curves, and liquidity fingerprinting.
+- Explicit spot path replay side channel; research metrics do not silently become default trading conclusions.
+
+中文辅助：主界面是工作台，不是文章页；默认计划只能消费经过 domain 明确建模的结果。
+
+## Quick Start
 
 ```bash
 pnpm install
 pnpm run dev
 ```
 
-本地开发服务启动后，打开终端里显示的 Vite 地址。
+Open the Vite dev server URL printed in your terminal.
 
-常用命令：
+Common commands:
 
 ```bash
-pnpm test              # Vitest 测试
-pnpm run verify:domain # domain 层数值验证
-pnpm run check:data    # 静态数据索引一致性
-pnpm run check:size    # src 文件尺寸检查
-pnpm run build         # 完整静态构建，输出 dist/
-pnpm run preview       # 本地预览 dist/
+pnpm test              # Run Vitest
+pnpm run verify:domain # Verify domain-level numeric behavior
+pnpm run check:data    # Check static data index consistency
+pnpm run check:size    # Enforce src file size limits
+pnpm run build         # Full static production build into dist/
+pnpm run preview       # Preview the built dist/ output locally
 ```
 
-涉及 Pine 脚本时额外执行：
+When Pine-related files are changed, also run:
 
 ```bash
 pnpm run verify:pine
 ```
 
-## 技术栈
+## Stack
 
 - Vue 3 + JavaScript + Vite
-- Pinia 作为 ViewModel 状态层
-- lightweight-charts 作为主图表
-- d3-dsv 解析 CSV
-- Vitest 做 domain / component 测试
-- pnpm 管理依赖和脚本
+- Pinia as the ViewModel/state layer
+- lightweight-charts for the main chart
+- d3-dsv for CSV parsing
+- Vitest for domain and component tests
+- pnpm for package and script management
 
-项目保持纯静态部署形态：构建产物是 `dist/`，不依赖后端服务。
+The project stays fully static. Production output is `dist/`, with no backend service required.
 
-## 项目结构
+中文辅助：这是 Vue 3 + Vite 的纯静态部署项目，构建产物直接发布 `dist/`。
+
+## Project Structure
 
 ```txt
 src/
-  App.vue                  # 三栏工作台壳层
-  main.js                  # Vue / Pinia / 样式入口
-  domain/                  # 纯领域逻辑，不依赖 Vue、Pinia、DOM 或图表库
-    formulas/              # GetDelta、期权、LP、AMM、资金费率等公式
-    market-data/           # OHLCV 解析、tdpy、成本路径、市场状态
-    strategy-planning/     # 默认条件表、账户输入、候选挂单计划
-    replay/                # spot path replay 查询模型
-    formula-research/      # 研究层快照
-    research-visualization/# 研究视图 ViewModel
-  stores/                  # Pinia facade / ViewModel 编排
-  composables/             # UI 命令、持久化、数据加载、回放和叠加层
-  components/              # 工作台组件
-  styles/                  # 按界面域拆分的 CSS
-  canvas/                  # 公式图画布
-  data/                    # 标的索引
+  App.vue                  # Three-panel workbench shell
+  main.js                  # Vue / Pinia / style entry
+  domain/                  # Pure domain logic; no Vue, Pinia, DOM, or chart dependency
+    formulas/              # GetDelta, option, LP, AMM, funding, and related formulas
+    market-data/           # OHLCV parsing, tdpy, cost path, market state
+    strategy-planning/     # Default condition table, account inputs, candidate orders
+    replay/                # Spot path replay query model
+    formula-research/      # Research-layer snapshot
+    research-visualization/# Research view models
+  stores/                  # Pinia facade / ViewModel orchestration
+  composables/             # UI commands, persistence, data loading, replay, overlays
+  components/              # Workbench components
+  styles/                  # CSS split by interface domain
+  canvas/                  # Formula graph canvas
+  data/                    # Instrument index
 
-public/data/               # 静态 CSV 数据集
-docs/                      # 架构边界、公式证据、设计和交接文档
-scripts/                   # 构建前检查、公式审计和数据预处理脚本
+public/data/               # Static CSV datasets
+docs/                      # Architecture boundaries, formula evidence, design handoffs
+scripts/                   # Build checks, formula audits, data preprocessing
 ```
 
-更完整的边界说明见 [docs/bounded-context-map.md](./docs/bounded-context-map.md)。
+See [docs/bounded-context-map.md](./docs/bounded-context-map.md) for the bounded context map.
 
-## 架构原则
+## Architecture Rules
 
-Market Lab 按 DDD、MVVM 和 CQRS 约束维护：
+Market Lab is maintained around DDD, MVVM, high cohesion, low coupling, and CQRS:
 
-- `src/domain/` 只放纯业务规则和查询模型，不能引入 Vue、Pinia、DOM、图表库或浏览器 API。
-- Vue 组件只负责展示和交互；Pinia store / composable 负责把 domain 输出编排成 UI 状态。
-- 查询路径保持纯计算；导入数据、切换模式、修改输入、触发回放等命令集中在 ViewModel 层。
-- 默认挂单计划只能消费明确建模的 domain 查询结果，不能从研究层可视化反向改写计划。
-- 新增公式或策略前先确认它属于公式、市场状态、计划、回放、账户模拟、ViewModel 还是展示组件。
-- `markPrice`、`entryPrice`、`costAnchor`、`strikePrice`、`startPrice` 必须保持语义独立。
+- `src/domain/` contains pure business rules and query models. It must not import Vue, Pinia, DOM APIs, chart libraries, or browser APIs.
+- Vue components handle presentation and interaction only.
+- Pinia stores and composables orchestrate ViewModel state and map domain outputs into UI-ready models.
+- Query paths stay pure and testable; commands such as importing data, changing inputs, switching modes, and triggering replay live in the ViewModel layer.
+- The default order plan can only consume explicitly modeled domain query results. Research visualizations cannot rewrite the executable plan.
+- Before adding behavior, place it in the right responsibility bucket: formula, market state, planning, replay, account simulation, ViewModel, or presentation.
+- Keep `markPrice`, `entryPrice`, `costAnchor`, `strikePrice`, and `startPrice` semantically separate.
 
-源码文件尽量保持在 500 行以内，`pnpm run build` 会先执行尺寸、数据和 domain 校验。
+Source files should stay under 500 lines when possible. `pnpm run build` runs size, data, and domain checks before bundling.
 
-## 数据与公式状态
+中文辅助：领域公式和业务规则先沉到 `src/domain/`；组件不写隐式业务公式，store/composable 负责命令和 ViewModel 编排。
 
-当前静态数据目录包含 160+ 个 CSV 样本。数据通过 `src/data/stock-index.json` 和 `src/domain/market-data/ohlcv.js` 暴露给工作台，构建前会检查索引和文件是否一致。
+## Data and Formula Status
 
-公式分为两类：
+The static data directory currently contains 160+ CSV samples. Datasets are exposed through `src/data/stock-index.json` and `src/domain/market-data/ohlcv.js`; the build checks that index entries and files stay consistent.
 
-- 可执行层：市场路径、成本锚、波动口径、`GetDelta` 价格带、默认条件表和候选挂单计划。
-- 研究层：Black-Scholes、LP 库存、AMM、funding、资本效率、组合曲线和流动性指纹。研究层必须标注来源、实现状态和限制，默认不驱动挂单结论。
+Formula surfaces are split into two categories:
 
-公式证据和审计文档见 [docs/formula-evidence/README.md](./docs/formula-evidence/README.md)。
+- Executable layer: market path, cost anchor, volatility basis, `GetDelta` bands, default condition table, and candidate order plan.
+- Research layer: Black-Scholes, LP inventory, AMM, funding, capital efficiency, portfolio curves, and liquidity fingerprint. Research outputs must carry source, status, and limitation labels; they do not drive default order conclusions.
 
-## 自动发布
+Formula evidence and audit docs live in [docs/formula-evidence/README.md](./docs/formula-evidence/README.md).
 
-项目已经配置静态自动发布，线上地址是 [https://www.0xff.tools/](https://www.0xff.tools/)。
+## Deployment
 
-托管平台读取 [amplify.yml](./amplify.yml)：
+The project is configured for automatic static deployment. The live site is [https://www.0xff.tools/](https://www.0xff.tools/).
 
-1. 安装 pnpm。
-2. 执行 `pnpm install --frozen-lockfile`。
-3. 执行 `pnpm run build`。
-4. 发布 `dist/` 目录。
+The hosting platform reads [amplify.yml](./amplify.yml):
 
-因此合并前本地至少跑一次：
+1. Install pnpm.
+2. Run `pnpm install --frozen-lockfile`.
+3. Run `pnpm run build`.
+4. Publish `dist/`.
+
+Before merging to `main`, run:
 
 ```bash
 pnpm test
 pnpm run build
 ```
 
-## 许可
+中文辅助：自动发布已配置好，合并到 `main` 后会按 `amplify.yml` 构建并发布 `dist/`。
 
-本项目以 `AGPL-3.0-or-later` 发布，完整法律文本见 [LICENSE](./LICENSE)。
+## License
 
-如果你分发本项目、修改版本、派生作品，或把修改后的版本作为网络服务提供给用户，需要按 AGPL 要求提供对应源码。若希望用于闭源产品、闭源 SaaS、闭源内部发行或无法履行 AGPL 义务的场景，需要先取得单独书面授权。
+This project is released under `AGPL-3.0-or-later`. See [LICENSE](./LICENSE) for the full legal text.
 
-README 中的许可证说明只用于协作提醒；具体权利和义务以 `LICENSE` 文件为准。
+If you distribute this project, distribute modified versions, build derivative works, or provide a modified version over a network, you must comply with the AGPL source-sharing obligations. For closed-source products, closed-source SaaS, closed internal distribution, or scenarios where AGPL compliance is not possible, obtain separate written permission first.
 
-## 风险声明
+This README summarizes the licensing posture for collaboration only. The `LICENSE` file is authoritative.
 
-Market Lab 只提供研究、观察和模拟输出，不构成投资建议、交易建议或收益承诺。市场数据、公式结果、研究层指标和候选挂单计划都需要由使用者自行验证。
+中文辅助：本项目不是宽松许可证项目；闭源集成、闭源 SaaS 或无法履行 AGPL 义务的使用场景需要单独授权。
+
+## Risk Notice
+
+Market Lab provides research, observation, and simulation outputs only. It is not investment advice, trading advice, or a promise of returns. Users must independently verify market data, formula outputs, research indicators, and candidate order plans.
+
+中文辅助：所有数据、公式和模拟挂单都只用于研究与观察，不构成投资建议。
