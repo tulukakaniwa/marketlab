@@ -88,5 +88,5 @@ if (errors.length) {
 console.log('\n✅ 数据索引一致性 OK')
 
 function dataFileName(url) {
-  return String(url ?? '').replace(/^\/(?:data|datasets)\//, '')
+  return String(url ?? '').replace(/^\/(?:data|datasets)\//, '').replace(/\.txt$/i, '')
 }

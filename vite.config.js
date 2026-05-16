@@ -1,5 +1,5 @@
 import { fileURLToPath, URL } from 'node:url'
-import { cp, mkdir } from 'node:fs/promises'
+import { copyFile, mkdir, readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -44,7 +44,10 @@ function copyStaticData() {
       const source = resolve(process.cwd(), 'public/data')
       const target = resolve(process.cwd(), 'dist/datasets')
       await mkdir(target, { recursive: true })
-      await cp(source, target, { recursive: true, force: true })
+      const files = await readdir(source)
+      await Promise.all(files
+        .filter((file) => file.endsWith('.csv'))
+        .map((file) => copyFile(resolve(source, file), resolve(target, `${file}.txt`))))
     },
   }
 }

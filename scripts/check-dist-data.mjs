@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Verify that the production bundle contains the static CSV data copied by Vite.
 // This runs after `vite build` so a deployment cannot silently publish an app
-// whose `/datasets/*.csv` requests fall through to the SPA index.html.
+// whose `/datasets/*.csv.txt` requests fall through to the SPA index.html.
 
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -16,9 +16,9 @@ const REQUIRED_SAMPLE = 'btcusdt-1d-2017-2025.csv'
 const errors = []
 
 const publicFiles = await listCsvFiles(PUBLIC_DATA_DIR, 'public/data')
-const distFiles = await listCsvFiles(DIST_DATA_DIR, 'dist/data')
+const distFiles = await listTxtCsvFiles(DIST_DATA_DIR, 'dist/datasets')
 const publicSet = new Set(publicFiles)
-const distSet = new Set(distFiles)
+const distSet = new Set(distFiles.map((file) => file.replace(/\.txt$/i, '')))
 
 if (!distSet.has(REQUIRED_SAMPLE)) {
   errors.push(`dist/datasets missing required sample: ${REQUIRED_SAMPLE}`)
@@ -29,11 +29,12 @@ for (const file of publicFiles) {
 }
 
 for (const file of distFiles) {
-  if (!publicSet.has(file)) errors.push(`dist/datasets has unexpected CSV not present in public/data: ${file}`)
+  const sourceFile = file.replace(/\.txt$/i, '')
+  if (!publicSet.has(sourceFile)) errors.push(`dist/datasets has unexpected CSV not present in public/data: ${file}`)
 }
 
 if (distSet.has(REQUIRED_SAMPLE)) {
-  const samplePath = join(DIST_DATA_DIR, REQUIRED_SAMPLE)
+  const samplePath = join(DIST_DATA_DIR, `${REQUIRED_SAMPLE}.txt`)
   const sampleStat = await stat(samplePath)
   if (sampleStat.size < 1024) errors.push(`${REQUIRED_SAMPLE} is unexpectedly small in dist/datasets (${sampleStat.size} bytes)`)
 
@@ -48,7 +49,7 @@ if (distSet.has(REQUIRED_SAMPLE)) {
 }
 
 console.log(`public/data/*.csv: ${publicFiles.length} files`)
-console.log(`dist/datasets/*.csv: ${distFiles.length} files`)
+console.log(`dist/datasets/*.csv.txt: ${distFiles.length} files`)
 
 if (errors.length) {
   console.error(`\n${errors.length} dist data error(s):`)
@@ -61,6 +62,15 @@ console.log('\ndist data integrity OK')
 async function listCsvFiles(dir, label) {
   try {
     return (await readdir(dir)).filter((file) => file.endsWith('.csv')).sort()
+  } catch (error) {
+    errors.push(`cannot read ${label}: ${error.message}`)
+    return []
+  }
+}
+
+async function listTxtCsvFiles(dir, label) {
+  try {
+    return (await readdir(dir)).filter((file) => file.endsWith('.csv.txt')).sort()
   } catch (error) {
     errors.push(`cannot read ${label}: ${error.message}`)
     return []
