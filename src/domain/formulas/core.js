@@ -16,11 +16,25 @@ export {
   portfolioValue,
   uniswapV2Inventory,
   uniswapV3HedgedInventory,
+  uniswapV3HedgedPosition,
   uniswapV3Inventory,
   uniswapV3Payoff,
 } from './lp.js'
-export { coveredCallFit, laplaceDensity, liquidityFingerprint, logLaplaceDensity } from './liquidity.js'
+export {
+  buildDensityComponents,
+  componentDensity,
+  componentMasses,
+  coveredCallFit,
+  fingerprintStats,
+  laplaceDensity,
+  liquidityFingerprint,
+  logLaplaceDensity,
+  normalDensity,
+  normalizeComponents,
+} from './liquidity.js'
 export { ammCurve, ammLambertCurve, lambertW, numoenSnapshot } from './amm.js'
+export { formulaEvidenceCatalog, getFormulaEvidence } from './evidence.js'
+export { resolveDeltaSlope, resolveExitTargetReturn } from './inputSemantics.js'
 
 import { normalCdf } from './probability.js'
 
@@ -53,10 +67,15 @@ export function capitalEfficiency({ rangeWidth, skew }) {
 export function fundingRate({ perpTwap, spotTwap, hours }) {
   if (![perpTwap, spotTwap, hours].every(Number.isFinite) || spotTwap <= 0 || hours < 0) return null
   const ratio = perpTwap / spotTwap - 1
+  const cumulativeFundingEstimate = ratio * (hours / 24)
   return {
+    basisEstimate: ratio,
     ratio,
-    funding: ratio * (hours / 24),
-    status: 'research-only',
+    fundingProxy: cumulativeFundingEstimate,
+    cumulativeFundingEstimate,
+    funding: cumulativeFundingEstimate,
+    hours,
+    status: 'proxy-only',
   }
 }
 
@@ -128,10 +147,15 @@ export function volConfidence({ annualVol, sampleSize = 60, confidenceLevel = 0.
   return { annualVol, se, lower, upper, relativeUncertainty, quality, sampleSize, note: `基于 ${sampleSize} 样本，波动率区间估计为 [${(lower * 100).toFixed(1)}%, ${(upper * 100).toFixed(1)}%]（区间水平 ${(confidenceLevel * 100).toFixed(0)}%）` }
 }
 
-export function netCarry({ costDistance, fundingRate, holdingDays = 1, tradingDaysPerYear = 365 }) {
-  if (![costDistance, fundingRate, holdingDays].every(Number.isFinite)) return null
-  const fundingCost = Math.abs(fundingRate) * (holdingDays / tradingDaysPerYear)
+export function netCarry({ costDistance, fundingRate, fundingCost: explicitFundingCost = null, holdingDays = 1, tradingDaysPerYear = 365 }) {
+  if (![costDistance, holdingDays, tradingDaysPerYear].every(Number.isFinite)) return null
+  const fundingCost = Number.isFinite(explicitFundingCost)
+    ? Math.abs(explicitFundingCost)
+    : Number.isFinite(fundingRate)
+      ? Math.abs(fundingRate)
+      : null
+  if (fundingCost === null) return null
   const netReturn = Math.abs(costDistance) - fundingCost
   const breakEven = fundingCost
-  return { costDistance, fundingCost, netReturn, breakEven, viable: netReturn > 0, requiredReturn: breakEven + 0.01, status: 'research-only' }
+  return { costDistance, fundingCost, netReturn, breakEven, viable: netReturn > 0, requiredReturn: breakEven + 0.01, status: 'proxy-only' }
 }

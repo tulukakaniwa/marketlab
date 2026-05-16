@@ -107,8 +107,10 @@ export const useLabStore = defineStore('lab', () => {
     input.iv = round(market.annualVol, 4)
     input.strikePrice = round(market.markPrice * 1.05, 2)
     input.startPrice = round(market.costAnchor, 2)
-    input.perpTwap = round(market.markPrice, 2)
-    input.spotTwap = round(market.costAnchor, 2)
+    if (samePrice(input.perpTwap, market.markPrice) && samePrice(input.spotTwap, market.costAnchor)) {
+      input.perpTwap = 0
+      input.spotTwap = 0
+    }
   }
 
   function setCursorIndex(index) {
@@ -221,6 +223,10 @@ export const useLabStore = defineStore('lab', () => {
 
 function round(value, digits) {
   return Number.isFinite(value) ? Number(value.toFixed(digits)) : 0
+}
+
+function samePrice(left, right) {
+  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - round(right, 2)) < 0.005
 }
 
 function clampIndex(index, length) {

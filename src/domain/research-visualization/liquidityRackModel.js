@@ -41,6 +41,14 @@ export function buildLiquidityRackModel({
     distribution: 'log-laplace',
     lowerFactor: Math.max(0.05, range.lower / basis),
     upperFactor: Math.min(20, range.upper / basis),
+    activePrice: activeRow?.close,
+    costAnchor: activeCost?.anchor,
+    targetRange: {
+      lower: activeFormula?.deltaLower ?? activeCost?.lower,
+      upper: activeFormula?.deltaUpper ?? activeCost?.upper,
+    },
+    orderLevels: orders,
+    volatility: graph?.inputs?.iv ?? graph?.market?.annualVol,
     lambda: 2,
     kappa: 1,
   })
@@ -63,7 +71,7 @@ export function buildLiquidityRackModel({
     }))
 
   return {
-    meta: buildMeta({ orders }),
+    meta: buildMeta({ orders, fingerprint }),
     range,
     basis,
     binCount: count,
@@ -73,6 +81,10 @@ export function buildLiquidityRackModel({
     markers,
     orderTicks,
     stats: buildStats({ shelves, orders, activePrice: activeRow?.close }),
+    fingerprintStats: fingerprint?.stats ?? null,
+    components: fingerprint?.components ?? [],
+    status: fingerprint?.status ?? 'research-only',
+    inputMode: fingerprint?.inputMode ?? 'model-only',
   }
 }
 
@@ -100,12 +112,19 @@ function buildShelves({ range, fingerprint, orders, activePrice, binCount }) {
     const lower = range.lower + step * i
     const upper = lower + step
     const mid = (lower + upper) / 2
-    return { lower, upper, mid, density: 0, buyNotional: 0, sellNotional: 0 }
+    return { lower, upper, mid, density: 0, baseDensity: 0, activeDensity: 0, costDensity: 0, orderDensity: 0, rangeDensity: 0, buyNotional: 0, sellNotional: 0 }
   })
 
   for (const point of fingerprint?.prices ?? []) {
     const idx = binIndex(point.price, range, count)
-    if (idx >= 0) bins[idx].density += point.density
+    if (idx >= 0) {
+      bins[idx].density += point.density
+      bins[idx].baseDensity += point.baseDensity ?? 0
+      bins[idx].activeDensity += point.activeDensity ?? 0
+      bins[idx].costDensity += point.costDensity ?? 0
+      bins[idx].orderDensity += point.orderDensity ?? 0
+      bins[idx].rangeDensity += point.rangeDensity ?? 0
+    }
   }
   for (const order of orders) {
     const idx = binIndex(order.price, range, count)
@@ -125,6 +144,13 @@ function buildShelves({ range, fingerprint, orders, activePrice, binCount }) {
     const sellWidth = scale(bin.sellNotional, maxOrder, 0, 100)
     const side = Number.isFinite(activePrice) && bin.mid < activePrice ? 'bid' : 'ask'
     const intensity = Math.max(bin.density / maxDensity, bin.buyNotional / maxOrder, bin.sellNotional / maxOrder)
+    const componentShare = {
+      base: bin.density > 0 ? bin.baseDensity / bin.density : 0,
+      active: bin.density > 0 ? bin.activeDensity / bin.density : 0,
+      cost: bin.density > 0 ? bin.costDensity / bin.density : 0,
+      orders: bin.density > 0 ? bin.orderDensity / bin.density : 0,
+      range: bin.density > 0 ? bin.rangeDensity / bin.density : 0,
+    }
     return {
       ...bin,
       side,
@@ -136,6 +162,8 @@ function buildShelves({ range, fingerprint, orders, activePrice, binCount }) {
       sellWidth,
       intensity,
       densityShare: totalDensity > 0 ? bin.density / totalDensity : 0,
+      componentShare,
+      dominantComponent: dominantComponent(componentShare),
       netNotional: bin.buyNotional - bin.sellNotional,
     }
   })
@@ -161,10 +189,12 @@ function buildStats({ shelves, orders, activePrice }) {
   }
 }
 
-function buildMeta({ orders }) {
+function buildMeta({ orders, fingerprint = null }) {
   return {
     title: '模型目标仓',
-    sourceLabel: 'OHLCV 成本锚 + log-Laplace 目标分布 + 本策略挂单',
+    sourceLabel: fingerprint?.inputMode === 'hybrid-model'
+      ? 'OHLCV 成本锚 + 现价/成本/区间/挂单成分 + log-Laplace 底层分布'
+      : 'OHLCV 成本锚 + log-Laplace 目标分布',
     compositionLabel: '不是市场盘口，也不是链上真实 LP 构成',
     orderLabel: orders.length ? '挂单刻度来自模拟挂单' : '当前未生成模拟挂单',
     purpose: [
@@ -173,7 +203,7 @@ function buildMeta({ orders }) {
       '只做研究层解释，不参与默认挂单结论。',
     ],
     layers: [
-      { label: '密度', value: '模型目标 LP 分布', note: '由成本锚附近的 log-Laplace 分布生成' },
+      { label: '密度', value: '模型目标 LP 分布', note: '由底层分布、成本锚、现价、区间和模拟挂单混合生成' },
       { label: 'BID/ASK', value: '相对现价分侧', note: '低于现价归 BID，高于现价归 ASK' },
       { label: '挂单', value: '我们的模拟刻度', note: '来自模拟挂单，不是市场订单簿' },
     ],
@@ -184,6 +214,12 @@ function buildMeta({ orders }) {
       '盘口深度、成交队列、撤单行为',
     ],
   }
+}
+
+function dominantComponent(componentShare) {
+  return Object.entries(componentShare)
+    .reduce((best, [key, value]) => value > best.value ? { key, value } : best, { key: 'base', value: -Infinity })
+    .key
 }
 
 function binIndex(price, range, count) {
@@ -219,5 +255,20 @@ function normalizeBinCount(binCount) {
 }
 
 function emptyRack(range = { lower: null, upper: null }) {
-  return { meta: buildMeta({ orders: [] }), range, basis: null, binCount: 0, priceStep: null, ticks: [], shelves: [], markers: [], orderTicks: [], stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 } }
+  return {
+    meta: buildMeta({ orders: [] }),
+    range,
+    basis: null,
+    binCount: 0,
+    priceStep: null,
+    ticks: [],
+    shelves: [],
+    markers: [],
+    orderTicks: [],
+    stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 },
+    fingerprintStats: null,
+    components: [],
+    status: 'research-only',
+    inputMode: 'model-only',
+  }
 }

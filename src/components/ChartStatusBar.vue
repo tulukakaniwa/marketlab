@@ -8,14 +8,15 @@ const props = defineProps({
 
 const emit = defineEmits(['change'])
 
-const openField = ref(null) // 'entryPrice' | 'iv' | 'holdingDays' | 'targetReturn' | null
+const openField = ref(null) // 'entryPrice' | 'iv' | 'holdingDays' | 'deltaSlope' | 'exitTargetReturn' | null
 const popoverWrapper = ref(null)
 
 const FIELDS = [
   { id: 'entryPrice',   label: '入场价', title: 'GetDelta 输入：入场价格', format: (v) => Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' },
   { id: 'iv',           label: 'IV', title: 'GetDelta 输入：年化波动率', format: (v) => Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' },
   { id: 'holdingDays',  label: '窗口', title: 'GetDelta 输入：持仓窗口', format: (v) => Number.isFinite(v) ? `${v} 天` : '—' },
-  { id: 'targetReturn', label: 'd', title: 'GetDelta 输入：目标增量 d', format: (v) => Number.isFinite(v) ? `${(v * 100).toFixed(0)}%` : '—' },
+  { id: 'deltaSlope', label: 'd', title: 'GetDelta 输入：目标增量 d', format: (v) => Number.isFinite(v) ? `${(v * 100).toFixed(0)}%` : '—' },
+  { id: 'exitTargetReturn', label: '退出', title: '执行层退出目标收益', format: (v) => Number.isFinite(v) ? `${(v * 100).toFixed(0)}%` : '—' },
 ]
 
 function open(field) {

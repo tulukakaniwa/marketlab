@@ -34,6 +34,7 @@ const markerRows = computed(() => {
 const tableShelves = computed(() => (props.model.shelves ?? [])
   .filter((shelf) => shelf.intensity > 0.2 || shelf.buyNotional > 0 || shelf.sellNotional > 0)
   .slice(0, 14))
+const visibleMarkers = computed(() => props.variant === 'expanded' ? [] : markerRows.value)
 
 function y(value) {
   return value * (height / 100)
@@ -59,6 +60,14 @@ function orderX(order) {
   return order.side === 'buy' ? center - order.width : center
 }
 
+function componentClass(shelf) {
+  return `is-${shelf.dominantComponent || 'base'}`
+}
+
+function componentLabel(value) {
+  return ({ base: '底层', active: '现价', cost: '成本', orders: '挂单', range: '区间' })[value] ?? '底层'
+}
+
 function fmt(value, digits = props.precision) {
   return Number.isFinite(value)
     ? new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: digits }).format(value)
@@ -67,6 +76,11 @@ function fmt(value, digits = props.precision) {
 
 function pct(value) {
   return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '-'
+}
+
+function notional(value) {
+  if (!Number.isFinite(value) || Math.abs(value) < 1e-9) return '—'
+  return fmt(value)
 }
 </script>
 
@@ -122,6 +136,19 @@ function pct(value) {
         />
       </g>
 
+      <g class="lf-components-track">
+        <rect
+          v-for="shelf in model.shelves"
+          :key="`c-${shelf.lower}`"
+          :class="componentClass(shelf)"
+          :x="center - 2"
+          :y="y(shelf.top)"
+          width="4"
+          :height="shelfHeight(shelf)"
+          rx="1"
+        />
+      </g>
+
       <g class="lf-orders">
         <rect
           v-for="order in model.orderTicks"
@@ -136,7 +163,7 @@ function pct(value) {
       </g>
 
       <g class="lf-markers">
-        <g v-for="marker in markerRows" :key="marker.label">
+        <g v-for="marker in visibleMarkers" :key="marker.label">
           <line :class="`tone-${marker.tone}`" x1="0" :x2="width" :y1="y(marker.y)" :y2="y(marker.y)" />
           <path
             :class="`tone-${marker.tone}`"
@@ -148,8 +175,8 @@ function pct(value) {
       </g>
 
       <g class="lf-axis-labels">
-        <text x="12" y="16">BID</text>
-        <text :x="width - 12" y="16" text-anchor="end">ASK</text>
+        <text x="12" y="16">下侧</text>
+        <text :x="width - 12" y="16" text-anchor="end">上侧</text>
       </g>
       <g class="lf-price-ticks">
         <text v-for="tick in model.ticks" :key="`t-${tick.price}`" :x="width - 8" :y="y(tick.y) - 3" text-anchor="end">
@@ -162,12 +189,14 @@ function pct(value) {
       <div class="lf-table-head">
         <span>价格区间</span>
         <span>模型密度</span>
+        <span>主成分</span>
         <span>计划挂单</span>
       </div>
       <div v-for="shelf in tableShelves" :key="`row-${shelf.lower}`" class="lf-table-row">
         <span>{{ fmt(shelf.lower) }} - {{ fmt(shelf.upper) }}</span>
         <span>{{ pct(shelf.densityShare) }}</span>
-        <span :class="shelf.netNotional >= 0 ? 'green' : 'red'">{{ fmt(shelf.netNotional) }}</span>
+        <span>{{ componentLabel(shelf.dominantComponent) }}</span>
+        <span :class="shelf.netNotional >= 0 ? 'green' : 'red'">{{ notional(shelf.netNotional) }}</span>
       </div>
     </div>
   </div>
@@ -227,6 +256,16 @@ function pct(value) {
   fill: var(--red);
 }
 
+.lf-components-track rect {
+  opacity: 0.9;
+}
+
+.lf-components-track .is-base { fill: var(--blue); }
+.lf-components-track .is-active { fill: var(--green); }
+.lf-components-track .is-cost { fill: var(--ink); }
+.lf-components-track .is-orders { fill: var(--red); }
+.lf-components-track .is-range { fill: #8b5a16; }
+
 .lf-markers line {
   stroke-width: 1.4;
   stroke-dasharray: 4 4;
@@ -279,10 +318,8 @@ function pct(value) {
   letter-spacing: 0.06em;
 }
 
-.lf-depth-wrap.expanded .lf-marker-label,
-.lf-depth-wrap.expanded .lf-marker-price,
 .lf-depth-wrap.expanded .lf-price-ticks text {
-  font-size: 11px;
+  font-size: 6px;
 }
 
 .lf-table {
@@ -297,7 +334,7 @@ function pct(value) {
 .lf-table-head,
 .lf-table-row {
   display: grid;
-  grid-template-columns: 1.35fr 0.65fr 0.8fr;
+  grid-template-columns: 1.25fr 0.55fr 0.55fr 0.7fr;
   gap: 8px;
   align-items: center;
   min-height: 28px;

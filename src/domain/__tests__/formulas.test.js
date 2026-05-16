@@ -10,9 +10,11 @@ import {
   impermanentLoss,
   lambertW,
   liquidityFingerprint,
+  netCarry,
   numoenSnapshot,
   normalCdf,
   optionLegsFromTemplate,
+  uniswapV3HedgedPosition,
   uniswapV3Inventory,
 } from '../formulas/core.js'
 
@@ -158,6 +160,30 @@ describe('LP / IL / CE / Funding', () => {
   it('fundingRate 永续溢价时为正', () => {
     const f = fundingRate({ perpTwap: 101, spotTwap: 100, hours: 8 })
     expect(f.funding).toBeGreaterThan(0)
+    expect(f.status).toBe('proxy-only')
+    expect(f.cumulativeFundingEstimate).toBeCloseTo(f.basisEstimate * 8 / 24, 10)
+  })
+  it('netCarry 直接消费累计 funding proxy，不重复乘时间', () => {
+    const c = netCarry({ costDistance: 0.1, fundingRate: 0.02, holdingDays: 30, tradingDaysPerYear: 365 })
+    expect(c.fundingCost).toBeCloseTo(0.02, 10)
+    expect(c.netReturn).toBeCloseTo(0.08, 10)
+    expect(c.status).toBe('proxy-only')
+  })
+  it('uniswapV3HedgedPosition 使用非对称真实 v3 区间', () => {
+    const lp = uniswapV3HedgedPosition({
+      markPrice: 110,
+      startPrice: 100,
+      lowerPrice: 70,
+      upperPrice: 130,
+      liquidity: 10,
+      hedgeSize: 0.2,
+      fees: 1,
+    })
+    expect(lp.status).toBe('research-only')
+    expect(lp.zone).toBe('range')
+    expect(lp.lowerPrice).toBe(70)
+    expect(lp.upperPrice).toBe(130)
+    expect(Number.isFinite(lp.combinedValue)).toBe(true)
   })
 })
 
@@ -167,6 +193,32 @@ describe('Liquidity / AMM research formulas', () => {
     const total = fp.segments.reduce((sum, seg) => sum + seg.weight, 0)
     expect(total).toBeCloseTo(1, 5)
     expect(fp.segments.every((seg, index, arr) => index === 0 || seg.lower >= arr[index - 1].upper)).toBe(true)
+  })
+
+  it('流动性指纹拆出价格、成本、区间和挂单成分', () => {
+    const fp = liquidityFingerprint({
+      entryPrice: 100,
+      activePrice: 97,
+      costAnchor: 101,
+      targetRange: { lower: 92, upper: 108 },
+      orderLevels: [
+        { side: 'buy', price: 94, notional: 1000 },
+        { side: 'sell', price: 109, notional: 600 },
+      ],
+      volatility: 0.42,
+      priceGrid: 96,
+      segmentCount: 16,
+      lowerFactor: 0.85,
+      upperFactor: 1.18,
+    })
+    expect(fp.status).toBe('research-only')
+    expect(fp.inputMode).toBe('hybrid-model')
+    expect(fp.components.map((component) => component.id)).toEqual(['base', 'active', 'cost', 'orders', 'range'])
+    expect(fp.stats.orderShare).toBeGreaterThan(0)
+    expect(fp.stats.activeShare).toBeGreaterThan(0)
+    expect(fp.segments.some((segment) => segment.componentMass.orders > 0)).toBe(true)
+    expect(fp.prices.some((point) => point.orderDensity > 0 && point.rangeDensity > 0)).toBe(true)
+    expect(fp.segments.reduce((sum, seg) => sum + seg.weight, 0)).toBeCloseTo(1, 5)
   })
 
   it('Lambert W principal branch 满足定义', () => {

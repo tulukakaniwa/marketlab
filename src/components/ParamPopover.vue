@@ -4,17 +4,18 @@ import { computed, onMounted, ref } from 'vue'
 /**
  * 单字段编辑 popover
  *
- * field: 'entryPrice' | 'iv' | 'holdingDays' | 'targetReturn'
+ * field: 'entryPrice' | 'iv' | 'holdingDays' | 'deltaSlope' | 'exitTargetReturn'
  *
  * 单位转换：
- *   - iv / targetReturn 内部存 0~5 浮点（0.4 = 40%），UI 显示 0~500 整数
+ *   - iv / deltaSlope / exitTargetReturn 内部存 0~5 浮点（0.4 = 40%），UI 显示 0~500 整数
  *   - entryPrice / holdingDays 直传
  *
  * 校验：
  *   - entryPrice > 0
  *   - iv: 1 ≤ ui ≤ 500（即 0.01 ≤ store ≤ 5）
  *   - holdingDays: 1 ≤ ui ≤ 365 整数
- *   - targetReturn: 1 ≤ ui ≤ 500，对应 GetDelta 里的目标增量 d
+ *   - deltaSlope: 1 ≤ ui ≤ 500，对应 GetDelta 里的目标增量 d
+ *   - exitTargetReturn: 0 ≤ ui ≤ 500，对应执行退出收益目标
  */
 const props = defineProps({
   field: { type: String, required: true },
@@ -27,7 +28,8 @@ const META = {
   entryPrice:   { label: '入场价',  unit: '',  step: 0.01, min: 0.01, max: 1e9, scale: 1 },
   iv:           { label: '波动率',  unit: '%', step: 0.5,  min: 1,    max: 500, scale: 0.01 },
   holdingDays:  { label: '持仓窗口', unit: '天', step: 1,    min: 1,    max: 365, scale: 1, integer: true },
-  targetReturn: { label: '目标增量 d', unit: '%', step: 0.5,  min: 1,    max: 500, scale: 0.01 },
+  deltaSlope: { label: '目标增量 d', unit: '%', step: 0.5,  min: 1,    max: 500, scale: 0.01 },
+  exitTargetReturn: { label: '退出目标', unit: '%', step: 0.5, min: 0, max: 500, scale: 0.01 },
 }
 
 const meta = computed(() => META[props.field] ?? META.entryPrice)

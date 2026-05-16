@@ -13,6 +13,7 @@ import {
   portfolioValue,
   uniswapV2Inventory,
   uniswapV3HedgedInventory,
+  uniswapV3HedgedPosition,
   uniswapV3Inventory,
 } from '../formulas/core.js'
 
@@ -86,7 +87,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
   const upperPrice = entryPrice * (1 + rangeWidth * skew)
   const rangeFactor = Math.sqrt(upperPrice / lowerPrice)
   const lpV3Raw = uniswapV3Inventory({ markPrice: entryPrice, lowerPrice, upperPrice, liquidity })
-  const lpV3Hedged = uniswapV3HedgedInventory({
+  const lpV3SymmetricApprox = uniswapV3HedgedInventory({
     markPrice: entryPrice,
     strikePrice: startPrice,
     rangeFactor,
@@ -94,12 +95,24 @@ export function buildResearchSnapshot({ market, input, executable }) {
     hedgeSize,
     fees,
   })
-  const il = impermanentLoss({ markPrice: entryPrice, startPrice, liquidity })
-  const funding = fundingRate({
-    perpTwap: positive(input.perpTwap) || entryPrice,
-    spotTwap: positive(input.spotTwap) || market.costAnchor,
-    hours: holdingDays * 24,
+  const lpV3Hedged = uniswapV3HedgedPosition({
+    markPrice: entryPrice,
+    startPrice,
+    lowerPrice,
+    upperPrice,
+    liquidity,
+    hedgeSize,
+    fees,
   })
+  const il = impermanentLoss({ markPrice: entryPrice, startPrice, liquidity })
+  const hasFundingInputs = positive(input.perpTwap) !== null && positive(input.spotTwap) !== null
+  const funding = hasFundingInputs
+    ? fundingRate({
+      perpTwap: positive(input.perpTwap),
+      spotTwap: positive(input.spotTwap),
+      hours: holdingDays * 24,
+    })
+    : null
   const optionBase = option?.price ?? 0
   const lpPortfolio = hedgedLpPortfolioCurve({
     startPrice: entryPrice,
@@ -138,6 +151,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
     lp,
     lpV3: lpV3Raw,
     lpV3Hedged,
+    lpV3SymmetricApprox,
     lpPortfolio,
     liquidityFingerprint: fingerprint,
     numoen,
@@ -150,7 +164,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
       value: portfolioValue({
         lpValue: lpV3Hedged?.value ?? 0,
         optionValue: option?.price ?? 0,
-        fundingCost: Math.abs(funding?.funding ?? 0) * capital,
+        fundingCost: Math.abs(funding?.cumulativeFundingEstimate ?? funding?.funding ?? 0) * capital,
       }),
     },
   }

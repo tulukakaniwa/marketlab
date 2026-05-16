@@ -46,7 +46,7 @@ const executionLinks = computed(() => {
     ['风险预算', `权益 × ${pct(p.riskMax)} = ${fmt(pos.riskBudget)}`],
     ['仓位上限', `权益 × ${pct(p.exposureMax)} → 最大名义 ${fmt(pos.maxNotional)}`],
     ['首笔挂单', `最大名义 × ${pct(p.firstWeight)} = ${fmt(pos.firstNotional)}`],
-    ['退出计划', `目标增量 ${pct(Number(props.input.targetReturn) || 0)}；T=${holdingDays(props.input)} 天；失效 ${fmt(pos.stopPrice)}`],
+    ['退出计划', `退出 ${pct(Number(props.input.exitTargetReturn) || 0)}；d=${pct(Number(props.input.deltaSlope ?? props.input.targetReturn) || 0)}；T=${holdingDays(props.input)} 天；失效 ${fmt(pos.stopPrice)}`],
     ['风控确认', `动量破坏 < -${pct(p.cutMomentumMin)}`],
     ['冷却', `买 ${p.buyCooldown ?? '—'} 天；卖 ${p.sellCooldown ?? '—'} 天`],
   ]

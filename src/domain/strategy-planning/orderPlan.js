@@ -1,4 +1,4 @@
-import { deviationScore, getDeltaBands } from '../formulas/core.js'
+import { deviationScore, getDeltaBands, resolveDeltaSlope, resolveExitTargetReturn } from '../formulas/core.js'
 import { buildFormulaStrategyComposition } from './formulaStrategy.js'
 import {
   resolveExecutableProfile,
@@ -219,8 +219,8 @@ export function buildPositionPlan(timing, bands, account, profile, market, execu
   const sellCap = Math.min(account.base * market.markPrice, exposureCap)
   const maxNotional = timing.side === 'buy' ? buyCap : sellCap
   const addToPrice = timing.side === 'buy' ? (bands?.long.low ?? timing.stop) : (bands?.short.high ?? timing.stop)
-  const targetReturn = Math.max(Number(executableInputs.targetReturn) || 0, 0)
-  const targetByReturn = market.markPrice * (1 + targetReturn)
+  const exitTargetReturn = resolveExitTargetReturn(executableInputs)
+  const targetByReturn = market.markPrice * (1 + exitTargetReturn)
   const plannedTarget = timing.side === 'buy' ? Math.max(timing.target, targetByReturn) : timing.target
   return {
     action: timing.action,
@@ -234,7 +234,8 @@ export function buildPositionPlan(timing, bands, account, profile, market, execu
     stopPrice: timing.stop,
     targetPrice: plannedTarget,
     referenceTargetPrice: timing.target,
-    targetReturn,
+    targetReturn: exitTargetReturn,
+    exitTargetReturn,
     addToPrice,
     holdDays: account.holdingDays,
     rule: timing.side === 'buy'
@@ -280,13 +281,14 @@ function buildExecutableContext({ market, input }) {
   const entryPrice = positive(input.entryPrice) || market.markPrice
   const holdingDays = Math.max(Number(input.holdingDays) || 1, 1)
   const iv = Math.max(Number(input.iv) || market.annualVol || 0.01, 0.01)
-  const targetReturn = Number(input.targetReturn) || 0
+  const deltaSlope = resolveDeltaSlope(input)
+  const exitTargetReturn = resolveExitTargetReturn(input)
   const capital = Math.max(Number(input.capital) || 0, 0)
   const tdpy = Number(input.tradingDaysPerYear) || 365
-  const deltaBands = getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, tradingDaysPerYear: tdpy })
+  const deltaBands = getDeltaBands({ entryPrice, holdingDays, iv, targetReturn: deltaSlope, tradingDaysPerYear: tdpy })
 
   return {
-    inputs: { entryPrice, holdingDays, iv, targetReturn, capital, costAnchor: market.costAnchor, tradingDaysPerYear: tdpy },
+    inputs: { entryPrice, holdingDays, iv, deltaSlope, exitTargetReturn, targetReturn: deltaSlope, capital, costAnchor: market.costAnchor, tradingDaysPerYear: tdpy },
     deltaBands,
   }
 }

@@ -1,5 +1,6 @@
 import { buildMarketStatePath } from '../market/cost.js'
 import { buildDecisionGraph, resolveProfile } from '../planning/orderPlan.js'
+import { resolveExitTargetReturn } from '../formulas/core.js'
 
 function warmupDays(totalRows) { return Math.min(80, Math.max(20, Math.floor(totalRows * 0.03))) }
 
@@ -343,7 +344,7 @@ function holdingDays(input) {
 }
 
 function targetReturn(input) {
-  return Math.max(Number(input?.targetReturn) || 0, 0)
+  return resolveExitTargetReturn(input)
 }
 
 function positive(value) {

@@ -30,7 +30,8 @@ describe('buildDecisionGraph', () => {
     entryPrice: market.markPrice,
     holdingDays: 30,
     iv: market.annualVol,
-    targetReturn: 0.3,
+    deltaSlope: 0.3,
+    exitTargetReturn: 0,
     capital: 10000,
     baseNotional: 0,
     strategyProfile: 'balanced',
@@ -62,6 +63,30 @@ describe('buildDecisionGraph', () => {
     expect(g.formulaStrategy.formulaBasis.sourceId).toBe('943334771f')
     expect(g.formulaStrategy.formulaBasis.terms.map((row) => row[0])).toContain('r_T')
     expect(g.plan.primaryOrders.every(o => Number.isFinite(o.price))).toBe(true)
+  })
+
+  it('deltaSlope 驱动 GetDelta，exitTargetReturn 独立驱动退出目标', () => {
+    const buyMarket = {
+      rows: 120,
+      markPrice: 90,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: -0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentum5: 0.03,
+      momentum20: 0.01,
+      costSlope5: 0,
+    }
+    const input = { ...baseInput, entryPrice: 100, iv: 0.4, deltaSlope: 0.12, exitTargetReturn: 0.25 }
+    const g = buildDecisionGraph({ market: buyMarket, input })
+    expect(g.inputs.deltaSlope).toBe(0.12)
+    expect(g.inputs.exitTargetReturn).toBe(0.25)
+    expect(g.deltaBands.variables.d).toBe(0.12)
+    expect(g.position.exitTargetReturn).toBe(0.25)
+    expect(g.plan.primaryOrders[0]?.targetReturn).toBe(0.25)
   })
 
   it('折价 + 动量止跌时使用市场缩放 profile 生成买入挂单', () => {

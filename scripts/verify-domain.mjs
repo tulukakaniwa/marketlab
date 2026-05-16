@@ -83,7 +83,8 @@ const graph = buildDecisionGraph({
     entryPrice: market.markPrice,
     holdingDays: 30,
     iv: market.annualVol,
-    targetReturn: 0.3,
+    deltaSlope: 0.3,
+    exitTargetReturn: 0,
     capital: 10000,
     baseNotional: 0,
     strategyProfile: 'balanced',
@@ -96,8 +97,6 @@ const graph = buildDecisionGraph({
     liquidity: 1,
     hedgeSize: 0,
     fees: 0,
-    perpTwap: market.markPrice,
-    spotTwap: market.costAnchor,
   },
 })
 assert.ok(['buy', 'sell', null].includes(graph.decision.timing.side))
@@ -122,7 +121,8 @@ const formulaPath = buildFormulaPath(rows, {
   entryPrice: market.markPrice,
   holdingDays: 30,
   iv: market.annualVol,
-  targetReturn: 0.3,
+  deltaSlope: 0.3,
+  exitTargetReturn: 0,
   strikePrice: market.markPrice * 1.05,
   riskFreeRate: 0.04,
   optionType: 'put',
@@ -135,7 +135,25 @@ const formulaPath = buildFormulaPath(rows, {
 assert.equal(formulaPath.length, rows.length)
 assert.ok(formulaPath.some((row) => Number.isFinite(row.deltaUpper)))
 assert.ok(formulaPath.some((row) => Number.isFinite(row.optionDelta)))
-assert.ok(formulaPath.some((row) => Number.isFinite(row.lpInventoryDelta)))
+assert.ok(formulaPath.some((row) => Number.isFinite(row.lpNormalizedDelta)))
+assert.equal(formulaPath.some((row) => Number.isFinite(row.fundingProxy)), false)
+assert.equal(formulaPath.at(-1).fieldStates.fundingProxy.missingInputs.includes('perpTwap'), true)
+const fundingFormulaPath = buildFormulaPath(rows.slice(-120), {
+  entryPrice: market.markPrice,
+  holdingDays: 1,
+  iv: market.annualVol,
+  deltaSlope: 0.3,
+  exitTargetReturn: 0,
+  startPrice: market.costAnchor,
+  rangeWidth: 0.1,
+  skew: 1,
+  liquidity: 1,
+  perpTwap: 101,
+  spotTwap: 100,
+  pathUsesScenarioInputs: false,
+})
+assert.ok(fundingFormulaPath.some((row) => Number.isFinite(row.fundingProxy)))
+assert.ok(fundingFormulaPath.some((row) => Number.isFinite(row.netCarry)))
 assert.equal(formulaPath.every((row) => {
   if (![row.deltaLower, row.deltaCost, row.deltaUpper].every(Number.isFinite)) return true
   return row.deltaLower < row.deltaCost && row.deltaCost < row.deltaUpper

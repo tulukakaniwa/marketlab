@@ -49,6 +49,8 @@ describe('useLabStore（v3 重写后契约）', () => {
   it('初始 input 默认值正确', () => {
     const lab = useLabStore()
     expect(lab.input.holdingDays).toBe(30)
+    expect(lab.input.deltaSlope).toBe(0.3)
+    expect(lab.input.exitTargetReturn).toBe(0)
     expect(lab.input.targetReturn).toBe(0.3)
     expect(lab.featureFlags.replayAccount).toBe(false)
     expect(lab.featureFlags.replayAutoProfile).toBe(false)
@@ -184,9 +186,9 @@ describe('useLabStore（v3 重写后契约）', () => {
 
   it('chartOverlays 单字段切换生效', () => {
     const lab = useLabStore()
-    expect(lab.chartOverlays.deltaPane).toBe(false)
-    lab.chartOverlays.deltaPane = true
-    expect(lab.chartOverlays.deltaPane).toBe(true)
+    expect(lab.chartOverlays.greeksPane).toBe(false)
+    lab.chartOverlays.greeksPane = true
+    expect(lab.chartOverlays.greeksPane).toBe(true)
   })
 
   it('setLeftPanelW / setRightPanelW 在合法范围内生效', () => {

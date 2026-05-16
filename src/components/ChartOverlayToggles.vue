@@ -1,26 +1,14 @@
 <script setup>
+import { CHART_OVERLAY_TOGGLES } from './chartOverlayToggles.js'
+
 defineProps({
   overlays: { type: Object, required: true },
 })
-
-const TOGGLES = [
-  { key: 'costBand', label: '成本锚带' },
-  { key: 'entryLine', label: '入场价线' },
-  { key: 'volBand', label: '波动带' },
-  { key: 'volume', label: '成交量' },
-  { key: 'replayMarkers', label: '回放标记' },
-  { key: 'replayMarkerLabels', label: '回放文字' },
-  { key: 'currentDecision', label: '当前状态点' },
-  { key: 'deltaPane', label: 'Δ 子图' },
-  { key: 'equityPane', label: '权益子图' },
-  { key: 'kdjPane', label: 'KDJ 子图' },
-  { key: 'rsiPane', label: 'RSI 子图' },
-]
 </script>
 
 <template>
   <div class="cot-grid">
-    <label v-for="t in TOGGLES" :key="t.key" class="cot-row">
+    <label v-for="t in CHART_OVERLAY_TOGGLES" :key="t.key" class="cot-row">
       <input type="checkbox" v-model="overlays[t.key]" />
       <span>{{ t.label }}</span>
     </label>

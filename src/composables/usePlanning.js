@@ -14,10 +14,12 @@ import { persistedReactive, persistedRef } from './usePersisted.js'
  * input 保持默认事实工作台语义；三栏、拖宽、公式选中态属于 ViewModel UI 状态。
  */
 export function usePlanning() {
-  const input = persistedReactive('lab.input.v4', {
+  const input = persistedReactive('lab.input.v5', {
     entryPrice: 0,
     holdingDays: 30,
     iv: 0,
+    deltaSlope: 0.3,
+    exitTargetReturn: 0,
     targetReturn: 0.3,
     capital: 0,
     baseNotional: 0,

@@ -22,7 +22,7 @@ export function buildFormulaStrategyComposition({ market, executable, timing, po
         formula: 'P,T,s,d → r_T → K → L/H',
         status: '已接入',
         value: longBand ? `${fmt(longBand.low)} / ${fmt(longBand.cost)} / ${fmt(longBand.high)}` : '等待输入',
-        role: `P=${fmt(inputs.entryPrice)}，T=${inputs.holdingDays ?? '—'} 天，s=${pct(inputs.iv)}，d=${pct(inputs.targetReturn)}。`,
+        role: `P=${fmt(inputs.entryPrice)}，T=${inputs.holdingDays ?? '—'} 天，s=${pct(inputs.iv)}，d=${pct(inputs.deltaSlope ?? inputs.targetReturn)}。`,
       },
       {
         id: 'deviation-score',
@@ -43,7 +43,7 @@ export function buildFormulaStrategyComposition({ market, executable, timing, po
     ],
     executionParams: [
       ['执行档位', '只调过滤、仓位和冷却，不新增公式'],
-      ['公式输入', `d=${pct(inputs.targetReturn)}；T=${inputs.holdingDays ?? '—'} 天`],
+      ['公式输入', `d=${pct(inputs.deltaSlope ?? inputs.targetReturn)}；T=${inputs.holdingDays ?? '—'} 天`],
       ['候选订单', primaryOrders.length ? `${primaryOrders.length} 档` : '未触发或缺账户'],
     ],
     researchOnly: [
@@ -70,7 +70,7 @@ export function buildFormulaBasis(bands, inputs = {}) {
       ['P', '入场/观察价', fmt(inputs.entryPrice)],
       ['T', '持仓/到期天数', `${fmtRaw(inputs.holdingDays)} 天`],
       ['s', '年化 IV', pct(inputs.iv)],
-      ['d', '目标增量', pct(inputs.targetReturn)],
+      ['d', '目标增量', pct(inputs.deltaSlope ?? inputs.targetReturn)],
     ],
     terms: [
       ['a', 's√(T/(N·2π))', fixed(bands?.wave, 4)],

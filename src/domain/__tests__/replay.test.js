@@ -22,7 +22,8 @@ describe('buildDailyReplay', () => {
   const rows = makeRows(200, i => 100 + Math.sin(i / 8) * 10)
   const baseInput = {
     holdingDays: 30,
-    targetReturn: 0.3,
+    deltaSlope: 0.3,
+    exitTargetReturn: 0,
     capital: 10000,
     strategyProfile: 'balanced',
     rangeWidth: 0.1,
@@ -109,7 +110,7 @@ describe('buildDailyReplay', () => {
     }
   })
 
-  it('回放退出使用目标增量和持仓窗口，不再用隐藏短线阈值', () => {
+  it('回放退出使用退出目标和持仓窗口，不再用隐藏短线阈值', () => {
     const planRows = makeRows(80, () => 90).map((row, index) => ({
       ...row,
       high: index === 25 ? 118 : 91,
@@ -127,7 +128,7 @@ describe('buildDailyReplay', () => {
       costSlope5: 0,
       momentum5: 0.03,
     }))
-    const replay = buildDailyReplay(planRows, { ...baseInput, holdingDays: 10, targetReturn: 0.3 }, marketStates)
+    const replay = buildDailyReplay(planRows, { ...baseInput, holdingDays: 10, exitTargetReturn: 0.3 }, marketStates)
     const buy = replay.trades.find((trade) => trade.side === 'buy')
     const sell = replay.trades.find((trade) => trade.side === 'sell')
 

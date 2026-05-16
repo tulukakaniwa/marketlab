@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "pnpm run check:size && pnpm run check:data && pnpm run verify:domain && vite build",
     "verify:domain": "node scripts/verify-domain.mjs",
+    "audit:formulas": "uv run --no-project --with poetry poetry check && uv run --no-project python scripts/source_coverage_audit.py && uv run --no-project python scripts/formula_inventory_audit.py && uv run --no-project python scripts/formula_wiring_audit.py && uv run --no-project python scripts/chart_formula_audit.py && uv run --no-project python scripts/formula_audit.py",
     "verify:pine": "node scripts/verify-pine.mjs",
     "check:data": "node scripts/check-data-index.mjs",
     "check:size": "node scripts/check-file-size.mjs",

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-vue-next'
 import { buildLiquidityRackModel } from '../domain/research-visualization/liquidityRackModel.js'
+import LiquidityComponentStrip from './LiquidityComponentStrip.vue'
 import LiquidityRackDepth from './LiquidityRackDepth.vue'
 
 const props = defineProps({
@@ -20,7 +21,6 @@ const expandedModel = computed(() => rackModel({
   binCount: 48 + zoom.value * 24,
   visibleWindow: 120 + zoom.value * 40,
 }))
-
 const precision = computed(() => {
   const step = expanded.value ? expandedModel.value.priceStep : compactModel.value.priceStep
   if (!Number.isFinite(step)) return 2
@@ -65,6 +65,7 @@ function fmt(value, digits = precision.value) {
 function pct(value) {
   return Number.isFinite(value) ? `${(value * 100).toFixed(0)}%` : '-'
 }
+
 </script>
 
 <template>
@@ -87,18 +88,20 @@ function pct(value) {
       <span>{{ compactModel.meta.compositionLabel }}</span>
     </div>
 
+    <LiquidityComponentStrip :model="compactModel" />
+
     <div class="lf-range">
       <span>{{ fmt(compactModel.range.upper) }}</span>
-      <b>{{ compactModel.binCount }} 档</b>
+      <b>{{ compactModel.inputMode === 'hybrid-model' ? '混合模型' : `${compactModel.binCount} 档` }}</b>
       <span>{{ fmt(compactModel.range.lower) }}</span>
     </div>
 
     <LiquidityRackDepth :model="compactModel" variant="compact" :precision="precision" />
 
     <footer class="lf-foot">
-      <div><b>{{ pct(compactModel.stats.peakWeight) }}</b><span>峰值热度</span></div>
-      <div><b>{{ pct(compactModel.stats.belowShare) }}</b><span>下方密度</span></div>
-      <div><b>{{ compactModel.stats.orderCount }}</b><span>挂单刻度</span></div>
+      <div><b>{{ pct(compactModel.fingerprintStats?.entropy) }}</b><span>分散度</span></div>
+      <div><b>{{ pct(compactModel.fingerprintStats?.orderShare) }}</b><span>挂单权重</span></div>
+      <div><b>{{ compactModel.fingerprintStats?.modeCount ?? 0 }}</b><span>峰数</span></div>
     </footer>
   </aside>
 
@@ -130,7 +133,7 @@ function pct(value) {
           <div><span>价格上沿</span><b>{{ fmt(expandedModel.range.upper) }}</b></div>
           <div><span>价格下沿</span><b>{{ fmt(expandedModel.range.lower) }}</b></div>
           <div><span>单档跨度</span><b>{{ fmt(expandedModel.priceStep) }}</b></div>
-          <div><span>精度</span><b>{{ expandedModel.binCount }} 档</b></div>
+          <div><span>模型状态</span><b>{{ expandedModel.inputMode }} / {{ expandedModel.status }}</b></div>
         </div>
 
         <div class="lf-explain">
@@ -150,6 +153,8 @@ function pct(value) {
             <small>{{ expandedModel.meta.missing.slice(0, 2).join(' / ') }}</small>
           </article>
         </div>
+
+        <LiquidityComponentStrip :model="expandedModel" />
 
         <div class="lf-layer-row">
           <div v-for="layer in expandedModel.meta.layers" :key="layer.label">
@@ -173,7 +178,7 @@ function pct(value) {
 <style scoped>
 .lf-rack {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
   min-width: 0;
   border-left: 1px solid var(--line);
   background: var(--surface);

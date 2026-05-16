@@ -37,6 +37,8 @@ export function uniswapV3Inventory({ markPrice, lowerPrice, upperPrice, liquidit
     token1,
     value: token0 * markPrice + token1,
     inventoryDelta: token0,
+    zone: markPrice <= lowerPrice ? 'token0' : markPrice >= upperPrice ? 'token1' : 'range',
+    status: 'research-only',
   }
 }
 
@@ -73,6 +75,32 @@ export function uniswapV3HedgedInventory({ markPrice, strikePrice, rangeFactor, 
     lowerPrice: strikePrice / rangeFactor,
     upperPrice: strikePrice * rangeFactor,
     zone: currentPayoff.zone,
+  }
+}
+
+export function uniswapV3HedgedPosition({ markPrice, startPrice, lowerPrice, upperPrice, liquidity, hedgeSize = 0, fees = 0 }) {
+  if (![markPrice, startPrice, lowerPrice, upperPrice, liquidity, hedgeSize, fees].every(Number.isFinite)) return null
+  if (markPrice <= 0 || startPrice <= 0 || lowerPrice <= 0 || upperPrice <= lowerPrice || liquidity < 0) return null
+
+  const current = uniswapV3Inventory({ markPrice, lowerPrice, upperPrice, liquidity })
+  const entry = uniswapV3Inventory({ markPrice: startPrice, lowerPrice, upperPrice, liquidity })
+  if (!current || !entry) return null
+
+  const lpPnl = current.value - entry.value
+  const hedgePnl = -hedgeSize * (markPrice - startPrice)
+  const feeIncome = fees
+  const combinedValue = lpPnl + hedgePnl + feeIncome
+  return {
+    value: combinedValue,
+    combinedValue,
+    lpPnl,
+    hedgePnl,
+    feeIncome,
+    lowerPrice,
+    upperPrice,
+    startPrice,
+    zone: markPrice <= lowerPrice ? 'token0' : markPrice >= upperPrice ? 'token1' : 'range',
+    status: 'research-only',
   }
 }
 
