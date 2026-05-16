@@ -33,6 +33,9 @@ importers:
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
+      rolldown:
+        specifier: 1.0.0
+        version: 1.0.0
       vite:
         specifier: ^8.0.12
         version: 8.0.12
@@ -667,6 +670,7 @@ packages:
 
   lucide-vue-next@1.0.0:
     resolution: {integrity: sha512-V6SPvx1IHTj/UY+FrIYWV5faISsPSb8BnWSFDxAtezWKvWc9ZZ40PDrdu1/Qb5vg4lHWr1hs1BAMGVGm6V1Xdg==}
+    deprecated: Package deprecated. Please use @lucide/vue instead.
     peerDependencies:
       vue: '>=3.0.1'
 
