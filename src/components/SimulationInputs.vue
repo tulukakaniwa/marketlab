@@ -30,14 +30,14 @@ function fmt(value) {
   <div class="si-card">
     <div class="si-card-head">
       <strong>GetDelta 价格带</strong>
-      <small>入场价 + IV + 窗口 + 目标</small>
+      <small>P + T + s + d</small>
     </div>
 
     <div class="si-form">
       <label><span>入场价</span><input v-model.number="input.entryPrice" type="number" step="0.01" /></label>
       <label><span>窗口</span><input v-model.number="input.holdingDays" type="number" min="1" step="1" /></label>
       <label><span>波动率%</span><input v-model.number="ivP" type="number" step="0.5" /></label>
-      <label><span>目标%</span><input v-model.number="trP" type="number" step="0.5" /></label>
+      <label><span>目标增量 d%</span><input v-model.number="trP" type="number" step="0.5" /></label>
     </div>
     <p class="si-link">多头低/成本/高：{{ bandText }}。模拟挂单继续叠加成本带、策略档位和账户权益。</p>
   </div>

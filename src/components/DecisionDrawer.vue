@@ -269,7 +269,7 @@ function moveSection(id, delta) {
 
     <DisclosureSection
       title="策略档位"
-      :meta="autoProfile ? '回测选档' : activeProfileLabel"
+      :meta="autoProfile ? '回放选档' : activeProfileLabel"
       :default-open="false"
       storage-key="decision.profile"
       tone="muted"
@@ -281,7 +281,7 @@ function moveSection(id, delta) {
       @move-down="moveSection('profile', 1)"
     >
       <div class="dd-profile-tabs">
-        <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">回测选档</button>
+        <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">回放选档</button>
         <button
           v-for="p in profileList"
           :key="p.id"
@@ -289,8 +289,8 @@ function moveSection(id, delta) {
           @click="emit('set-profile', p.id)"
         >{{ p.label }}</button>
       </div>
-      <p v-if="!replayEnabled" class="replay-empty">回测引擎未启用。策略档位只使用手动选择，不由回测结果反向改写信号条件。</p>
-      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">缺少账户资金或底仓名义，暂不显示策略档位回测评分。</p>
+      <p v-if="!replayEnabled" class="replay-empty">现货路径回放未启用。策略档位只使用手动选择，不由回放结果反向改写信号条件。</p>
+      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">缺少账户资金或底仓名义，暂不显示策略档位路径评分。</p>
       <ul v-else class="dd-profile-grid">
         <li v-for="item in profileReplays" :key="item.profile.id" :class="{ active: item.profile.id === activeProfileId }">
           <span>{{ item.profile.label }}</span>
@@ -302,7 +302,7 @@ function moveSection(id, delta) {
 
     <DisclosureSection
       v-if="replayEnabled"
-      title="回测结果"
+      title="现货回放"
       :meta="replayMeta"
       :default-open="false"
       storage-key="decision.replay"

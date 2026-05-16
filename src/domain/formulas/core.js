@@ -1,5 +1,14 @@
 export { normalCdf, normalPdf, inverseNormalCdf, integrateTrapezoid } from './probability.js'
-export { asianOption, bachelierOption, blackScholes, getDeltaBands, riskSurface } from './options.js'
+export {
+  GET_DELTA_SOURCE,
+  asianOption,
+  bachelierOption,
+  blackScholes,
+  getDeltaBandSlope,
+  getDeltaBandValue,
+  getDeltaBands,
+  riskSurface,
+} from './options.js'
 export { buildOptionPortfolio, optionLegsFromTemplate, normalizeOptionLegs } from './optionPortfolio.js'
 export {
   hedgedLpPortfolioCurve,

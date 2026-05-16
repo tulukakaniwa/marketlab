@@ -36,6 +36,8 @@ function emptyReplay() {
     profileId: '',
     profileLabel: '',
     range: '',
+    startDate: '',
+    endDate: '',
     trades: [],
     equityCurve: [],
     tradeCount: 0,

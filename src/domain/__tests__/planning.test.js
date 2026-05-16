@@ -58,6 +58,9 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.triggeredConditions).toBeDefined()
     expect(g.decision.blockedReasons).toBeDefined()
     expect(g.decision.missingInputs).toBeDefined()
+    expect(g.formulaStrategy.steps.map((step) => step.id)).toEqual(['cost', 'delta-band', 'deviation-score', 'order-plan'])
+    expect(g.formulaStrategy.formulaBasis.sourceId).toBe('943334771f')
+    expect(g.formulaStrategy.formulaBasis.terms.map((row) => row[0])).toContain('r_T')
     expect(g.plan.primaryOrders.every(o => Number.isFinite(o.price))).toBe(true)
   })
 
@@ -82,6 +85,27 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.timing.side).toBe('buy')
     expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
     expect(g.plan.primaryOrders.every(o => o.side === 'buy')).toBe(true)
+  })
+
+  it('偏离强度使用自有公式里的持仓窗口口径', () => {
+    const buyMarket = {
+      rows: 120,
+      markPrice: 90,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: -0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentum5: 0.03,
+      momentum20: 0.01,
+      costSlope5: 0,
+    }
+    const short = buildDecisionGraph({ market: buyMarket, input: { ...baseInput, holdingDays: 1, entryPrice: 100, iv: 0.4 } })
+    const long = buildDecisionGraph({ market: buyMarket, input: { ...baseInput, holdingDays: 30, entryPrice: 100, iv: 0.4 } })
+    expect(Math.abs(long.decision.timing.zScore)).toBeLessThan(Math.abs(short.decision.timing.zScore))
+    expect(long.formulaStrategy.steps.find((step) => step.id === 'deviation-score').formula).toBe('costDistance / periodVol')
   })
 
   it('无账户资金输入时不生成名义金额和候选订单', () => {

@@ -89,7 +89,7 @@ function applyOverlays() {
   toggle('lpDelta', o.deltaPane, () => chart.addSeries(LineSeries, deltaLine('LP Δ', '#0e7558'), 2))
   toggle('zero', o.deltaPane, () => chart.addSeries(LineSeries, deltaLine('Δ=0', '#888', LineStyle.Dashed), 2))
   toggle('equity', o.equityPane, () => chart.addSeries(LineSeries, {
-    title: '回测权益', color: '#1f5fbf', lineWidth: 2,
+    title: '回放权益', color: '#1f5fbf', lineWidth: 2,
     priceLineVisible: false, lastValueVisible: true,
     priceFormat: { type: 'price', precision: 0, minMove: 1 },
   }, 3))

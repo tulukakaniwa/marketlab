@@ -13,7 +13,17 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   if (capital <= 0 && initialBaseNotional <= 0) {
     return { ...emptyReplay(), status: 'missing-account-input' }
   }
-  const initialPrice = rows[WARMUP]?.close ?? rows[0]?.close ?? 0
+  const startIndex = replayStartIndex(rows, input.accountStartDate, WARMUP)
+  if (rows.length <= startIndex + 2) {
+    return {
+      ...emptyReplay(),
+      status: 'insufficient-range',
+      startDate: rows[startIndex]?.date ?? '',
+      endDate: rows.at(-1)?.date ?? '',
+      range: rows[startIndex]?.date ? `${rows[startIndex].date} ~ ${rows.at(-1)?.date}` : '',
+    }
+  }
+  const initialPrice = rows[startIndex]?.close ?? rows[WARMUP]?.close ?? rows[0]?.close ?? 0
   const accountCapital = capital + initialBaseNotional
   const fee = feeRate(input)
   const profile = resolveProfile(input.strategyProfile, input)
@@ -27,13 +37,15 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   let cash = capital
   let base = initialPrice > 0 ? initialBaseNotional / initialPrice : 0
   let costBasis = initialBaseNotional
-  let nextSignalIndex = WARMUP
+  let nextSignalIndex = startIndex
   let pendingOrder = null
+  let exitPlan = initialExitPlan({ initialBaseNotional, initialPrice, startIndex, states, input })
+  let lastFormulaStrategy = null
 
-  for (let index = WARMUP; index < rows.length; index += 1) {
+  for (let index = startIndex; index < rows.length; index += 1) {
     const row = rows[index]
     const market = states[index]
-    const accountAction = accountExit({ row, index, market, cash, base, costBasis, fee, profile })
+    const accountAction = accountExit({ row, index, market, cash, base, costBasis, fee, profile, exitPlan, input })
     if (accountAction) {
       cash = accountAction.cash
       base = accountAction.base
@@ -41,17 +53,33 @@ export function buildDailyReplay(rows, input, marketStates = null) {
       events.push(accountAction.event)
       nextSignalIndex = index + profile.buyCooldown
       pendingOrder = null
+      exitPlan = null
     }
 
     if (pendingOrder && pendingOrder.expiresAt < index) pendingOrder = null
     if (pendingOrder) {
       const fill = fillPendingOrder({ row, index, pendingOrder })
       if (fill) {
+        const previousBase = base
         const applied = applyFill({ pendingOrder, fill, cash, base, costBasis, fee })
         if (applied) {
           cash = applied.cash
           base = applied.base
           costBasis = applied.costBasis
+          if (pendingOrder.order.side === 'buy') {
+            const nextPlan = orderExitPlan({ order: pendingOrder.order, formulaStrategy: pendingOrder.formulaStrategy, fill, input })
+            applied.event.targetPrice = nextPlan.targetPrice
+            applied.event.stopPrice = nextPlan.stopPrice
+            applied.event.expiresAt = nextPlan.expiresAt
+            exitPlan = mergeExitPlan({
+              currentPlan: exitPlan,
+              currentBase: previousBase,
+              addedBase: applied.event.baseAmount,
+              nextPlan,
+            })
+          } else if (base <= 0) {
+            exitPlan = null
+          }
           events.push(applied.event)
           nextSignalIndex = index + (pendingOrder.order.side === 'buy' ? profile.buyCooldown : profile.sellCooldown)
         }
@@ -68,26 +96,43 @@ export function buildDailyReplay(rows, input, marketStates = null) {
       input: replayInput(input, market, profile),
       account: { cash, base, costBasis },
     })
+    lastFormulaStrategy = graph.formulaStrategy ?? lastFormulaStrategy
     const order = chooseAccountOrder(graph, { cash, base, markPrice: row.close })
     if (!order) continue
     pendingOrder = {
       order,
+      formulaStrategy: graph.formulaStrategy,
       signalDate: row.date,
       signalIndex: index,
       expiresAt: Math.min(rows.length - 1, index + 1),
     }
   }
 
-  return summarize({ rows, events, equityCurve, cash, base, costBasis, capital: accountCapital, profile })
+  return summarize({ rows, events, equityCurve, cash, base, costBasis, capital: accountCapital, profile, startIndex, formulaStrategy: lastFormulaStrategy })
 }
 
-function accountExit({ row, index, market, cash, base, costBasis, fee, profile }) {
+function engineScope() {
+  return {
+    id: 'spot-path-replay',
+    label: '现货路径回放',
+    status: 'partial',
+    includes: ['现金', '现货底仓', '下一根 K 线限价成交', '目标/失效/到期退出'],
+    excludes: ['期权腿生命周期', 'LP 区间库存', '手续费真实累积', '资金费率结算', '流动性重分配治理'],
+  }
+}
+
+function replayStartIndex(rows, accountStartDate, warmup) {
+  const requested = String(accountStartDate ?? '').trim()
+  if (!requested) return warmup
+  const index = rows.findIndex((row) => row.date >= requested)
+  if (index < 0) return Math.max(warmup, rows.length - 1)
+  return Math.max(warmup, index)
+}
+
+function accountExit({ row, index, market, cash, base, costBasis, fee, profile, exitPlan, input }) {
   if (base <= 0) return null
   const averageCost = costBasis / base
-  const profitThreshold = Math.max(market.atrPercent * profile.takeProfitAtr, profile.takeProfitMin)
-  const minProfitPrice = averageCost * (1 + profitThreshold)
-  const regressionPrice = market.costAnchor > averageCost ? market.costAnchor : Infinity
-  const target = Math.min(minProfitPrice, regressionPrice)
+  const target = finite(exitPlan?.targetPrice) ? exitPlan.targetPrice : averageCost * (1 + targetReturn(input))
   if (row.high >= target) {
     return closeAccountPosition({
       row,
@@ -97,7 +142,21 @@ function accountExit({ row, index, market, cash, base, costBasis, fee, profile }
       costBasis,
       fee,
       price: target,
-      reason: '回到成本',
+      reason: '目标',
+      formulaStrategy: exitPlan?.formulaStrategy,
+    })
+  }
+  if (finite(exitPlan?.stopPrice) && row.close <= exitPlan.stopPrice) {
+    return closeAccountPosition({
+      row,
+      index,
+      cash,
+      base,
+      costBasis,
+      fee,
+      price: row.close,
+      reason: '失效',
+      formulaStrategy: exitPlan?.formulaStrategy,
     })
   }
   const cutMomentum = Math.max(market.atrPercent * profile.cutMomentumAtr, profile.cutMomentumMin)
@@ -111,12 +170,26 @@ function accountExit({ row, index, market, cash, base, costBasis, fee, profile }
       fee,
       price: row.close,
       reason: '风控',
+      formulaStrategy: exitPlan?.formulaStrategy,
+    })
+  }
+  if (Number.isFinite(exitPlan?.expiresAt) && index >= exitPlan.expiresAt) {
+    return closeAccountPosition({
+      row,
+      index,
+      cash,
+      base,
+      costBasis,
+      fee,
+      price: row.close,
+      reason: '到期',
+      formulaStrategy: exitPlan?.formulaStrategy,
     })
   }
   return null
 }
 
-function closeAccountPosition({ row, index, cash, base, costBasis, fee, price, reason }) {
+function closeAccountPosition({ row, index, cash, base, costBasis, fee, price, reason, formulaStrategy }) {
   const sellBase = base
   const averageCost = costBasis / base
   const proceeds = sellBase * price * (1 - fee)
@@ -137,6 +210,7 @@ function closeAccountPosition({ row, index, cash, base, costBasis, fee, price, r
       pnl: proceeds - averageCost * sellBase,
       returnRate: averageCost > 0 ? (price - averageCost) / averageCost : 0,
       reason,
+      formulaStrategy: formulaStrategySnapshot(formulaStrategy),
     },
   }
 }
@@ -146,8 +220,7 @@ function replayInput(input, market, profile) {
     ...input,
     strategyProfile: profile.id,
     entryPrice: market.markPrice,
-    // Replay 只评估下一根日线是否触发，不消费用户设定的未来持有窗口。
-    holdingDays: 1,
+    holdingDays: holdingDays(input),
     iv: market.annualVol,
     strikePrice: market.markPrice * 1.05,
     startPrice: market.costAnchor,
@@ -182,7 +255,7 @@ function applyFill({ pendingOrder, fill, cash, base, costBasis, fee }) {
       cash: cash - spend,
       base: base + acquired,
       costBasis: costBasis + spend,
-      event: eventRow({ order, signalDate, signalIndex: pendingOrder.signalIndex, fill, pnl: 0, reason: '建仓', notional: spend, baseAmount: acquired, investedCost: spend }),
+      event: eventRow({ order, formulaStrategy: pendingOrder.formulaStrategy, signalDate, signalIndex: pendingOrder.signalIndex, fill, pnl: 0, reason: '建仓', notional: spend, baseAmount: acquired, investedCost: spend }),
     }
   }
   const sellBase = Math.min(base, order.notional / fill.price)
@@ -195,11 +268,11 @@ function applyFill({ pendingOrder, fill, cash, base, costBasis, fee }) {
     cash: cash + proceeds,
     base: nextBase < 1e-12 ? 0 : nextBase,
     costBasis: nextBase < 1e-12 ? 0 : Math.max(0, costBasis - removedCost),
-    event: eventRow({ order, signalDate, signalIndex: pendingOrder.signalIndex, fill, pnl: proceeds - removedCost, reason: '减仓', notional: sellBase * fill.price, baseAmount: sellBase, investedCost: removedCost }),
+    event: eventRow({ order, formulaStrategy: pendingOrder.formulaStrategy, signalDate, signalIndex: pendingOrder.signalIndex, fill, pnl: proceeds - removedCost, reason: '减仓', notional: sellBase * fill.price, baseAmount: sellBase, investedCost: removedCost }),
   }
 }
 
-function eventRow({ order, signalDate, signalIndex = null, fill, pnl, reason, notional, baseAmount, investedCost }) {
+function eventRow({ order, formulaStrategy, signalDate, signalIndex = null, fill, pnl, reason, notional, baseAmount, investedCost }) {
   return {
     side: order.side,
     signalDate,
@@ -209,15 +282,80 @@ function eventRow({ order, signalDate, signalIndex = null, fill, pnl, reason, no
     exitIndex: fill.index,
     fillPrice: fill.price,
     exitPrice: fill.price,
+    targetPrice: order.targetPrice,
+    stopPrice: order.stopPrice,
+    expiresAt: Number.isFinite(order.holdDays) ? fill.index + order.holdDays : null,
     notional,
     baseAmount,
     pnl,
     returnRate: investedCost > 0 ? pnl / investedCost : 0,
     reason,
+    formulaStrategy: formulaStrategySnapshot(formulaStrategy),
   }
 }
 
-function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, profile }) {
+function initialExitPlan({ initialBaseNotional, initialPrice, startIndex, states, input }) {
+  if (initialBaseNotional <= 0 || initialPrice <= 0) return null
+  const market = states[startIndex] ?? null
+  return {
+    targetPrice: initialPrice * (1 + targetReturn(input)),
+    stopPrice: finite(market?.costLow) ? market.costLow : null,
+    expiresAt: startIndex + holdingDays(input),
+  }
+}
+
+function orderExitPlan({ order, formulaStrategy, fill, input }) {
+  const targetByReturn = fill.price * (1 + targetReturn(input))
+  return {
+    targetPrice: Math.max(positive(order.targetPrice) ?? 0, targetByReturn),
+    stopPrice: positive(order.stopPrice),
+    expiresAt: fill.index + (Number.isFinite(order.holdDays) ? order.holdDays : holdingDays(input)),
+    formulaStrategy: formulaStrategySnapshot(formulaStrategy),
+  }
+}
+
+function mergeExitPlan({ currentPlan, currentBase, addedBase, nextPlan }) {
+  if (!nextPlan) return currentPlan
+  if (!currentPlan || currentBase <= 0) return nextPlan
+  const totalBase = currentBase + addedBase
+  if (totalBase <= 0) return nextPlan
+  return {
+    targetPrice: weighted(currentPlan.targetPrice, currentBase, nextPlan.targetPrice, addedBase),
+    stopPrice: lowerFinite(currentPlan.stopPrice, nextPlan.stopPrice),
+    expiresAt: Math.max(currentPlan.expiresAt ?? 0, nextPlan.expiresAt ?? 0),
+  }
+}
+
+function weighted(a, aw, b, bw) {
+  if (!finite(a)) return b
+  if (!finite(b)) return a
+  return (a * aw + b * bw) / (aw + bw)
+}
+
+function lowerFinite(a, b) {
+  if (!finite(a)) return b ?? null
+  if (!finite(b)) return a
+  return Math.min(a, b)
+}
+
+function holdingDays(input) {
+  return Math.max(Math.round(Number(input?.holdingDays) || 1), 1)
+}
+
+function targetReturn(input) {
+  return Math.max(Number(input?.targetReturn) || 0, 0)
+}
+
+function positive(value) {
+  const next = Number(value)
+  return Number.isFinite(next) && next > 0 ? next : null
+}
+
+function finite(value) {
+  return value !== null && value !== undefined && Number.isFinite(Number(value))
+}
+
+function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, profile, startIndex = 0, formulaStrategy = null }) {
   let peak = 0
   let peakDate = null
   let maxDrawdown = 0
@@ -246,10 +384,17 @@ function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, 
   const totalPnl = equityCurve.at(-1)?.equity ?? 0
   const totalNotional = events.reduce((sum, event) => sum + event.notional, 0)
   const lastClose = rows.at(-1)?.close ?? 0
+  const startDate = rows[startIndex]?.date ?? rows[0]?.date ?? ''
+  const endDate = rows.at(-1)?.date ?? ''
   return {
+    engineScope: engineScope(),
     profileId: profile.id,
     profileLabel: profile.label,
-    range: rows.length ? `${rows[0].date} ~ ${rows.at(-1).date}` : '',
+    formulaStrategy: formulaStrategySnapshot(formulaStrategy),
+    drawdownBasis: drawdownBasis(formulaStrategy),
+    startDate,
+    endDate,
+    range: startDate && endDate ? `${startDate} ~ ${endDate}` : '',
     trades: events,
     equityCurve,
     tradeCount: events.length,
@@ -270,6 +415,29 @@ function summarize({ rows, events, equityCurve, cash, base, costBasis, capital, 
   }
 }
 
+function formulaStrategySnapshot(strategy) {
+  if (!strategy) return null
+  return {
+    label: strategy.label,
+    summary: strategy.summary,
+    steps: (strategy.steps ?? []).map((step) => ({
+      id: step.id,
+      label: step.label,
+      status: step.status,
+      value: step.value,
+    })),
+  }
+}
+
+function drawdownBasis(strategy) {
+  const steps = strategy?.steps?.map((step) => step.label).filter(Boolean)
+  return {
+    label: '现货路径回撤',
+    source: steps?.length ? steps.join(' → ') : '成本路径 → GetDelta → 偏离强度 → OrderPlan',
+    note: '这里只是现货账户权益路径；期权、LP、资金费率和流动性重分配还没有进入组合回测引擎。',
+  }
+}
+
 function feeRate(input) {
   const value = Number(input.replayFeeRate)
   return Number.isFinite(value) && value >= 0 ? value : 0.001
@@ -277,9 +445,14 @@ function feeRate(input) {
 
 function emptyReplay() {
   return {
+    engineScope: engineScope(),
     profileId: '',
     profileLabel: '',
+    formulaStrategy: null,
+    drawdownBasis: drawdownBasis(null),
     range: '',
+    startDate: '',
+    endDate: '',
     trades: [],
     equityCurve: [],
     tradeCount: 0,

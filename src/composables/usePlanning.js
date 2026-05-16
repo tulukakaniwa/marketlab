@@ -14,23 +14,23 @@ import { persistedReactive, persistedRef } from './usePersisted.js'
  * input 保持默认事实工作台语义；三栏、拖宽、公式选中态属于 ViewModel UI 状态。
  */
 export function usePlanning() {
-  const input = persistedReactive('lab.input.v2', {
+  const input = persistedReactive('lab.input.v4', {
     entryPrice: 0,
     holdingDays: 30,
     iv: 0,
     targetReturn: 0.3,
     capital: 0,
     baseNotional: 0,
+    accountStartDate: '',
     strategyProfile: 'balanced',
-    strategyEdgeSigma: 0.8,
-    strategyMomentumSigma: 0,
+    strategyEdgeSigma: 1.0,
+    strategyMomentumSigma: 0.25,
     strategyCostSlopeSigma: 0.6,
-    strategyRiskPct: 0.012,
-    strategyExposurePct: 0.30,
-    strategyFirstWeight: 0.42,
-    strategyCooldownFactor: 1.5,
-    strategyTakeProfitSigma: 0.8,
-    strategyCutLossSigma: 1.1,
+    strategyRiskPct: 0.01,
+    strategyExposurePct: 0.25,
+    strategyFirstWeight: 0.35,
+    strategyCooldownFactor: 2.0,
+    strategyCutLossSigma: 1.2,
     strikePrice: 0,
     riskFreeRate: 0.04,
     optionType: 'put',

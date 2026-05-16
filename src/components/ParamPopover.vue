@@ -14,7 +14,7 @@ import { computed, onMounted, ref } from 'vue'
  *   - entryPrice > 0
  *   - iv: 1 ≤ ui ≤ 500（即 0.01 ≤ store ≤ 5）
  *   - holdingDays: 1 ≤ ui ≤ 365 整数
- *   - targetReturn: 1 ≤ ui ≤ 500
+ *   - targetReturn: 1 ≤ ui ≤ 500，对应 GetDelta 里的目标增量 d
  */
 const props = defineProps({
   field: { type: String, required: true },
@@ -27,7 +27,7 @@ const META = {
   entryPrice:   { label: '入场价',  unit: '',  step: 0.01, min: 0.01, max: 1e9, scale: 1 },
   iv:           { label: '波动率',  unit: '%', step: 0.5,  min: 1,    max: 500, scale: 0.01 },
   holdingDays:  { label: '持仓窗口', unit: '天', step: 1,    min: 1,    max: 365, scale: 1, integer: true },
-  targetReturn: { label: '目标收益', unit: '%', step: 0.5,  min: 1,    max: 500, scale: 0.01 },
+  targetReturn: { label: '目标增量 d', unit: '%', step: 0.5,  min: 1,    max: 500, scale: 0.01 },
 }
 
 const meta = computed(() => META[props.field] ?? META.entryPrice)

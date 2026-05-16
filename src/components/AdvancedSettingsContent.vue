@@ -67,7 +67,7 @@ function resetToAuto() {
     </div>
     <button type="button" class="adv-reset" :disabled="!isOverridden" @click="resetToAuto">恢复自动</button>
     <p class="adv-hint">
-      年时间基用于把日波动年化（IV、Δ 带、BS、回测共用）。日常无需调整；当数据集与默认市场口径不符时再手动覆盖。
+      年时间基用于把日波动年化（IV、Δ 带、BS、路径回放共用）。日常无需调整；当数据集与默认市场口径不符时再手动覆盖。
     </p>
   </div>
 </template>

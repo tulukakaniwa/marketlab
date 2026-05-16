@@ -17,17 +17,27 @@ const titleValue = computed(() => {
   return money(props.replay.totalPnl)
 })
 const statusText = computed(() => {
-  if (isDisabled.value) return '回测引擎未启用'
+  if (isDisabled.value) return '现货路径回放未启用'
   if (isMissingAccount.value) return '需要账户资金或底仓名义'
   return `${props.replay.range || '等待样本'} · 下一根 K 线验证`
 })
 const showProfileScan = computed(() =>
   isRunnable.value && props.profileReplays.some(item => !item.replay?.status)
 )
+const drawdownBasis = computed(() => props.replay.drawdownBasis ?? {
+  label: '现货路径回撤',
+  source: '成本路径 → GetDelta → 偏离强度 → OrderPlan',
+  note: '这里只是现货账户权益路径；期权、LP、资金费率和流动性重分配还没有进入组合回测引擎。',
+})
+const engineScope = computed(() => props.replay.engineScope ?? {
+  label: '现货路径回放',
+  status: 'partial',
+  excludes: ['期权腿生命周期', 'LP 区间库存', '资金费率结算', '流动性重分配治理'],
+})
 const emptyText = computed(() => {
-  if (isDisabled.value) return '回测引擎未启用。'
-  if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行回测并显示执行、胜率、回撤和交易记录。'
-  return '当前样本没有形成回测成交。'
+  if (isDisabled.value) return '现货路径回放未启用。'
+  if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行现货路径回放并显示成交记录。'
+  return '当前样本没有形成路径回放成交。'
 })
 
 function money(value) {
@@ -44,7 +54,7 @@ function pct(value) {
 <template>
   <section class="replay-panel">
     <header>
-      <span>日线回测</span>
+      <span>{{ engineScope.label }}</span>
       <strong>{{ titleValue }}</strong>
       <small>{{ statusText }}</small>
     </header>
@@ -76,6 +86,12 @@ function pct(value) {
         <span>持仓市值</span>
         <strong>{{ money(replay.openValue) }}</strong>
       </article>
+    </div>
+    <div v-if="isRunnable" class="replay-basis">
+      <span>{{ drawdownBasis.label }}</span>
+      <strong>{{ drawdownBasis.source }}</strong>
+      <small>{{ drawdownBasis.note }}</small>
+      <em>{{ engineScope.excludes.join('、') }} 未接入</em>
     </div>
     <div v-if="showProfileScan" class="profile-scan">
       <article

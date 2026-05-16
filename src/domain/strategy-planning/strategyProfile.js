@@ -1,24 +1,24 @@
 const baseProfiles = {
   conservative: {
     id: 'conservative', label: '保守',
-    edgeSigma: 1.15, momentumSigma: 0.6, costSlopeSigma: 0.75,
-    riskPct: 0.008, exposurePct: 0.18,
-    firstWeight: 0.32, cooldownFactor: 2.5,
-    takeProfitSigma: 1.0, cutLossSigma: 1.2,
+    edgeSigma: 1.15, momentumSigma: 0.5, costSlopeSigma: 0.75,
+    riskPct: 0.006, exposurePct: 0.18,
+    firstWeight: 0.30, cooldownFactor: 2.5,
+    cutLossSigma: 1.2,
   },
   balanced: {
     id: 'balanced', label: '均衡',
-    edgeSigma: 0.8, momentumSigma: 0, costSlopeSigma: 0.6,
-    riskPct: 0.012, exposurePct: 0.30,
-    firstWeight: 0.42, cooldownFactor: 1.5,
-    takeProfitSigma: 0.8, cutLossSigma: 1.1,
+    edgeSigma: 1.0, momentumSigma: 0.25, costSlopeSigma: 0.6,
+    riskPct: 0.01, exposurePct: 0.25,
+    firstWeight: 0.35, cooldownFactor: 2.0,
+    cutLossSigma: 1.2,
   },
   aggressive: {
     id: 'aggressive', label: '激进',
-    edgeSigma: 0.55, momentumSigma: -0.5, costSlopeSigma: 0.45,
-    riskPct: 0.02, exposurePct: 0.45,
-    firstWeight: 0.5, cooldownFactor: 1.0,
-    takeProfitSigma: 0.6, cutLossSigma: 1.0,
+    edgeSigma: 0.75, momentumSigma: 0, costSlopeSigma: 0.45,
+    riskPct: 0.016, exposurePct: 0.40,
+    firstWeight: 0.45, cooldownFactor: 1.25,
+    cutLossSigma: 1.1,
   },
 }
 
@@ -56,7 +56,6 @@ export function buildCustomProfile(input = {}) {
     exposurePct: numberIn(input.strategyExposurePct, 0.01, 1, customDefaults.exposurePct),
     firstWeight: numberIn(input.strategyFirstWeight, 0.05, 1, customDefaults.firstWeight),
     cooldownFactor: numberIn(input.strategyCooldownFactor, 0.25, 8, customDefaults.cooldownFactor),
-    takeProfitSigma: numberIn(input.strategyTakeProfitSigma, 0.1, 5, customDefaults.takeProfitSigma),
     cutLossSigma: numberIn(input.strategyCutLossSigma, 0.1, 5, customDefaults.cutLossSigma),
   }
 }
@@ -81,8 +80,6 @@ export function scaleProfileToMarket(profile, market) {
     firstWeight: profile.firstWeight,
     buyCooldown: Math.max(Math.round(profile.cooldownFactor * 3), 2),
     sellCooldown: Math.max(Math.round(profile.cooldownFactor), 1),
-    takeProfitAtr: profile.takeProfitSigma,
-    takeProfitMin: Math.max(profile.takeProfitSigma * atr * 0.3, 0.01),
     cutMomentumAtr: profile.cutLossSigma,
     cutMomentumMin: Math.max(profile.cutLossSigma * dailyVol * 0.4, 0.015),
   }

@@ -1,4 +1,5 @@
-import { getDeltaBands } from '../formulas/core.js'
+import { deviationScore, getDeltaBands } from '../formulas/core.js'
+import { buildFormulaStrategyComposition } from './formulaStrategy.js'
 import {
   resolveExecutableProfile,
   resolveProfile,
@@ -22,12 +23,14 @@ export function buildDecisionGraph({ market, input, account }) {
   const executable = buildExecutableContext({ market, input })
   const profile = resolveExecutableProfile(input?.strategyProfile, market, input)
   const nextAccount = buildAccount({ account, input, markPrice: market.markPrice })
-  const timing = buildEntryTiming(market, executable.deltaBands, profile)
-  const position = buildPositionPlan(timing, executable.deltaBands, nextAccount, profile, market)
+  const timing = buildEntryTiming(market, executable.deltaBands, profile, executable.inputs)
+  const position = buildPositionPlan(timing, executable.deltaBands, nextAccount, profile, market, executable.inputs)
   const plan = buildExecutionPlan(position, executable.deltaBands, nextAccount, market)
+  const formulaStrategy = buildFormulaStrategyComposition({ market, executable, timing, position, plan, account: nextAccount })
 
   return {
     ...executable,
+    formulaStrategy,
     profile,
     account: nextAccount,
     position,
@@ -36,11 +39,17 @@ export function buildDecisionGraph({ market, input, account }) {
   }
 }
 
-export function buildEntryTiming(market, bands, profile = strategyProfiles.balanced) {
+export function buildEntryTiming(market, bands, profile = strategyProfiles.balanced, inputs = {}) {
   const executableProfile = ensureExecutableProfile(profile, market)
   const atr = market.atrPercent || 0
-  const periodVol = market.annualVol > 0 ? market.annualVol * Math.sqrt(1 / 365) : 0.01
-  const zScore = periodVol > 0 ? market.costDistance / periodVol : 0
+  const deviation = deviationScore({
+    costDistance: market.costDistance,
+    annualVol: market.annualVol,
+    holdingDays: inputs.holdingDays || 1,
+    tradingDaysPerYear: inputs.tradingDaysPerYear || 365,
+  })
+  const periodVol = deviation?.periodVol ?? (market.annualVol > 0 ? market.annualVol * Math.sqrt(1 / 365) : 0.01)
+  const zScore = deviation?.z ?? (periodVol > 0 ? market.costDistance / periodVol : 0)
   const zAbs = Math.abs(zScore)
 
   const signalStrength = clamp(zAbs < 8 ? 1 - 2 * (1 - (0.5 + 0.5 * erfApprox(zAbs / Math.sqrt(2)))) : 1, 0, 1)
@@ -173,7 +182,7 @@ function erfApprox(x) {
 function pctFmt(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
 function fmt(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString('zh-CN') : '—' }
 
-export function buildPositionPlan(timing, bands, account, profile, market) {
+export function buildPositionPlan(timing, bands, account, profile, market, executableInputs = {}) {
   const executableProfile = ensureExecutableProfile(profile, market)
   if (!account.isConfigured) {
     return {
@@ -210,6 +219,9 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
   const sellCap = Math.min(account.base * market.markPrice, exposureCap)
   const maxNotional = timing.side === 'buy' ? buyCap : sellCap
   const addToPrice = timing.side === 'buy' ? (bands?.long.low ?? timing.stop) : (bands?.short.high ?? timing.stop)
+  const targetReturn = Math.max(Number(executableInputs.targetReturn) || 0, 0)
+  const targetByReturn = market.markPrice * (1 + targetReturn)
+  const plannedTarget = timing.side === 'buy' ? Math.max(timing.target, targetByReturn) : timing.target
   return {
     action: timing.action,
     side: timing.side,
@@ -220,12 +232,14 @@ export function buildPositionPlan(timing, bands, account, profile, market) {
     riskBudgetPct,
     stopDistance,
     stopPrice: timing.stop,
-    targetPrice: timing.target,
+    targetPrice: plannedTarget,
+    referenceTargetPrice: timing.target,
+    targetReturn,
     addToPrice,
     holdDays: account.holdingDays,
     rule: timing.side === 'buy'
       ? `账户资金已配置；模拟挂单使用 ${pctFmt(executableProfile.firstWeight)} 首笔权重和失效线 ${fmt(timing.stop)}。`
-      : `底仓已配置；模拟挂单使用成本锚 ${fmt(timing.target)} 作为观察目标。`,
+      : `底仓已配置；模拟挂单使用成本锚 ${fmt(timing.target)} 作为减仓观察价。`,
     missingInputs: [],
   }
 }
@@ -239,6 +253,9 @@ export function buildExecutionPlan(position, bands, account, market) {
     side: position.side,
     price,
     targetPrice: position.targetPrice,
+    targetReturn: position.targetReturn,
+    stopPrice: position.stopPrice,
+    holdDays: position.holdDays,
     notional: position.maxNotional * LADDER_WEIGHTS[index],
     role: orderRole(position.side, index),
     reason: position.rule,
@@ -276,7 +293,7 @@ function buildExecutableContext({ market, input }) {
 
 function buildDecision({ market, timing, position, holdingDays }) {
   const invalidations = timing?.side
-    ? [`收盘价越过失效线 ${formatPrice(position.stopPrice)}`, `回归目标成本 ${formatPrice(position.targetPrice)}`, `${holdingDays} 天后未触发回归则失效`]
+    ? [`收盘价越过失效线 ${formatPrice(position.stopPrice)}`, `目标价 ${formatPrice(position.targetPrice)}`, `${holdingDays} 天后未触发则到期`]
     : [`价格低于成本下沿 ${formatPrice(market.costLow)}`, `价格高于成本上沿 ${formatPrice(market.costHigh)}`, `偏离阈值参考 ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))}`]
   return {
     state: timing?.state ?? '等待',
@@ -321,10 +338,20 @@ function waitTiming({ state, reason, facts }) {
   return { state, side: null, action: '未触发', path: '信号条件未触发', edge: 0, stop: null, target: null, reason, ...facts }
 }
 
-function orderRow({ side, price, targetPrice, notional, role, reason }) {
+function orderRow({ side, price, targetPrice, targetReturn, stopPrice, holdDays, notional, role, reason }) {
   const amount = price > 0 ? notional / price : 0
-  const expectedProfit = side === 'buy' ? (targetPrice - price) * amount : (price - targetPrice) * amount
-  return { side, price, targetPrice, notional, amount, expectedProfit, role, reason }
+  const executionTarget = orderTargetPrice({ side, price, targetPrice, targetReturn })
+  const expectedProfit = side === 'buy' ? (executionTarget - price) * amount : (price - executionTarget) * amount
+  return { side, price, targetPrice: executionTarget, referenceTargetPrice: targetPrice, targetReturn, stopPrice, holdDays, notional, amount, expectedProfit, role, reason }
+}
+
+function orderTargetPrice({ side, price, targetPrice, targetReturn }) {
+  const fallback = Number.isFinite(targetPrice) ? targetPrice : price
+  if (!Number.isFinite(price) || price <= 0) return fallback
+  const pct = Math.max(Number(targetReturn) || 0, 0)
+  if (side === 'buy') return Math.max(fallback, price * (1 + pct))
+  if (side === 'sell') return fallback
+  return fallback
 }
 
 function orderRole(side, index) {
@@ -343,6 +370,7 @@ function emptyPosition(timing, account = {}) {
     stopDistance: null,
     stopPrice: timing?.stop ?? null,
     targetPrice: timing?.target ?? null,
+    targetReturn: null,
     addToPrice: null,
     rule: timing?.reason ?? '信号条件未触发。',
     missingInputs: [],

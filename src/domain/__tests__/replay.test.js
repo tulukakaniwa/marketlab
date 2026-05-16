@@ -46,6 +46,7 @@ describe('buildDailyReplay', () => {
     expect(Number.isFinite(r.maxDrawdown)).toBe(true)
     expect(Number.isFinite(r.maxDrawdownPct)).toBe(true)
     expect(r.drawdownCurve).toHaveLength(r.equityCurve.length)
+    expect(r.drawdownBasis.source).toContain('成本路径')
     expect(Number.isFinite(r.winRate)).toBe(true)
   })
 
@@ -94,5 +95,48 @@ describe('buildDailyReplay', () => {
       expect(trade.fillDate >= trade.signalDate).toBe(true)
       expect(trade.exitIndex - trade.signalIndex).toBeLessThanOrEqual(1)
     }
+  })
+
+  it('账户入场日限制回测起点和成交日期', () => {
+    const startDate = rows[100].date
+    const r = buildDailyReplay(rows, { ...baseInput, accountStartDate: startDate })
+    expect(r.startDate).toBe(startDate)
+    expect(r.range.startsWith(startDate)).toBe(true)
+    expect(r.equityCurve).toHaveLength(rows.length - 100)
+    for (const trade of r.trades) {
+      expect(trade.fillDate >= startDate).toBe(true)
+      if (trade.signalDate) expect(trade.signalDate >= startDate).toBe(true)
+    }
+  })
+
+  it('回放退出使用目标增量和持仓窗口，不再用隐藏短线阈值', () => {
+    const planRows = makeRows(80, () => 90).map((row, index) => ({
+      ...row,
+      high: index === 25 ? 118 : 91,
+      low: 89,
+      close: index === 25 ? 117 : 90,
+    }))
+    const marketStates = planRows.map((row) => ({
+      markPrice: row.close,
+      costAnchor: 110,
+      costLow: 95,
+      costHigh: 120,
+      atrPercent: 0.02,
+      annualVol: 0.2,
+      costDistance: -0.18,
+      costSlope5: 0,
+      momentum5: 0.03,
+    }))
+    const replay = buildDailyReplay(planRows, { ...baseInput, holdingDays: 10, targetReturn: 0.3 }, marketStates)
+    const buy = replay.trades.find((trade) => trade.side === 'buy')
+    const sell = replay.trades.find((trade) => trade.side === 'sell')
+
+    expect(buy).toBeTruthy()
+    expect(sell).toBeTruthy()
+    expect(buy.targetPrice).toBeGreaterThanOrEqual(buy.fillPrice * 1.3 - 1e-9)
+    expect(buy.formulaStrategy.steps.map((step) => step.id)).toEqual(['cost', 'delta-band', 'deviation-score', 'order-plan'])
+    expect(sell.reason).toBe('目标')
+    expect(sell.exitIndex - buy.exitIndex).toBeGreaterThan(1)
+    expect(sell.exitIndex - buy.exitIndex).toBeLessThanOrEqual(10)
   })
 })

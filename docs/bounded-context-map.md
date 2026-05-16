@@ -1,6 +1,6 @@
 # Market Lab Bounded Context Map
 
-Market Lab is a neutral fact workbench. It is not an advice engine, an AI strategy engine, or a replay/backtest product.
+Market Lab is a neutral fact workbench. It is not an advice engine or an AI strategy engine. The current replay surface is only a spot path replay; a full portfolio backtest engine requires separate domain objects for option, LP, funding, hedge, and liquidity rebalance legs.
 
 ## Bounded Contexts
 
@@ -44,6 +44,19 @@ Owns the default condition table:
 
 It may consume MarketData and executable delta bands. It must not consume portfolio, LP efficiency, funding carry, AMM geometry, or liquidity fingerprint as default planning inputs.
 
+### ReplayAccount BC
+
+Path: `src/domain/replay/`
+
+Owns path replay and future portfolio backtest simulation:
+
+- current scope: cash, spot base position, next-bar limit fill, target/stop/expiry exit
+- future portfolio scope: option legs, LP segment legs, hedge legs, fee accrual, funding settlement, rebalance events
+- no future parameters: each bar may only use data and configuration available at that bar
+- user-specific account start date and sample cutoff
+
+Until portfolio legs are implemented, ReplayAccount outputs must be labeled as spot path replay, not full strategy backtest.
+
 ### ResearchVisualization BC
 
 Path: `src/domain/research-visualization/`
@@ -75,6 +88,7 @@ Workbench UI
 
 StrategyPlanning -> MarketData
 StrategyPlanning -> FormulaResearch only for executable GetDelta band primitives
+ReplayAccount -> MarketData + StrategyPlanning
 ResearchVisualization -> MarketData + FormulaResearch + StrategyPlanning
 ```
 
@@ -85,6 +99,7 @@ MarketData -> FormulaResearch
 MarketData -> StrategyPlanning
 FormulaResearch -> StrategyPlanning
 StrategyPlanning -> ResearchVisualization
+ReplayAccount -> FormulaResearch research-only metrics as default PnL inputs
 domain/* -> Workbench UI
 ```
 

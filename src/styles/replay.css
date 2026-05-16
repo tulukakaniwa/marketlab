@@ -30,6 +30,43 @@
   padding: 8px;
 }
 
+.replay-basis {
+  display: grid;
+  grid-template-columns: minmax(76px, auto) 1fr;
+  gap: 3px 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.replay-basis span {
+  color: var(--green);
+  font-size: 0.66rem;
+  font-weight: 900;
+}
+
+.replay-basis strong {
+  color: var(--ink);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.replay-basis small {
+  grid-column: 1 / -1;
+  font-size: 0.64rem;
+  line-height: 1.35;
+}
+
+.replay-basis em {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-style: normal;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .replay-grid strong,
 .replay-panel td {
   font-variant-numeric: tabular-nums;

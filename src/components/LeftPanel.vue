@@ -26,7 +26,7 @@ const emit = defineEmits([
 ])
 
 const TAB_LABELS = {
-  decision: '📈 回测',
+  decision: '📈 回放',
   compute:  '📊 公式',
   settings: '⚙️ 设置',
 }

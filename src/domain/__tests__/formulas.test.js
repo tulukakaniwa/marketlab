@@ -36,6 +36,14 @@ describe('getDeltaBands', () => {
     expect(b.short.low).toBeLessThan(b.short.cost)
     expect(b.short.cost).toBeLessThan(b.short.high)
   })
+  it('保留原式语义：T 是持仓时间，d 是 g(P) 的局部斜率约束', () => {
+    const b = getDeltaBands({ entryPrice: 100, holdingDays: 30, iv: 0.4, targetReturn: 0.3 })
+    expect(b.sourceId).toBe('943334771f')
+    expect(b.variables.T).toBe(30)
+    expect(b.variables.d).toBe(0.3)
+    expect(b.long.localSlopeAtEntry).toBeCloseTo(0.3, 8)
+    expect(Number.isFinite(b.long.payoffAtEntry)).toBe(true)
+  })
   it('非法参数返回 null', () => {
     expect(getDeltaBands({ entryPrice: 0, holdingDays: 30, iv: 1, targetReturn: 0.3 })).toBeNull()
     expect(getDeltaBands({ entryPrice: 100, holdingDays: -1, iv: 1, targetReturn: 0.3 })).toBeNull()

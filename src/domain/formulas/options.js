@@ -1,10 +1,17 @@
 import { normalCdf, normalPdf } from './probability.js'
 
+export const GET_DELTA_SOURCE = {
+  id: '943334771f',
+  title: '永久uni期权计算',
+  status: 'implemented',
+}
+
 export function getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, z = 1, tradingDaysPerYear = 365 }) {
   if (![entryPrice, holdingDays, iv, targetReturn, z, tradingDaysPerYear].every(Number.isFinite)) return null
   if (entryPrice <= 0 || holdingDays <= 0 || iv <= 0 || z <= 0 || tradingDaysPerYear <= 0) return null
 
-  const wave = iv * Math.sqrt(holdingDays / (tradingDaysPerYear * 2 * Math.PI))
+  const timeScale = Math.sqrt(holdingDays / (tradingDaysPerYear * 2 * Math.PI))
+  const wave = iv * timeScale
   if (!Number.isFinite(wave) || wave >= 1) return null
 
   const rawRatio = Math.pow(1 + wave, 2) / Math.pow(1 - wave, 2)
@@ -13,20 +20,62 @@ export function getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, z = 1
   const shortRatio = 1 / longRatio
   const shortCost = entryPrice * Math.pow(targetReturn * shortRatio - targetReturn + 1, 2) / shortRatio
 
+  const long = {
+    high: longCost * longRatio,
+    cost: longCost,
+    low: longCost / longRatio,
+  }
+  const short = {
+    high: shortCost / shortRatio,
+    cost: shortCost,
+    low: shortCost * shortRatio,
+  }
   return {
+    sourceId: GET_DELTA_SOURCE.id,
+    sourceTitle: GET_DELTA_SOURCE.title,
+    status: GET_DELTA_SOURCE.status,
+    variables: {
+      P: entryPrice,
+      T: holdingDays,
+      s: iv,
+      d: targetReturn,
+      tradingDaysPerYear,
+    },
+    timeScale,
     wave,
+    rT: rawRatio,
     longRatio,
     long: {
-      high: longCost * longRatio,
-      cost: longCost,
-      low: longCost / longRatio,
+      ...long,
+      localSlopeAtEntry: getDeltaBandSlope({ price: entryPrice, cost: long.cost, ratio: longRatio }),
+      payoffAtEntry: getDeltaBandValue({ price: entryPrice, cost: long.cost, ratio: longRatio }),
     },
     short: {
-      high: shortCost / shortRatio,
-      cost: shortCost,
-      low: shortCost * shortRatio,
+      ...short,
+      localSlopeAtEntry: null,
+      payoffAtEntry: null,
     },
   }
+}
+
+export function getDeltaBandValue({ price, cost, ratio }) {
+  if (![price, cost, ratio].every(Number.isFinite)) return null
+  if (price <= 0 || cost <= 0 || ratio <= 0 || ratio === 1) return null
+  const low = cost / ratio
+  const high = cost * ratio
+  if (price <= low) return price
+  if (price >= high) return cost
+  return (2 * Math.sqrt(price * cost * ratio) - price - cost) / (ratio - 1)
+}
+
+export function getDeltaBandSlope({ price, cost, ratio }) {
+  if (![price, cost, ratio].every(Number.isFinite)) return null
+  if (price <= 0 || cost <= 0 || ratio <= 0 || ratio === 1) return null
+  const low = cost / ratio
+  const high = cost * ratio
+  if (price <= low) return 1
+  if (price >= high) return 0
+  return (Math.sqrt((cost * ratio) / price) - 1) / (ratio - 1)
 }
 
 export function blackScholes({

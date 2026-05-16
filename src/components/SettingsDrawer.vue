@@ -28,7 +28,13 @@ const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all
 
 <template>
   <div class="sd-drawer">
-    <StartupConfigPanel :input="input" :feature-flags="featureFlags" :overlays="overlays" />
+    <StartupConfigPanel
+      :input="input"
+      :feature-flags="featureFlags"
+      :overlays="overlays"
+      :rows="rows"
+      :cursor="cursor"
+    />
 
     <section class="sd-section">
       <h3 class="sd-h">样本时间</h3>
@@ -47,7 +53,7 @@ const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all
     </section>
 
     <section class="sd-section">
-      <h3 class="sd-h">策略参数</h3>
+      <h3 class="sd-h">执行规则</h3>
       <StrategyProfileInputs :input="input" :profile-list="profileList" :graph="graph" />
     </section>
 

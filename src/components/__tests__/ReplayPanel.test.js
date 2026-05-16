@@ -36,7 +36,7 @@ describe('ReplayPanel', () => {
     expect(wrapper.text()).not.toContain('账户回报')
   })
 
-  it('可运行回测才展示执行、胜率和回撤指标', () => {
+  it('可运行现货路径回放才展示执行、胜率和回撤指标', () => {
     const wrapper = mount(ReplayPanel, {
       props: {
         replay: replay({
@@ -57,5 +57,8 @@ describe('ReplayPanel', () => {
     expect(wrapper.text()).toContain('执行')
     expect(wrapper.text()).toContain('兑现胜率')
     expect(wrapper.text()).toContain('回撤')
+    expect(wrapper.text()).toContain('现货路径回撤')
+    expect(wrapper.text()).toContain('成本路径')
+    expect(wrapper.text()).toContain('LP 区间库存')
   })
 })

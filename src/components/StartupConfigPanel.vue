@@ -1,15 +1,27 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   input: { type: Object, required: true },
   featureFlags: { type: Object, required: true },
   overlays: { type: Object, required: true },
+  rows: { type: Array, default: () => [] },
+  cursor: { type: Number, default: 0 },
 })
+
+const warmupIndex = computed(() => Math.min(
+  80,
+  Math.max(20, Math.floor(props.rows.length * 0.03)),
+  Math.max(props.rows.length - 1, 0),
+))
+const firstDate = computed(() => props.rows[warmupIndex.value]?.date ?? props.rows[0]?.date ?? '')
+const lastDate = computed(() => props.rows[Math.min(Math.max(props.cursor, 0), Math.max(props.rows.length - 1, 0))]?.date ?? props.rows.at(-1)?.date ?? '')
 </script>
 
 <template>
   <section class="startup-config">
     <header>
-      <span>回测设置</span>
+      <span>回放设置</span>
       <strong>运行链路</strong>
     </header>
 
@@ -18,7 +30,7 @@ defineProps({
       <b>→</b>
       <span>信号引擎</span>
       <b>+</b>
-      <span :class="{ off: !featureFlags.replayAccount }">回测引擎</span>
+      <span :class="{ off: !featureFlags.replayAccount }">现货回放</span>
       <b>+</b>
       <span :class="{ off: !featureFlags.portfolioResearch }">公式研究</span>
     </div>
@@ -26,11 +38,11 @@ defineProps({
     <div class="sc-grid">
       <label class="sc-toggle">
         <input v-model="featureFlags.replayAccount" type="checkbox" />
-        <span>启用回测引擎</span>
+        <span>启用现货路径回放</span>
       </label>
       <label class="sc-toggle">
         <input v-model="featureFlags.replayAutoProfile" type="checkbox" :disabled="!featureFlags.replayAccount" />
-        <span>回测选档</span>
+        <span>回放选档</span>
       </label>
       <label class="sc-toggle">
         <input v-model="featureFlags.portfolioResearch" type="checkbox" />
@@ -51,10 +63,18 @@ defineProps({
         <span>底仓名义</span>
         <input v-model.number="input.baseNotional" type="number" min="0" step="100" />
       </label>
+      <label>
+        <span>账户入场日</span>
+        <input v-model="input.accountStartDate" type="date" :min="firstDate" :max="lastDate" />
+      </label>
+      <label>
+        <span>自动起点</span>
+        <button type="button" class="sc-mini-btn" @click="input.accountStartDate = ''">{{ firstDate || '样本 warmup' }}</button>
+      </label>
     </div>
 
     <p>
-      默认模拟只消费市场样本、GetDelta/成本带与显式账户输入。回测和组合研究是可选模块；回测选档只调整策略档位，不改写公式链。
+      默认模拟只消费市场样本、GetDelta/成本带与显式账户输入。账户入场日决定现货回放起点；留空时从样本 warmup 后开始。
     </p>
   </section>
 </template>
@@ -76,6 +96,9 @@ defineProps({
 .sc-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .sc-inputs label { display: grid; gap: 2px; min-width: 0; }
 .sc-inputs span { color: var(--muted); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
-.sc-inputs input { min-width: 0; min-height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; background: var(--bg); color: var(--ink); font-variant-numeric: tabular-nums; }
+.sc-inputs input,
+.sc-mini-btn { min-width: 0; min-height: 28px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; background: var(--bg); color: var(--ink); font-variant-numeric: tabular-nums; }
+.sc-mini-btn { cursor: pointer; font-size: 0.72rem; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-mini-btn:hover { border-color: var(--green); background: var(--surface-active); }
 .startup-config p { margin: 0; color: var(--muted); font-size: 0.66rem; line-height: 1.45; }
 </style>
