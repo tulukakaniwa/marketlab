@@ -2,7 +2,7 @@
   {
     "id": "auto-000568-1d",
     "symbol": "000568",
-    "label": "000568",
+    "label": "泸州老窖",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -12,7 +12,7 @@
   {
     "id": "auto-000596-1d",
     "symbol": "000596",
-    "label": "000596",
+    "label": "古井贡酒",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -22,7 +22,7 @@
   {
     "id": "auto-000625-1d",
     "symbol": "000625",
-    "label": "000625",
+    "label": "长安汽车",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -32,7 +32,7 @@
   {
     "id": "auto-000799-1d",
     "symbol": "000799",
-    "label": "000799",
+    "label": "酒鬼酒",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -42,7 +42,7 @@
   {
     "id": "auto-000858-1d",
     "symbol": "000858",
-    "label": "000858",
+    "label": "五粮液",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -52,7 +52,7 @@
   {
     "id": "auto-000988-1d",
     "symbol": "000988",
-    "label": "000988",
+    "label": "华工科技",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -62,7 +62,7 @@
   {
     "id": "auto-002050-1d",
     "symbol": "002050",
-    "label": "002050",
+    "label": "三花智控",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -72,7 +72,7 @@
   {
     "id": "auto-002230-1d",
     "symbol": "002230",
-    "label": "002230",
+    "label": "科大讯飞",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -82,7 +82,7 @@
   {
     "id": "auto-002261-1d",
     "symbol": "002261",
-    "label": "002261",
+    "label": "拓维信息",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -92,7 +92,7 @@
   {
     "id": "auto-002281-1d",
     "symbol": "002281",
-    "label": "002281",
+    "label": "光迅科技",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -102,7 +102,7 @@
   {
     "id": "auto-002304-1d",
     "symbol": "002304",
-    "label": "002304",
+    "label": "洋河股份",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -112,7 +112,7 @@
   {
     "id": "auto-002456-1d",
     "symbol": "002456",
-    "label": "002456",
+    "label": "欧菲光",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -122,7 +122,7 @@
   {
     "id": "auto-002463-1d",
     "symbol": "002463",
-    "label": "002463",
+    "label": "沪电股份",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -132,7 +132,7 @@
   {
     "id": "auto-002475-1d",
     "symbol": "002475",
-    "label": "002475",
+    "label": "立讯精密",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -142,7 +142,7 @@
   {
     "id": "auto-002594-1d",
     "symbol": "002594",
-    "label": "002594",
+    "label": "比亚迪",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -152,7 +152,7 @@
   {
     "id": "auto-002645-1d",
     "symbol": "002645",
-    "label": "002645",
+    "label": "华宏科技",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -162,7 +162,7 @@
   {
     "id": "auto-002837-1d",
     "symbol": "002837",
-    "label": "002837",
+    "label": "英维克",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -172,7 +172,7 @@
   {
     "id": "auto-002891-1d",
     "symbol": "002891",
-    "label": "002891",
+    "label": "中宠股份",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -182,7 +182,7 @@
   {
     "id": "auto-0175_HK-1d",
     "symbol": "0175.HK",
-    "label": "0175_HK",
+    "label": "吉利汽车",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -192,7 +192,7 @@
   {
     "id": "auto-0522_HK-1d",
     "symbol": "0522.HK",
-    "label": "0522_HK",
+    "label": "ASMPT",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -202,7 +202,7 @@
   {
     "id": "auto-0700_HK-1d",
     "symbol": "0700.HK",
-    "label": "0700_HK",
+    "label": "腾讯控股",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -212,7 +212,7 @@
   {
     "id": "auto-0916_HK-1d",
     "symbol": "0916.HK",
-    "label": "0916_HK",
+    "label": "龙源电力",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -222,7 +222,7 @@
   {
     "id": "auto-0981_HK-1d",
     "symbol": "0981.HK",
-    "label": "0981_HK",
+    "label": "中芯国际",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -232,7 +232,7 @@
   {
     "id": "auto-0992_HK-1d",
     "symbol": "0992.HK",
-    "label": "0992_HK",
+    "label": "联想集团",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -242,7 +242,7 @@
   {
     "id": "auto-1211_HK-1d",
     "symbol": "1211.HK",
-    "label": "1211_HK",
+    "label": "比亚迪股份",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -252,7 +252,7 @@
   {
     "id": "auto-1810_HK-1d",
     "symbol": "1810.HK",
-    "label": "1810_HK",
+    "label": "小米集团-W",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -262,7 +262,7 @@
   {
     "id": "auto-1816_HK-1d",
     "symbol": "1816.HK",
-    "label": "1816_HK",
+    "label": "中广核电力",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -272,7 +272,7 @@
   {
     "id": "auto-2015_HK-1d",
     "symbol": "2015.HK",
-    "label": "2015_HK",
+    "label": "理想汽车-W",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -282,7 +282,7 @@
   {
     "id": "auto-2380_HK-1d",
     "symbol": "2380.HK",
-    "label": "2380_HK",
+    "label": "中国电力",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -292,7 +292,7 @@
   {
     "id": "auto-2899_HK-1d",
     "symbol": "2899.HK",
-    "label": "2899_HK",
+    "label": "紫金矿业",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -302,7 +302,7 @@
   {
     "id": "auto-300124-1d",
     "symbol": "300124",
-    "label": "300124",
+    "label": "汇川技术",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -312,7 +312,7 @@
   {
     "id": "auto-300308-1d",
     "symbol": "300308",
-    "label": "300308",
+    "label": "中际旭创",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -322,7 +322,7 @@
   {
     "id": "auto-300394-1d",
     "symbol": "300394",
-    "label": "300394",
+    "label": "天孚通信",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -332,7 +332,7 @@
   {
     "id": "auto-300502-1d",
     "symbol": "300502",
-    "label": "300502",
+    "label": "新易盛",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -342,7 +342,7 @@
   {
     "id": "auto-300718-1d",
     "symbol": "300718",
-    "label": "300718",
+    "label": "长盛轴承",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -352,7 +352,7 @@
   {
     "id": "auto-300750-1d",
     "symbol": "300750",
-    "label": "300750",
+    "label": "宁德时代",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -362,7 +362,7 @@
   {
     "id": "auto-300866-1d",
     "symbol": "300866",
-    "label": "300866",
+    "label": "安克创新",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -372,7 +372,7 @@
   {
     "id": "auto-301308-1d",
     "symbol": "301308",
-    "label": "301308",
+    "label": "江波龙",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -382,7 +382,7 @@
   {
     "id": "auto-3690_HK-1d",
     "symbol": "3690.HK",
-    "label": "3690_HK",
+    "label": "美团-W",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -392,7 +392,7 @@
   {
     "id": "auto-3888_HK-1d",
     "symbol": "3888.HK",
-    "label": "3888_HK",
+    "label": "金山软件",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -402,7 +402,7 @@
   {
     "id": "auto-600104-1d",
     "symbol": "600104",
-    "label": "600104",
+    "label": "上汽集团",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -412,7 +412,7 @@
   {
     "id": "auto-600406-1d",
     "symbol": "600406",
-    "label": "600406",
+    "label": "国电南瑞",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -422,7 +422,7 @@
   {
     "id": "auto-600519-1d",
     "symbol": "600519",
-    "label": "600519",
+    "label": "贵州茅台",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -432,7 +432,7 @@
   {
     "id": "auto-600580-1d",
     "symbol": "600580",
-    "label": "600580",
+    "label": "卧龙电驱",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -442,7 +442,7 @@
   {
     "id": "auto-600584-1d",
     "symbol": "600584",
-    "label": "600584",
+    "label": "长电科技",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -452,7 +452,7 @@
   {
     "id": "auto-600779-1d",
     "symbol": "600779",
-    "label": "600779",
+    "label": "水井坊",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -462,7 +462,7 @@
   {
     "id": "auto-600809-1d",
     "symbol": "600809",
-    "label": "600809",
+    "label": "山西汾酒",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -472,7 +472,7 @@
   {
     "id": "auto-601127-1d",
     "symbol": "601127",
-    "label": "601127",
+    "label": "赛力斯",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -482,7 +482,7 @@
   {
     "id": "auto-601238-1d",
     "symbol": "601238",
-    "label": "601238",
+    "label": "广汽集团",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -492,7 +492,7 @@
   {
     "id": "auto-601360-1d",
     "symbol": "601360",
-    "label": "601360",
+    "label": "三六零",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -502,7 +502,7 @@
   {
     "id": "auto-601899-1d",
     "symbol": "601899",
-    "label": "601899",
+    "label": "紫金矿业",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -512,7 +512,7 @@
   {
     "id": "auto-603019-1d",
     "symbol": "603019",
-    "label": "603019",
+    "label": "中科曙光",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -522,7 +522,7 @@
   {
     "id": "auto-603369-1d",
     "symbol": "603369",
-    "label": "603369",
+    "label": "今世缘",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -532,7 +532,7 @@
   {
     "id": "auto-603986-1d",
     "symbol": "603986",
-    "label": "603986",
+    "label": "兆易创新",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -542,7 +542,7 @@
   {
     "id": "auto-688017-1d",
     "symbol": "688017",
-    "label": "688017",
+    "label": "绿的谐波",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -552,7 +552,7 @@
   {
     "id": "auto-688041-1d",
     "symbol": "688041",
-    "label": "688041",
+    "label": "海光信息",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -562,7 +562,7 @@
   {
     "id": "auto-688111-1d",
     "symbol": "688111",
-    "label": "688111",
+    "label": "金山办公",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -572,7 +572,7 @@
   {
     "id": "auto-688169-1d",
     "symbol": "688169",
-    "label": "688169",
+    "label": "石头科技",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -582,7 +582,7 @@
   {
     "id": "auto-688256-1d",
     "symbol": "688256",
-    "label": "688256",
+    "label": "寒武纪",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -592,7 +592,7 @@
   {
     "id": "auto-688521-1d",
     "symbol": "688521",
-    "label": "688521",
+    "label": "芯原股份",
     "market": "A股",
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
@@ -602,7 +602,7 @@
   {
     "id": "auto-9698_HK-1d",
     "symbol": "9698.HK",
-    "label": "9698_HK",
+    "label": "万国数据-SW",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -612,7 +612,7 @@
   {
     "id": "auto-9863_HK-1d",
     "symbol": "9863.HK",
-    "label": "9863_HK",
+    "label": "零跑汽车",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -622,7 +622,7 @@
   {
     "id": "auto-9866_HK-1d",
     "symbol": "9866.HK",
-    "label": "9866_HK",
+    "label": "蔚来-SW",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -632,7 +632,7 @@
   {
     "id": "auto-9868_HK-1d",
     "symbol": "9868.HK",
-    "label": "9868_HK",
+    "label": "小鹏汽车-W",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -642,7 +642,7 @@
   {
     "id": "auto-9888_HK-1d",
     "symbol": "9888.HK",
-    "label": "9888_HK",
+    "label": "百度集团-SW",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",
@@ -652,7 +652,7 @@
   {
     "id": "auto-9988_HK-1d",
     "symbol": "9988.HK",
-    "label": "9988_HK",
+    "label": "阿里巴巴-SW",
     "market": "港股",
     "interval": "1日",
     "source": "yfinance / akshare",

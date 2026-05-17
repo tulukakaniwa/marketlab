@@ -91,6 +91,12 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           :active-formula-id="lab.activeFormulaId"
           :active-formula="lab.activeFormula"
           :portfolio-enabled="lab.featureFlags.portfolioResearch"
+          :hover-market="lab.hoverMarket"
+          :hover-formula-row="lab.hoverFormulaRow"
+          :hover-row="lab.hoverRow"
+          :hover-prev-row="lab.hoverPrevRow"
+          :hover-date="lab.hoverDate"
+          :is-hovering="lab.isHovering"
           @select-formula="(id) => emit('select-formula', id)"
         />
         <SettingsDrawer

@@ -214,6 +214,7 @@ const rootStyle = computed(() => ({
           :overlays="lab.chartOverlays"
           :input="lab.input"
           @param-change="onParamChange"
+          @cursor-change="lab.setHoverIndex"
         />
         <div v-else class="empty-state">
           <Activity :size="36" />

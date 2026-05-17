@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { buildMarketStatePath } from '../domain/market-data/cost.js'
 import lpOnchainSnapshots from '../data/lp-onchain-snapshots.json'
 import { resolveLpOnchainSnapshot } from '../domain/market-data/lpOnchain.js'
@@ -149,6 +149,48 @@ export const useLabStore = defineStore('lab', () => {
   // chartOverlays 在 store 顶层初始化一次（同一份在所有组件间共享）
   const chartOverlays = useChartOverlays()
 
+  // ── Hover 视图状态（独立于 cursor，仅用于指标面板预览）──
+  // cursor 是观察日期（计划锚点），hoverIndex 仅是鼠标当前所在的 bar，hover 不能改写计划。
+  const hoverIndex = ref(null)
+  function setHoverIndex(index) {
+    if (index === null || index === undefined) {
+      hoverIndex.value = null
+      return
+    }
+    const n = Number(index)
+    const len = rows.value.length
+    if (!Number.isFinite(n) || len === 0) {
+      hoverIndex.value = null
+      return
+    }
+    hoverIndex.value = Math.max(0, Math.min(len - 1, Math.round(n)))
+  }
+  // 切换品种 → 清空 hoverIndex，避免脏索引
+  watch(rows, () => { hoverIndex.value = null })
+
+  const isHovering = computed(() => hoverIndex.value !== null)
+  const hoverRow = computed(() => {
+    const idx = hoverIndex.value
+    if (idx === null) return null
+    return marketState.activeRows.value[idx] ?? null
+  })
+  const hoverPrevRow = computed(() => {
+    const idx = hoverIndex.value
+    if (idx === null || idx <= 0) return null
+    return marketState.activeRows.value[idx - 1] ?? null
+  })
+  const hoverDate = computed(() => hoverRow.value?.date ?? observationDate.value ?? '')
+  const hoverMarket = computed(() => {
+    const idx = hoverIndex.value
+    if (idx === null) return marketState.market.value
+    return marketState.marketStateFull.value[idx] ?? marketState.market.value
+  })
+  const hoverFormulaRow = computed(() => {
+    const idx = hoverIndex.value
+    if (idx === null) return marketState.formulaPath.value.at(-1) ?? null
+    return marketState.formulaPath.value[idx] ?? marketState.formulaPath.value.at(-1) ?? null
+  })
+
   return {
     // 数据层
     rows: data.rows,
@@ -221,6 +263,16 @@ export const useLabStore = defineStore('lab', () => {
 
     // 杂项
     useCursorCloseAsEntry,
+
+    // Hover 视图状态（仅指标面板使用，不影响 cursor / 计划锚点）
+    hoverIndex,
+    setHoverIndex,
+    isHovering,
+    hoverRow,
+    hoverPrevRow,
+    hoverDate,
+    hoverMarket,
+    hoverFormulaRow,
   }
 })
 
