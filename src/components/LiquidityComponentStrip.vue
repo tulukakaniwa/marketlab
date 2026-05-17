@@ -65,8 +65,8 @@ function pct(value) {
 }
 
 .is-base { border-top-color: var(--blue) !important; }
-.is-active { border-top-color: var(--ink) !important; }
-.is-cost { border-top-color: var(--green) !important; }
+.is-active { border-top-color: var(--green) !important; }
+.is-cost { border-top-color: var(--ink) !important; }
 .is-orders { border-top-color: var(--red) !important; }
 .is-range { border-top-color: #8b5a16 !important; }
 </style>

@@ -1,6 +1,7 @@
 import { blackScholes, capitalEfficiency, fundingRate, getDeltaBands, impermanentLoss, netCarry, netLpEfficiency, resolveDeltaSlope, uniswapV3Inventory } from '../formulas/core.js'
 import { buildCostPath, deriveWindows } from './cost.js'
 import { buildLpDataState } from './lpOnchain.js'
+import { lpPoolCoverageMetrics } from './lpPoolMetrics.js'
 
 export const FORMULA_PATH_FIELDS = {
   bandAnchor: { source: 'cost', unit: 'price', pane: 'priceBands', status: 'implemented', drawable: false },
@@ -21,6 +22,8 @@ export const FORMULA_PATH_FIELDS = {
   lpNormalizedDelta: { source: 'lp-inventory', unit: 'ratio', pane: 'lpPane', status: 'research-only', drawable: true },
   lpRealPrice: { source: 'lp-inventory', unit: 'price', pane: 'priceBands', status: 'research-only', drawable: true },
   lpRealDivergence: { source: 'lp-inventory', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: true },
+  lpPoolTurnover24h: { source: 'lp-pool-coverage', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: true },
+  lpPoolTopReserveShare: { source: 'lp-pool-coverage', unit: 'ratio', pane: 'lpPane', status: 'research-only', drawable: true },
   capitalEfficiency: { source: 'capital-efficiency', unit: 'multiple', pane: 'lpPane', status: 'research-only', drawable: true },
   impermanentLoss: { source: 'lp-inventory', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: false },
   netLpEfficiency: { source: 'net-lp-efficiency', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: false },
@@ -75,6 +78,7 @@ export function buildFormulaPath(rows, input) {
     const liquidity = positive(input.liquidity) ?? 1
     const lpDataState = buildLpDataState(input.lpOnchainSnapshot)
     const lpRealPrice = positive(lpDataState.quotePrice)
+    const lpPoolMetrics = lpPoolCoverageMetrics(lpDataState.poolCoverage)
     const lpState = fieldState({
       source: 'lp-inventory',
       status: 'research-only',
@@ -92,6 +96,22 @@ export function buildFormulaPath(rows, input) {
         quotePrice: lpDataState.quotePrice,
         quoteSymbol: lpDataState.quoteSymbol,
         poolCoverage: lpDataState.poolCoverage,
+      },
+    })
+    const lpPoolState = fieldState({
+      source: 'lp-pool-coverage',
+      status: 'research-only',
+      inputMode: lpDataState.inputMode,
+      isSynthetic: lpDataState.inputMode === 'fallback',
+      missingInputs: [
+        lpDataState.inputMode === 'fallback' ? 'real-lp-pool' : null,
+        'tick-liquidity-history',
+        'lp-add-remove-events',
+      ].filter(Boolean),
+      context: {
+        poolCoverage: lpDataState.poolCoverage,
+        fetchedAt: lpDataState.fetchedAt,
+        blockNumber: lpDataState.blockNumber,
       },
     })
     const lp = uniswapV3Inventory({
@@ -128,7 +148,7 @@ export function buildFormulaPath(rows, input) {
       : null
     const netLp = netLpEfficiency({ capitalEfficiency: ce?.efficiency, impermanentLoss: il?.impermanentLoss, feeRate: 0.003 })
 
-    const fieldStates = buildFieldStates({ optionState, lpState, fundingState })
+    const fieldStates = buildFieldStates({ optionState, lpState, lpPoolState, fundingState })
     return {
       date: row.date,
       bandAnchor: finite(bandAnchor),
@@ -149,6 +169,8 @@ export function buildFormulaPath(rows, input) {
       lpNormalizedDelta: finite(normalizeInventory(lp, row.close)),
       lpRealPrice: finite(lpRealPrice),
       lpRealDivergence: finite(lpRealPrice ? (row.close - lpRealPrice) / lpRealPrice : null),
+      lpPoolTurnover24h: finite(lpPoolMetrics.turnover24h),
+      lpPoolTopReserveShare: finite(lpPoolMetrics.topReserveShare),
       capitalEfficiency: finite(ce?.efficiency),
       impermanentLoss: finite(il?.impermanentLoss),
       netLpEfficiency: finite(netLp?.totalNet),
@@ -156,7 +178,7 @@ export function buildFormulaPath(rows, input) {
       fundingProxy: finite(funding?.cumulativeFundingEstimate),
       netCarry: finite(carry?.netReturn),
       breakEvenFunding: finite(carry?.breakEven),
-      status: buildFormulaPathStatus({ optionState, fundingState, lpState }),
+      status: buildFormulaPathStatus({ optionState, fundingState, lpState, lpPoolState }),
       fieldStates,
     }
   })
@@ -221,7 +243,7 @@ function fieldState({ source, status, inputMode, missingInputs = [], context = n
   }
 }
 
-function buildFieldStates({ optionState, lpState, fundingState }) {
+function buildFieldStates({ optionState, lpState, lpPoolState, fundingState }) {
   const base = {
     bandAnchor: fieldState({ source: 'cost', status: 'implemented', inputMode: 'real' }),
     costAnchor: fieldState({ source: 'cost', status: 'implemented', inputMode: 'real' }),
@@ -234,13 +256,14 @@ function buildFieldStates({ optionState, lpState, fundingState }) {
   }
   for (const field of ['optionDelta', 'optionGamma', 'optionThetaDaily']) base[field] = optionState
   for (const field of ['lpLowerPrice', 'lpUpperPrice', 'lpValue', 'lpInventoryDelta', 'lpNormalizedDelta', 'lpRealPrice', 'lpRealDivergence', 'impermanentLoss', 'capitalEfficiency', 'netLpEfficiency']) base[field] = lpState
+  for (const field of ['lpPoolTurnover24h', 'lpPoolTopReserveShare']) base[field] = lpPoolState
   for (const field of ['fundingBasis', 'fundingProxy', 'netCarry', 'breakEvenFunding']) base[field] = fundingState
   return base
 }
 
-function buildFormulaPathStatus({ optionState, fundingState, lpState }) {
+function buildFormulaPathStatus({ optionState, fundingState, lpState, lpPoolState }) {
   const statuses = new Set()
-  for (const state of [optionState, fundingState, lpState]) {
+  for (const state of [optionState, fundingState, lpState, lpPoolState]) {
     if (state?.status) statuses.add(state.status)
     if (state?.missingInputs?.length) statuses.add('missing-input')
     if (state?.isSynthetic) statuses.add(`${state.inputMode}-input`)

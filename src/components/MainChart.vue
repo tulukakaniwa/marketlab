@@ -14,6 +14,7 @@ import ChartStatusBar from './ChartStatusBar.vue'
 import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
 import { resolveChartOverlayPlan } from '../domain/research-visualization/chartPaneLayout.js'
+import { buildResearchStatusLabel } from '../domain/research-visualization/researchStatusLabel.js'
 
 const MAX_REPLAY_MARKER_TRADES = 120
 const MAX_REPLAY_TEXT_LABELS = 6
@@ -92,8 +93,8 @@ function applyOverlays() {
   toggle('costLower', overlayPlan.price.costBand, () => addLine('成本下沿', '#274f9f', 1, LineStyle.Dashed))
   toggle('deltaUpper', overlayPlan.price.deltaBand, () => addLine('GetDelta 上沿', '#9a4f00', 1, LineStyle.Dotted))
   toggle('deltaLower', overlayPlan.price.deltaBand, () => addLine('GetDelta 下沿', '#1f5fbf', 1, LineStyle.Dotted))
-  toggle('lpLower', overlayPlan.price.lpBand, () => addLine('LP 下沿', '#7a5cff', 1, LineStyle.Dashed))
-  toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('LP 上沿', '#7a5cff', 1, LineStyle.Dashed))
+  toggle('lpLower', overlayPlan.price.lpBand, () => addLine('LP区间下沿', '#7a5cff', 1, LineStyle.Dashed))
+  toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('LP区间上沿', '#7a5cff', 1, LineStyle.Dashed))
   toggle('lpRealPrice', overlayPlan.price.lpRealPrice, () => addLine('链上池价', '#8b5a16', 2, LineStyle.Dotted))
   toggle('entry', overlayPlan.price.entryLine, () => addLine('入场', '#b3261e', 1, LineStyle.Dotted))
   toggle('volume', overlayPlan.paneOn.volume, () => chart.addSeries(HistogramSeries, {
@@ -104,18 +105,20 @@ function applyOverlays() {
     priceFormat: { type: 'volume' }, priceScaleId: '',
     priceLineVisible: false, lastValueVisible: false,
   }, paneLayout.volume))
-  toggle('bsDelta', overlayPlan.paneOn.greeks, () => addPaneLine('BS Δ', '#a93226', paneLayout.greeks, { priceScaleId: 'greeks-delta' }))
-  toggle('bsGamma', overlayPlan.paneOn.greeks, () => addPaneLine('BS Γ', '#8b5a16', paneLayout.greeks, { priceScaleId: 'greeks-gamma' }))
-  toggle('bsTheta', overlayPlan.paneOn.greeks, () => addPaneLine('BS Θ/日', '#274f9f', paneLayout.greeks, { priceScaleId: 'greeks-theta' }))
+  toggle('bsDelta', overlayPlan.paneOn.greeks, () => addPaneLine('期权 Delta', '#a93226', paneLayout.greeks, { priceScaleId: 'greeks-delta' }))
+  toggle('bsGamma', overlayPlan.paneOn.greeks, () => addPaneLine('期权 Gamma', '#8b5a16', paneLayout.greeks, { priceScaleId: 'greeks-gamma' }))
+  toggle('bsTheta', overlayPlan.paneOn.greeks, () => addPaneLine('期权 Theta/日', '#274f9f', paneLayout.greeks, { priceScaleId: 'greeks-theta' }))
   toggle('greeksZero', overlayPlan.paneOn.greeks, () => addPaneLine('0', '#888', paneLayout.greeks, { priceScaleId: 'greeks-delta', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
-  toggle('lpDelta', overlayPlan.paneOn.lp, () => addPaneLine('LP norm', '#0e7558', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
-  toggle('lpValue', overlayPlan.paneOn.lp, () => addPaneLine('LP value', '#7a5cff', paneLayout.lp, { priceScaleId: 'lp-quote' }))
-  toggle('lpRealDiv', overlayPlan.paneOn.lp, () => addPaneLine('链上偏离', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
-  toggle('lpCe', overlayPlan.paneOn.lp, () => addPaneLine('CE', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-multiple' }))
-  toggle('lpZero', overlayPlan.paneOn.lp, () => addPaneLine('LP 0', '#888', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
-  toggle('fundingProxy', overlayPlan.paneOn.carry, () => addPaneLine('Funding proxy', '#a93226', paneLayout.carry, { priceScaleId: 'carry-return' }))
-  toggle('netCarry', overlayPlan.paneOn.carry, () => addPaneLine('Net carry', '#0e7558', paneLayout.carry, { priceScaleId: 'carry-return' }))
-  toggle('carryZero', overlayPlan.paneOn.carry, () => addPaneLine('Carry 0', '#888', paneLayout.carry, { priceScaleId: 'carry-return', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
+  toggle('lpDelta', overlayPlan.paneOn.lp, () => addPaneLine('LP库存暴露', '#0e7558', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
+  toggle('lpValue', overlayPlan.paneOn.lp, () => addPaneLine('LP库存价值', '#7a5cff', paneLayout.lp, { priceScaleId: 'lp-quote' }))
+  toggle('lpRealDiv', overlayPlan.paneOn.lp, () => addPaneLine('链上池价偏离', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
+  toggle('lpPoolTurnover', overlayPlan.paneOn.lpPoolCoverage, () => addPaneLine('真实池24h换手', '#b3261e', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }))
+  toggle('lpPoolConcentration', overlayPlan.paneOn.lpPoolCoverage, () => addPaneLine('主池资金占比', '#274f9f', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }))
+  toggle('lpCe', overlayPlan.paneOn.lp, () => addPaneLine('资本效率', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-multiple' }))
+  toggle('lpZero', overlayPlan.paneOn.lp, () => addPaneLine('LP暴露零线', '#888', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
+  toggle('fundingProxy', overlayPlan.paneOn.carry, () => addPaneLine('Funding估算', '#a93226', paneLayout.carry, { priceScaleId: 'carry-return' }))
+  toggle('netCarry', overlayPlan.paneOn.carry, () => addPaneLine('净持有收益', '#0e7558', paneLayout.carry, { priceScaleId: 'carry-return' }))
+  toggle('carryZero', overlayPlan.paneOn.carry, () => addPaneLine('持有收益零线', '#888', paneLayout.carry, { priceScaleId: 'carry-return', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
   toggle('equity', overlayPlan.paneOn.equity, () => chart.addSeries(LineSeries, {
     title: '回放权益', color: '#1f5fbf', lineWidth: 2,
     priceLineVisible: false, lastValueVisible: true,
@@ -126,11 +129,11 @@ function applyOverlays() {
     priceLineVisible: false, lastValueVisible: false,
   }, paneLayout.equity))
   toggle('kdjK', overlayPlan.paneOn.kdj, () => chart.addSeries(LineSeries, {
-    title: 'KD', color: 'rgba(255, 165, 0, 0.5)', lineWidth: 1,
+    title: 'K/D均线', color: 'rgba(255, 165, 0, 0.5)', lineWidth: 1,
     priceLineVisible: false, lastValueVisible: false,
   }, paneLayout.kdj))
   toggle('kdjJ', overlayPlan.paneOn.kdj, () => chart.addSeries(LineSeries, {
-    title: 'J', color: '#4e4e4e', lineWidth: 2,
+    title: 'J线', color: '#4e4e4e', lineWidth: 2,
     priceLineVisible: false, lastValueVisible: false,
   }, paneLayout.kdj))
   if (series.kdjJ && !series.kdjJ.__hlinesInstalled) {
@@ -139,7 +142,7 @@ function applyOverlays() {
     series.kdjJ.createPriceLine({ price: 0,   color: 'rgba(0,167,6,0.3)', lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: false })
   }
   toggle('rsi', overlayPlan.paneOn.rsi, () => chart.addSeries(LineSeries, {
-    title: 'RSI', color: '#2e2e2e', lineWidth: 3,
+    title: 'RSI相对强弱', color: '#2e2e2e', lineWidth: 3,
     priceLineVisible: false, lastValueVisible: false,
   }, paneLayout.rsi))
   if (series.rsi && !series.rsi.__hlinesInstalled) {
@@ -234,6 +237,8 @@ function syncChart() {
   if (series.lpDelta) setLine(series.lpDelta, props.formulaPath.map((r) => r.lpNormalizedDelta))
   if (series.lpValue) setLine(series.lpValue, props.formulaPath.map((r) => r.lpValue))
   if (series.lpRealDiv) setLine(series.lpRealDiv, props.formulaPath.map((r) => r.lpRealDivergence))
+  if (series.lpPoolTurnover) setLatestPoint(series.lpPoolTurnover, props.formulaPath.at(-1)?.lpPoolTurnover24h)
+  if (series.lpPoolConcentration) setLatestPoint(series.lpPoolConcentration, props.formulaPath.at(-1)?.lpPoolTopReserveShare)
   if (series.lpCe) setLine(series.lpCe, props.formulaPath.map((r) => r.capitalEfficiency))
   if (series.lpZero) setLine(series.lpZero, props.rows.map(() => 0))
   if (series.fundingProxy) setLine(series.fundingProxy, props.formulaPath.map((r) => r.fundingProxy))
@@ -298,7 +303,7 @@ function buildResearchMarkers() {
   if (!last?.date || !Array.isArray(last.status) || !last.status.length) return []
   const flagged = Object.values(last.fieldStates ?? {})
     .filter((state) => state?.status !== 'implemented' || state?.missingInputs?.length || state?.isSynthetic)
-  const label = compactResearchLabel(last.status, flagged)
+  const label = buildResearchStatusLabel(last.status, flagged)
   return [{
     time: last.date,
     position: 'aboveBar',
@@ -307,16 +312,6 @@ function buildResearchMarkers() {
     text: label,
     id: 'research-status',
   }]
-}
-
-function compactResearchLabel(statuses, flagged) {
-  const parts = []
-  if (statuses.includes('research-only')) parts.push('研究')
-  if (statuses.includes('proxy-only')) parts.push('代理')
-  if (statuses.includes('protocol-unverified')) parts.push('未验')
-  if (statuses.includes('missing-input')) parts.push('缺输入')
-  if (!parts.length && flagged.length) parts.push('状态')
-  return parts.slice(0, 3).join(' · ')
 }
 
 function buildReplayMarkers(trades) {
@@ -398,6 +393,12 @@ function setLine(lineSeries, values) {
   lineSeries.setData(props.rows.map((row, i) => ({
     time: row.date, value: finiteOrNull(values[i]),
   })).filter((p) => p.value !== null))
+}
+
+function setLatestPoint(lineSeries, value) {
+  const last = props.rows.at(-1)
+  const next = finiteOrNull(value)
+  lineSeries.setData(last && next !== null ? [{ time: last.date, value: next }] : [])
 }
 
 function pathValues(field, fallback = []) {

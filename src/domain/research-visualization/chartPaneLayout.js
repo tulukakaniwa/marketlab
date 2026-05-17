@@ -2,6 +2,7 @@ export function resolveChartOverlayPlan({ overlays, formulaPath }) {
   const priceBands = overlayOn(overlays, 'priceBands')
   const greeks = overlayOn(overlays, 'greeksPane') && hasPathData(formulaPath, ['optionDelta', 'optionGamma', 'optionThetaDaily'])
   const lp = overlayOn(overlays, 'lpPane') && hasPathData(formulaPath, ['lpNormalizedDelta', 'lpValue', 'lpRealDivergence', 'capitalEfficiency'])
+  const lpPoolCoverage = lp && hasPathData(formulaPath, ['lpPoolTurnover24h', 'lpPoolTopReserveShare'])
   const carry = overlayOn(overlays, 'carryPane') && hasPathData(formulaPath, ['fundingProxy', 'netCarry'])
   const panes = buildPaneLayout({
     volume: overlayOn(overlays, 'volume'),
@@ -25,6 +26,7 @@ export function resolveChartOverlayPlan({ overlays, formulaPath }) {
       volume: panes.volume !== undefined,
       greeks,
       lp,
+      lpPoolCoverage,
       carry,
       equity: panes.equity !== undefined,
       kdj: panes.kdj !== undefined,
