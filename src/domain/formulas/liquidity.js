@@ -19,7 +19,7 @@ export function logLaplaceDensity(price, { mu = 0, lambda = 1, kappa = 1, lower 
   if (!Number.isFinite(price) || price <= 0) return null
   if (lower !== null && price < lower) return 0
   if (upper !== null && price > upper) return 0
-  return laplaceDensity(Math.log(price), { mu, lambda, kappa })
+  return logDensityToPriceDensity(price, laplaceDensity(Math.log(price), { mu, lambda, kappa }))
 }
 
 export function coveredCallFit(price, { strikePrice, iv = 1, lower = 0, upper = Infinity } = {}) {
@@ -182,7 +182,7 @@ export function buildDensityComponents({
       kind: 'log-normal-bump',
       weight: weights.activeWeight,
       anchor: activePrice,
-      fn: (p) => validPrice(p) ? normalDensity(Math.log(p), { mu: Math.log(activePrice), sigma: logSigma }) ?? 0 : 0,
+      fn: (p) => validPrice(p) ? logDensityToPriceDensity(p, normalDensity(Math.log(p), { mu: Math.log(activePrice), sigma: logSigma })) : 0,
     })
   }
   if (validPrice(costAnchor)) {
@@ -192,7 +192,7 @@ export function buildDensityComponents({
       kind: 'log-normal-bump',
       weight: weights.costWeight,
       anchor: costAnchor,
-      fn: (p) => validPrice(p) ? normalDensity(Math.log(p), { mu: Math.log(costAnchor), sigma: logSigma * 1.35 }) ?? 0 : 0,
+      fn: (p) => validPrice(p) ? logDensityToPriceDensity(p, normalDensity(Math.log(p), { mu: Math.log(costAnchor), sigma: logSigma * 1.35 })) : 0,
     })
   }
 
@@ -212,7 +212,7 @@ export function buildDensityComponents({
         return orders.reduce((sum, order) => {
           const sideBoost = order.side === 'sell' ? 0.92 : 1
           const weight = Math.sqrt(order.notional / maxNotional) * sideBoost
-          return sum + weight * (normalDensity(x, { mu: Math.log(order.price), sigma: logSigma * 0.7 }) ?? 0)
+          return sum + weight * logDensityToPriceDensity(p, normalDensity(x, { mu: Math.log(order.price), sigma: logSigma * 0.7 }))
         }, 0)
       },
     })
@@ -232,8 +232,8 @@ export function buildDensityComponents({
       fn: (p) => {
         if (!validPrice(p)) return 0
         const x = Math.log(p)
-        if (p >= range.lower && p <= range.upper) return 1
-        return normalDensity(x, { mu: center, sigma: width * 1.8 }) ?? 0
+        if (p >= range.lower && p <= range.upper) return 1 / p
+        return logDensityToPriceDensity(p, normalDensity(x, { mu: center, sigma: width * 1.8 }))
       },
     })
   }
@@ -339,4 +339,8 @@ function sideOf(price, activePrice) {
 
 function validPrice(value) {
   return Number.isFinite(value) && value > 0
+}
+
+function logDensityToPriceDensity(price, logDensity) {
+  return validPrice(price) && Number.isFinite(logDensity) ? logDensity / price : 0
 }

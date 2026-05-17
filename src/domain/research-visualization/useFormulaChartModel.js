@@ -110,6 +110,22 @@ export function useFormulaChartModel(props) {
       return { cx: PL + ((mp - lo) / (hi - lo)) * pw, cy: syH(0.5) }
     } catch { return { cx: PL, cy: syH(0.5) } }
   })
+  const lpRealMarker = computed(() => {
+    try {
+      const mp = props.market?.markPrice
+      const price = props.graph.lpOnchain?.quotePrice
+      if (!mp || !Number.isFinite(price) || price <= 0) return null
+      const lo = mp * 0.5; const hi = mp * 2
+      const x = PL + ((price - lo) / (hi - lo)) * pw
+      if (!Number.isFinite(x) || x < PL || x > W - PR) return null
+      return {
+        x,
+        price,
+        label: props.graph.lpOnchain?.pool?.label ?? '链上池价',
+        divergence: (mp - price) / price,
+      }
+    } catch { return null }
+  })
   const lpV3Bounds = computed(() => {
     try {
       const mp = props.market?.markPrice; if (!mp) return { loX: PL, hiX: PL + pw }
@@ -301,7 +317,7 @@ export function useFormulaChartModel(props) {
       'option-greeks': { title: '怎么看期权 Greeks', body: `${o?.isPortfolio ? '组合' : '单腿'} Delta ${f4(o?.delta)}：标的涨 1 元，模型价值约变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 偏多暴露' : '负 Delta = 偏空/保护暴露'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。该页是 research-only 风险拆解。` },
       'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单结论。` },
       'lp-inventory': { title: '研究层：LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}，无常损失估计 ${pctFmt(il?.impermanentLoss)}。这些值来自研究层输入，不等于真实链上 LP 仓位。` },
-      'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在按底层分布、现价、成本锚、区间和模拟挂单拆成成分，再归一化离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。真实 tick、手续费层级和链上 LP NFT 权重仍未接入。` },
+      'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在按底层分布、现价、成本锚、区间和模拟挂单拆成成分，再归一化离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。池级链上快照可作为来源状态，真实 tick 分布和链上 LP NFT 权重仍未接入。` },
       'amm-geometry': { title: '研究层：AMM 几何', body: `绿线是恒定乘积，蓝线是 Lambert W 研究曲线，Numoen 快照只展示 reverse-engineered invariant / quoter / slippage，状态为 protocol-unverified，不能作为交易信号。` },
       'capital-efficiency': { title: '研究层：资本效率', body: `资本效率 ${(g.efficiency?.efficiency ?? 0).toFixed(1)}×，区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}]。该值只描述区间宽度函数，不判断仓位是否有效。` },
       funding: { title: '研究层：资金费率', body: `当前只有 perp TWAP / spot TWAP - 1 的估计：${pctFmt(g.funding?.ratio)}。还没有接真实永续资金费率、结算周期、交易所制度和历史结算数据，不能作为持仓结论。` },
@@ -406,6 +422,7 @@ export function useFormulaChartModel(props) {
     syH,
     lpV3Curve,
     lpV3Marker,
+    lpRealMarker,
     lpV3Bounds,
     ceData,
     ceCurve,

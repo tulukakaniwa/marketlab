@@ -3,7 +3,10 @@ import { computed, ref } from 'vue'
 import { Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-vue-next'
 import { buildLiquidityRackModel } from '../domain/research-visualization/liquidityRackModel.js'
 import LiquidityComponentStrip from './LiquidityComponentStrip.vue'
+import LiquidityOpportunityPanel from './LiquidityOpportunityPanel.vue'
 import LiquidityRackDepth from './LiquidityRackDepth.vue'
+import LiquidityRouteStrip from './LiquidityRouteStrip.vue'
+import LiquidityViewControls from './LiquidityViewControls.vue'
 
 const props = defineProps({
   rows: { type: Array, required: true },
@@ -15,6 +18,8 @@ const props = defineProps({
 
 const expanded = ref(false)
 const zoom = ref(1)
+const viewMode = ref('compare')
+const gapMode = ref('shortfall')
 
 const compactModel = computed(() => rackModel({ binCount: 36, visibleWindow: 120 }))
 const expandedModel = computed(() => rackModel({
@@ -36,6 +41,8 @@ function rackModel(extra) {
     formulaPath: props.formulaPath,
     graph: props.graph,
     activeIndex: props.activeIndex,
+    viewMode: viewMode.value,
+    gapMode: gapMode.value,
     ...extra,
   })
 }
@@ -88,7 +95,10 @@ function pct(value) {
       <span>{{ compactModel.meta.compositionLabel }}</span>
     </div>
 
+    <LiquidityViewControls v-model:view-mode="viewMode" v-model:gap-mode="gapMode" />
+
     <LiquidityComponentStrip :model="compactModel" />
+    <LiquidityOpportunityPanel :model="compactModel" :precision="precision" />
 
     <div class="lf-range">
       <span>{{ fmt(compactModel.range.upper) }}</span>
@@ -133,8 +143,11 @@ function pct(value) {
           <div><span>价格上沿</span><b>{{ fmt(expandedModel.range.upper) }}</b></div>
           <div><span>价格下沿</span><b>{{ fmt(expandedModel.range.lower) }}</b></div>
           <div><span>单档跨度</span><b>{{ fmt(expandedModel.priceStep) }}</b></div>
-          <div><span>模型状态</span><b>{{ expandedModel.inputMode }} / {{ expandedModel.status }}</b></div>
+          <div><span>视图</span><b>{{ expandedModel.viewLabel }}</b></div>
+          <div><span>LP 数据</span><b>{{ expandedModel.meta.lpModeLabel }}</b></div>
         </div>
+
+        <LiquidityViewControls v-model:view-mode="viewMode" v-model:gap-mode="gapMode" />
 
         <div class="lf-explain">
           <article>
@@ -143,33 +156,38 @@ function pct(value) {
             <small>{{ expandedModel.meta.sourceLabel }}</small>
           </article>
           <article>
+            <span>数据</span>
+            <strong>{{ expandedModel.meta.dataLabel }}</strong>
+            <small>{{ expandedModel.hasRealSignal ? `${expandedModel.shareLabel}用于观察策略意图和池状态是否同向。` : '真实层待接入，当前表格只显示模型参考。' }}</small>
+          </article>
+          <article>
             <span>目的</span>
             <strong>解释挂单在目标密度上的位置</strong>
             <small>{{ expandedModel.meta.purpose[0] }}</small>
           </article>
           <article>
-            <span>缺失</span>
-            <strong>真实市场构成未接入</strong>
-            <small>{{ expandedModel.meta.missing.slice(0, 2).join(' / ') }}</small>
+            <span>增强</span>
+            <strong>真实层、模拟层、对照和缺口可切换</strong>
+            <small>{{ expandedModel.meta.nextInputs.slice(0, 2).join(' / ') }}</small>
           </article>
         </div>
 
-        <LiquidityComponentStrip :model="expandedModel" />
-
-        <div class="lf-layer-row">
-          <div v-for="layer in expandedModel.meta.layers" :key="layer.label">
-            <b>{{ layer.label }}</b>
-            <span>{{ layer.value }}</span>
-            <small>{{ layer.note }}</small>
+        <div class="lf-analysis-grid">
+          <div class="lf-analysis-meta">
+            <LiquidityComponentStrip :model="expandedModel" />
+            <LiquidityOpportunityPanel :model="expandedModel" :precision="precision" />
+            <div class="lf-layer-row">
+              <div v-for="layer in expandedModel.meta.layers" :key="layer.label">
+                <b>{{ layer.label }}</b>
+                <span>{{ layer.value }}</span>
+                <small>{{ layer.note }}</small>
+              </div>
+            </div>
+            <LiquidityRouteStrip :model="expandedModel" :precision="precision" />
           </div>
-        </div>
 
-        <LiquidityRackDepth
-          :model="expandedModel"
-          variant="expanded"
-          :precision="precision"
-          show-table
-        />
+          <LiquidityRackDepth :model="expandedModel" variant="expanded" :precision="precision" show-table />
+        </div>
       </section>
     </div>
   </Teleport>
@@ -213,25 +231,10 @@ function pct(value) {
   line-height: 1.05;
 }
 
-.lf-actions {
-  display: flex !important;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
+.lf-actions { display: flex !important; flex-direction: column; align-items: flex-end; gap: 4px; }
 
 .lf-actions button,
-.lf-toolbar button {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 26px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
-  cursor: pointer;
-}
+.lf-toolbar button { display: grid; place-items: center; width: 28px; height: 26px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); cursor: pointer; }
 
 .lf-actions button:hover,
 .lf-toolbar button:hover:not(:disabled) {
@@ -239,21 +242,9 @@ function pct(value) {
   color: var(--green);
 }
 
-.lf-toolbar button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+.lf-toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.lf-actions em {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 1px 6px;
-  color: var(--muted);
-  font-size: 0.56rem;
-  font-style: normal;
-  font-weight: 900;
-  white-space: nowrap;
-}
+.lf-actions em { border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; color: var(--muted); font-size: 0.56rem; font-style: normal; font-weight: 900; white-space: nowrap; }
 
 .lf-source {
   display: grid;
@@ -363,16 +354,21 @@ function pct(value) {
 
 .lf-panel-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1px;
   border-bottom: 1px solid var(--line);
   background: var(--line);
 }
 
+.lf-analysis-grid { min-height: 0; display: grid; grid-template-columns: minmax(260px, 0.72fr) minmax(620px, 1.5fr); border-top: 1px solid var(--line); }
+.lf-analysis-meta { min-width: 0; min-height: 0; overflow: auto; border-right: 1px solid var(--line); background: var(--surface); }
+.lf-analysis-meta .lf-layer-row { grid-template-columns: 1fr; }
+.lf-analysis-meta :deep(.lf-components) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
 .lf-explain,
 .lf-layer-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   border-bottom: 1px solid var(--line);
   background: var(--line);
@@ -396,6 +392,8 @@ function pct(value) {
 .lf-explain small,
 .lf-layer-row span,
 .lf-layer-row small {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 0.68rem;
   line-height: 1.3;
@@ -437,8 +435,11 @@ function pct(value) {
   }
 
   .lf-explain,
-  .lf-layer-row {
+  .lf-layer-row,
+  .lf-analysis-grid {
     grid-template-columns: 1fr;
   }
+
+  .lf-analysis-meta { border-right: 0; border-bottom: 1px solid var(--line); }
 }
 </style>

@@ -16,6 +16,7 @@ import {
   uniswapV3HedgedPosition,
   uniswapV3Inventory,
 } from '../formulas/core.js'
+import { buildLpDataState } from '../market-data/lpOnchain.js'
 
 export function buildResearchSnapshot({ market, input, executable }) {
   const { entryPrice, holdingDays, iv, capital } = executable.inputs
@@ -141,6 +142,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
     u: Number(input.numoenU) || 4,
     dy: Number(input.numoenDy) || 0.1,
   })
+  const lpDataState = buildLpDataState(input.lpOnchainSnapshot)
 
   return {
     researchInputs: { rangeWidth, skew, liquidity, hedgeSize, fees, strikePrice, startPrice },
@@ -158,9 +160,20 @@ export function buildResearchSnapshot({ market, input, executable }) {
     impermanentLoss: il,
     efficiency: capitalEfficiency({ rangeWidth, skew }),
     funding,
+    lpOnchain: {
+      ...lpDataState,
+      quotePrice: input.lpOnchainSnapshot?.quotePrice ?? lpDataState.quotePrice,
+      quoteSymbol: input.lpOnchainSnapshot?.quoteSymbol ?? lpDataState.quoteSymbol,
+    },
     portfolioResearch: {
       status: 'research-only',
-      missingInputs: ['real-lp-position', 'option-leg', 'hedge-leg', 'fee-model', 'funding-settlement'],
+      missingInputs: [
+        ...lpDataState.missingInputs,
+        'option-leg',
+        'hedge-leg',
+        'fee-model',
+        'funding-settlement',
+      ],
       value: portfolioValue({
         lpValue: lpV3Hedged?.value ?? 0,
         optionValue: option?.price ?? 0,

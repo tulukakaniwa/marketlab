@@ -31,9 +31,11 @@ const markerRows = computed(() => {
   return rows
 })
 
-const tableShelves = computed(() => (props.model.shelves ?? [])
-  .filter((shelf) => shelf.intensity > 0.2 || shelf.buyNotional > 0 || shelf.sellNotional > 0)
-  .slice(0, 14))
+const tableShelves = computed(() => {
+  const shelves = props.model.shelves ?? []
+  if (props.showTable) return shelves
+  return shelves.filter((shelf) => shelf.intensity > 0.2 || shelf.buyNotional > 0 || shelf.sellNotional > 0)
+})
 const visibleMarkers = computed(() => props.variant === 'expanded' ? [] : markerRows.value)
 
 function y(value) {
@@ -52,8 +54,24 @@ function densityWidth(shelf) {
   return shelf.densityWidth * 0.96
 }
 
+function signalWidth(shelf) {
+  return shelf.realWidth * 0.96
+}
+
+function signalX(shelf) {
+  return center - shelf.realWidth * 0.48
+}
+
 function sideX(shelf) {
   return shelf.side === 'bid' ? center - shelf.densityWidth : center
+}
+
+function shelfFill(shelf) {
+  const mode = props.model.effectiveViewMode ?? props.model.viewMode
+  if (mode === 'gap' && props.model.gapMode === 'signed' && shelf.gapDirection === 'crowded') {
+    return 'rgba(139, 90, 22, 0.5)'
+  }
+  return shelf.side === 'bid' ? `url(#${bidId.value})` : `url(#${askId.value})`
 }
 
 function orderX(order) {
@@ -65,7 +83,7 @@ function componentClass(shelf) {
 }
 
 function componentLabel(value) {
-  return ({ base: '底层', active: '现价', cost: '成本', orders: '挂单', range: '区间' })[value] ?? '底层'
+  return ({ base: '底层', active: '现价', cost: '成本', orders: '挂单', range: '区间', real: '链上', gap: '缺口' })[value] ?? '底层'
 }
 
 function fmt(value, digits = props.precision) {
@@ -75,7 +93,23 @@ function fmt(value, digits = props.precision) {
 }
 
 function pct(value) {
-  return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '-'
+  if (!Number.isFinite(value)) return '-'
+  if (value > 0 && value < 0.001) return '<0.1%'
+  return `${(value * 100).toFixed(1)}%`
+}
+
+function signedPct(value) {
+  if (!Number.isFinite(value)) return '-'
+  if (Math.abs(value) > 0 && Math.abs(value) < 0.001) return value < 0 ? '-<0.1%' : '+<0.1%'
+  return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(1)}%`
+}
+
+function shareText(shelf) {
+  const mode = props.model.effectiveViewMode ?? props.model.viewMode
+  if (mode === 'compare') return `${pct(shelf.modelShare)} / ${pct(shelf.realShare)}`
+  if (mode === 'real') return pct(shelf.realShare)
+  if (mode === 'gap') return props.model.gapMode === 'signed' ? signedPct(shelf.gapShare) : pct(shelf.densityShare)
+  return pct(shelf.modelShare)
 }
 
 function notional(value) {
@@ -85,7 +119,7 @@ function notional(value) {
 </script>
 
 <template>
-  <div :class="['lf-depth-wrap', variant]">
+  <div :class="['lf-depth-wrap', variant, `mode-${model.effectiveViewMode || model.viewMode || 'compare'}`]">
     <svg class="lf-depth" :viewBox="`0 0 ${width} ${height}`" preserveAspectRatio="xMidYMid meet" role="img">
       <defs>
         <linearGradient :id="bidId" x1="1" x2="0" y1="0" y2="0">
@@ -122,6 +156,18 @@ function notional(value) {
         />
       </g>
 
+      <g v-if="model.hasRealSignal && !['simulate', 'gap'].includes(model.effectiveViewMode || model.viewMode)" class="lf-real-signal">
+        <rect
+          v-for="shelf in model.shelves"
+          :key="`r-${shelf.lower}`"
+          :x="signalX(shelf)"
+          :y="y(shelf.top)"
+          :width="signalWidth(shelf)"
+          :height="shelfHeight(shelf)"
+          rx="5"
+        />
+      </g>
+
       <g class="lf-depth-bars">
         <rect
           v-for="shelf in model.shelves"
@@ -131,7 +177,7 @@ function notional(value) {
           :y="y(shelf.top)"
           :width="shelf.densityWidth"
           :height="shelfHeight(shelf)"
-          :fill="shelf.side === 'bid' ? `url(#${bidId})` : `url(#${askId})`"
+          :fill="shelfFill(shelf)"
           rx="4"
         />
       </g>
@@ -186,15 +232,15 @@ function notional(value) {
     </svg>
 
     <div v-if="showTable" class="lf-table">
-      <div class="lf-table-head">
+      <div :class="['lf-table-head', `mode-${model.effectiveViewMode || model.viewMode || 'compare'}`]">
         <span>价格区间</span>
-        <span>模型密度</span>
+        <span>{{ model.shareLabel }}</span>
         <span>主成分</span>
         <span>计划挂单</span>
       </div>
-      <div v-for="shelf in tableShelves" :key="`row-${shelf.lower}`" class="lf-table-row">
+      <div v-for="shelf in tableShelves" :key="`row-${shelf.lower}`" :class="['lf-table-row', `mode-${model.effectiveViewMode || model.viewMode || 'compare'}`]">
         <span>{{ fmt(shelf.lower) }} - {{ fmt(shelf.upper) }}</span>
-        <span>{{ pct(shelf.densityShare) }}</span>
+        <span>{{ shareText(shelf) }}</span>
         <span>{{ componentLabel(shelf.dominantComponent) }}</span>
         <span :class="shelf.netNotional >= 0 ? 'green' : 'red'">{{ notional(shelf.netNotional) }}</span>
       </div>
@@ -248,6 +294,37 @@ function notional(value) {
   opacity: 0.72;
 }
 
+.lf-depth-wrap.mode-real .lf-density,
+.lf-depth-wrap.mode-real .lf-depth-bars,
+.lf-depth-wrap.mode-real .lf-components-track,
+.lf-depth-wrap.mode-real .lf-orders {
+  opacity: 0.16;
+}
+
+.lf-depth-wrap.mode-compare .lf-density,
+.lf-depth-wrap.mode-compare .lf-depth-bars,
+.lf-depth-wrap.mode-compare .lf-components-track,
+.lf-depth-wrap.mode-compare .lf-orders {
+  opacity: 0.72;
+}
+
+.lf-real-signal rect {
+  fill: rgba(139, 90, 22, 0.16);
+  stroke: #8b5a16;
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.lf-depth-wrap.mode-real .lf-real-signal rect {
+  fill: rgba(139, 90, 22, 0.34);
+  stroke-width: 1.6;
+}
+
+.lf-depth-wrap.mode-compare .lf-real-signal rect {
+  fill: rgba(139, 90, 22, 0.16);
+  stroke-width: 1.2;
+}
+
 .lf-order.buy {
   fill: var(--blue);
 }
@@ -265,6 +342,7 @@ function notional(value) {
 .lf-components-track .is-cost { fill: var(--ink); }
 .lf-components-track .is-orders { fill: var(--red); }
 .lf-components-track .is-range { fill: #8b5a16; }
+.lf-components-track .is-real { fill: #8b5a16; }
 
 .lf-markers line {
   stroke-width: 1.4;
@@ -334,13 +412,18 @@ function notional(value) {
 .lf-table-head,
 .lf-table-row {
   display: grid;
-  grid-template-columns: 1.25fr 0.55fr 0.55fr 0.7fr;
+  grid-template-columns: 1.2fr 0.72fr 0.5fr 0.55fr;
   gap: 8px;
   align-items: center;
   min-height: 28px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--line);
   font-size: 0.72rem;
+}
+
+.lf-table-head.mode-compare,
+.lf-table-row.mode-compare {
+  grid-template-columns: 1.05fr 0.86fr 0.48fr 0.5fr;
 }
 
 .lf-table-head {

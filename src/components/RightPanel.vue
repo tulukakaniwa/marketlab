@@ -12,6 +12,7 @@ const props = defineProps({
 const emit = defineEmits(['toggle', 'select-sample'])
 
 const filter = ref('')
+const collapsedGroupIds = ref(new Set())
 
 const GROUP_META = [
   { id: 'crypto', label: '加密', icon: '🪙' },
@@ -32,19 +33,6 @@ const groupedSamples = computed(() => {
     .filter((g) => g.items.length > 0)
 })
 
-// 默认展开组：当前 source 所属组优先；否则展开第一个非空组（一般是 crypto）
-// 注意：每次 props.currentSource 变化都会重算并通过 :open 强制覆盖用户手动展开状态。
-// 这是有意的 UX 默认（切换标的时永远确保当前组可见）；如果未来需要保留用户手动操作，
-// 改成本地 expandedGroups ref 取代 :open 计算即可。
-const defaultExpandedGroupId = computed(() => {
-  const cur = props.currentSource
-  if (cur) {
-    const basis = inferTdpy(cur).basis
-    if (groupedSamples.value.some((g) => g.id === basis)) return basis
-  }
-  return groupedSamples.value[0]?.id ?? null
-})
-
 // 过滤后的分组（按 symbol 或 label 不区分大小写包含匹配；空组隐藏）
 const filteredGroups = computed(() => {
   const q = filter.value.trim().toLowerCase()
@@ -62,6 +50,18 @@ const filteredGroups = computed(() => {
 
 function onSelect(s) {
   emit('select-sample', s)
+}
+
+function isGroupOpen(groupId) {
+  return filter.value.length > 0 || !collapsedGroupIds.value.has(groupId)
+}
+
+function onGroupToggle(groupId, event) {
+  if (filter.value.length > 0) return
+  const next = new Set(collapsedGroupIds.value)
+  if (event.target.open) next.delete(groupId)
+  else next.add(groupId)
+  collapsedGroupIds.value = next
 }
 </script>
 
@@ -97,8 +97,9 @@ function onSelect(s) {
         <details
           v-for="g in filteredGroups"
           :key="g.id"
-          :open="g.id === defaultExpandedGroupId || filter.length > 0"
+          :open="isGroupOpen(g.id)"
           class="rp-group"
+          @toggle="onGroupToggle(g.id, $event)"
         >
           <summary>
             <span class="rp-g-label">{{ g.icon }} {{ g.label }}</span>

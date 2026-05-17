@@ -1,12 +1,13 @@
 import { csvParse } from 'd3-dsv'
 
 export const btcHistorySource = {
-  id: 'binance-btcusdt-1d-2017-2025',
-  label: 'BTCUSDT 日线',
+  id: 'auto-BTCUSDT-1d',
+  label: 'Bitcoin',
   symbol: 'BTCUSDT',
   interval: '1日',
-  source: 'Binance 公共数据',
-  url: '/data/btcusdt-1d-2017-2025.csv',
+  market: '加密',
+  source: 'Binance public klines',
+  url: '/data/BTCUSDT-1d.csv',
 }
 
 export const marketSamples = [

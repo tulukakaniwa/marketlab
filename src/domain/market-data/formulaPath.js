@@ -1,5 +1,6 @@
 import { blackScholes, capitalEfficiency, fundingRate, getDeltaBands, impermanentLoss, netCarry, netLpEfficiency, resolveDeltaSlope, uniswapV3Inventory } from '../formulas/core.js'
 import { buildCostPath, deriveWindows } from './cost.js'
+import { buildLpDataState } from './lpOnchain.js'
 
 export const FORMULA_PATH_FIELDS = {
   bandAnchor: { source: 'cost', unit: 'price', pane: 'priceBands', status: 'implemented', drawable: false },
@@ -18,6 +19,8 @@ export const FORMULA_PATH_FIELDS = {
   lpValue: { source: 'lp-inventory', unit: 'quote', pane: 'lpPane', status: 'research-only', drawable: true },
   lpInventoryDelta: { source: 'lp-inventory', unit: 'base', pane: 'lpPane', status: 'research-only', drawable: false },
   lpNormalizedDelta: { source: 'lp-inventory', unit: 'ratio', pane: 'lpPane', status: 'research-only', drawable: true },
+  lpRealPrice: { source: 'lp-inventory', unit: 'price', pane: 'priceBands', status: 'research-only', drawable: true },
+  lpRealDivergence: { source: 'lp-inventory', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: true },
   capitalEfficiency: { source: 'capital-efficiency', unit: 'multiple', pane: 'lpPane', status: 'research-only', drawable: true },
   impermanentLoss: { source: 'lp-inventory', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: false },
   netLpEfficiency: { source: 'net-lp-efficiency', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: false },
@@ -70,15 +73,26 @@ export function buildFormulaPath(rows, input) {
     const upperPrice = lpUpper(input, scenarioStart || bandAnchor)
     const hasLiquidity = positive(input.liquidity) !== null
     const liquidity = positive(input.liquidity) ?? 1
+    const lpDataState = buildLpDataState(input.lpOnchainSnapshot)
+    const lpRealPrice = positive(lpDataState.quotePrice)
     const lpState = fieldState({
       source: 'lp-inventory',
       status: 'research-only',
-      inputMode: hasLiquidity && scenarioStart ? 'inferred' : 'fallback',
+      inputMode: lpDataState.inputMode,
+      isSynthetic: lpDataState.isSynthetic,
       missingInputs: [
-        'real-lp-position',
+        ...lpDataState.missingInputs,
         hasLiquidity ? null : 'liquidity',
         scenarioStart ? null : 'startPrice',
       ].filter(Boolean),
+      context: {
+        pool: lpDataState.pool,
+        blockNumber: lpDataState.blockNumber,
+        fetchedAt: lpDataState.fetchedAt,
+        quotePrice: lpDataState.quotePrice,
+        quoteSymbol: lpDataState.quoteSymbol,
+        poolCoverage: lpDataState.poolCoverage,
+      },
     })
     const lp = uniswapV3Inventory({
       markPrice: row.close,
@@ -133,6 +147,8 @@ export function buildFormulaPath(rows, input) {
       lpValue: finite(lp?.value),
       lpInventoryDelta: finite(lp?.inventoryDelta),
       lpNormalizedDelta: finite(normalizeInventory(lp, row.close)),
+      lpRealPrice: finite(lpRealPrice),
+      lpRealDivergence: finite(lpRealPrice ? (row.close - lpRealPrice) / lpRealPrice : null),
       capitalEfficiency: finite(ce?.efficiency),
       impermanentLoss: finite(il?.impermanentLoss),
       netLpEfficiency: finite(netLp?.totalNet),
@@ -194,13 +210,14 @@ function finite(value) {
   return Number.isFinite(value) ? value : null
 }
 
-function fieldState({ source, status, inputMode, missingInputs = [] }) {
+function fieldState({ source, status, inputMode, missingInputs = [], context = null, isSynthetic = inputMode !== 'real' }) {
   return {
     source,
     status,
     inputMode,
     missingInputs,
-    isSynthetic: inputMode !== 'real',
+    isSynthetic,
+    ...(context ? { context } : {}),
   }
 }
 
@@ -216,7 +233,7 @@ function buildFieldStates({ optionState, lpState, fundingState }) {
     deltaUpper: fieldState({ source: 'delta-band', status: 'implemented', inputMode: 'real' }),
   }
   for (const field of ['optionDelta', 'optionGamma', 'optionThetaDaily']) base[field] = optionState
-  for (const field of ['lpLowerPrice', 'lpUpperPrice', 'lpValue', 'lpInventoryDelta', 'lpNormalizedDelta', 'impermanentLoss', 'capitalEfficiency', 'netLpEfficiency']) base[field] = lpState
+  for (const field of ['lpLowerPrice', 'lpUpperPrice', 'lpValue', 'lpInventoryDelta', 'lpNormalizedDelta', 'lpRealPrice', 'lpRealDivergence', 'impermanentLoss', 'capitalEfficiency', 'netLpEfficiency']) base[field] = lpState
   for (const field of ['fundingBasis', 'fundingProxy', 'netCarry', 'breakEvenFunding']) base[field] = fundingState
   return base
 }

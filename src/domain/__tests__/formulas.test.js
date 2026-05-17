@@ -8,8 +8,10 @@ import {
   fundingRate,
   getDeltaBands,
   impermanentLoss,
+  integrateTrapezoid,
   lambertW,
   liquidityFingerprint,
+  logLaplaceDensity,
   netCarry,
   numoenSnapshot,
   normalCdf,
@@ -188,6 +190,14 @@ describe('LP / IL / CE / Funding', () => {
 })
 
 describe('Liquidity / AMM research formulas', () => {
+  it('log 价格密度映射到价格轴时保持等比例区间质量', () => {
+    const density = (price) => logLaplaceDensity(price, { mu: Math.log(100), lambda: 2, kappa: 1 })
+    const lowerMass = integrateTrapezoid(density, 80, 100, 512)
+    const upperMass = integrateTrapezoid(density, 100, 125, 512)
+
+    expect(lowerMass).toBeCloseTo(upperMass, 3)
+  })
+
   it('流动性指纹按积分离散且权重归一', () => {
     const fp = liquidityFingerprint({ entryPrice: 100, priceGrid: 80, segmentCount: 12, lowerFactor: 0.8, upperFactor: 1.3 })
     const total = fp.segments.reduce((sum, seg) => sum + seg.weight, 0)

@@ -44,7 +44,7 @@
 | `delta-band` | implemented | `blog-source` + `desmos-source` | 可进入默认挂单，但 `d` 只叫 `deltaSlope` |
 | `option-greeks` | research-only | `paper` + `desmos-source` | research-only，除非配置真实 option leg |
 | `asian-option` | research-only | `paper` + `desmos-source` | payoff fit，不进默认挂单 |
-| `lp-inventory` | implemented | `protocol-whitepaper` + `paper` + `desmos-source` | 没有真实 LP position 时 research-only |
+| `lp-inventory` | implemented | `protocol-whitepaper` + `paper` + `desmos-source` + `ethereum-json-rpc` | 已接 Uniswap v3 pool 链上快照；没有 Position NFT 时仍是 research-only |
 | `liquidity-fingerprint` | research-only | `desmos-source` + `paper` | 模型目标仓，不是盘口 |
 | `amm-geometry` | protocol-unverified | `desmos-source` | 协议未验证，不进执行 |
 | `capital-efficiency` | research-only | `paper` + `desmos-source` | 只描述区间几何 |

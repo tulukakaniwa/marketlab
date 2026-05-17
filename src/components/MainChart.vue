@@ -94,6 +94,7 @@ function applyOverlays() {
   toggle('deltaLower', overlayPlan.price.deltaBand, () => addLine('GetDelta 下沿', '#1f5fbf', 1, LineStyle.Dotted))
   toggle('lpLower', overlayPlan.price.lpBand, () => addLine('LP 下沿', '#7a5cff', 1, LineStyle.Dashed))
   toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('LP 上沿', '#7a5cff', 1, LineStyle.Dashed))
+  toggle('lpRealPrice', overlayPlan.price.lpRealPrice, () => addLine('链上池价', '#8b5a16', 2, LineStyle.Dotted))
   toggle('entry', overlayPlan.price.entryLine, () => addLine('入场', '#b3261e', 1, LineStyle.Dotted))
   toggle('volume', overlayPlan.paneOn.volume, () => chart.addSeries(HistogramSeries, {
     priceFormat: { type: 'volume' }, priceScaleId: '', color: '#b7c1d8',
@@ -109,6 +110,7 @@ function applyOverlays() {
   toggle('greeksZero', overlayPlan.paneOn.greeks, () => addPaneLine('0', '#888', paneLayout.greeks, { priceScaleId: 'greeks-delta', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
   toggle('lpDelta', overlayPlan.paneOn.lp, () => addPaneLine('LP norm', '#0e7558', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
   toggle('lpValue', overlayPlan.paneOn.lp, () => addPaneLine('LP value', '#7a5cff', paneLayout.lp, { priceScaleId: 'lp-quote' }))
+  toggle('lpRealDiv', overlayPlan.paneOn.lp, () => addPaneLine('链上偏离', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
   toggle('lpCe', overlayPlan.paneOn.lp, () => addPaneLine('CE', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-multiple' }))
   toggle('lpZero', overlayPlan.paneOn.lp, () => addPaneLine('LP 0', '#888', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dashed, lastValueVisible: false }))
   toggle('fundingProxy', overlayPlan.paneOn.carry, () => addPaneLine('Funding proxy', '#a93226', paneLayout.carry, { priceScaleId: 'carry-return' }))
@@ -210,6 +212,7 @@ function syncChart() {
   if (series.deltaLower) setLine(series.deltaLower, props.formulaPath.map((r) => r.deltaLower))
   if (series.lpLower)    setLine(series.lpLower,    props.formulaPath.map((r) => r.lpLowerPrice))
   if (series.lpUpper)    setLine(series.lpUpper,    props.formulaPath.map((r) => r.lpUpperPrice))
+  if (series.lpRealPrice) setLine(series.lpRealPrice, props.formulaPath.map((r) => r.lpRealPrice))
   if (series.entry)      setLine(series.entry,      props.rows.map(() => props.entryPrice))
   if (series.volume) {
     series.volume.setData(props.rows.map((row) => ({
@@ -230,6 +233,7 @@ function syncChart() {
   if (series.greeksZero) setLine(series.greeksZero, props.rows.map(() => 0))
   if (series.lpDelta) setLine(series.lpDelta, props.formulaPath.map((r) => r.lpNormalizedDelta))
   if (series.lpValue) setLine(series.lpValue, props.formulaPath.map((r) => r.lpValue))
+  if (series.lpRealDiv) setLine(series.lpRealDiv, props.formulaPath.map((r) => r.lpRealDivergence))
   if (series.lpCe) setLine(series.lpCe, props.formulaPath.map((r) => r.capitalEfficiency))
   if (series.lpZero) setLine(series.lpZero, props.rows.map(() => 0))
   if (series.fundingProxy) setLine(series.fundingProxy, props.formulaPath.map((r) => r.fundingProxy))

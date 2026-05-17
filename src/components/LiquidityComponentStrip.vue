@@ -17,12 +17,12 @@ const rows = computed(() => {
 })
 
 function pct(value) {
-  return Number.isFinite(value) ? `${(value * 100).toFixed(0)}%` : '-'
+  return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '-'
 }
 </script>
 
 <template>
-  <div class="lf-components" aria-label="指纹成分占比">
+  <div class="lf-components" aria-label="指纹模型权重">
     <div v-for="component in rows" :key="component.id" :class="`is-${component.id}`">
       <span>{{ component.label }}</span>
       <b>{{ pct(component.value) }}</b>

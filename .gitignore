@@ -25,6 +25,8 @@ lerna-debug.log*
 .vite/
 .vitest/
 .cache/
+__pycache__/
+*.pyc
 
 # Browser and Playwright artifacts
 .playwright-mcp/
@@ -32,6 +34,7 @@ playwright-report/
 test-results/
 
 # Local verification artifacts
+data/workbooks/
 src/data/generated/
 src/data/.generated-*/
 page-snapshot*.md
