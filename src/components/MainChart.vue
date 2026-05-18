@@ -18,6 +18,7 @@ import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
 import { resolveChartOverlayPlan } from '../domain/research-visualization/chartPaneLayout.js'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
+import { useStockChipViewport } from '../composables/useStockChipViewport.js'
 
 const props = defineProps({
   rows: { type: Array, required: true },
@@ -46,12 +47,21 @@ let resizeObserver = null
 let paneLayout = { main: 0 }
 let overlayPlan = null
 let paneLayoutSignature = ''
+const stockChipViewport = useStockChipViewport({
+  getChart: () => chart,
+  getSeries: () => series,
+  getRows: () => props.rows,
+  getPaneIndex: () => paneLayout.main,
+  isEnabled: () => showStockChipProfile.value,
+})
 
 onMounted(() => {
   chart = createChart(el.value, chartOptions())
   applyOverlays()
   syncChart()
   chart.subscribeCrosshairMove(handleCrosshair)
+  chart.timeScale().subscribeVisibleLogicalRangeChange(stockChipViewport.queue)
+  stockChipViewport.startMonitor()
   resizeObserver = new ResizeObserver(() => resize())
   resizeObserver.observe(el.value)
   themeObserver = new MutationObserver(() => syncChart())
@@ -61,6 +71,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   themeObserver?.disconnect()
+  stockChipViewport.dispose()
+  chart?.timeScale().unsubscribeVisibleLogicalRangeChange(stockChipViewport.queue)
   chart?.unsubscribeCrosshairMove(handleCrosshair)
   chart?.remove()
 })
@@ -73,6 +85,14 @@ watch(() => ({ ...props.overlays }), () => {
   applyOverlays()
   syncChart()
 }, { deep: true })
+watch(showStockChipProfile, (on) => {
+  if (on) {
+    stockChipViewport.queue()
+    stockChipViewport.startMonitor()
+  } else {
+    stockChipViewport.stopMonitor()
+  }
+})
 
 function applyOverlays() {
   if (!chart) return
@@ -290,6 +310,7 @@ function syncChart() {
     }))
   }
   chart.timeScale().fitContent()
+  stockChipViewport.queue()
 }
 
 function addLine(title, color, width, style = LineStyle.Solid) {
@@ -387,6 +408,7 @@ function buildLegend(idx, param) {
 function resize() {
   if (!chart || !el.value) return
   chart.resize(el.value.clientWidth, el.value.clientHeight)
+  stockChipViewport.queue()
 }
 
 function chartOptions() {
@@ -439,7 +461,7 @@ function finiteOrNull(value) { return Number.isFinite(value) ? value : null }
 
     <!-- Hover 图例：拆到子组件，本文件只构造 hoverLegend 对象 -->
     <MainChartHoverLegend :legend="hoverLegend" />
-    <StockChipProfileOverlay v-if="showStockChipProfile" :rows="rows" />
+    <StockChipProfileOverlay v-if="showStockChipProfile" :rows="rows" :viewport="stockChipViewport.viewport.value" />
 
     <ChartStatusBar :input="input" @change="(field, v) => emit('param-change', field, v)" />
   </div>

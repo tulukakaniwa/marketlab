@@ -4,15 +4,49 @@ import { buildVolumePriceProfile } from '../domain/research-visualization/volume
 
 const props = defineProps({
   rows: { type: Array, required: true },
+  viewport: { type: Object, default: null },
 })
 
 const profile = computed(() => buildVolumePriceProfile({
   rows: props.rows,
-  activeIndex: props.rows.length - 1,
-  visibleWindow: 180,
+  activeIndex: Number.isInteger(props.viewport?.activeIndex) ? props.viewport.activeIndex : props.rows.length - 1,
+  visibleWindow: Number.isFinite(props.viewport?.visibleWindow) ? props.viewport.visibleWindow : 180,
   binCount: 36,
 }))
-const visibleBins = computed(() => [...profile.value.bins].reverse())
+const W = 220
+const PLOT_RIGHT = 216
+const MAX_BAR = 170
+const viewportHeight = computed(() => Math.max(180, Math.round(props.viewport?.height ?? 360)))
+const priceRange = computed(() => {
+  const lower = Number(props.viewport?.priceLower)
+  const upper = Number(props.viewport?.priceUpper)
+  if (Number.isFinite(lower) && Number.isFinite(upper) && upper > lower) return { lower, upper }
+  return profile.value.range
+})
+
+const bars = computed(() => {
+  const model = profile.value
+  const range = priceRange.value
+  if (!range || range.upper <= range.lower) return []
+  return model.bins.map((bin) => {
+    if (bin.upper < range.lower || bin.lower > range.upper) return null
+    const y1 = priceY(Math.min(bin.upper, range.upper), range)
+    const y2 = priceY(Math.max(bin.lower, range.lower), range)
+    const h = Math.max(2, y2 - y1 - 1)
+    const width = Math.max(1, bin.intensity * MAX_BAR)
+    return {
+      ...bin,
+      x: PLOT_RIGHT - width,
+      y: y1,
+      width,
+      height: h,
+      upWidth: width * bin.upShare,
+      downWidth: width * bin.downShare,
+    }
+  }).filter(Boolean)
+})
+const pocY = computed(() => priceYInRange(profile.value.poc?.mid))
+const currentY = computed(() => priceYInRange(profile.value.currentPrice))
 
 function money(value) {
   return Number.isFinite(value)
@@ -27,65 +61,84 @@ function volume(value) {
   if (abs >= 1e4) return `${(value / 1e4).toFixed(1)}万`
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(value)
 }
+
+function priceY(price, range) {
+  return ((range.upper - price) / (range.upper - range.lower)) * viewportHeight.value
+}
+
+function priceYInRange(price) {
+  const range = priceRange.value
+  if (!Number.isFinite(price) || !range || price < range.lower || price > range.upper) return null
+  return priceY(price, range)
+}
 </script>
 
 <template>
   <aside v-if="profile.bins.length" class="scp" aria-label="个股筹码图">
-    <header class="scp-head">
-      <span>筹码</span>
-      <strong>成交量代理</strong>
-    </header>
-    <div class="scp-meta">
-      <span>POC {{ money(profile.poc?.mid) }}</span>
-      <span>{{ profile.rows }}K</span>
-    </div>
-    <div class="scp-bars">
-      <div
-        v-for="bin in visibleBins"
-        :key="bin.index"
-        class="scp-row"
-        :class="{ poc: bin.isPoc, current: bin.isCurrent, value: bin.inValueArea }"
-        :title="`${money(bin.lower)} - ${money(bin.upper)} · ${volume(bin.volume)}`"
-      >
-        <span class="scp-price">{{ money(bin.mid) }}</span>
-        <div class="scp-track">
-          <i class="scp-down" :style="{ width: `${bin.intensity * bin.downShare * 100}%` }" />
-          <i class="scp-up" :style="{ width: `${bin.intensity * bin.upShare * 100}%` }" />
-        </div>
-      </div>
-    </div>
-    <footer class="scp-foot">
-      <span>VA {{ money(profile.valueArea?.lower) }}-{{ money(profile.valueArea?.upper) }}</span>
-      <span>量 {{ volume(profile.totalVolume) }}</span>
-    </footer>
+    <svg :viewBox="`0 0 ${W} ${viewportHeight}`" class="scp-svg">
+      <g class="scp-bars">
+        <g
+          v-for="bar in bars"
+          :key="bar.index"
+          :class="{ poc: bar.isPoc, current: bar.isCurrent, value: bar.inValueArea }"
+        >
+          <title>{{ money(bar.lower) }} - {{ money(bar.upper) }} · {{ volume(bar.volume) }}</title>
+          <rect
+            :x="bar.x"
+            :y="bar.y"
+            :width="bar.width"
+            :height="bar.height"
+            rx="1.5"
+            class="scp-total"
+          />
+          <rect
+            :x="PLOT_RIGHT - bar.upWidth"
+            :y="bar.y"
+            :width="bar.upWidth"
+            :height="bar.height"
+            rx="1.5"
+            class="scp-up"
+          />
+          <rect
+            :x="PLOT_RIGHT - bar.upWidth - bar.downWidth"
+            :y="bar.y"
+            :width="bar.downWidth"
+            :height="bar.height"
+            rx="1.5"
+            class="scp-down"
+          />
+        </g>
+      </g>
+      <line v-if="pocY !== null" x1="30" :x2="PLOT_RIGHT" :y1="pocY" :y2="pocY" class="scp-poc-line" />
+      <text v-if="pocY !== null" x="34" :y="pocY - 4" class="scp-label">POC {{ money(profile.poc?.mid) }}</text>
+      <line v-if="currentY !== null" x1="14" :x2="PLOT_RIGHT" :y1="currentY" :y2="currentY" class="scp-current-line" />
+      <text v-if="currentY !== null" x="18" :y="currentY + 12" class="scp-label current">现价 {{ money(profile.currentPrice) }}</text>
+      <text x="118" y="13" class="scp-watermark">筹码 · 成交量代理</text>
+    </svg>
   </aside>
 </template>
 
 <style>
 .scp {
-  position: absolute; top: 64px; right: 58px; z-index: 18;
-  width: min(210px, calc(100% - 96px)); max-height: calc(100% - 132px);
-  display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
-  padding: 8px; border: 1px solid var(--line); border-radius: 6px;
-  background: rgba(251,250,244,0.9); backdrop-filter: blur(4px);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06); pointer-events: none;
+  position: absolute; top: 0; right: 54px; z-index: 14;
+  width: min(260px, 26%); height: v-bind('`${viewportHeight}px`');
+  pointer-events: none; overflow: hidden;
 }
-.dark .scp { background: rgba(34,36,31,0.9); }
-.scp-head, .scp-meta, .scp-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
-.scp-head span { color: var(--green); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.06em; }
-.scp-head strong { color: var(--muted); font-size: 0.62rem; font-weight: 800; }
-.scp-meta, .scp-foot { color: var(--muted); font-size: 0.62rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-.scp-bars { display: grid; gap: 1px; min-height: 0; overflow: hidden; padding: 5px 0; }
-.scp-row { display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 5px; min-height: 6px; opacity: 0.74; }
-.scp-row.value { opacity: 0.92; }
-.scp-row.poc, .scp-row.current { opacity: 1; }
-.scp-price { color: var(--muted); font-size: 0.56rem; text-align: right; font-variant-numeric: tabular-nums; }
-.scp-track { display: flex; justify-content: flex-end; height: 5px; border-radius: 2px; background: rgba(120,120,120,0.08); overflow: hidden; }
-.scp-up { height: 100%; background: rgba(14,117,88,0.58); }
-.scp-down { height: 100%; background: rgba(169,50,38,0.48); }
-.scp-row.poc .scp-track { outline: 1px solid rgba(139,90,22,0.82); }
-.scp-row.current .scp-price { color: var(--ink); font-weight: 900; }
-.scp-row.current .scp-track { box-shadow: inset 0 0 0 1px rgba(39,79,159,0.75); }
+.scp-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.scp-total { fill: rgba(120,120,120,0.11); }
+.scp-up { fill: rgba(14,117,88,0.34); }
+.scp-down { fill: rgba(169,50,38,0.24); }
+.scp-bars .value .scp-total { fill: rgba(14,117,88,0.13); }
+.scp-bars .poc .scp-total { fill: rgba(139,90,22,0.32); }
+.scp-bars .current .scp-total { stroke: rgba(39,79,159,0.7); stroke-width: 1; }
+.scp-poc-line { stroke: rgba(139,90,22,0.82); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.scp-current-line { stroke: rgba(39,79,159,0.82); stroke-width: 1.2; }
+.scp-label, .scp-watermark {
+  fill: var(--muted); font-size: 9px; font-weight: 800;
+  paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+}
+.scp-label.current { fill: var(--ink); }
+.scp-watermark { fill: var(--green); opacity: 0.72; }
 @media (max-width: 760px) {
   .scp { display: none; }
 }

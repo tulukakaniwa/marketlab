@@ -21,6 +21,7 @@ describe('StockChipProfileOverlay', () => {
     expect(wrapper.text()).toContain('筹码')
     expect(wrapper.text()).toContain('成交量代理')
     expect(wrapper.text()).toContain('POC')
-    expect(wrapper.findAll('.scp-row').length).toBeGreaterThan(0)
+    expect(wrapper.find('.scp-svg').exists()).toBe(true)
+    expect(wrapper.findAll('.scp-total').length).toBeGreaterThan(0)
   })
 })
