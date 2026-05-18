@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { SERIES_META, fallbackValue, groupIndicators } from '../mainChartLegendMeta.js'
 
 describe('SERIES_META', () => {
-  it('包含全部 22 个 series key 且每个都含 title/color/unit/group', () => {
+  it('包含全部 24 个 series key 且每个都含 title/color/unit/group', () => {
     const keys = Object.keys(SERIES_META)
-    expect(keys).toHaveLength(22)
+    expect(keys).toHaveLength(24)
     for (const k of keys) {
       const meta = SERIES_META[k]
       expect(typeof meta.title).toBe('string')
@@ -23,6 +23,7 @@ describe('fallbackValue', () => {
         optionDelta: 0.5, optionGamma: 0.02, optionThetaDaily: -0.1,
         lpNormalizedDelta: 0.3, lpValue: 1000, lpRealDivergence: 0.01, capitalEfficiency: 1.5,
         fundingProxy: 0.0001, netCarry: 0.0008 },
+      { lpPoolTurnover24h: 0.25, lpPoolTopReserveShare: 0.4 },
     ],
     costPath: [{ anchor: 100, upper: 102, lower: 98 }],
     entryPrice: 99,
@@ -43,6 +44,13 @@ describe('fallbackValue', () => {
 
   it('entry 直接返回 ctx.entryPrice', () => {
     expect(fallbackValue('entry', 0, ctx)).toBe(99)
+  })
+
+  it('真实池覆盖指标只在 latest-only 点显示，避免伪造历史曲线值', () => {
+    expect(fallbackValue('lpPoolTurnover', 0, ctx)).toBeNull()
+    expect(fallbackValue('lpPoolConcentration', 0, ctx)).toBeNull()
+    expect(fallbackValue('lpPoolTurnover', 1, ctx)).toBe(0.25)
+    expect(fallbackValue('lpPoolConcentration', 1, ctx)).toBe(0.4)
   })
 
   it('未知 key 返回 null', () => {

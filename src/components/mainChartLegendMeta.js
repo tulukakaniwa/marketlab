@@ -22,6 +22,8 @@ export const SERIES_META = {
   lpDelta:     { title: 'LP 库存暴露',      color: '#0e7558', unit: 'ratio', group: 'lp' },
   lpValue:     { title: 'LP 库存价值',      color: '#7a5cff', unit: 'price', group: 'lp' },
   lpRealDiv:   { title: '链上池价偏离',     color: '#8b5a16', unit: 'pct',   group: 'lp' },
+  lpPoolTurnover: { title: '真实池24h换手',  color: '#b3261e', unit: 'pct',   group: 'lp' },
+  lpPoolConcentration: { title: '主池资金占比', color: '#274f9f', unit: 'ratio', group: 'lp' },
   lpCe:        { title: '资本效率',         color: '#8b5a16', unit: 'num',   group: 'lp' },
   fundingProxy:{ title: 'Funding 估算',     color: '#a93226', unit: 'pct',   group: 'carry' },
   netCarry:    { title: '净持有收益',       color: '#0e7558', unit: 'pct',   group: 'carry' },
@@ -57,6 +59,10 @@ export function fallbackValue(key, idx, ctx = {}) {
     case 'lpDelta':     return fp?.lpNormalizedDelta
     case 'lpValue':     return fp?.lpValue
     case 'lpRealDiv':   return fp?.lpRealDivergence
+    case 'lpPoolTurnover':
+      return idx === ctx.formulaPath?.length - 1 ? fp?.lpPoolTurnover24h : null
+    case 'lpPoolConcentration':
+      return idx === ctx.formulaPath?.length - 1 ? fp?.lpPoolTopReserveShare : null
     case 'lpCe':        return fp?.capitalEfficiency
     case 'fundingProxy':return fp?.fundingProxy
     case 'netCarry':    return fp?.netCarry
