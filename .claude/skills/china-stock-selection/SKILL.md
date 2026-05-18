@@ -136,6 +136,18 @@ Three-pillar scoring with LP percentile as the dominant signal:
 - **折价深度 (0-7)**: z ≤ -3 = 7, ≤ -2 = 6, ≤ -1 = 4
   - Deeper discount = stronger regression potential. Extreme z IS the signal, not noise.
 
+### 公式买点/卖点/持仓周期
+
+基于纯公式计算，不给主观建议：
+
+- **买点**：现价 ≤ Delta 带 long 上沿即可进场，不需要等更低。价格已在折价区间时，再等"更低"可能错过回归
+- **第一卖点**：成本带下沿（锚站稳确认信号）
+- **第二卖点**：成本锚（全部回归完成）
+- **持仓周期**：均值回归半衰期 × 2 = 覆盖 ~75% 距离偏差；半衰期 × 3 = 到成本锚
+  - z 越极端但 HL 不一定更短：HL 受波动率影响，z=-3.42σ 极值的 HL=69 天，z=-1σ 的 HL=17 天
+  - 短周期策略（1-3月）：强 z + 强 LP 可盖过锚未企稳，不等锚直接靠回归拉回
+  - 长周期策略（6月+）：锚方向权重加大，锚 ↓ 时即使 z/LP 强也必须等锚走平
+
 ### 数据质量 (10 points)
 - Data freshness (stale > 10d penalized) + history depth (500+/1000+ rows bonus)
 
