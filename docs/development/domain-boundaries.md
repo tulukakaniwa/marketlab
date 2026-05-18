@@ -17,7 +17,7 @@ Owns:
 
 Notes:
 
-- `src/domain/market/` currently contains compatibility re-exports and legacy market modules. Prefer new imports from `src/domain/market-data/`.
+- All consumers must import from `src/domain/market-data/` directly. The legacy `src/domain/market/` re-export shims have been removed.
 - MarketData must not depend on StrategyPlanning, FormulaResearch, Vue, or browser APIs.
 
 ## FormulaResearch
