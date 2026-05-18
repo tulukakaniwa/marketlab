@@ -6,24 +6,26 @@ import { strategyProfileList } from '../domain/planning/orderPlan.js'
  * 回放层：跑当前 profile 的回放，再并行跑三档 profile 用于评分选档
  *
  * @param {Ref<Array>} rows
- * @param {object} input              reactive
- * @param {ComputedRef<object>} effectiveInput
+ * @param {object} input              reactive；目前只用于 chooseProfile 的 capital/baseNotional 评分
+ * @param {ComputedRef<object>} effectiveInput  buildDailyReplay 的真正信源（labStore 当前传入的是 baseInput）
  * @param {ComputedRef<Array>} marketStateFull  来自 useMarketState，避免重算
  * @param {object} featureFlags                 显式开关；默认不跑回放
  *
  * Dedupe 优化：原版 profileReplays 与 replay 各自调 buildDailyReplay，
- * 同一个 input 变化要算 4 次。新版 replay 直接从 profileReplays 中按
+ * 同一个 input 变化要算 4 次。新版 replay 从 profileReplays 中按
  * effectiveInput.strategyProfile 取那一条，总调用从 4 次降到 3 次
- * （等于 strategyProfileList.length）。effectiveInput 中 strategyProfile
- * 之外的字段对 buildDailyReplay 的相关性已被 input 闭包覆盖；如果未来
- * effectiveInput 引入新字段（如 lpOnchainSnapshot）影响 buildDailyReplay，
- * 需要同步 profileReplays 的 input 来源，避免 dedupe 漂移。
+ * （= strategyProfileList.length）。
+ *
+ * 单一信源：profileReplays 与 fallback 路径都基于 effectiveInput.value 派生，
+ * 仅 strategyProfile 一个字段不同。如果调用方未来把更多字段（如 lpOnchainSnapshot）
+ * 写进 effectiveInput 且 buildDailyReplay 开始消费它，dedupe 仍然保持等价；
+ * 不会出现 shape 漂移。
  */
 export function useReplay(rows, input, effectiveInput, marketStateFull, featureFlags = {}) {
   const profileReplays = computed(() => strategyProfileList.map((profile) => ({
     profile,
     replay: featureFlags.replayAccount
-      ? buildDailyReplay(rows.value, { ...input, strategyProfile: profile.id }, marketStateFull.value)
+      ? buildDailyReplay(rows.value, { ...effectiveInput.value, strategyProfile: profile.id }, marketStateFull.value)
       : emptyReplay(),
   })))
 
