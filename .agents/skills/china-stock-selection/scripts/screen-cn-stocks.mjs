@@ -37,6 +37,21 @@ const REALESTATE_SYMBOLS = new Set([
 const NORTHEAST_SYMBOLS = new Set([
   '000661', '600346', '600760',
 ])
+// 社保基金 Q1 2026 持仓白名单 (akshare stock_gdfx_free_top_10_em)
+const SHEBAO_WHITELIST = new Set([
+  '000408', '000708', '000776', '000786', '000807', '000876', '000963',
+  '000975', '000983', '001391', '001979', '002001', '002027', '002028',
+  '002179', '002236', '002311', '002459', '002463', '002594', '002648',
+  '002916', '002938', '300122', '300124', '300347', '300413', '300433',
+  '300628', '300760', '300832', '300866', '300979', '600019', '600031',
+  '600048', '600066', '600085', '600089', '600176', '600183', '600188',
+  '600196', '600219', '600233', '600309', '600362', '600415', '600426',
+  '600489', '600547', '600690', '600741', '600803', '600930', '600958',
+  '600989', '601012', '601058', '601100', '601111', '601117', '601319',
+  '601336', '601377', '601628', '601633', '601872', '601877', '601888',
+  '601898', '601901', '603195', '605117', '688036', '688187', '000799',
+  '000988', '002281', '002837',
+])
 
 const ROOT = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
@@ -47,6 +62,7 @@ const format = String(args.format ?? 'markdown')
 const excludeAlcohol = args['exclude-alcohol'] !== 'false'
 const excludeRealestate = args['exclude-realestate'] !== 'false'
 const excludeNortheast = args['exclude-northeast'] !== 'false'
+const requireShebao = args['require-shebao'] !== 'false'
 const indexPath = resolvePath(args.index ?? 'src/data/stock-index.json')
 const dataDir = resolvePath(args['data-dir'] ?? 'public/data')
 const nameMapPath = resolvePath(args['name-map'] ?? '.agents/skills/china-stock-selection/references/stock-names.json')
@@ -63,6 +79,7 @@ for (const entry of index) {
   if (excludeAlcohol && ALCOHOL_SYMBOLS.has(entry.symbol)) continue
   if (excludeRealestate && REALESTATE_SYMBOLS.has(entry.symbol)) continue
   if (excludeNortheast && NORTHEAST_SYMBOLS.has(entry.symbol)) continue
+  if (requireShebao && !SHEBAO_WHITELIST.has(entry.symbol)) continue
   const file = dataFileFor(entry)
   if (!existsSync(file)) {
     skipped.push({ symbol: entry.symbol, reason: 'missing csv' })
