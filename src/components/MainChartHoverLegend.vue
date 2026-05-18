@@ -52,24 +52,18 @@ function formatVolume(v) {
 </template>
 
 <style>
-/* hover 图例：左上角浮层，TradingView 风格 */
+/* hover 图例：透明贴在主图内，避免遮挡 K 线和 TV 交互层 */
 .mc-legend {
-  position: absolute; top: 8px; left: 12px; z-index: 20;
-  max-width: calc(100% - 24px);
-  padding: 6px 10px; border-radius: 6px;
-  background: rgba(251,250,244,0.92); backdrop-filter: blur(4px);
-  border: 1px solid var(--line);
-  font-size: 0.72rem; line-height: 1.45; color: var(--ink);
+  position: absolute; top: 6px; left: 10px; right: 56px; z-index: 12;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px;
+  max-height: 54px; overflow: hidden;
+  color: var(--ink); font-size: 0.68rem; line-height: 1.22;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  text-shadow: 0 1px 0 var(--bg), 0 -1px 0 var(--bg), 1px 0 0 var(--bg), -1px 0 0 var(--bg);
 }
-.dark .mc-legend { background: rgba(34,36,31,0.92); }
-.mc-legend.dir-up { border-color: rgba(14,117,88,0.45); }
-.mc-legend.dir-down { border-color: rgba(169,50,38,0.45); }
 .mc-legend-head {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
-  padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px dashed var(--line);
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
   font-weight: 700;
 }
 .mc-legend-date { color: var(--green); font-weight: 800; letter-spacing: 0.02em; }
@@ -84,17 +78,19 @@ function formatVolume(v) {
 .dir-up .mc-legend-delta, .dir-up .mc-legend-pct { color: #0e7558; }
 .dir-down .mc-legend-delta, .dir-down .mc-legend-pct { color: #a93226; }
 .mc-legend-group {
-  display: flex; flex-wrap: wrap; gap: 2px 12px;
-  padding: 2px 0;
+  display: inline-flex; flex-wrap: wrap; gap: 2px 10px;
 }
-.mc-legend-group + .mc-legend-group { border-top: 1px dotted rgba(120,120,120,0.18); }
 .mc-legend-item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .mc-legend-item i {
   width: 10px; height: 2px; border-radius: 1px; display: inline-block; flex-shrink: 0;
 }
 .mc-legend-title {
-  color: var(--muted); font-size: 0.66rem; font-weight: 700;
+  color: var(--muted); font-size: 0.64rem; font-weight: 700;
   white-space: nowrap;
 }
 .mc-legend-item strong { font-weight: 800; }
+@media (max-width: 900px) {
+  .mc-legend { max-height: 40px; font-size: 0.62rem; right: 44px; gap: 1px 9px; }
+  .mc-legend-head, .mc-legend-group { gap: 1px 7px; }
+}
 </style>
