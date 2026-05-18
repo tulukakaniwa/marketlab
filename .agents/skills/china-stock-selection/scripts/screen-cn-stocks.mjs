@@ -215,6 +215,25 @@ function buildFormula(entry, rows) {
     ? round(lpValues.filter(v => v <= synLp.value).length / lpValues.length * 100, 1)
     : null
 
+  // 全历史 LP 分位数 — 检测结构性低位（价值陷阱）
+  const lpValuesAll = []
+  for (let i = 0; i < marketPath.length; i++) {
+    const m = marketPath[i]; const r = rows[i]
+    if (!m || !r) continue
+    const rw = Math.max(m.atrPercent ?? 0.05, 0.03)
+    const srw = Math.min(rw, 0.5)
+    const lo = m.costAnchor * Math.max(1 - srw, 0.001)
+    const up = m.costAnchor * (1 + srw)
+    const lpi = uniswapV3Inventory({ markPrice: r.close, lowerPrice: lo, upperPrice: up, liquidity: 1 })
+    if (lpi?.value !== null && Number.isFinite(lpi.value)) lpValuesAll.push(lpi.value)
+  }
+  lpValuesAll.sort((a, b) => a - b)
+  const lpFullPercentile = lpValuesAll.length > 0 && synLp?.value !== null && Number.isFinite(synLp.value)
+    ? round(lpValuesAll.filter(v => v <= synLp.value).length / lpValuesAll.length * 100, 1)
+    : null
+  // 全历史 P<20% = 结构性低位，价值陷阱
+  const isChronicLow = lpFullPercentile !== null && lpFullPercentile < 20
+
   // 流动性指纹
   const fingerprint = liquidityFingerprint({
     entryPrice: market?.costAnchor ?? latest.close, priceGrid: 40,
@@ -287,7 +306,10 @@ function buildFormula(entry, rows) {
       lowerPrice: round(synLower, 3),
       upperPrice: round(synUpper, 3),
       percentile: lpPercentile,
+      fullPercentile: lpFullPercentile,
+      isChronicLow: isChronicLow || false,
       sampleDays: lpValues.length,
+      fullSampleDays: lpValuesAll.length,
     },
     fingerprint: {
       segments: fingerprint?.segments?.length ?? 0,
@@ -356,7 +378,9 @@ function scoreSynLp(formula) {
   else if (lp.zone === 'token0') s += 4
   // 净效率 (0-5)
   if (formula.synNetLp?.efficient) s += 5
-  return s
+  // 全历史结构性低位 — 价值陷阱，扣分
+  if (lp.isChronicLow) s -= 20
+  return Math.max(0, s)
 }
 
 function scoreDeviation(formula) {
@@ -401,8 +425,10 @@ function lpNoteStr(f) {
   const lp = f.synLp
   if (!lp || lp.value === null) return 'n/a'
   const pct = lp.percentile !== null ? `P${lp.percentile}` : '?'
+  const fp = lp.fullPercentile !== null ? `F${lp.fullPercentile}` : ''
   const eff = f.synNetLp?.efficient ? '+' : '-'
-  return `${lp.zone} v${lp.value} ${pct} net${eff}`
+  const trap = lp.isChronicLow ? ' ⚠️长期低位' : ''
+  return `${lp.zone} v${lp.value} ${pct}${fp ? '/'+fp : ''} net${eff}${trap}`
 }
 
 function zNoteStr(f) {
