@@ -41,6 +41,7 @@ Useful variants:
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --exclude-alcohol false
 ```
 
 3. If data is stale or missing, use the project pipeline:
@@ -55,11 +56,12 @@ pnpm run refresh:market-data
 ```text
 范围: A股/港股, daily OHLCV, source ...
 数据截至: ...
-筛选逻辑: formula registry coverage + cost/deviation + delta band + volatility confidence + mean reversion + liquidity proxy + risk penalty
-候选池: include symbol, actual local name, dataThrough, status, score, formula note
-持仓/收益: show scenario ranges only, never promise returns
+筛选逻辑: 成本锚(30) + 合成LP分位数主导(45) + z-score回归概率(15) + 数据质量(10)
+排除: 酒水板块(9只), 无RSI/KDJ/EMA/MA
+候选池: symbol, name, dataThrough, status, score, 成本锚, LP(合成), z-score
+JSON模式: --format json 含全量公式字段
 剔除/等待: ...
-下一步验证: data freshness, industry/sector, fundamentals/news if required
+下一步验证: cost anchor stabilization, industry/sector, fundamentals/news if required
 ```
 
 ## Name Resolution
@@ -72,43 +74,77 @@ Local `stock-index.json` may only contain codes as labels. The screening script 
 
 ## Formula Coverage
 
-Use `src/domain/formulas/registry.js` as the map of "all formulas". For stock selection, split the formula stack this way:
+The screening uses the full Market Lab formula stack. All LP/AMM formulas run in **synthetic mode** (liquidity=1, rangeWidth from ATR) — no on-chain data dependency. The following are NOT used (popular indicators, not part of the project's mathematical framework):
 
-- Direct selection signals: `path`, `cost`, `volatility`, `delta-band`, `order-plan`, `deviation-score`, `mean-reversion`, `vol-confidence`, RSI, and KDJ.
-- Risk and stress-test lenses: `option-greeks`, `asian-option`, `risk-surface`, `gamma-pnl`, `capital-efficiency`, and `liquidity-fingerprint`.
-- Research-only or missing-input lenses for domestic stocks: `lp-inventory`, `amm-geometry`, `funding`, `portfolio`, `net-lp-efficiency`, and `net-carry` unless the user provides real LP, derivatives, funding, fee, or hedge inputs.
+- RSI, KDJ, EMA, MA — excluded
 
-Selection answers should explain both what the formula stack confirms and what it refuses to conclude.
+Complete formula stack:
+
+| 模块 | 公式 | 模式 |
+|---|---|---|
+| 价格路径 → 市场成本 | costAnchor, costBand, costDistance, costSlope5 | real |
+| 波动口径 | annualVol, atrPercent | real |
+| Δ 成本带 | GetDelta bands (long/short) | real |
+| 期权 Greeks | blackScholes delta/gamma/theta | synthetic |
+| 亚式近似 | asianOption price | synthetic |
+| LP 库存曲线 | uniswapV3Inventory (V3) | **synthetic** |
+| 流动性指纹 | liquidityFingerprint (混合密度) | **synthetic** |
+| AMM 几何 | ammCurve (xy=k) | **synthetic** |
+| 资本效率 | capitalEfficiency | **synthetic** |
+| 偏离强度 | deviationScore (z-score) | real |
+| 风险曲面 | riskSurface | synthetic |
+| Gamma PnL | gammaPnl | synthetic |
+| LP 净效率 | netLpEfficiency | **synthetic** |
+| 波动率置信 | volConfidence | real |
+| 均值回归 | meanReversionHalfLife | real |
+| VIX Fix | vixFix | real |
+| 订单决策 | buildDecisionGraph | real |
+| 资金费率 / 持仓净收益 | fundingRate / netCarry | fallback (no perp data) |
 
 ## Screening Semantics
 
-Use local daily OHLCV plus formula outputs for a first pass:
+Three-pillar scoring with LP percentile as the dominant signal:
 
-- Trend: close above 20/60/120-day moving averages, and shorter averages above longer averages.
-- Momentum: 20/60/120-day returns are positive without being extremely extended.
-- Cost and deviation: price versus Market Lab cost anchor, cost band, z-score, and regression probability.
-- Delta band: `GetDelta(price, T, iv, profit)` checks whether the current price has a workable observation band.
-- Order plan: only consume the domain decision graph. Do not create a separate order ladder in the skill.
-- Liquidity proxy: recent traded amount and volume stability. This is only a proxy because local CSVs do not include free float or full order-book depth.
-- Risk: ATR percent, 120-day drawdown, volatility confidence, mean-reversion half-life, stale data, and insufficient history.
-- Derivative/LP/AMM formulas: use as stress-test and limitation signals unless real inputs are provided.
-- Holding and return scenario: derive from ATR, cost band, delta band, order-plan state, mean-reversion half-life, and drawdown. Present as `base` and `stretch` ranges with execution conditions, not as expected guaranteed profit.
+### 成本锚 (30 points)
+- **锚方向**: rising ↑ = full points, flattening → = partial, declining ↓ = low
+- **价格位置**: within or near cost band scores highest
+- Interpretation: anchor direction is the confirmation signal; a declining anchor means wait even if LP/z are aligned
 
-Map results for beginners:
+### 合成 LP (45 points)
+- **lpValue 分位数 (0-30)**: P<5% = 30, P<10% = 25, P<25% = 18, P<50% = 10
+  - P<5% means LP inventory value at 1-year extreme low — LP accumulated maximum stock at cheapest prices
+- **zone (0-10)**: range = 10, token0 + low percentile = 10 (best entry setup: LP holds stock at historical low), token0 alone = 4
+- **净效率 (0-5)**: netLpEfficiency positive = 5
+- Interpretation: token0 zone at P<5% is the ideal setup — LP position is 100% stock bought at historically cheap prices. Anchor stabilization is the only missing piece.
 
-- `观察`: trend is aligned, data is usable, and risk is not extreme.
-- `等待`: signal is mixed, too extended, or risk is elevated.
-- `剔除`: weak trend, shallow history, or poor data quality.
-- `需刷新数据`: latest bar is too old for current-market selection.
+### z-score (15 points)
+- **回归概率 (0-8)**: prob ≥ 95% = 8, ≥ 85% = 6, ≥ 70% = 4, ≥ 55% = 2
+  - Higher probability = stronger mean-reversion signal
+- **折价深度 (0-7)**: z ≤ -3 = 7, ≤ -2 = 6, ≤ -1 = 4
+  - Deeper discount = stronger regression potential. Extreme z IS the signal, not noise.
+
+### 数据质量 (10 points)
+- Data freshness (stale > 10d penalized) + history depth (500+/1000+ rows bonus)
+
+### 排除规则
+- 酒水板块默认排除 (9 symbols): 茅台/五粮液/泸州老窖/洋河/今世缘/酒鬼酒/汾酒/古井贡/水井坊
+- `--exclude-alcohol false` to include
+
+Map results:
+
+- `观察` (score ≥ 65): two of three pillars aligned, data current
+- `等待` (score ≥ 40): anchor declining or LP not at extreme low, wait for confirmation
+- `剔除` (score < 40): data quality issues or no signal alignment
+- `需刷新数据`: latest bar > 10 days old
 
 ## Output Contract
 
-For stock-selection answers, include:
+For stock-selection answers, the markdown table shows:
 
-- A concise table with `symbol`, `name`, `market`, `dataThrough`, `status`, `score`, `signal`, and `risk`.
-- A compact formula note per candidate: `cost/deviation`, `deltaBand`, `meanReversion`, `volConfidence`, and `blockedFormulaInputs`.
-- A holding/return scenario per candidate: `holding`, `baseReturn`, `stretchReturn`, `execution`, and `riskTrigger`.
-- A short note on data limitations and whether live/current data was verified.
-- A next-step checklist that stays within Market Lab's DDD/MVVM boundaries if code changes are requested.
+- Core columns: `symbol`, `name`, `market`, `dataThrough`, `status`, `score`
+- Three-pillar columns: `成本锚` (distance + direction + band), `LP(合成)` (zone + value + percentile + net efficiency), `z-score` (σ + regime + regression probability)
+- Full formula detail available via `--format json` (includes options, deltaBands, fingerprint, amm, meanReversion, volConfidence, orderPlan)
+
+Never put long market essays into the app UI. If a code change is needed, domain formulas and screening rules belong in `src/domain/`, ViewModel orchestration belongs in `src/stores/` or `src/composables/`, and components should only render compact signals and controls.
 
 Never put long market essays into the app UI. If a code change is needed, domain formulas and screening rules belong in `src/domain/`, ViewModel orchestration belongs in `src/stores/` or `src/composables/`, and components should only render compact signals and controls.
