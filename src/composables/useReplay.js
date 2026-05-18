@@ -10,6 +10,14 @@ import { strategyProfileList } from '../domain/planning/orderPlan.js'
  * @param {ComputedRef<object>} effectiveInput
  * @param {ComputedRef<Array>} marketStateFull  来自 useMarketState，避免重算
  * @param {object} featureFlags                 显式开关；默认不跑回放
+ *
+ * Dedupe 优化：原版 profileReplays 与 replay 各自调 buildDailyReplay，
+ * 同一个 input 变化要算 4 次。新版 replay 直接从 profileReplays 中按
+ * effectiveInput.strategyProfile 取那一条，总调用从 4 次降到 3 次
+ * （等于 strategyProfileList.length）。effectiveInput 中 strategyProfile
+ * 之外的字段对 buildDailyReplay 的相关性已被 input 闭包覆盖；如果未来
+ * effectiveInput 引入新字段（如 lpOnchainSnapshot）影响 buildDailyReplay，
+ * 需要同步 profileReplays 的 input 来源，避免 dedupe 漂移。
  */
 export function useReplay(rows, input, effectiveInput, marketStateFull, featureFlags = {}) {
   const profileReplays = computed(() => strategyProfileList.map((profile) => ({
@@ -24,9 +32,15 @@ export function useReplay(rows, input, effectiveInput, marketStateFull, featureF
     Number(input.capital) + Number(input.baseNotional || 0),
   ))
 
-  const replay = computed(() => featureFlags.replayAccount
-    ? buildDailyReplay(rows.value, effectiveInput.value, marketStateFull.value)
-    : emptyReplay())
+  // dedupe: replay 直接复用 profileReplays 中匹配 effectiveInput.strategyProfile 的那条；
+  // 如果 strategyProfileList 中没有对应 id（极端 fallback），临时算一次保证可用。
+  const replay = computed(() => {
+    if (!featureFlags.replayAccount) return emptyReplay()
+    const targetId = effectiveInput.value.strategyProfile
+    const hit = profileReplays.value.find((item) => item.profile.id === targetId)
+    if (hit) return hit.replay
+    return buildDailyReplay(rows.value, effectiveInput.value, marketStateFull.value)
+  })
 
   return { profileReplays, recommendedProfile, replay }
 }
