@@ -31,6 +31,9 @@ const ALCOHOL_SYMBOLS = new Set([
   '600519', '000858', '000568', '002304', '603369',
   '000799', '600809', '000596', '600779',
 ])
+const REALESTATE_SYMBOLS = new Set([
+  '000002', '600048', '001979',
+])
 
 const ROOT = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 const args = parseArgs(process.argv.slice(2))
@@ -39,6 +42,7 @@ const top = positiveInt(args.top, 20)
 const minRows = positiveInt(args['min-rows'], 180)
 const format = String(args.format ?? 'markdown')
 const excludeAlcohol = args['exclude-alcohol'] !== 'false'
+const excludeRealestate = args['exclude-realestate'] !== 'false'
 const indexPath = resolvePath(args.index ?? 'src/data/stock-index.json')
 const dataDir = resolvePath(args['data-dir'] ?? 'public/data')
 const nameMapPath = resolvePath(args['name-map'] ?? '.agents/skills/china-stock-selection/references/stock-names.json')
@@ -53,6 +57,7 @@ const skipped = []
 for (const entry of index) {
   if (!markets.has(entry.market)) continue
   if (excludeAlcohol && ALCOHOL_SYMBOLS.has(entry.symbol)) continue
+  if (excludeRealestate && REALESTATE_SYMBOLS.has(entry.symbol)) continue
   const file = dataFileFor(entry)
   if (!existsSync(file)) {
     skipped.push({ symbol: entry.symbol, reason: 'missing csv' })
