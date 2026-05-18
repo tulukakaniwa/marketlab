@@ -215,9 +215,12 @@ function buildFormula(entry, rows) {
     ? round(lpValues.filter(v => v <= synLp.value).length / lpValues.length * 100, 1)
     : null
 
-  // 全历史 LP 分位数 — 检测结构性低位（价值陷阱）
-  const lpValuesAll = []
-  for (let i = 0; i < marketPath.length; i++) {
+  // 3年内 LP 最高/当前比 — 检测结构性低位
+  // 比值 > 2.0: 3年内LP曾远高于现在 = 周期低点, 不是陷阱
+  // 比值 < 1.5: 3年内LP就没高过 = 一路趴窝, 价值陷阱
+  const threeYearWindow = Math.min(726, marketPath.length)
+  let lpMax3y = 0
+  for (let i = Math.max(0, marketPath.length - threeYearWindow); i < marketPath.length; i++) {
     const m = marketPath[i]; const r = rows[i]
     if (!m || !r) continue
     const rw = Math.max(m.atrPercent ?? 0.05, 0.03)
@@ -225,14 +228,13 @@ function buildFormula(entry, rows) {
     const lo = m.costAnchor * Math.max(1 - srw, 0.001)
     const up = m.costAnchor * (1 + srw)
     const lpi = uniswapV3Inventory({ markPrice: r.close, lowerPrice: lo, upperPrice: up, liquidity: 1 })
-    if (lpi?.value !== null && Number.isFinite(lpi.value)) lpValuesAll.push(lpi.value)
+    if (lpi?.value !== null && Number.isFinite(lpi.value)) lpMax3y = Math.max(lpMax3y, lpi.value)
   }
-  lpValuesAll.sort((a, b) => a - b)
-  const lpFullPercentile = lpValuesAll.length > 0 && synLp?.value !== null && Number.isFinite(synLp.value)
-    ? round(lpValuesAll.filter(v => v <= synLp.value).length / lpValuesAll.length * 100, 1)
+  const lpRecoveryRatio = lpMax3y > 0 && synLp?.value !== null && Number.isFinite(synLp.value)
+    ? round(lpMax3y / synLp.value, 1)
     : null
-  // 全历史 P<20% = 结构性低位，价值陷阱
-  const isChronicLow = lpFullPercentile !== null && lpFullPercentile < 20
+  // 3年内从没大幅高于当前 = 长期趴窝
+  const isChronicLow = lpRecoveryRatio !== null && lpRecoveryRatio < 1.5
 
   // 流动性指纹
   const fingerprint = liquidityFingerprint({
@@ -306,10 +308,9 @@ function buildFormula(entry, rows) {
       lowerPrice: round(synLower, 3),
       upperPrice: round(synUpper, 3),
       percentile: lpPercentile,
-      fullPercentile: lpFullPercentile,
+      max3yRatio: lpRecoveryRatio,
       isChronicLow: isChronicLow || false,
       sampleDays: lpValues.length,
-      fullSampleDays: lpValuesAll.length,
     },
     fingerprint: {
       segments: fingerprint?.segments?.length ?? 0,
@@ -425,10 +426,10 @@ function lpNoteStr(f) {
   const lp = f.synLp
   if (!lp || lp.value === null) return 'n/a'
   const pct = lp.percentile !== null ? `P${lp.percentile}` : '?'
-  const fp = lp.fullPercentile !== null ? `F${lp.fullPercentile}` : ''
+  const r3 = lp.max3yRatio !== null ? `×${lp.max3yRatio}` : ''
   const eff = f.synNetLp?.efficient ? '+' : '-'
-  const trap = lp.isChronicLow ? ' ⚠️长期低位' : ''
-  return `${lp.zone} v${lp.value} ${pct}${fp ? '/'+fp : ''} net${eff}${trap}`
+  const trap = lp.isChronicLow ? ' ⚠️3年未翻倍' : ''
+  return `${lp.zone} v${lp.value} ${pct}${r3 ? ' '+r3 : ''} net${eff}${trap}`
 }
 
 function zNoteStr(f) {
