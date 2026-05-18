@@ -208,18 +208,8 @@ function rebalancePanes() {
 function syncChart() {
   if (!chart || !series.candle) return
   const dark = document.documentElement.classList.contains('dark')
-  chart.applyOptions({
-    layout: {
-      background: { type: ColorType.Solid, color: dark ? '#22241f' : '#fbfaf4' },
-      textColor: dark ? '#96958b' : '#57554d',
-    },
-    grid: {
-      vertLines: { color: dark ? 'rgba(61,60,52,0.45)' : 'rgba(215,209,194,0.45)' },
-      horzLines: { color: dark ? 'rgba(61,60,52,0.72)' : 'rgba(215,209,194,0.72)' },
-    },
-    rightPriceScale: { borderColor: dark ? '#3d3c34' : '#d7d1c2' },
-    timeScale: { borderColor: dark ? '#3d3c34' : '#d7d1c2' },
-  })
+  // 主题相关的 layout/grid/rightPriceScale/timeScale 配置统一从 themeOptions 取，避免与 chartOptions 重复
+  chart.applyOptions(themeOptions(dark))
   series.candle.setData(props.rows.map((row) => ({
     time: row.date, open: row.open, high: row.high, low: row.low, close: row.close,
   })))
@@ -377,7 +367,7 @@ function buildLegend(idx, param) {
       if (d) value = typeof d.value === 'number' ? d.value : (typeof d.close === 'number' ? d.close : null)
     }
     // 兜底：从 props 数组按 idx 取
-    if (value === null) value = fallbackValue(key, idx, props.formulaPath, props.costPath, props.entryPrice)
+    if (value === null) value = fallbackValue(key, idx, props)
     if (!Number.isFinite(value)) continue
     indicators.push({ key, ...meta, value })
   }
@@ -399,22 +389,35 @@ function resize() {
 
 function chartOptions() {
   const dark = document.documentElement.classList.contains('dark')
+  const theme = themeOptions(dark)
   return {
     autoSize: false,
     layout: {
+      ...theme.layout,
+      fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    },
+    grid: theme.grid,
+    crosshair: { mode: CrosshairMode.Normal },
+    width: el.value?.clientWidth ?? 800,
+    height: el.value?.clientHeight ?? 620,
+    rightPriceScale: { ...theme.rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.12 } },
+    timeScale: { ...theme.timeScale, rightOffset: 8, barSpacing: 7 },
+  }
+}
+
+// 主题（亮/暗）相关的 chart 选项工厂；chartOptions 与 syncChart 共用，避免硬编码重复
+function themeOptions(dark) {
+  return {
+    layout: {
       background: { type: ColorType.Solid, color: dark ? '#22241f' : '#fbfaf4' },
       textColor: dark ? '#96958b' : '#57554d',
-      fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     },
     grid: {
       vertLines: { color: dark ? 'rgba(61,60,52,0.45)' : 'rgba(215,209,194,0.45)' },
       horzLines: { color: dark ? 'rgba(61,60,52,0.72)' : 'rgba(215,209,194,0.72)' },
     },
-    crosshair: { mode: CrosshairMode.Normal },
-    width: el.value?.clientWidth ?? 800,
-    height: el.value?.clientHeight ?? 620,
-    rightPriceScale: { borderColor: dark ? '#3d3c34' : '#d7d1c2', scaleMargins: { top: 0.08, bottom: 0.12 } },
-    timeScale: { borderColor: dark ? '#3d3c34' : '#d7d1c2', rightOffset: 8, barSpacing: 7 },
+    rightPriceScale: { borderColor: dark ? '#3d3c34' : '#d7d1c2' },
+    timeScale: { borderColor: dark ? '#3d3c34' : '#d7d1c2' },
   }
 }
 

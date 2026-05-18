@@ -34,10 +34,13 @@ export const SERIES_META = {
 /**
  * hover 时按 idx 从 formulaPath/costPath/entryPrice 反查某 series 的兜底值
  * （首选是 lightweight-charts 的 param.seriesData，失败时走这条路径）
+ *
+ * ctx 形如 `{ formulaPath, costPath, entryPrice }`，可以直接传入 Vue 的 props（响应式 proxy 会自动 unwrap），
+ * 或任意纯对象。函数只读取这三个字段，不会写入。
  */
-export function fallbackValue(key, idx, formulaPath, costPath, entryPrice) {
-  const fp = formulaPath?.[idx]
-  const cp = costPath?.[idx]
+export function fallbackValue(key, idx, ctx = {}) {
+  const fp = ctx.formulaPath?.[idx]
+  const cp = ctx.costPath?.[idx]
   switch (key) {
     case 'cost':        return cp?.anchor ?? fp?.costAnchor
     case 'costUpper':   return cp?.upper  ?? fp?.costUpper
@@ -47,7 +50,7 @@ export function fallbackValue(key, idx, formulaPath, costPath, entryPrice) {
     case 'lpLower':     return fp?.lpLowerPrice
     case 'lpUpper':     return fp?.lpUpperPrice
     case 'lpRealPrice': return fp?.lpRealPrice
-    case 'entry':       return entryPrice
+    case 'entry':       return ctx.entryPrice
     case 'bsDelta':     return fp?.optionDelta
     case 'bsGamma':     return fp?.optionGamma
     case 'bsTheta':     return fp?.optionThetaDaily
