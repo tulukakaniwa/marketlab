@@ -37,6 +37,12 @@ const REALESTATE_SYMBOLS = new Set([
 const NORTHEAST_SYMBOLS = new Set([
   '000661', '600346', '600760',
 ])
+const BANK_SYMBOLS = new Set([
+  '000001', '002142', '600000', '600015', '600016', '600036',
+  '600919', '600926', '601009', '601166', '601169', '601229',
+  '601288', '601328', '601398', '601658', '601818', '601838',
+  '601916', '601939', '601988', '601998',
+])
 // 社保基金 Q1 2026 持仓白名单 (akshare stock_gdfx_free_top_10_em)
 const SHEBAO_WHITELIST = new Set([
   '000408', '000708', '000776', '000786', '000807', '000876', '000963',
@@ -63,6 +69,7 @@ const excludeAlcohol = args['exclude-alcohol'] !== 'false'
 const excludeRealestate = args['exclude-realestate'] !== 'false'
 const excludeNortheast = args['exclude-northeast'] !== 'false'
 const requireShebao = args['require-shebao'] !== 'false'
+const excludeBanks = args['exclude-banks'] !== 'false'
 const indexPath = resolvePath(args.index ?? 'src/data/stock-index.json')
 const dataDir = resolvePath(args['data-dir'] ?? 'public/data')
 const nameMapPath = resolvePath(args['name-map'] ?? '.agents/skills/china-stock-selection/references/stock-names.json')
@@ -80,6 +87,7 @@ for (const entry of index) {
   if (excludeRealestate && REALESTATE_SYMBOLS.has(entry.symbol)) continue
   if (excludeNortheast && NORTHEAST_SYMBOLS.has(entry.symbol)) continue
   if (requireShebao && !SHEBAO_WHITELIST.has(entry.symbol)) continue
+  if (excludeBanks && BANK_SYMBOLS.has(entry.symbol)) continue
   const file = dataFileFor(entry)
   if (!existsSync(file)) {
     skipped.push({ symbol: entry.symbol, reason: 'missing csv' })
