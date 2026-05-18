@@ -58,3 +58,9 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# 项目用 pnpm，不接受 npm 产出的 lockfile
+package-lock.json
+
+# Claude Code 本机设置
+.claude/
