@@ -1,4 +1,4 @@
-import { buildMarketStatePath } from '../market/cost.js'
+import { buildMarketStatePath } from '../market-data/cost.js'
 import { buildDecisionGraph, resolveProfile } from '../planning/orderPlan.js'
 import { resolveExitTargetReturn } from '../formulas/core.js'
 

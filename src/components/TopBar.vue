@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Database, Moon, Sun } from 'lucide-vue-next'
 import { summarizeRegime } from '../domain/decision/narrative.js'
-import { deriveWindows } from '../domain/market/cost.js'
+import { deriveWindows } from '../domain/market-data/cost.js'
 import ProfileChip from './ProfileChip.vue'
 
 const props = defineProps({

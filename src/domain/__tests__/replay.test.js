@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildMarketStatePath } from '../market/cost.js'
+import { buildMarketStatePath } from '../market-data/cost.js'
 import { buildDailyReplay } from '../replay/dailyReplay.js'
 import { strategyProfileList } from '../planning/orderPlan.js'
 

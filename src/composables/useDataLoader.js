@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { loadMarketCsv } from '../data/generated/market-csv-index.js'
-import { btcHistorySource, parseCsvText } from '../domain/market/ohlcv.js'
+import { btcHistorySource, parseCsvText } from '../domain/market-data/ohlcv.js'
 
 /**
  * 数据加载层：管理 rows / source / loading / error / cursor + 重试
