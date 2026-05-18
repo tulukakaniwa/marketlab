@@ -24,7 +24,7 @@ function formatVolume(v) {
 </script>
 
 <template>
-  <div v-if="legend" class="mc-legend" :class="`dir-${legend.ohlcv.direction}`">
+  <div v-if="legend && legend.ohlcv" class="mc-legend" :class="`dir-${legend.ohlcv.direction ?? 'flat'}`">
     <div class="mc-legend-head">
       <span class="mc-legend-date">{{ legend.date }}</span>
       <span class="mc-legend-ohlc">
