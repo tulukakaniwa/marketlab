@@ -13,6 +13,7 @@ describe('useChartOverlays', () => {
       window.localStorage.removeItem('lab.chartOverlays.v6')
       window.localStorage.removeItem('lab.chartOverlays.v7')
       window.localStorage.removeItem('lab.chartOverlays.v8')
+      window.localStorage.removeItem('lab.chartOverlays.v9')
     }
   })
 
@@ -31,6 +32,7 @@ describe('useChartOverlays', () => {
     expect(o.entryLine).toBe(true)
     expect(o.volBand).toBe(true)
     expect(o.volume).toBe(true)
+    expect(o.stockChipProfile).toBe(true)
     expect(o.replayMarkers).toBe(true)
     expect(o.replayMarkerLabels).toBe(false)
     expect(o.currentDecision).toBe(true)
@@ -50,7 +52,7 @@ describe('useChartOverlays', () => {
     if (typeof window === 'undefined') return
     // 写入只含部分字段的旧数据
     window.localStorage.setItem(
-      'lab.chartOverlays.v8',
+      'lab.chartOverlays.v9',
       JSON.stringify({ costBand: false, greeksPane: true })
     )
     const o = useChartOverlays()
@@ -58,6 +60,7 @@ describe('useChartOverlays', () => {
     expect(o.greeksPane).toBe(true)        // 旧值保留
     expect(o.entryLine).toBe(true)         // 缺字段回退默认
     expect(o.volume).toBe(true)            // 缺字段回退默认
+    expect(o.stockChipProfile).toBe(true)  // 新字段回退默认
   })
 
   it('从旧 overlay key 迁移，保留用户已打开的数据层', () => {
@@ -71,5 +74,18 @@ describe('useChartOverlays', () => {
     expect(o.lpPane).toBe(true)
     expect(o.kdjPane).toBe(true)
     expect(o.rsiPane).toBe(true)
+    expect(o.stockChipProfile).toBe(true)
+  })
+
+  it('从 v8 迁移到 v9 时补齐个股筹码图开关', () => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(
+      'lab.chartOverlays.v8',
+      JSON.stringify({ volume: false, lpPane: true })
+    )
+    const o = useChartOverlays()
+    expect(o.volume).toBe(false)
+    expect(o.lpPane).toBe(true)
+    expect(o.stockChipProfile).toBe(true)
   })
 })

@@ -9,6 +9,7 @@ export const CHART_OVERLAY_TOGGLES = [
   { key: 'entryLine', label: '入场价线' },
   { key: 'volBand', label: '波动带' },
   { key: 'volume', label: '成交量' },
+  { key: 'stockChipProfile', label: '个股筹码图' },
   { key: 'replayMarkers', label: '回放标记' },
   { key: 'replayMarkerLabels', label: '回放文字' },
   { key: 'currentDecision', label: '当前状态点' },

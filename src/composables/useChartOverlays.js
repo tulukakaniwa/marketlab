@@ -19,6 +19,7 @@ const DEFAULTS = {
   entryLine: true,
   volBand: true,
   volume: true,
+  stockChipProfile: true,
   replayMarkers: true,
   replayMarkerLabels: false,
   currentDecision: true,
@@ -28,8 +29,8 @@ const DEFAULTS = {
   rsiPane: true,
 }
 
-const STORAGE_KEY = 'lab.chartOverlays.v8'
-const LEGACY_KEYS = ['lab.chartOverlays.v6', 'lab.chartOverlays.v7']
+const STORAGE_KEY = 'lab.chartOverlays.v9'
+const LEGACY_KEYS = ['lab.chartOverlays.v6', 'lab.chartOverlays.v7', 'lab.chartOverlays.v8']
 
 export function useChartOverlays() {
   migrateChartOverlayState()

@@ -9,9 +9,10 @@ import {
   createChart,
   createSeriesMarkers,
 } from 'lightweight-charts'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChartStatusBar from './ChartStatusBar.vue'
 import MainChartHoverLegend from './MainChartHoverLegend.vue'
+import StockChipProfileOverlay from './StockChipProfileOverlay.vue'
 import { SERIES_META, fallbackValue, groupIndicators } from './mainChartLegendMeta.js'
 import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
@@ -35,6 +36,7 @@ const emit = defineEmits(['cursor-change', 'param-change'])
 const el = ref(null)
 const hoverIndex = ref(null)
 const hoverLegend = ref(null)  // { date, ohlcv, indicators: [{key, title, color, value, unit}] }
+const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== false)
 let chart = null
 let markersApi = null
 let themeObserver = null
@@ -437,6 +439,7 @@ function finiteOrNull(value) { return Number.isFinite(value) ? value : null }
 
     <!-- Hover 图例：拆到子组件，本文件只构造 hoverLegend 对象 -->
     <MainChartHoverLegend :legend="hoverLegend" />
+    <StockChipProfileOverlay v-if="showStockChipProfile" :rows="rows" />
 
     <ChartStatusBar :input="input" @change="(field, v) => emit('param-change', field, v)" />
   </div>
