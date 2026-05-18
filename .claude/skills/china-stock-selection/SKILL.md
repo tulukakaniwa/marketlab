@@ -38,10 +38,20 @@ node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 
 Useful variants:
 
 ```bash
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
+# 基础用法
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 30
+
+# 恢复各类排除（默认全部开启）
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-alcohol false
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-banks false
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-realestate false
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-northeast false
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --require-shebao false
+
+# 其他格式
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --exclude-alcohol false
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
 ```
 
 3. If data is stale or missing, use the project pipeline:
@@ -56,9 +66,9 @@ pnpm run refresh:market-data
 ```text
 范围: A股/港股, daily OHLCV, source ...
 数据截至: ...
-筛选逻辑: 成本锚(30) + 合成LP分位数主导(45) + z-score回归概率(15) + 数据质量(10)
-排除: 酒水板块(9只), 无RSI/KDJ/EMA/MA
-候选池: symbol, name, dataThrough, status, score, 成本锚, LP(合成), z-score
+筛选逻辑: 成本锚(30) + 合成LP分位数主导(45,含3年比值检测) + z-score(15) + 数据质量(10)
+排除: 酒水/银行/地产/东三省, 仅社保Q1持仓, 无RSI/KDJ/EMA/MA
+候选池: symbol, name, dataThrough, status, score, 成本锚, LP(合成,含3年比值xN), z-score
 JSON模式: --format json 含全量公式字段
 剔除/等待: ...
 下一步验证: cost anchor stabilization, industry/sector, fundamentals/news if required
@@ -115,7 +125,10 @@ Three-pillar scoring with LP percentile as the dominant signal:
   - P<5% means LP inventory value at 1-year extreme low — LP accumulated maximum stock at cheapest prices
 - **zone (0-10)**: range = 10, token0 + low percentile = 10 (best entry setup: LP holds stock at historical low), token0 alone = 4
 - **净效率 (0-5)**: netLpEfficiency positive = 5
-- Interpretation: token0 zone at P<5% is the ideal setup — LP position is 100% stock bought at historically cheap prices. Anchor stabilization is the only missing piece.
+- **3年比值惩罚 (-20)**: 若 LP 在 3 年内从未达到当前值的 1.5 倍以上 → 价值陷阱, -20 分
+  - 比值 ×2.0 表示 LP 曾翻倍后回落，是周期低点
+  - 比值 < 1.5 表示 LP 长期趴窝，再便宜也不碰
+- Interpretation: token0 zone at P<5% + 3年 LP 曾大幅高于现在 = 周期底部囤货，不是价值陷阱。锚企稳是最佳确认信号。
 
 ### z-score (15 points)
 - **回归概率 (0-8)**: prob ≥ 95% = 8, ≥ 85% = 6, ≥ 70% = 4, ≥ 55% = 2
@@ -126,9 +139,15 @@ Three-pillar scoring with LP percentile as the dominant signal:
 ### 数据质量 (10 points)
 - Data freshness (stale > 10d penalized) + history depth (500+/1000+ rows bonus)
 
-### 排除规则
-- 酒水板块默认排除 (9 symbols): 茅台/五粮液/泸州老窖/洋河/今世缘/酒鬼酒/汾酒/古井贡/水井坊
-- `--exclude-alcohol false` to include
+### 排除规则 (全部默认开启)
+
+| 类别 | 数量 | 排除标的 | 关闭参数 |
+|---|---|---|---|
+| 酒水 | 9 | 茅台/五粮液/泸州老窖/洋河/今世缘/酒鬼酒/汾酒/古井贡/水井坊 | `--exclude-alcohol false` |
+| 银行 | 22 | 平安/浦发/华夏/民生/招商/兴业/北京/农业/交通/工商/光大/建设/中国/中信/宁波/江苏/杭州/南京/上海/浙商/成都/邮储/渝农商行 | `--exclude-banks false` |
+| 地产 | 3 | 万科A/保利发展/招商蛇口 | `--exclude-realestate false` |
+| 东三省 | 3 | 长春高新/恒力石化/中航沈飞 | `--exclude-northeast false` |
+| 社保持仓 | 80只白名单 | 仅保留 Q1 2026 前十大流通股东含社保基金的标的 | `--require-shebao false` |
 
 Map results:
 
