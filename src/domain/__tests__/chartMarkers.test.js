@@ -81,4 +81,64 @@ describe('buildChartMarkers', () => {
       expect(m.text).toBeUndefined()
     }
   })
+
+  it('signalDate !== fillDate 时输出独立的 signal marker', () => {
+    const trade = {
+      side: 'buy',
+      signalDate: '2024-01-01',
+      fillDate: '2024-01-02',
+      exitDate: '2024-01-02',
+      pnl: 2,
+      fillPrice: 101,
+      reason: 'cost',
+    }
+    const markers = buildChartMarkers({
+      rows: [row('2024-01-01'), row('2024-01-02')],
+      replay: { trades: [trade] },
+      decision: null,
+      overlays: { executionMarkers: true, replayMarkers: true, currentDecision: false, replayMarkerLabels: false, researchMarkers: false },
+      formulaPath: [],
+    })
+    // signalDate ≠ fillDate → 输出 signal-0；fillDate === exitDate → 仅一条 fill-0
+    expect(markers.map((m) => m.id).sort()).toEqual(['fill-0', 'signal-0'])
+  })
+
+  it('overlays 缺 key 时遵循"默认开"语义', () => {
+    // 缺省 executionMarkers 与 researchMarkers 都视为 true
+    const markers = buildChartMarkers({
+      rows: [row('2024-01-01')],
+      replay: { trades: [] },
+      decision: { state: '低吸', timing: { side: 'buy' } },
+      overlays: { replayMarkers: true, currentDecision: true },
+      formulaPath: [],
+    })
+    expect(markers.find((m) => m.id === 'current-decision')).toBeTruthy()
+  })
+
+  it('replayMarkerLabels=true 时仅最后 6 条 fill marker 带 text', () => {
+    const trades = Array.from({ length: 10 }, (_, i) => ({
+      side: 'buy',
+      signalDate: `2024-01-${String(i + 1).padStart(2, '0')}`,
+      fillDate: `2024-01-${String(i + 1).padStart(2, '0')}`,
+      exitDate: `2024-01-${String(i + 1).padStart(2, '0')}`,
+      pnl: 1,
+      fillPrice: 100,
+      reason: 'cost',
+    }))
+    const rows10 = trades.map((t) => row(t.fillDate))
+    const markers = buildChartMarkers({
+      rows: rows10,
+      replay: { trades },
+      decision: null,
+      overlays: { executionMarkers: true, replayMarkers: true, currentDecision: false, replayMarkerLabels: true, researchMarkers: false },
+      formulaPath: [],
+    })
+    // 10 笔同日 fill+exit → 10 条 fill-X marker
+    expect(markers).toHaveLength(10)
+    // 前 4 条无 text，后 6 条有 text
+    const noText = markers.filter((m) => m.text === undefined)
+    const withText = markers.filter((m) => typeof m.text === 'string')
+    expect(noText).toHaveLength(4)
+    expect(withText).toHaveLength(6)
+  })
 })
