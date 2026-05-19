@@ -76,6 +76,7 @@ pnpm run refresh:market-data
 筛选逻辑: 成本锚(30) + 合成LP分位数主导(45,含3年比值检测) + z-score(15) + 数据质量(10)
 排除: 酒水/银行/地产/东三省, 仅社保Q1持仓, 无RSI/KDJ/EMA/MA
 候选池: symbol, name, dataThrough, status, score, 成本锚, LP(合成,含3年比值xN), z-score
+持仓成本: halfLifeDays, firstTargetDays, recoveryDays, timeAdjustedReturn, opportunityCostFlag
 JSON模式: --format json 含全量公式字段
 剔除/等待: ...
 下一步验证: cost anchor stabilization, industry/sector, fundamentals/news if required
@@ -151,9 +152,36 @@ Three-pillar scoring with LP percentile as the dominant signal:
 - **第一卖点**：成本带下沿（锚站稳确认信号）
 - **第二卖点**：成本锚（全部回归完成）
 - **持仓周期**：均值回归半衰期 × 2 = 覆盖 ~75% 距离偏差；半衰期 × 3 = 到成本锚
-  - z 越极端但 HL 不一定更短：HL 受波动率影响，z=-3.42σ 极值的 HL=69 天，z=-1σ 的 HL=17 天
+  - z-score 只说明偏离强度和回归概率，不直接缩短半衰期；不要写成"z 极端会加速 HL"
   - 短周期策略（1-3月）：强 z + 强 LP 可盖过锚未企稳，不等锚直接靠回归拉回
   - 长周期策略（6月+）：锚方向权重加大，锚 ↓ 时即使 z/LP 强也必须等锚走平
+
+### 持仓成本 / 时间损耗
+
+每个候选都必须回答"占用资金多久、这段时间是否值得"。不要只看折价空间和分数。
+
+基础计算：
+
+- `firstTargetDays = halfLifeDays * 2`：第一卖点或成本带下沿的时间窗口，不是保证日期
+- `recoveryDays = halfLifeDays * 3`：回到成本锚的长窗口，只用于情景说明
+- `firstTargetReturn = (costLow - close) / close`，若 price 已高于 costLow，则改用 Delta/成本带给出的下一目标
+- `timeAdjustedReturn = firstTargetReturn / max(firstTargetDays, 1) * 21`，用于比较月化效率
+
+解释规则：
+
+- HL ≤ 30 天：短周期，资金周转友好；若 LP/z 同时强，可接受锚未完全走平
+- 30 < HL ≤ 60 天：中周期，需要写清第一卖点和复核条件
+- HL > 60 天：长周期，必须标注"时间成本高"，除非 timeAdjustedReturn 明显优于前排候选
+- HL > 90 天或锚持续 ↓：默认降级为等待；只给观察，不给积极措辞
+- 锚 ↓ 时，第一卖点用成本带下沿，不能把成本锚当确定卖点；锚 →/↑ 时才讨论等到成本锚
+- `volConfidence` 低或数据短时，半衰期只作参考，需加缓冲或标注不可信
+- "接飞刀"只解除锚下降的硬等待，不解除时间成本；z ≤ -1.5 且回归概率 ≥ 85% 仍要看 HL 和月化效率
+
+输出时至少给一行：
+
+```text
+时间成本: HL {x}天；第一窗口约 {2x}天；完整回归约 {3x}天；第一目标空间 {y}%；月化效率约 {z}%；结论: 周转友好/可接受/时间成本高
+```
 
 ### 数据质量 (10 points)
 - Data freshness (stale > 10d penalized) + history depth (500+/1000+ rows bonus)
@@ -186,7 +214,8 @@ Map results:
 - 弹性优先：**LP 3年比值 > 2.0** = LP 曾翻倍后回落 → 真正的周期低点，反弹空间大
 - 确定性优先：**锚已走平（→）** + LP 极端低位 → 稳但弹性小
 - 时间回报率：金龙鱼 HL=17天 ×2 → 1个月+8.7% > 长安 HL=69天 ×2 → 5个月+12.3%（月化 8.7% vs 2.5%）
-- HL > 60 天（极慢）的标的标注"长周期"，提醒机会成本
+- HL > 60 天的标的标注"长周期"，提醒机会成本；HL > 90 天默认等待，除非用户明确要长周期池
+- 比较多个候选时先看 timeAdjustedReturn，再看绝对空间；资金长时间不动就是策略成本
 
 **长周期（6个月以上）**：锚方向权重加大。锚 ↓ 的标的即使 z/LP 强，也要等锚走平再用长仓。汽车股典型周期：锚连跌 2-3 月 → 企稳 → 反弹。
 
@@ -223,8 +252,7 @@ For stock-selection answers, the markdown table shows:
 
 - Core columns: `symbol`, `name`, `market`, `dataThrough`, `status`, `score`
 - Three-pillar columns: `成本锚` (distance + direction + band), `LP(合成)` (zone + value + percentile + net efficiency), `z-score` (σ + regime + regression probability)
+- Time-cost columns or notes: `HL`, `第一窗口`, `完整回归`, `第一目标空间`, `月化效率`, `时间成本结论`
 - Full formula detail available via `--format json` (includes options, deltaBands, fingerprint, amm, meanReversion, volConfidence, orderPlan)
-
-Never put long market essays into the app UI. If a code change is needed, domain formulas and screening rules belong in `src/domain/`, ViewModel orchestration belongs in `src/stores/` or `src/composables/`, and components should only render compact signals and controls.
 
 Never put long market essays into the app UI. If a code change is needed, domain formulas and screening rules belong in `src/domain/`, ViewModel orchestration belongs in `src/stores/` or `src/composables/`, and components should only render compact signals and controls.
