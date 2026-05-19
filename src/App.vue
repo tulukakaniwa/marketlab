@@ -5,12 +5,14 @@ import TopBar from './components/TopBar.vue'
 import MainChart from './components/MainChart.vue'
 import LeftPanel from './components/LeftPanel.vue'
 import RightPanel from './components/RightPanel.vue'
+import RecommendedPoolPage from './components/RecommendedPoolPage.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
+const recommendedPoolMode = ref(isRecommendedPoolPath())
 
 // 主题持久化
 const theme = persistedRef('lab.theme.v1', 'light')
@@ -77,6 +79,11 @@ function checkHiddenUrlEntry() {
   if (hash === '#pool' || hash === '#recommended-pool' || search.get('pool') === '1') {
     openRecommendedPool()
   }
+}
+
+function isRecommendedPoolPath() {
+  if (typeof window === 'undefined') return false
+  return window.location.pathname.replace(/\/+$/, '').startsWith('/recommended-pool')
 }
 
 onMounted(() => {
@@ -196,7 +203,9 @@ const rootStyle = computed(() => ({
 </script>
 
 <template>
+  <RecommendedPoolPage v-if="recommendedPoolMode" />
   <div
+    v-else
     class="app-root"
     :class="{
       'left-collapsed': !effectiveLeftOpen,
