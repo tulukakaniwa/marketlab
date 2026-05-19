@@ -72,7 +72,7 @@ const requireShebao = args['require-shebao'] !== 'false'
 const excludeBanks = args['exclude-banks'] !== 'false'
 const indexPath = resolvePath(args.index ?? 'src/data/stock-index.json')
 const dataDir = resolvePath(args['data-dir'] ?? 'public/data')
-const nameMapPath = resolvePath(args['name-map'] ?? '.agents/skills/china-stock-selection/references/stock-names.json')
+const nameMapPath = resolvePath(args['name-map'] ?? defaultNameMapPath())
 const nameMap = loadNameMap(nameMapPath)
 
 const index = readJson(indexPath)
@@ -494,6 +494,15 @@ function cell(v) { return String(v ?? '').replace(/\|/g, '/') }
 function readJson(path) {
   try { return JSON.parse(readFileSync(path, 'utf8')) }
   catch (e) { fail(`cannot read ${path}: ${e.message}`) }
+}
+
+function defaultNameMapPath() {
+  const candidates = [
+    'skills/china-stock-selection/references/stock-names.json',
+    '.agents/skills/china-stock-selection/references/stock-names.json',
+    '.claude/skills/china-stock-selection/references/stock-names.json',
+  ]
+  return candidates.find((candidate) => existsSync(resolvePath(candidate))) ?? candidates[1]
 }
 
 function resolvePath(p) { return resolve(ROOT, String(p)) }

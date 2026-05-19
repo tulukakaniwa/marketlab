@@ -9,6 +9,13 @@ metadata:
 
 Use this skill to help entry-level Market Lab users build a source-labeled watchlist for domestic market scenarios. Keep the output as research and observation, not financial advice or a buy/sell command.
 
+## Runtime Entry Points
+
+- Codex: `.agents/skills/china-stock-selection`
+- Claude Code: `.claude/skills/china-stock-selection`
+- OpenClaw / generic agents: `skills/china-stock-selection`
+- Keep the script logic canonical in `.agents/skills/china-stock-selection/scripts`; the other roots provide runtime-compatible wrappers.
+
 ## Core Rules
 
 - Work from data first: use `src/data/stock-index.json`, `public/data/*.csv`, and the data refresh flow in `docs/development/data-pipeline.md`.
@@ -32,26 +39,26 @@ pnpm run check:generated-data
 2. For a local formula-assisted screen, run:
 
 ```bash
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 20
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 20
 ```
 
 Useful variants:
 
 ```bash
 # 基础用法
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 30
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 30
 
 # 恢复各类排除（默认全部开启）
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-alcohol false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-banks false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-realestate false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-northeast false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --require-shebao false
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-alcohol false
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-banks false
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-realestate false
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-northeast false
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --require-shebao false
 
 # 其他格式
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
+node .claude/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
 ```
 
 3. If data is stale or missing, use the project pipeline:

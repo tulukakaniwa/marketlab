@@ -39,26 +39,26 @@ pnpm run check:generated-data
 2. For a local formula-assisted screen, run:
 
 ```bash
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 20
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 20
 ```
 
 Useful variants:
 
 ```bash
 # 基础用法
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 30
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 30
 
 # 恢复各类排除（默认全部开启）
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-alcohol false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-banks false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-realestate false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-northeast false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --require-shebao false
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-alcohol false
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-banks false
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-realestate false
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --exclude-northeast false
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --require-shebao false
 
 # 其他格式
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
+node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
 ```
 
 3. If data is stale or missing, use the project pipeline:
