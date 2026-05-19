@@ -20,11 +20,13 @@ Use this skill to help entry-level Market Lab users build a source-labeled watch
 
 - Work from data first: use `src/data/stock-index.json`, `public/data/*.csv`, and the data refresh flow in `docs/development/data-pipeline.md`.
 - Use the whole Market Lab formula map as the selection frame. Formula stages that cannot be truthfully evaluated from domestic OHLCV must still appear as `research-only`, `proxy-only`, or `missing-inputs`, not silently disappear.
+- Do not use RSI, KDJ, EMA, or MA for stock selection, ranking, entry, exit, holding-period, or status decisions. These are outside this skill's decision model.
 - Prefer A-share and HK instruments by default. Include US or crypto only when the user asks for cross-market comparison.
 - Every conclusion must show source, market, data-through date, and whether the data is current enough for the requested task.
 - Do not invent fundamentals, news, prices, sectors, market caps, or trading calendar facts. If those are needed and not in local data, refresh or explicitly say they are missing.
 - Treat the result as a candidate pool: `观察`, `等待`, `剔除`, or `需刷新数据`. Avoid wording like guaranteed upside or direct buy instruction.
 - Keep beginner-facing explanations short: signal, risk, why it made or missed the list, and what to verify next.
+- If RSI/KDJ/EMA/MA appear in user text, screenshots, or external data, label them as ignored external references. Never cite them as reasons a stock is selected or rejected.
 
 ## Quick Workflow
 
@@ -92,9 +94,14 @@ Local `stock-index.json` may only contain codes as labels. The screening script 
 
 ## Formula Coverage
 
-The screening uses the full Market Lab formula stack. All LP/AMM formulas run in **synthetic mode** (liquidity=1, rangeWidth from ATR) — no on-chain data dependency. The following are NOT used (popular indicators, not part of the project's mathematical framework):
+The screening uses the full Market Lab formula stack. All LP/AMM formulas run in **synthetic mode** (liquidity=1, rangeWidth from ATR) — no on-chain data dependency.
 
-- RSI, KDJ, EMA, MA — excluded
+Hard exclusion:
+
+- RSI, KDJ, EMA, MA are forbidden in this skill's decision path.
+- Do not use them as filters, weights, tie-breakers, confirmations, entry/exit triggers, holding-period adjustments, or risk labels.
+- Do not mix this skill with `bl-marketlab-pool` scoring semantics; that separate recommended-pool skill has different dimensions and may contain KDJ/RSI fields.
+- If a report includes those fields for comparison, write: `RSI/KDJ/EMA/MA: ignored, not part of this skill's model`.
 
 Complete formula stack:
 
