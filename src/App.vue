@@ -34,6 +34,51 @@ let mediaQuery = null
 function syncNarrowScreen() {
   narrowScreen.value = mediaQuery?.matches ?? false
 }
+
+// 隐藏入口：连按 g p / Alt+P / 访问 #pool / 访问 ?pool=1 → 跳到推荐池静态页
+const HIDDEN_POOL_PATH = '/recommended-pool/'
+let chordTimer = null
+let chordPrev = ''
+function openRecommendedPool() {
+  if (typeof window === 'undefined') return
+  window.location.assign(HIDDEN_POOL_PATH)
+}
+function onHiddenKey(e) {
+  // 在 input/textarea/contenteditable 中不响应
+  const t = e.target
+  const tag = t?.tagName?.toLowerCase()
+  if (tag === 'input' || tag === 'textarea' || t?.isContentEditable) return
+  // Alt + P
+  if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+    e.preventDefault()
+    openRecommendedPool()
+    return
+  }
+  // 连按 g 然后 p
+  const k = e.key?.toLowerCase()
+  if (k === 'g') {
+    chordPrev = 'g'
+    clearTimeout(chordTimer)
+    chordTimer = setTimeout(() => { chordPrev = '' }, 800)
+    return
+  }
+  if (k === 'p' && chordPrev === 'g') {
+    chordPrev = ''
+    clearTimeout(chordTimer)
+    openRecommendedPool()
+    return
+  }
+  chordPrev = ''
+}
+function checkHiddenUrlEntry() {
+  if (typeof window === 'undefined') return
+  const hash = (window.location.hash || '').toLowerCase()
+  const search = new URLSearchParams(window.location.search || '')
+  if (hash === '#pool' || hash === '#recommended-pool' || search.get('pool') === '1') {
+    openRecommendedPool()
+  }
+}
+
 onMounted(() => {
   if (typeof window !== 'undefined' && window.matchMedia) {
     mediaQuery = window.matchMedia('(max-width: 900px)')
@@ -44,9 +89,17 @@ onMounted(() => {
     const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
     if (sample) lab.loadSample(sample)
   }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', onHiddenKey)
+    checkHiddenUrlEntry()
+  }
 })
 onBeforeUnmount(() => {
   mediaQuery?.removeEventListener('change', syncNarrowScreen)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onHiddenKey)
+  }
+  if (chordTimer) clearTimeout(chordTimer)
 })
 
 const effectiveLeftOpen = computed(() => lab.leftPanelOpen)

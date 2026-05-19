@@ -118,6 +118,12 @@ pnpm run refresh:market-data
 
 中文辅助：不要把 CSV 当成线上运行时接口。刷新数据后必须重新跑 `generate:data`，让 Amplify 发布 JS 化的数据资产。
 
+`refresh:market-data` 链路在 `generate:data` 之后会自动运行 `generate:recommended-pool`，按当日 J / RSI / 成本与 LP 关键区域计算 `buyScore`，写出 `src/data/recommended-pools/stock-pool-YYYY-MM-DD.json` 与 `src/data/recommended-pool-latest.json`。页面会把 `recommended-pool-latest.json` 直接渲染到主区域的「今日推荐股票池」模块（DOM 直渲，方便 OpenClaw 抓取后推送企业微信）。手动重新生成可单独运行：
+
+```bash
+pnpm run generate:recommended-pool
+```
+
 Formula surfaces are split into two categories:
 
 - Executable layer: market path, cost anchor, volatility basis, `GetDelta` bands, default condition table, and candidate order plan.
