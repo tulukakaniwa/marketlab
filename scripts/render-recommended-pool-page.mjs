@@ -60,8 +60,8 @@ function renderPage({ pool, focusItems, waitItems, candidatesAll, dimensionsMeta
   const focusCutoff = Math.round(defaultMaxScore * tiers.focus)
   const waitCutoff = Math.round(defaultMaxScore * tiers.wait)
 
-  const focusBlock = renderTierBlock('focus', '重点关注', `≥ ${focusCutoff} 分（${(tiers.focus * 100).toFixed(0)}% 满分）`, focusItems)
-  const waitBlock = renderTierBlock('wait', '等待', `${waitCutoff} ~ ${focusCutoff - 1} 分（${(tiers.wait * 100).toFixed(0)}% ~ ${(tiers.focus * 100).toFixed(0)}%）`, waitItems)
+  const focusBlock = renderTierBlock('focus', '重点关注', `≥ ${focusCutoff} 分（${(tiers.focus * 100).toFixed(0)}% 满分）`, focusItems, dimensionsMeta)
+  const waitBlock = renderTierBlock('wait', '等待', `${waitCutoff} ~ ${focusCutoff - 1} 分（${(tiers.wait * 100).toFixed(0)}% ~ ${(tiers.focus * 100).toFixed(0)}%）`, waitItems, dimensionsMeta)
 
   const dimensionRows = dimensionsMeta.map((d) => `
     <tr data-dim="${escapeHtml(d.id)}">
@@ -207,7 +207,7 @@ function renderPage({ pool, focusItems, waitItems, candidatesAll, dimensionsMeta
 </main>
 
 <script>
-window.__POOL_DATA__ = ${JSON.stringify(embed)};
+window.__POOL_DATA__ = ${serializeForScript(embed)};
 </script>
 <script>
 ${browserScript()}
@@ -217,7 +217,7 @@ ${browserScript()}
 `
 }
 
-function renderTierBlock(tier, title, range, items) {
+function renderTierBlock(tier, title, range, items, dimensionsMeta) {
   if (!items.length) {
     return `<section class="tier" data-tier="${tier}">
       <h2><span class="tier-badge tier-badge-${tier}">${escapeHtml(title)}</span> ${escapeHtml(range)}</h2>
@@ -226,11 +226,11 @@ function renderTierBlock(tier, title, range, items) {
   }
   return `<section class="tier" data-tier="${tier}">
     <h2><span class="tier-badge tier-badge-${tier}">${escapeHtml(title)}</span> ${escapeHtml(range)}（<span data-tier-count="${tier}">${items.length}</span> 只）</h2>
-    <ol class="list" data-list="${tier}">${items.map((it, idx) => renderItem(it, idx)).join('\n')}</ol>
+    <ol class="list" data-list="${tier}">${items.map((it, idx) => renderItem(it, idx, dimensionsMeta)).join('\n')}</ol>
   </section>`
 }
 
-function renderItem(item, idx) {
+function renderItem(item, idx, dimensionsMeta) {
   const symbol = escapeHtml(item.symbol ?? '')
   const label = escapeHtml(item.label ?? symbol)
   const market = item.market ? `<span class="market">${escapeHtml(item.market)}</span>` : ''
@@ -240,13 +240,65 @@ function renderItem(item, idx) {
       <span class="name">${label}</span>
       <span class="symbol">${symbol}</span>
       ${market}
-      <span class="score">综合评分：<strong data-score>—</strong></span>
+      <span class="score">综合评分：<strong data-score>${escapeHtml(scoreLabel(item))}</strong></span>
     </div>
-    <dl class="metrics" data-metrics></dl>
-    <div class="dim-bars" data-dim-bars></div>
-    <div class="hits" data-hits><span class="label">命中维度</span><span class="hit-list"></span></div>
-    <p class="narrative" data-narrative><span class="label reason">人话解读</span></p>
+    <dl class="metrics" data-metrics>${renderMetrics(item.metrics ?? {})}</dl>
+    <div class="dim-bars" data-dim-bars>${renderDimBars(item, dimensionsMeta)}</div>
+    <div class="hits" data-hits><span class="label">命中维度</span><span class="hit-list">${renderHits(item.hits ?? [])}</span></div>
+    <p class="narrative" data-narrative><span class="label reason">人话解读</span>${escapeHtml(item.narrative ?? '')}</p>
   </li>`
+}
+
+function scoreLabel(item) {
+  const score = Number(item.buyScore ?? item.score)
+  const maxScore = Number(item.maxScore)
+  const ratio = Number.isFinite(score) && Number.isFinite(maxScore) && maxScore > 0 ? score / maxScore : 0
+  return `${Number.isFinite(score) ? score.toFixed(1) : '0.0'} / ${Number.isFinite(maxScore) ? maxScore.toFixed(0) : '0'}（${(ratio * 100).toFixed(0)}%）`
+}
+
+function renderMetrics(m) {
+  return [
+    ['当前价格', fmtPrice(m.price)],
+    ['距锚', fmtPct(m.costDistance)],
+    ['z 偏离', Number.isFinite(m.zScore) ? `${m.zScore.toFixed(2)}σ` : '—'],
+    ['回归概率', Number.isFinite(m.regressionProbability) ? `${(m.regressionProbability * 100).toFixed(1)}%` : '—'],
+    ['lpValue P', Number.isFinite(m.lpValuePercentile) ? `${(m.lpValuePercentile * 100).toFixed(1)}%` : '—'],
+    ['3 年 ratio', Number.isFinite(m.lpValueRatio3y) ? `${m.lpValueRatio3y.toFixed(2)}×` : '—'],
+  ].map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd></div>`).join('')
+}
+
+function renderDimBars(item, dimensionsMeta) {
+  const dimensions = item.dimensions ?? {}
+  return dimensionsMeta.map((d) => {
+    const dim = dimensions[d.id]
+    if (!dim) return ''
+    const rawText = dim.disabled ? '关' : dim.missing ? '—' : `${(dim.ratio * 100).toFixed(0)}%`
+    const cls = dim.disabled ? 'disabled' : dim.missing ? 'miss' : (dim.ratio < 0.3 ? 'low' : '')
+    const width = dim.disabled || dim.missing ? 0 : clampPercent(dim.ratio * 100)
+    return `<div class="dim-bar ${cls}"><span class="label">${escapeHtml(d.label)} <strong>${escapeHtml(rawText)}</strong></span><div class="track"><div class="fill" style="width:${width}%"></div></div></div>`
+  }).join('')
+}
+
+function renderHits(hits) {
+  if (!hits.length) return '<span style="color:#6b7280">未达拉满阈值</span>'
+  return `<ul class="tag-list">${hits.map((h) => `<li class="${String(h).includes('接飞刀') ? 'knife' : ''}">${escapeHtml(h)}</li>`).join('')}</ul>`
+}
+
+function fmtPrice(v) {
+  if (!Number.isFinite(v)) return '—'
+  if (v >= 10) return v.toFixed(2)
+  if (v >= 1) return v.toFixed(3)
+  return v.toFixed(4)
+}
+
+function fmtPct(v) {
+  if (!Number.isFinite(v)) return '—'
+  return `${v > 0 ? '+' : ''}${(v * 100).toFixed(2)}%`
+}
+
+function clampPercent(v) {
+  if (!Number.isFinite(v)) return 0
+  return Math.max(0, Math.min(100, v))
 }
 
 function escapeHtml(text) {
@@ -256,6 +308,13 @@ function escapeHtml(text) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;')
+}
+
+function serializeForScript(value) {
+  return JSON.stringify(value)
+    .replaceAll('</', '<\\/')
+    .replaceAll('\u2028', '\\u2028')
+    .replaceAll('\u2029', '\\u2029')
 }
 
 function formatTimestamp(value) {
@@ -274,7 +333,7 @@ function browserScript() {
   var data = window.__POOL_DATA__ || {};
   var candidates = data.candidates || [];
   var defaultDims = (data.dimensions || []).map(function (d) { return Object.assign({}, d); });
-  var defaultTiers = data.tiers || { focus: 65, wait: 40 };
+  var defaultTiers = data.tiers || { focus: 0.65, wait: 0.40 };
   var defaultAllowKnife = data.options && data.options.allowCatchKnife !== false;
 
   // localStorage 持久化

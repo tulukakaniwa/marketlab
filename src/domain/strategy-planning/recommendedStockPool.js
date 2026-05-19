@@ -238,15 +238,15 @@ export function generateRecommendedStockPool(candidates, options = {}) {
   const scored = []
   for (const candidate of list) {
     if (!candidate || !candidate.symbol) continue
-    const m = candidate.metrics ?? {}
-    const result = computeBuyScore(m, { dimensions, allowCatchKnife })
+    const m = { ...(candidate.metrics ?? {}) }
+    const metrics = { ...m, ...deriveRecommendedStockDecisionMetrics(m) }
+    const result = computeBuyScore(metrics, { dimensions, allowCatchKnife })
     if (!Number.isFinite(result.score)) continue
-    const decision = buildDecisionMetrics(m)
     scored.push({
       symbol: candidate.symbol,
       label: candidate.label ?? candidate.symbol,
       market: candidate.market ?? '',
-      metrics: { ...m, ...decision },
+      metrics,
       buyScore: result.score,
       maxScore: result.maxScore,
       dimensions: result.dimensions,
@@ -259,7 +259,7 @@ export function generateRecommendedStockPool(candidates, options = {}) {
         maxScore: result.maxScore,
         dimensions: result.dimensions,
         catchKnife: result.catchKnife,
-        metrics: { ...m, ...decision },
+        metrics,
       }),
     })
   }
@@ -292,7 +292,7 @@ export function generateRecommendedStockPool(candidates, options = {}) {
 
 // ── 派生计算（半衰期 / 持仓周期 / 买卖点） ────────────────────────────
 
-function buildDecisionMetrics(metrics) {
+export function deriveRecommendedStockDecisionMetrics(metrics) {
   const out = {}
   // 半衰期 + 速度
   if (Array.isArray(metrics.costDistanceSeries) && metrics.costDistanceSeries.length >= 30) {

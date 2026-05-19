@@ -12,6 +12,7 @@ import { computeRSI } from '../src/domain/indicators/rsi.js'
 import { uniswapV3Inventory } from '../src/domain/formulas/lp.js'
 import {
   buildScoreConfig,
+  deriveRecommendedStockDecisionMetrics,
   generateRecommendedStockPool,
   regressionProbabilityFromZ,
 } from '../src/domain/strategy-planning/recommendedStockPool.js'
@@ -56,11 +57,12 @@ async function main() {
 
       const metrics = computeMetricsForRows(rows, entry, whitelist)
       if (!metrics) { skipCount += 1; continue }
+      const derivedMetrics = deriveRecommendedStockDecisionMetrics(metrics)
       candidates.push({
         symbol: entry.symbol,
         label: entry.label,
         market: entry.market,
-        metrics,
+        metrics: { ...metrics, ...derivedMetrics },
       })
       okCount += 1
     } catch (err) {

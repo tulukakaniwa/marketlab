@@ -77,6 +77,18 @@ describe('computeBuyScore', () => {
     expect(r.dimensions.lpRatio3y.ratio).toBeLessThan(0.3)
   })
 
+  it('半衰期和置信度启用时消费派生指标，不应一直 missing', () => {
+    const dimensions = buildScoreConfig([
+      { id: 'halfLife', enabled: true },
+      { id: 'volConfidence', enabled: true },
+    ])
+    const r = computeBuyScore(STRONG, { dimensions })
+    expect(r.dimensions.halfLife.missing).toBeUndefined()
+    expect(r.dimensions.volConfidence.missing).toBeUndefined()
+    expect(r.dimensions.halfLife.ratio).toBeGreaterThan(0)
+    expect(r.dimensions.volConfidence.ratio).toBeGreaterThan(0)
+  })
+
   it('接飞刀豁免：z=-3 + 锚下行 → 不再硬扣 costSlope', () => {
     const m = { ...STRONG, costSlope5: -0.025, anchorDirection: 'down' }
     const r = computeBuyScore(m, { allowCatchKnife: true })
