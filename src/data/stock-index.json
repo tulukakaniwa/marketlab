@@ -3180,6 +3180,16 @@
     "rows": 491
   },
   {
+    "id": "auto-9880_HK-1d",
+    "symbol": "9880.HK",
+    "label": "优必选",
+    "market": "港股",
+    "interval": "1日",
+    "source": "yfinance / akshare",
+    "url": "/data/9880_HK-1d.csv",
+    "rows": 491
+  },
+  {
     "id": "auto-9888_HK-1d",
     "symbol": "9888.HK",
     "label": "百度集团-SW",
@@ -4382,6 +4392,16 @@
     "url": "/data/002891-1d.csv"
   },
   {
+    "id": "auto-300602-1d",
+    "symbol": "300602",
+    "label": "飞荣达",
+    "market": "A股",
+    "interval": "1日",
+    "source": "BaoStock / akshare / yfinance",
+    "url": "/data/300602-1d.csv",
+    "rows": 1300
+  },
+  {
     "id": "auto-300718-1d",
     "symbol": "300718",
     "label": "长盛轴承",
@@ -4389,6 +4409,16 @@
     "interval": "1日",
     "source": "BaoStock / akshare / yfinance",
     "url": "/data/300718-1d.csv"
+  },
+  {
+    "id": "auto-301071-1d",
+    "symbol": "301071",
+    "label": "力量钻石",
+    "market": "A股",
+    "interval": "1日",
+    "source": "BaoStock / akshare / yfinance",
+    "url": "/data/301071-1d.csv",
+    "rows": 484
   },
   {
     "id": "auto-301308-1d",
