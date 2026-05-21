@@ -19,6 +19,9 @@ import { computeRSI } from '../domain/indicators/rsi.js'
 import { resolveChartOverlayPlan } from '../domain/research-visualization/chartPaneLayout.js'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
 import { useStockChipViewport } from '../composables/useStockChipViewport.js'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
+
+const { isMobile } = useBreakpoint()
 
 const props = defineProps({
   rows: { type: Array, required: true },
@@ -453,11 +456,25 @@ function regimeColor(close, cost) {
 }
 
 function finiteOrNull(value) { return Number.isFinite(value) ? value : null }
+
+// 移动端「点按图表唤起 hover 图例」：合成一次 mousemove，复用桌面端 crosshair 流。
+// lightweight-charts 自带触摸十字光标，这里是兜底，确保任意自定义 cursor-change 监听也能被触发。
+function onMobileTap(e) {
+  if (!isMobile.value) return
+  const touch = e.touches?.[0]
+  if (!touch) return
+  const evt = new MouseEvent('mousemove', {
+    clientX: touch.clientX,
+    clientY: touch.clientY,
+    bubbles: true,
+  })
+  e.target.dispatchEvent(evt)
+}
 </script>
 
 <template>
   <div class="main-chart-shell">
-    <div ref="el" class="main-chart-canvas" />
+    <div ref="el" class="main-chart-canvas" @touchstart="onMobileTap" />
 
     <!-- Hover 图例：拆到子组件，本文件只构造 hoverLegend 对象 -->
     <MainChartHoverLegend :legend="hoverLegend" />
@@ -470,4 +487,15 @@ function finiteOrNull(value) { return Number.isFinite(value) ? value : null }
 <style>
 .main-chart-shell { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
 .main-chart-canvas { width: 100%; height: 100%; }
+
+/* 移动端：保证主图至少占 60vh，父容器若收缩为 0 也能撑开；正文继续向下滚动。 */
+@media (max-width: 768px) {
+  .main-chart-shell {
+    min-height: 60vh;
+    height: auto;
+  }
+  .main-chart-canvas {
+    min-height: 60vh;
+  }
+}
 </style>
