@@ -126,6 +126,8 @@ function pctSign(v) {
         class="tb-mobile-btn tb-overflow-btn"
         type="button"
         aria-label="更多"
+        aria-haspopup="menu"
+        :aria-expanded="overflowOpen ? 'true' : 'false'"
         @click="toggleOverflow"
       >
         <MoreHorizontal :size="20" />
