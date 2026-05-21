@@ -1,6 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { inferTdpy } from '../domain/market-data/tdpy.js'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
+
+const { isMobile } = useBreakpoint()
 
 const props = defineProps({
   open: { type: Boolean, required: true },
@@ -66,7 +69,26 @@ function onGroupToggle(groupId, event) {
 </script>
 
 <template>
-  <aside class="rp" :class="{ open, collapsed: !open }">
+  <aside
+    class="rp"
+    :class="{
+      open,
+      collapsed: !open,
+      'rp-mobile': isMobile,
+      'rp-mobile-open': isMobile && open,
+    }"
+    :role="isMobile ? 'dialog' : null"
+    :aria-modal="isMobile ? 'true' : null"
+    aria-label="标的列表面板"
+  >
+    <!-- 移动端关闭按钮 -->
+    <button
+      v-if="isMobile"
+      class="rp-mobile-close"
+      type="button"
+      aria-label="关闭"
+      @click="emit('toggle')"
+    >✕</button>
     <!-- 折叠态 -->
     <button
       v-if="!open"
@@ -158,4 +180,47 @@ function onGroupToggle(groupId, event) {
 .rp-group li .sym { font-weight: 800; font-variant-numeric: tabular-nums; }
 .rp-group li .lbl { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp-group li .loader { color: var(--muted); font-size: 0.66rem; }
+
+/* 移动端关闭按钮：默认隐藏，仅在 mobile 媒体查询里显示 */
+.rp-mobile-close { display: none; }
+
+/* mobile drawer 形态：从右侧滑入 */
+@media (max-width: 768px) {
+  .rp.rp-mobile {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    z-index: 50;
+    background: var(--bg);
+    transform: translateX(100%);
+    transition: transform 200ms ease;
+    overflow-y: auto;
+    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.18);
+  }
+  .rp.rp-mobile.rp-mobile-open {
+    transform: translateX(0);
+  }
+  .rp.rp-mobile .rp-mobile-close {
+    display: block;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 51;
+  }
+  .rp.rp-mobile .rp-mobile-close:hover {
+    border-color: var(--green);
+  }
+}
 </style>
