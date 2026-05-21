@@ -146,6 +146,11 @@ function toggleRightPanel() {
   if (narrowScreen.value && opening) lab.leftPanelOpen = false
 }
 
+function closeMobileDrawers() {
+  lab.leftPanelOpen = false
+  lab.rightPanelOpen = false
+}
+
 // 拖宽逻辑（v3.2）
 let dragging = null
 let pendingW = 0
@@ -218,6 +223,12 @@ const rootStyle = computed(() => ({
       @set-auto-profile="onSetAutoProfile"
       @toggle-theme="toggleTheme"
       @reset="resetWorkbench"
+    />
+
+    <div
+      v-if="isMobile && (effectiveLeftOpen || effectiveRightOpen)"
+      class="mobile-backdrop"
+      @click="closeMobileDrawers"
     />
 
     <p v-if="lab.error" class="err-bar" :class="`kind-${lab.error.kind}`">
@@ -332,4 +343,28 @@ const rootStyle = computed(() => ({
 
 .empty-state { width: 100%; height: 100%; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); }
 .empty-state strong { font-size: 1.3rem; color: var(--ink); }
+
+/* 移动端：backdrop 与单列布局 */
+@media (max-width: 768px) {
+  .mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+  }
+  /* 单列：左右面板脱离 grid，主图占满 */
+  .app-root .cols,
+  .app-root.left-collapsed .cols,
+  .app-root.right-collapsed .cols,
+  .app-root.left-collapsed.right-collapsed .cols {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .app-root .resizer {
+    display: none;
+  }
+  .app-root .app-main {
+    width: 100%;
+  }
+}
 </style>
