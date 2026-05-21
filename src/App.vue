@@ -223,6 +223,8 @@ const rootStyle = computed(() => ({
       @set-auto-profile="onSetAutoProfile"
       @toggle-theme="toggleTheme"
       @reset="resetWorkbench"
+      @mobile-open-left="lab.leftPanelOpen = true; lab.rightPanelOpen = false"
+      @mobile-open-right="lab.rightPanelOpen = true; lab.leftPanelOpen = false"
     />
 
     <div

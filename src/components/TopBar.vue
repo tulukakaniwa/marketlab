@@ -1,9 +1,12 @@
 <script setup>
 import { computed } from 'vue'
-import { Database, Moon, Sun } from 'lucide-vue-next'
+import { Database, Moon, Sun, Menu, List } from 'lucide-vue-next'
 import { summarizeRegime } from '../domain/decision/narrative.js'
 import { deriveWindows } from '../domain/market-data/cost.js'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
 import ProfileChip from './ProfileChip.vue'
+
+const { isMobile } = useBreakpoint()
 
 const props = defineProps({
   source: { type: Object, default: null },
@@ -23,6 +26,8 @@ const emit = defineEmits([
   'set-auto-profile',
   'toggle-theme',
   'reset',
+  'mobile-open-left',
+  'mobile-open-right',
 ])
 
 const dailyChange = computed(() => {
@@ -62,6 +67,15 @@ function pctSign(v) {
 
 <template>
   <header class="topbar">
+    <button
+      v-if="isMobile"
+      class="tb-mobile-btn tb-mobile-left"
+      type="button"
+      aria-label="打开菜单"
+      @click="$emit('mobile-open-left')"
+    >
+      <Menu :size="20" />
+    </button>
     <div class="tb-brand">
       <span>Market Lab</span>
       <h1>公式工作台</h1>
@@ -95,6 +109,15 @@ function pctSign(v) {
       </button>
       <button class="tb-reset" type="button" @click="$emit('reset')" title="清空持久化参数">重置</button>
     </div>
+    <button
+      v-if="isMobile"
+      class="tb-mobile-btn tb-mobile-right"
+      type="button"
+      aria-label="标的列表"
+      @click="$emit('mobile-open-right')"
+    >
+      <List :size="20" />
+    </button>
   </header>
 </template>
 
@@ -125,5 +148,25 @@ function pctSign(v) {
 }
 @media (max-width: 768px) {
   .tb-summary .tb-narrative { display: none; }
+}
+
+.tb-mobile-btn { display: none; }
+@media (max-width: 768px) {
+  .tb-mobile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--ink);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tb-mobile-btn:hover { border-color: var(--green); }
+  .tb-mobile-left { margin-right: 8px; }
+  .tb-mobile-right { margin-left: auto; }
 }
 </style>
