@@ -33,8 +33,6 @@ function resetWorkbench() {
   window.location.reload()
 }
 
-// 窄屏不再强制锁死两侧面板；只在打开一侧时收起另一侧，避免交易员无法选标的。
-
 // 隐藏入口：连按 g p / Alt+P / 访问 #pool / 访问 ?pool=1 → 跳到推荐池静态页
 const HIDDEN_POOL_PATH = '/recommended-pool/'
 let chordTimer = null
