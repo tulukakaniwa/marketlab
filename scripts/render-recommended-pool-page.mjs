@@ -156,13 +156,28 @@ function renderPage({ pool, focusItems, waitItems, candidatesAll, dimensionsMeta
   .label.risk { background: #b45309; }
   .links { margin-top: 16px; font-size: 0.78rem; color: #6b7280; }
   .links a { color: #2563eb; }
+  .pool-mobile-tabs { display: none; }
   @media (max-width: 720px) {
+    main { padding: 14px 12px 56px; }
     dl.metrics, .dim-bars { grid-template-columns: repeat(2, 1fr); }
+    .pool-mobile-tabs { display: flex; gap: 8px; margin: 12px 0 16px; }
+    .pool-mobile-tabs button {
+      flex: 1; min-height: 38px; border: 1px solid #d1d5db; border-radius: 8px;
+      background: #fff; color: #111827; font-weight: 800; cursor: pointer;
+    }
+    main[data-pool-tab="focus"] [data-pool-tab-button="focus"],
+    main[data-pool-tab="wait"] [data-pool-tab-button="wait"] {
+      border-color: #16a34a; color: #15803d; background: rgba(22,163,74,0.08);
+    }
+    main[data-pool-tab="focus"] section.tier[data-tier="wait"],
+    main[data-pool-tab="wait"] section.tier[data-tier="focus"] {
+      display: none;
+    }
   }
 </style>
 </head>
 <body>
-<main>
+<main data-pool-tab="focus">
   <header class="page-head">
     <h1>今日推荐股票池</h1>
     <p class="meta">
@@ -194,6 +209,11 @@ function renderPage({ pool, focusItems, waitItems, candidatesAll, dimensionsMeta
       </div>
     </div>
   </details>
+
+  <div class="pool-mobile-tabs" role="tablist" aria-label="股票池分组">
+    <button type="button" role="tab" data-pool-tab-button="focus" aria-selected="true">重点关注</button>
+    <button type="button" role="tab" data-pool-tab-button="wait" aria-selected="false">等待观察</button>
+  </div>
 
   ${focusBlock}
   ${waitBlock}
@@ -715,12 +735,29 @@ function browserScript() {
     });
   }
 
+  function bindMobileTabs() {
+    var main = document.querySelector('main[data-pool-tab]');
+    var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-pool-tab-button]'));
+    if (!main || !buttons.length) return;
+    function setTab(tab) {
+      main.setAttribute('data-pool-tab', tab);
+      buttons.forEach(function (button) {
+        button.setAttribute('aria-selected', button.getAttribute('data-pool-tab-button') === tab ? 'true' : 'false');
+      });
+    }
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () { setTab(button.getAttribute('data-pool-tab-button') || 'focus'); });
+    });
+    setTab(main.getAttribute('data-pool-tab') || 'focus');
+  }
+
   function persist() {
     saveConfig({ dimensions: state.dimensions, tiers: state.tiers, allowCatchKnife: state.allowCatchKnife });
     recomputeAndRender(state);
   }
 
   bindControls();
+  bindMobileTabs();
   recomputeAndRender(state);
 
   // 自动展开权重面板（首次访问）

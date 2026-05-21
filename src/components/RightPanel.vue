@@ -222,5 +222,12 @@ function onGroupToggle(groupId, event) {
   .rp.rp-mobile .rp-mobile-close:hover {
     border-color: var(--green);
   }
+  .rp.rp-mobile .rp-head {
+    min-height: 64px;
+    padding-left: 60px;
+  }
+  .rp.rp-mobile .rp-collapse {
+    display: none;
+  }
 }
 </style>

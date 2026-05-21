@@ -208,5 +208,12 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
   .lp.lp-mobile .lp-mobile-close:hover {
     border-color: var(--green);
   }
+  .lp.lp-mobile .lp-head {
+    min-height: 64px;
+    padding-right: 60px;
+  }
+  .lp.lp-mobile .lp-collapse {
+    display: none;
+  }
 }
 </style>
