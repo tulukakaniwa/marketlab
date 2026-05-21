@@ -46,6 +46,9 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
       'lp-mobile': isMobile,
       'lp-mobile-open': isMobile && open,
     }"
+    :role="isMobile ? 'dialog' : null"
+    :aria-modal="isMobile ? 'true' : null"
+    aria-label="左侧工具面板"
   >
     <!-- 移动端关闭按钮 -->
     <button
@@ -189,15 +192,15 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
   .lp.lp-mobile .lp-mobile-close {
     display: block;
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 32px;
-    height: 32px;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: var(--bg);
     color: var(--ink);
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1;
     cursor: pointer;
     z-index: 51;

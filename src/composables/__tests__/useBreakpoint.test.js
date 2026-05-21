@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
-import { useBreakpoint } from '../useBreakpoint.js'
+import { useBreakpoint, __resetBreakpointForTests } from '../useBreakpoint.js'
 
 describe('useBreakpoint', () => {
   let listeners = {}
@@ -19,6 +19,8 @@ describe('useBreakpoint', () => {
       addEventListener: (_event, cb) => { listeners[query] = cb },
       removeEventListener: () => { delete listeners[query] },
     }))
+    // 单例模式下需要在每个用例之间手动重置内部状态与监听器
+    __resetBreakpointForTests()
   })
 
   function harness() {
@@ -47,12 +49,13 @@ describe('useBreakpoint', () => {
     expect(wrapper.attributes('data-tablet')).toBe('true')
   })
 
-  it('卸载后清理 matchMedia 监听器', () => {
-    const wrapper = harness()
-    expect(listeners['(max-width: 768px)']).toBeTypeOf('function')
-    expect(listeners['(max-width: 1024px)']).toBeTypeOf('function')
-    wrapper.unmount()
-    expect(listeners['(max-width: 768px)']).toBeUndefined()
-    expect(listeners['(max-width: 1024px)']).toBeUndefined()
+  it('多次调用 useBreakpoint 复用同一个 ref 与监听器（单例语义）', () => {
+    const a = useBreakpoint()
+    const b = useBreakpoint()
+    expect(a.isMobile).toBe(b.isMobile)
+    expect(a.isTablet).toBe(b.isTablet)
+    // matchMedia 只被调用一次（mobile + tablet 两个 query 各一次，共两次），
+    // 第二次 useBreakpoint 不应再触发新的 matchMedia
+    expect(window.matchMedia).toHaveBeenCalledTimes(2)
   })
 })
