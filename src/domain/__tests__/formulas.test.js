@@ -5,6 +5,10 @@ import {
   blackScholes,
   buildOptionPortfolio,
   capitalEfficiency,
+  deriveDrawdownFeatures,
+  deriveDynamicHoldingState,
+  deriveShortHoldWindow,
+  deriveStructuralHoldWindow,
   fundingRate,
   getDeltaBands,
   impermanentLoss,
@@ -29,6 +33,175 @@ describe('normalCdf', () => {
   it('处理无穷', () => {
     expect(normalCdf(Infinity)).toBe(1)
     expect(normalCdf(-Infinity)).toBe(0)
+  })
+})
+
+describe('deriveShortHoldWindow', () => {
+  it('用 z 与半衰期推导 T+1 短线可执行窗口', () => {
+    const window = deriveShortHoldWindow({
+      zScore: -2.1,
+      halfLifeDays: 10,
+      costDistance: -0.1105,
+      recoveryFraction: 0.2,
+      maxHoldingDays: 5,
+    })
+
+    expect(window.eligible).toBe(true)
+    expect(window.partialRecoveryDays).toBeCloseTo(3.22, 2)
+    expect(window.expectedGrossReturn).toBeCloseTo(0.0221, 4)
+    expect(window.executableHoldingDays).toBeGreaterThanOrEqual(2)
+  })
+
+  it('拒绝 z 不够深或一周内回补不足的短线候选', () => {
+    expect(deriveShortHoldWindow({ zScore: -1.1, halfLifeDays: 3 })?.blockedReasons).toContain('z-threshold')
+    expect(deriveShortHoldWindow({ zScore: -2.4, halfLifeDays: 31.5 })?.blockedReasons).toContain('holding-window')
+    expect(deriveShortHoldWindow({ zScore: -2.1, halfLifeDays: 10, costDistance: -0.01 })?.blockedReasons).toContain('gross-return')
+  })
+
+  it('保留完整回到 zExit 的理论时间用于对照', () => {
+    const window = deriveShortHoldWindow({ zScore: -2.4, halfLifeDays: 2.5, recoveryFraction: 0.2, minGrossReturn: 0 })
+    expect(window.daysToZExit).toBeCloseTo(3.16, 2)
+  })
+
+  it('用入场价到结构目标的距离推导持仓周期', () => {
+    const window = deriveStructuralHoldWindow({
+      zScore: -2.6,
+      halfLifeDays: 8,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { costLower: 94, anchor: 100, lpUpper: 103 },
+      minGrossReturn: 0.03,
+      maxHoldingDays: 6,
+    })
+
+    expect(window.eligible).toBe(true)
+    expect(window.selected.id).toBe('costLower')
+    expect(window.selected.recoveryFraction).toBeCloseTo(0.4, 6)
+    expect(window.selected.partialRecoveryDays).toBeCloseTo(5.9, 1)
+    expect(window.selected.grossReturn).toBeCloseTo(0.0444, 3)
+  })
+
+  it('锚点作为近锚目标处理，LP上沿越过锚点时标记为扩展目标', () => {
+    const window = deriveStructuralHoldWindow({
+      zScore: -3,
+      halfLifeDays: 5,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { anchor: 100, lpUpper: 104 },
+      minGrossReturn: 0.03,
+      maxHoldingDays: 20,
+    })
+
+    expect(window.selected.id).toBe('anchor')
+    expect(window.selected.isAnchorProxy).toBe(true)
+    expect(window.selected.recoveryFraction).toBeCloseTo(0.875, 6)
+    expect(window.candidates.find((item) => item.id === 'lpUpper').blockedReasons).toContain('post-anchor-extension')
+  })
+})
+
+describe('deriveDynamicHoldingState', () => {
+  const repairDrawdown = {
+    status: 'ok',
+    drawdownDepth: -0.22,
+    drawdownSpeed5: 0.002,
+    drawdownSpeed20: 0.04,
+    drawdownRepair: 0.22,
+    drawdownAge: { peakDays: 58, troughDays: 6 },
+  }
+
+  it('回撤继续扩张时，即使 z/LP 很强也输出等待', () => {
+    const state = deriveDynamicHoldingState({
+      zScore: -3.2,
+      halfLifeDays: 6,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { costLower: 94, anchor: 100, lpUpper: 103 },
+      lpPercentile: 1,
+      drawdown: { ...repairDrawdown, drawdownSpeed5: -0.03, drawdownSpeed20: -0.08 },
+    })
+
+    expect(state.status).toBe('等待')
+    expect(state.phase).toBe('falling-expansion')
+    expect(state.holdingPlan.shortTrade.blockedReasons).toContain('drawdown-expanding')
+  })
+
+  it('修复启动时允许 costLower 和 nearAnchor 进入候选里程碑', () => {
+    const state = deriveDynamicHoldingState({
+      zScore: -2.8,
+      halfLifeDays: 6,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { costLower: 94, anchor: 100, lpUpper: 103 },
+      costSlopePct: 0,
+      drawdown: repairDrawdown,
+    })
+
+    expect(state.status).toBe('观察')
+    expect(state.phase).toBe('repair-start')
+    expect(state.milestones.map((item) => item.id)).toEqual(['firstRepair', 'baseAnchor', 'stretch'])
+    expect(state.holdingPlan.shortTrade.targetId).toBe('firstRepair')
+    expect(state.expectation.profileExpectations.shortTrade.expectedReturnAtMaxPct).toBeGreaterThan(
+      state.expectation.profileExpectations.shortTrade.expectedReturnAtMinPct,
+    )
+    expect(state.expectation.profileExpectations.fundCycle.expectedReturnAtMinPct).toBeGreaterThan(
+      state.expectation.profileExpectations.shortTrade.expectedReturnAtMaxPct,
+    )
+    expect(state.expectation.profileExpectations.fundCycle.monthlyEfficiencyPct).toBeGreaterThan(0)
+  })
+
+  it('costLower 超过短线最大周期时，短线等待但基金周期可观察 nearAnchor', () => {
+    const state = deriveDynamicHoldingState({
+      zScore: -3.1,
+      halfLifeDays: 20,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { costLower: 94, anchor: 100, lpUpper: 104 },
+      drawdown: repairDrawdown,
+      profiles: {
+        shortTrade: { minDays: 2, maxDays: 10, minGrossReturn: 0.03 },
+        fundCycle: { minDays: 20, maxDays: 120, minGrossReturn: 0.03 },
+      },
+    })
+
+    expect(state.holdingPlan.shortTrade.status).toBe('等待')
+    expect(state.holdingPlan.shortTrade.blockedReasons).toContain('holding-window')
+    expect(state.holdingPlan.fundCycle.status).toBe('观察')
+    expect(state.holdingPlan.fundCycle.action).toBe('review')
+    expect(state.holdingPlan.fundCycle.targetId).toBe('baseAnchor')
+    expect(state.holdingPlan.fundCycle.expectedDays).toBeGreaterThanOrEqual(20)
+    expect(state.holdingPlan.fundCycle.expectedDays).toBeLessThanOrEqual(120)
+  })
+
+  it('lpUpper 超过锚点时标记为 post-anchor-extension 且不作为默认短线退出', () => {
+    const state = deriveDynamicHoldingState({
+      zScore: -3,
+      halfLifeDays: 5,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { costLower: 94, anchor: 100, lpUpper: 104 },
+      drawdown: repairDrawdown,
+    })
+
+    const stretch = state.milestones.find((item) => item.id === 'stretch')
+    expect(stretch.blockedReasons).toContain('post-anchor-extension')
+    expect(state.holdingPlan.shortTrade.targetId).not.toBe('stretch')
+  })
+
+  it('数据不足时输出需刷新数据和 insufficient-history', () => {
+    const rows = Array.from({ length: 20 }, (_, index) => ({ close: 100 - index }))
+    const drawdown = deriveDrawdownFeatures({ rows })
+    const state = deriveDynamicHoldingState({
+      zScore: -2,
+      halfLifeDays: 5,
+      entryPrice: 90,
+      anchorPrice: 100,
+      targetPrices: { costLower: 94, anchor: 100 },
+      drawdown,
+    })
+
+    expect(drawdown.status).toBe('insufficient-history')
+    expect(state.status).toBe('需刷新数据')
+    expect(state.phase).toBe('insufficient-history')
   })
 })
 

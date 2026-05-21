@@ -1,6 +1,6 @@
 ---
 name: china-stock-selection
-description: Use this skill for beginner-friendly stock selection workflows in Market Lab focused on mainland China and Hong Kong market data, including A-share or HK watchlist screening, domestic CSV refresh checks, and source-labeled candidate pool reports. Trigger when the user asks to choose, screen, rank, or explain stocks using China-market data in this repo.
+description: Use this skill for beginner-friendly stock selection workflows in Market Lab focused on mainland China and Hong Kong market data, including A-share or HK watchlist screening, dynamic holding-state research, T+1 short-hold formula replay, domestic CSV refresh checks, and source-labeled candidate pool reports. Trigger when the user asks to choose, screen, rank, backtest, or explain stocks using China-market data in this repo.
 metadata:
   short-description: Screen China-market stock candidates in Market Lab
 ---
@@ -61,6 +61,18 @@ node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 30 --format json
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 15 --min-rows 240
+```
+
+For T+1, two-week, or fund-observation research, first run the screen in JSON mode, then derive the state from `deriveDynamicHoldingState()` in `src/domain/formulas/core.js`. Use `deriveShortHoldWindow()` / `deriveStructuralHoldWindow()` only as lower-level diagnostics. Keep this as a replay or research filter until a dedicated backtest script proves positive expectancy.
+
+For the optimized no-external-formula replay, run:
+
+```bash
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile swing
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo --mode latest
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo --target-mode fixed
 ```
 
 3. If data is stale or missing, use the project pipeline:
@@ -162,6 +174,96 @@ Three-pillar scoring with LP percentile as the dominant signal:
   - z-score 只说明偏离强度和回归概率，不直接缩短半衰期；不要写成"z 极端会加速 HL"
   - 短周期策略（1-3月）：强 z + 强 LP 可盖过锚未企稳，不等锚直接靠回归拉回
   - 长周期策略（6月+）：锚方向权重加大，锚 ↓ 时即使 z/LP 强也必须等锚走平
+
+### T+1 一周内短线研究
+
+Use this only for formula research and replay, not direct trading instructions. A-share T+1 means a signal after T close normally buys at T+1 and cannot be sold before T+2 in this workflow.
+
+Do not wait for a full return to the cost anchor in a one-week strategy. Estimate a partial mean-reversion window:
+
+```text
+z_H = costDistance / (annualVol * sqrt(H / tradingDaysPerYear))
+HL = ln(2) / -ln(|rho|)
+daysToZExit = HL * log2(|z0| / zExit)
+holdDays(q) = HL * log2(1 / (1 - q))
+expectedGrossReturn = abs(costDistance) * q
+```
+
+When a structural target is known at the buy point, prefer price-derived `q` over a fixed target return:
+
+```text
+q_struct = (targetPrice - entryPrice) / (anchorPrice - entryPrice)
+targetPrice candidates = costLower -> anchor proximity -> LP upper
+holdDays(q_struct) = HL * log2(1 / (1 - q_struct))
+z_target = z0 * (1 - q_struct)
+```
+
+Rules:
+
+- `costLower` is the first structural exit target if it is above entry and inside the max holding window.
+- `anchor` is not treated as an exact finite-time hit; use `anchorRecoveryFraction = 0.875` as the near-anchor proxy unless the user asks for a longer window.
+- `lpUpper` above the anchor is a stretch target and must be marked as post-anchor extension; do not use it as the default T+1 exit unless replay validates it.
+- If structure-derived hold days exceeds the requested horizon, downgrade the symbol to `等待` even when fixed 3%-4% targets look reachable.
+
+Default research settings for broad exploration:
+
+- `zBasisDays = 5`
+- `q = 0.20`
+- `zExit = 1.0` only for reference, not the default exit target
+- `minAbsZ = 1.5`
+- `minExecutableDays = 2`
+- `maxHoldingDays = 5`
+- `minGrossReturn = 1%`
+
+Optimized strict replay defaults, based only on existing Market Lab formulas and local OHLCV:
+
+- target return: `3%`
+- stop loss: `1.5%`
+- no overlapping positions for the same symbol
+- T close signal, T+1 open entry, earliest exit T+2
+- T+1 entry gap must be `<= 0.5%`; do not chase a gap-up open
+- `z5 <= -2.0`
+- LP percentile `<= 3`
+- `halfLifeDays <= 12`
+- cost distance is `10%..16%` below the cost anchor
+- cost slope is between `-1%` and `+1%`; avoid anchors still falling hard and avoid late rebound extension
+
+Expanded replay profiles, still without external formulas:
+
+- `strict`: one-week T+1 profile, same as the optimized strict defaults above.
+- `swing`: two-week profile for wider research, target `4%`, stop `1.5%`, `z5 <= -2.5`, LP percentile `<= 5`, `halfLifeDays <= 20`, cost distance `12%..22%`, cost slope `-1%..+0.5%`, max hold `10` trading days.
+- `combo`: tries `fast-5d` first, then `swing-10d` only when the fast gate does not qualify. Each trade row must include its `profile`; judge the combined pool by per-profile stats, not only the total average.
+- `--target-mode structure`: default mode. It derives the target from cost lower band, near-anchor, and LP upper instead of a fixed percentage.
+- `--target-mode fixed`: diagnostic mode that keeps the old fixed-return target for comparison.
+- `--mode latest`: scans the newest local row for current observation candidates without simulating exits; use it after replay to produce a current watchlist.
+- JSON output includes `dynamicHolding`; markdown latest output includes state, first review, base target, stretch target, short/fund plan, and wait reasons.
+- If the expanded pool has positive average but negative median or high stop rate, keep it as `观察/研究池`; do not present it as a mechanical live strategy.
+
+Candidate gate for live short-hold research:
+
+- status is `观察` unless the user explicitly wants a wider replay pool
+- `z5 <= -2.0` for long-only A-share research
+- LP percentile is normally `<= 3`; relaxed to `<= 10` only for wider sample backtests
+- target `3%` is the default; `5%` is diagnostic only unless replay has enough samples
+- `holdDays(target / abs(costDistance)) <= 5`
+- `expectedGrossReturn >= 3%` before fees, slippage, stamp duty, and limit-up/down execution checks
+
+Use `deriveDynamicHoldingState()` from `src/domain/formulas/core.js` for current decisions. Use `scripts/replay-short-hold.mjs` for replay. Keep this path outside Vue components and emit trade statistics rather than buy/sell wording.
+
+### 动态持仓状态
+
+The dynamic kernel is pure domain logic: `deriveDrawdownFeatures()` reads OHLCV rows, and `deriveDynamicHoldingState()` combines drawdown features, z-score, half-life, cost anchor/band, synthetic LP upper, LP percentile, and cost slope. It must not add RSI/KDJ/EMA/MA or external formulas.
+
+State outputs:
+
+- `phase`: `falling-expansion`, `low-compression`, `repair-start`, `mean-reverting`, `post-anchor-extension`, or `insufficient-history`.
+- `milestones`: `firstRepair` = cost lower, `baseAnchor` = near-anchor with `anchorRecoveryFraction = 0.875`, `stretch` = LP upper. LP upper beyond the anchor is `post-anchor-extension` and not a default short exit.
+- `expectation`: first repair days, base anchor days, stretch days, target return range, and `profileExpectations`.
+- `profileExpectations`: map holding period to expected return with `q(T)=1-2^(-T/HL)`, capped at near-anchor recovery. Report short/fund min/max day return ranges plus monthly efficiency, so profit expectation changes with holding period instead of staying fixed at 3%-4%.
+- `holdingPlan.shortTrade`: min 2, max 10 trading days, for T+1/two-week research. If `costLower` exceeds the window, status is `等待`.
+- `holdingPlan.fundCycle`: min 20, max 120 trading days, for fund/social-security style observation. If `costLower` arrives before 20 days, treat it as `firstReviewDays`, not a buy/sell exit.
+
+Status remains `观察 / 等待 / 剔除 / 需刷新数据`. When drawdown is still expanding, strong z/LP can keep a symbol on the explanation list but the plan must stay `等待`.
 
 ### 持仓成本 / 时间损耗
 

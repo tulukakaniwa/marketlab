@@ -35,6 +35,13 @@ export {
 export { ammCurve, ammLambertCurve, lambertW, numoenSnapshot } from './amm.js'
 export { formulaEvidenceCatalog, getFormulaEvidence } from './evidence.js'
 export { resolveDeltaSlope, resolveExitTargetReturn } from './inputSemantics.js'
+export {
+  DEFAULT_DYNAMIC_HOLDING_PROFILES,
+  deriveDrawdownFeatures,
+  deriveDynamicHoldingState,
+  deriveShortHoldWindow,
+  deriveStructuralHoldWindow,
+} from './shortHold.js'
 
 import { normalCdf } from './probability.js'
 
