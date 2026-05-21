@@ -113,7 +113,7 @@ function pctSign(v) {
       v-if="isMobile"
       class="tb-mobile-btn tb-mobile-right"
       type="button"
-      aria-label="标的列表"
+      aria-label="打开标的列表"
       @click="$emit('mobile-open-right')"
     >
       <List :size="20" />
@@ -152,6 +152,13 @@ function pctSign(v) {
 
 .tb-mobile-btn { display: none; }
 @media (max-width: 768px) {
+  /* mobile 下 topbar 子节点变多（左按钮 / brand / summary / actions / 右按钮），
+     扩到 5 列 grid 避免 implicit row 自动换行；summary 仍是唯一弹性轨道 */
+  .topbar {
+    grid-template-columns: auto auto 1fr auto auto;
+    gap: 8px;
+    padding: 7px 10px;
+  }
   .tb-mobile-btn {
     display: inline-flex;
     align-items: center;
@@ -166,7 +173,5 @@ function pctSign(v) {
     flex-shrink: 0;
   }
   .tb-mobile-btn:hover { border-color: var(--green); }
-  .tb-mobile-left { margin-right: 8px; }
-  .tb-mobile-right { margin-left: auto; }
 }
 </style>
