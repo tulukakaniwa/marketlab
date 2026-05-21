@@ -288,7 +288,7 @@ h2 {
   color: #9a1f1f;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .pool-page {
     padding: 12px;
   }

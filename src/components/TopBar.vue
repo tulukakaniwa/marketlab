@@ -120,10 +120,10 @@ function pctSign(v) {
 .tb-reset { min-height: 26px; padding: 1px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); font-size: 0.66rem; cursor: pointer; opacity: 0.7; }
 .tb-reset:hover { opacity: 1; border-color: var(--green); }
 
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
   .tb-summary .tb-action { display: none; }
 }
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   .tb-summary .tb-narrative { display: none; }
 }
 </style>

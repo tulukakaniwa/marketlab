@@ -89,7 +89,7 @@ function formatVolume(v) {
   white-space: nowrap;
 }
 .mc-legend-item strong { font-weight: 800; }
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .mc-legend { max-height: 40px; font-size: 0.62rem; right: 44px; gap: 1px 9px; }
   .mc-legend-head, .mc-legend-group { gap: 1px 7px; }
 }
