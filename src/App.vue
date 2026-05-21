@@ -8,9 +8,12 @@ import RightPanel from './components/RightPanel.vue'
 import RecommendedPoolPage from './components/RecommendedPoolPage.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
+import { useBreakpoint } from './composables/useBreakpoint.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
+const { isMobile } = useBreakpoint()
+const narrowScreen = isMobile  // 行为别名，保留 toggleLeftPanel/toggleRightPanel 内引用
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
 const recommendedPoolMode = ref(isRecommendedPoolPath())
 
@@ -31,11 +34,6 @@ function resetWorkbench() {
 }
 
 // 窄屏不再强制锁死两侧面板；只在打开一侧时收起另一侧，避免交易员无法选标的。
-const narrowScreen = ref(false)
-let mediaQuery = null
-function syncNarrowScreen() {
-  narrowScreen.value = mediaQuery?.matches ?? false
-}
 
 // 隐藏入口：连按 g p / Alt+P / 访问 #pool / 访问 ?pool=1 → 跳到推荐池静态页
 const HIDDEN_POOL_PATH = '/recommended-pool/'
@@ -87,11 +85,6 @@ function isRecommendedPoolPath() {
 }
 
 onMounted(() => {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    mediaQuery = window.matchMedia('(max-width: 900px)')
-    syncNarrowScreen()
-    mediaQuery.addEventListener('change', syncNarrowScreen)
-  }
   if (lastSampleId.value && !lab.rows.length) {
     const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
     if (sample) lab.loadSample(sample)
@@ -102,7 +95,6 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => {
-  mediaQuery?.removeEventListener('change', syncNarrowScreen)
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onHiddenKey)
   }
