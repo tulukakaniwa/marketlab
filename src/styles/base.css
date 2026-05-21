@@ -16,6 +16,10 @@
   --surface: #f7f5ee;
   --surface-alt: #f6f4ec;
   --surface-active: #eef4ea;
+  /* 断点 token：仅供 JS 端 matchMedia 与文档使用，CSS @media 直接写 768px / 1024px */
+  --bp-mobile: 768px;
+  --bp-tablet: 1024px;
+  --bp-desktop: 1280px;
 }
 
 html.dark {
