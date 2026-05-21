@@ -139,7 +139,7 @@ function priceYInRange(price) {
 }
 .scp-label.current { fill: var(--ink); }
 .scp-watermark { fill: var(--green); opacity: 0.72; }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .scp { display: none; }
 }
 </style>

@@ -1,5 +1,9 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
+
+const { isMobile } = useBreakpoint()
+const mobileTab = ref('focus') // 'focus' | 'wait'
 
 const pool = ref(null)
 const loading = ref(true)
@@ -79,6 +83,25 @@ function tierTitle(kind) {
         <span v-for="dim in dimensions" :key="dim.id">{{ dim.label }} {{ dim.weight }}</span>
       </section>
 
+      <div v-if="isMobile" class="pool-mobile-tabs">
+        <button
+          type="button"
+          class="pool-mobile-tab"
+          :class="{ 'is-active': mobileTab === 'focus' }"
+          @click="mobileTab = 'focus'"
+        >
+          重点关注
+        </button>
+        <button
+          type="button"
+          class="pool-mobile-tab"
+          :class="{ 'is-active': mobileTab === 'wait' }"
+          @click="mobileTab = 'wait'"
+        >
+          等待观察
+        </button>
+      </div>
+
       <section class="pool-columns">
         <article
           v-for="group in [
@@ -86,6 +109,7 @@ function tierTitle(kind) {
             { kind: 'wait', items: waitItems },
           ]"
           :key="group.kind"
+          v-show="!isMobile || mobileTab === group.kind"
           class="pool-group"
         >
           <h2>{{ tierTitle(group.kind) }}</h2>
@@ -288,7 +312,7 @@ h2 {
   color: #9a1f1f;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .pool-page {
     padding: 12px;
   }
@@ -308,6 +332,29 @@ h2 {
 
   .pool-group + .pool-group {
     margin-top: 12px;
+  }
+
+  .pool-mobile-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+  }
+
+  .pool-mobile-tab {
+    flex: 1;
+    min-height: 36px;
+    border: 1px solid #d9d2c2;
+    border-radius: 6px;
+    background: #fffdf7;
+    color: #171714;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .pool-mobile-tab.is-active {
+    border-color: #08785f;
+    color: #08785f;
   }
 }
 </style>

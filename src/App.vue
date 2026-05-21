@@ -8,9 +8,14 @@ import RightPanel from './components/RightPanel.vue'
 import RecommendedPoolPage from './components/RecommendedPoolPage.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
+import { useBreakpoint } from './composables/useBreakpoint.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
+const { isMobile } = useBreakpoint()
+const narrowScreen = isMobile  // 行为别名，保留 toggleLeftPanel/toggleRightPanel 内引用
+const mobileLeftOpen = ref(false)
+const mobileRightOpen = ref(false)
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
 const recommendedPoolMode = ref(isRecommendedPoolPath())
 
@@ -28,13 +33,6 @@ function resetWorkbench() {
   if (!confirm('清空所有持久化参数（输入、UI 状态、主题）并刷新？')) return
   clearPersistedLab()
   window.location.reload()
-}
-
-// 窄屏不再强制锁死两侧面板；只在打开一侧时收起另一侧，避免交易员无法选标的。
-const narrowScreen = ref(false)
-let mediaQuery = null
-function syncNarrowScreen() {
-  narrowScreen.value = mediaQuery?.matches ?? false
 }
 
 // 隐藏入口：连按 g p / Alt+P / 访问 #pool / 访问 ?pool=1 → 跳到推荐池静态页
@@ -87,11 +85,6 @@ function isRecommendedPoolPath() {
 }
 
 onMounted(() => {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    mediaQuery = window.matchMedia('(max-width: 900px)')
-    syncNarrowScreen()
-    mediaQuery.addEventListener('change', syncNarrowScreen)
-  }
   if (lastSampleId.value && !lab.rows.length) {
     const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
     if (sample) lab.loadSample(sample)
@@ -102,15 +95,14 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => {
-  mediaQuery?.removeEventListener('change', syncNarrowScreen)
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onHiddenKey)
   }
   if (chordTimer) clearTimeout(chordTimer)
 })
 
-const effectiveLeftOpen = computed(() => lab.leftPanelOpen)
-const effectiveRightOpen = computed(() => lab.rightPanelOpen)
+const effectiveLeftOpen = computed(() => isMobile.value ? mobileLeftOpen.value : lab.leftPanelOpen)
+const effectiveRightOpen = computed(() => isMobile.value ? mobileRightOpen.value : lab.rightPanelOpen)
 
 // 合并 marketSamples + stockIndex 给搜索
 const allSamples = computed(() => {
@@ -145,15 +137,30 @@ function selectSample(sample) {
 }
 
 function toggleLeftPanel() {
+  if (isMobile.value) {
+    mobileLeftOpen.value = !mobileLeftOpen.value
+    if (mobileLeftOpen.value) mobileRightOpen.value = false
+    return
+  }
   const opening = !lab.leftPanelOpen
   lab.toggleLeftPanel()
   if (narrowScreen.value && opening) lab.rightPanelOpen = false
 }
 
 function toggleRightPanel() {
+  if (isMobile.value) {
+    mobileRightOpen.value = !mobileRightOpen.value
+    if (mobileRightOpen.value) mobileLeftOpen.value = false
+    return
+  }
   const opening = !lab.rightPanelOpen
   lab.toggleRightPanel()
   if (narrowScreen.value && opening) lab.leftPanelOpen = false
+}
+
+function closeMobileDrawers() {
+  mobileLeftOpen.value = false
+  mobileRightOpen.value = false
 }
 
 // 拖宽逻辑（v3.2）
@@ -228,6 +235,14 @@ const rootStyle = computed(() => ({
       @set-auto-profile="onSetAutoProfile"
       @toggle-theme="toggleTheme"
       @reset="resetWorkbench"
+      @mobile-open-left="mobileLeftOpen = true; mobileRightOpen = false"
+      @mobile-open-right="mobileRightOpen = true; mobileLeftOpen = false"
+    />
+
+    <div
+      v-if="isMobile && (effectiveLeftOpen || effectiveRightOpen)"
+      class="mobile-backdrop"
+      @click="closeMobileDrawers"
     />
 
     <p v-if="lab.error" class="err-bar" :class="`kind-${lab.error.kind}`">
@@ -342,4 +357,28 @@ const rootStyle = computed(() => ({
 
 .empty-state { width: 100%; height: 100%; display: grid; place-items: center; align-content: center; gap: 10px; color: var(--muted); }
 .empty-state strong { font-size: 1.3rem; color: var(--ink); }
+
+/* 移动端：backdrop 与单列布局 */
+@media (max-width: 768px) {
+  .mobile-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+  }
+  /* 单列：左右面板脱离 grid，主图占满 */
+  .app-root .cols,
+  .app-root.left-collapsed .cols,
+  .app-root.right-collapsed .cols,
+  .app-root.left-collapsed.right-collapsed .cols {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .app-root .resizer {
+    display: none;
+  }
+  .app-root .app-main {
+    width: 100%;
+  }
+}
 </style>

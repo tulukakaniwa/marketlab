@@ -3,6 +3,9 @@ import { computed } from 'vue'
 import DecisionDrawer from './DecisionDrawer.vue'
 import ComputeDrawer from './ComputeDrawer.vue'
 import SettingsDrawer from './SettingsDrawer.vue'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
+
+const { isMobile } = useBreakpoint()
 
 const props = defineProps({
   open: { type: Boolean, required: true },
@@ -35,7 +38,26 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
 </script>
 
 <template>
-  <aside class="lp" :class="{ open, collapsed: !open }">
+  <aside
+    class="lp"
+    :class="{
+      open,
+      collapsed: !open,
+      'lp-mobile': isMobile,
+      'lp-mobile-open': isMobile && open,
+    }"
+    :role="isMobile ? 'dialog' : null"
+    :aria-modal="isMobile ? 'true' : null"
+    aria-label="左侧工具面板"
+  >
+    <!-- 移动端关闭按钮 -->
+    <button
+      v-if="isMobile"
+      class="lp-mobile-close"
+      type="button"
+      aria-label="关闭"
+      @click="emit('toggle')"
+    >✕</button>
     <!-- 折叠态：纯窄边按钮，点击展开 -->
     <button
       v-if="!open"
@@ -144,4 +166,54 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
 .lp-collapse:hover { border-color: var(--green); color: var(--green); }
 .lp-body { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 10px 12px; }
 .lp-body > * { min-width: 0; max-width: 100%; }
+
+/* 移动端关闭按钮：默认隐藏，仅在 mobile 媒体查询里显示 */
+.lp-mobile-close { display: none; }
+
+/* mobile drawer 形态 */
+@media (max-width: 768px) {
+  .lp.lp-mobile {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    z-index: 50;
+    background: var(--bg);
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    overflow-y: auto;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.18);
+  }
+  .lp.lp-mobile.lp-mobile-open {
+    transform: translateX(0);
+  }
+  .lp.lp-mobile .lp-mobile-close {
+    display: block;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 51;
+  }
+  .lp.lp-mobile .lp-mobile-close:hover {
+    border-color: var(--green);
+  }
+  .lp.lp-mobile .lp-head {
+    min-height: 64px;
+    padding-right: 60px;
+  }
+  .lp.lp-mobile .lp-collapse {
+    display: none;
+  }
+}
 </style>

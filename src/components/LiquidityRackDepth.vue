@@ -461,7 +461,7 @@ function notional(value) {
 .green { color: var(--green); }
 .red { color: var(--red); }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .lf-depth-wrap.expanded {
     grid-template-columns: 1fr;
   }

@@ -446,7 +446,7 @@ const {
 .fc-liquidity-rack { height: min(680px, 72vh); min-height: 520px; background: var(--surface); }
 .green { color: var(--green); }
 .red { color: var(--red); }
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .fc-liquidity-rack { height: 620px; min-height: 620px; }
 }
 </style>

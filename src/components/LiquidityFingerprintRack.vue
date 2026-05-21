@@ -420,7 +420,7 @@ function pct(value) {
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 768px) {
   .lf-modal {
     padding: 8px;
   }

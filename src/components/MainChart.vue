@@ -19,6 +19,9 @@ import { computeRSI } from '../domain/indicators/rsi.js'
 import { resolveChartOverlayPlan } from '../domain/research-visualization/chartPaneLayout.js'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
 import { useStockChipViewport } from '../composables/useStockChipViewport.js'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
+
+const { isMobile } = useBreakpoint()
 
 const props = defineProps({
   rows: { type: Array, required: true },
@@ -453,11 +456,24 @@ function regimeColor(close, cost) {
 }
 
 function finiteOrNull(value) { return Number.isFinite(value) ? value : null }
+
+// 移动端点按图表时合成 mousemove，复用桌面端 crosshair 流。
+function onMobileTap(e) {
+  if (!isMobile.value) return
+  const touch = e.touches?.[0]
+  if (!touch) return
+  const evt = new MouseEvent('mousemove', {
+    clientX: touch.clientX,
+    clientY: touch.clientY,
+    bubbles: true,
+  })
+  e.target.dispatchEvent(evt)
+}
 </script>
 
 <template>
   <div class="main-chart-shell">
-    <div ref="el" class="main-chart-canvas" />
+    <div ref="el" class="main-chart-canvas" @touchstart.passive="onMobileTap" />
 
     <!-- Hover 图例：拆到子组件，本文件只构造 hoverLegend 对象 -->
     <MainChartHoverLegend :legend="hoverLegend" />
@@ -470,4 +486,13 @@ function finiteOrNull(value) { return Number.isFinite(value) ? value : null }
 <style>
 .main-chart-shell { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
 .main-chart-canvas { width: 100%; height: 100%; }
+
+/* 移动端：保证主图至少占 60vh。 */
+@media (max-width: 768px) {
+  .main-chart-shell {
+    min-height: 60vh;
+    height: auto;
+  }
+  .main-chart-canvas { min-height: 60vh; }
+}
 </style>

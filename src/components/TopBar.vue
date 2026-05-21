@@ -1,9 +1,24 @@
 <script setup>
-import { computed } from 'vue'
-import { Database, Moon, Sun } from 'lucide-vue-next'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { Database, Moon, Sun, Menu, List, MoreHorizontal } from 'lucide-vue-next'
 import { summarizeRegime } from '../domain/decision/narrative.js'
 import { deriveWindows } from '../domain/market-data/cost.js'
+import { useBreakpoint } from '../composables/useBreakpoint.js'
 import ProfileChip from './ProfileChip.vue'
+
+const { isMobile } = useBreakpoint()
+
+const overflowOpen = ref(false)
+function toggleOverflow() { overflowOpen.value = !overflowOpen.value }
+function closeOverflow() { overflowOpen.value = false }
+
+function onDocClick(e) {
+  if (!overflowOpen.value) return
+  if (e.target.closest('.tb-overflow-wrap')) return
+  closeOverflow()
+}
+onMounted(() => document.addEventListener('click', onDocClick))
+onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
 const props = defineProps({
   source: { type: Object, default: null },
@@ -23,6 +38,8 @@ const emit = defineEmits([
   'set-auto-profile',
   'toggle-theme',
   'reset',
+  'mobile-open-left',
+  'mobile-open-right',
 ])
 
 const dailyChange = computed(() => {
@@ -62,6 +79,15 @@ function pctSign(v) {
 
 <template>
   <header class="topbar">
+    <button
+      v-if="isMobile"
+      class="tb-mobile-btn tb-mobile-left"
+      type="button"
+      aria-label="打开菜单"
+      @click="$emit('mobile-open-left')"
+    >
+      <Menu :size="20" />
+    </button>
     <div class="tb-brand">
       <span>Market Lab</span>
       <h1>公式工作台</h1>
@@ -80,7 +106,7 @@ function pctSign(v) {
       </div>
     </div>
 
-    <div class="tb-actions">
+    <div class="tb-actions tb-desktop-only">
       <ProfileChip
         :profile-id="profileId"
         :auto-profile="autoProfile"
@@ -95,6 +121,53 @@ function pctSign(v) {
       </button>
       <button class="tb-reset" type="button" @click="$emit('reset')" title="清空持久化参数">重置</button>
     </div>
+    <div v-if="isMobile" class="tb-overflow-wrap">
+      <button
+        class="tb-mobile-btn tb-overflow-btn"
+        type="button"
+        aria-label="更多"
+        aria-haspopup="menu"
+        :aria-expanded="overflowOpen ? 'true' : 'false'"
+        @click="toggleOverflow"
+      >
+        <MoreHorizontal :size="20" />
+      </button>
+      <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
+        <button class="tb-overflow-item" @click="$emit('toggle-theme'); closeOverflow()">
+          切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
+        </button>
+        <button class="tb-overflow-item" @click="$emit('reset'); closeOverflow()">
+          重置工作台
+        </button>
+        <div class="tb-overflow-section">策略 Profile</div>
+        <button
+          v-for="p in profileList"
+          :key="p.id"
+          class="tb-overflow-item"
+          :class="{ 'is-active': p.id === profileId && !autoProfile }"
+          @click="$emit('set-profile', p.id); closeOverflow()"
+        >
+          {{ p.label || p.id }}
+          <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
+        </button>
+        <button
+          class="tb-overflow-item"
+          :class="{ 'is-active': autoProfile }"
+          @click="$emit('set-auto-profile', !autoProfile); closeOverflow()"
+        >
+          自动跟随回放：{{ autoProfile ? '开' : '关' }}
+        </button>
+      </div>
+    </div>
+    <button
+      v-if="isMobile"
+      class="tb-mobile-btn tb-mobile-right"
+      type="button"
+      aria-label="打开标的列表"
+      @click="$emit('mobile-open-right')"
+    >
+      <List :size="20" />
+    </button>
   </header>
 </template>
 
@@ -120,10 +193,86 @@ function pctSign(v) {
 .tb-reset { min-height: 26px; padding: 1px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); font-size: 0.66rem; cursor: pointer; opacity: 0.7; }
 .tb-reset:hover { opacity: 1; border-color: var(--green); }
 
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
   .tb-summary .tb-action { display: none; }
 }
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   .tb-summary .tb-narrative { display: none; }
+}
+
+.tb-mobile-btn { display: none; }
+@media (max-width: 768px) {
+  /* mobile 下 topbar 子节点变多（左按钮 / brand / summary / actions / 右按钮），
+     扩到 5 列 grid 避免 implicit row 自动换行；summary 仍是唯一弹性轨道 */
+  .topbar {
+    grid-template-columns: auto auto 1fr auto auto;
+    gap: 8px;
+    padding: 7px 10px;
+  }
+  .tb-mobile-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--ink);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .tb-mobile-btn:hover { border-color: var(--green); }
+}
+
+@media (max-width: 768px) {
+  .tb-desktop-only { display: none !important; }
+
+  .tb-overflow-wrap {
+    position: relative;
+  }
+  .tb-overflow-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 220px;
+    max-width: 80vw;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 60;
+    padding: 4px;
+  }
+  .tb-overflow-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    font-size: 0.82rem;
+    cursor: pointer;
+    border-radius: 6px;
+  }
+  .tb-overflow-item:hover { background: var(--surface-alt); }
+  .tb-overflow-item.is-active {
+    color: var(--green);
+    font-weight: 700;
+  }
+  .tb-overflow-section {
+    padding: 8px 12px 4px;
+    font-size: 0.66rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .tb-recommended {
+    margin-left: 6px;
+    font-size: 0.66rem;
+    color: var(--green);
+  }
 }
 </style>

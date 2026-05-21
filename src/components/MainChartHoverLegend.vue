@@ -89,8 +89,27 @@ function formatVolume(v) {
   white-space: nowrap;
 }
 .mc-legend-item strong { font-weight: 800; }
-@media (max-width: 900px) {
-  .mc-legend { max-height: 40px; font-size: 0.62rem; right: 44px; gap: 1px 9px; }
+@media (max-width: 768px) {
+  .mc-legend {
+    max-height: 40px;
+    font-size: 0.62rem;
+    gap: 1px 9px;
+    /* 移动端：脱离主图绝对定位，固定到视口底部作为信息条 */
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    transform: none !important;
+    border-radius: 0;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+    padding: 8px 12px;
+    z-index: 30;
+  }
   .mc-legend-head, .mc-legend-group { gap: 1px 7px; }
 }
 </style>
