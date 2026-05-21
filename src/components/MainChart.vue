@@ -474,7 +474,7 @@ function onMobileTap(e) {
 
 <template>
   <div class="main-chart-shell">
-    <div ref="el" class="main-chart-canvas" @touchstart="onMobileTap" />
+    <div ref="el" class="main-chart-canvas" @touchstart.passive="onMobileTap" />
 
     <!-- Hover 图例：拆到子组件，本文件只构造 hoverLegend 对象 -->
     <MainChartHoverLegend :legend="hoverLegend" />
