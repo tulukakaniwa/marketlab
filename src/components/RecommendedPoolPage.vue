@@ -356,10 +356,5 @@ h2 {
     border-color: #08785f;
     color: #08785f;
   }
-
-  .pool-columns,
-  .pool-group {
-    grid-template-columns: 1fr !important;
-  }
 }
 </style>
