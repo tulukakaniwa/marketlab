@@ -14,6 +14,8 @@ import stockIndex from './data/stock-index.json'
 const lab = useLabStore()
 const { isMobile } = useBreakpoint()
 const narrowScreen = isMobile  // 行为别名，保留 toggleLeftPanel/toggleRightPanel 内引用
+const mobileLeftOpen = ref(false)
+const mobileRightOpen = ref(false)
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
 const recommendedPoolMode = ref(isRecommendedPoolPath())
 
@@ -99,8 +101,8 @@ onBeforeUnmount(() => {
   if (chordTimer) clearTimeout(chordTimer)
 })
 
-const effectiveLeftOpen = computed(() => lab.leftPanelOpen)
-const effectiveRightOpen = computed(() => lab.rightPanelOpen)
+const effectiveLeftOpen = computed(() => isMobile.value ? mobileLeftOpen.value : lab.leftPanelOpen)
+const effectiveRightOpen = computed(() => isMobile.value ? mobileRightOpen.value : lab.rightPanelOpen)
 
 // 合并 marketSamples + stockIndex 给搜索
 const allSamples = computed(() => {
@@ -135,20 +137,30 @@ function selectSample(sample) {
 }
 
 function toggleLeftPanel() {
+  if (isMobile.value) {
+    mobileLeftOpen.value = !mobileLeftOpen.value
+    if (mobileLeftOpen.value) mobileRightOpen.value = false
+    return
+  }
   const opening = !lab.leftPanelOpen
   lab.toggleLeftPanel()
   if (narrowScreen.value && opening) lab.rightPanelOpen = false
 }
 
 function toggleRightPanel() {
+  if (isMobile.value) {
+    mobileRightOpen.value = !mobileRightOpen.value
+    if (mobileRightOpen.value) mobileLeftOpen.value = false
+    return
+  }
   const opening = !lab.rightPanelOpen
   lab.toggleRightPanel()
   if (narrowScreen.value && opening) lab.leftPanelOpen = false
 }
 
 function closeMobileDrawers() {
-  lab.leftPanelOpen = false
-  lab.rightPanelOpen = false
+  mobileLeftOpen.value = false
+  mobileRightOpen.value = false
 }
 
 // 拖宽逻辑（v3.2）
@@ -223,8 +235,8 @@ const rootStyle = computed(() => ({
       @set-auto-profile="onSetAutoProfile"
       @toggle-theme="toggleTheme"
       @reset="resetWorkbench"
-      @mobile-open-left="lab.leftPanelOpen = true; lab.rightPanelOpen = false"
-      @mobile-open-right="lab.rightPanelOpen = true; lab.leftPanelOpen = false"
+      @mobile-open-left="mobileLeftOpen = true; mobileRightOpen = false"
+      @mobile-open-right="mobileRightOpen = true; mobileLeftOpen = false"
     />
 
     <div
