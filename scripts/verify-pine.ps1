@@ -16,7 +16,7 @@ if ($content -notmatch 'shorttitle="([^"]{1,10})"') {
   $errors.Add("shorttitle must exist and be 10 chars or less")
 }
 
-foreach ($signal in @("Try", "Low Buy", "Pull Buy", "Reclaim", "Wait", "Deep", "Trim", "No Chase")) {
+foreach ($signal in @("Low Buy", "Wait Stop", "Deep Discount", "Trim", "No Chase")) {
   if ($content -notmatch [regex]::Escape($signal)) {
     $errors.Add("Missing chart signal: $signal")
   }
@@ -26,8 +26,8 @@ if ($content -notmatch 'cost_fast_anchor' -or $content -notmatch 'cost_slow_anch
   $errors.Add("Missing adaptive three-layer cost anchor")
 }
 
-if ($content -notmatch 'lab_pull_buy' -or $content -notmatch 'lab_reclaim_buy') {
-  $errors.Add("Missing trend pullback/reclaim buy logic")
+if ($content -notmatch 'lab_buy' -or $content -notmatch 'lab_sell' -or $content -notmatch 'lab_wait_stop' -or $content -notmatch 'lab_deep_discount' -or $content -notmatch 'lab_overheat') {
+  $errors.Add("Missing core market lab signal variables (lab_buy / lab_sell / lab_wait_stop / lab_deep_discount / lab_overheat)")
 }
 
 $assignments = [regex]::Matches($content, '(?m)^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=')
