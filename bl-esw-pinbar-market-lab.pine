@@ -96,9 +96,9 @@ log_ret = close[1] > 0 ? math.log(close / close[1]) : 0.0
 annual_vol_raw = ta.stdev(log_ret, vol_len, false) * math.sqrt(trading_days)
 annual_vol = na(annual_vol_raw) or annual_vol_raw <= 0 ? 0.01 : annual_vol_raw
 
-atr_14 = ta.atr(14)
-atr_pct_raw = close > 0 ? atr_14 / close : 0.0
-atr_pct = atr_pct_raw
+true_range = math.max(high - low, math.max(math.abs(high - close[1]), math.abs(low - close[1])))
+atr_14 = ta.sma(true_range, 14)
+atr_pct = close > 0 ? atr_14 / close : 0.0
 
 // JS: volEstimate = stdev(returns over band rows) * sqrt(min(recent, returns.length))
 //     bandWidth = max(volEstimate, max(volEstimate*0.25, 0.005))

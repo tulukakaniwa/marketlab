@@ -24,5 +24,8 @@ for (const { symbol, path } of FIXTURES) {
     it('annual_vol 差异 < 0.20%', () => {
       expect(rel(pine.annual_vol, jsRef.annualVol)).toBeLessThan(0.002)
     })
+    it('atr_pct 差异 < 0.30%', () => {
+      expect(rel(pine.atr_pct, jsRef.atrPercent)).toBeLessThan(0.003)
+    })
   })
 }

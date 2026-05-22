@@ -27,20 +27,15 @@ function sampleStdev(values) {
   return Math.sqrt(variance)
 }
 
-function wilderAtr(rows, period = 14) {
-  // Pine ta.atr 用 RMA：RMA[i] = (RMA[i-1]*(n-1) + tr[i]) / n
-  // 已知暖机差异：Pine 从 bar 1 累积 RMA（数千根 bar 后收敛），JS 用 SMA seed；
-  // 行数不足时 ATR 偏高，测试 fixture 应保证 200+ 根以上才能接近 Pine 值。
+function simpleMeanAtr(rows, period = 14) {
+  // Pine ta.sma(true_range, 14)，对齐 JS average(trueRanges[index-13..index])
   const trs = rows.map((row, i) => {
-    if (i === 0) return row.high - row.low
+    if (i === 0) return 0
     const prevClose = rows[i - 1].close
     return Math.max(row.high - row.low, Math.abs(row.high - prevClose), Math.abs(row.low - prevClose))
   })
-  let rma = trs.slice(0, period).reduce((s, v) => s + v, 0) / period
-  for (let i = period; i < trs.length; i += 1) {
-    rma = (rma * (period - 1) + trs[i]) / period
-  }
-  return rma
+  const recent = trs.slice(-period)
+  return recent.reduce((s, v) => s + v, 0) / recent.length
 }
 
 function vwapTypical(rows) {
@@ -84,8 +79,8 @@ export function pineEquivalent(rows, inputs = {}) {
   )
   const annual_vol = Math.max(sampleStdev(volRets) * Math.sqrt(opts.trading_days), 0.01)
 
-  // atr_pct（Wilder RMA 14）
-  const atr_14 = wilderAtr(rows, 14)
+  // atr_pct（simple mean SMA 14，对齐 Pine ta.sma(true_range, 14)）
+  const atr_14 = simpleMeanAtr(rows, 14)
   const atr_pct = last.close > 0 ? atr_14 / last.close : 0
 
   // GetDelta band
