@@ -19,11 +19,11 @@ const DEFAULTS = {
   adaptive_cost: false,
 }
 
-function biasedStdev(values) {
-  // Pine ta.stdev 默认 biased=true（除以 n）
-  if (values.length < 1) return 0
+function sampleStdev(values) {
+  // Pine ta.stdev(..., false) 用 biased=false（除以 n-1，对齐 JS）
+  if (values.length < 2) return 0
   const mean = values.reduce((s, v) => s + v, 0) / values.length
-  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length
+  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1)
   return Math.sqrt(variance)
 }
 
@@ -70,19 +70,19 @@ export function pineEquivalent(rows, inputs = {}) {
   const logRets = bandRows.slice(1).map((row, i) =>
     bandRows[i].close > 0 ? Math.log(row.close / bandRows[i].close) : 0,
   )
-  const vol_estimate = biasedStdev(logRets) * Math.sqrt(Math.min(opts.recent_len, logRets.length))
+  const vol_estimate = sampleStdev(logRets) * Math.sqrt(Math.min(opts.recent_len, logRets.length))
   const min_band = Math.max(vol_estimate * 0.25, 0.005)
   const band_width = Math.max(vol_estimate, min_band)
   const cost_low = cost_anchor * (1 - band_width)
   const cost_high = cost_anchor * (1 + band_width)
 
-  // annual vol（用 vol_len 个收益，biased stdev）
+  // annual vol（用 vol_len 个收益，sample stdev n-1）
   // 镜像 Pine 的零价格保护
   const volRows = rows.slice(-(opts.vol_len + 1))
   const volRets = volRows.slice(1).map((row, i) =>
     volRows[i].close > 0 ? Math.log(row.close / volRows[i].close) : 0,
   )
-  const annual_vol = Math.max(biasedStdev(volRets) * Math.sqrt(opts.trading_days), 0.01)
+  const annual_vol = Math.max(sampleStdev(volRets) * Math.sqrt(opts.trading_days), 0.01)
 
   // atr_pct（Wilder RMA 14）
   const atr_14 = wilderAtr(rows, 14)

@@ -93,7 +93,7 @@ cost_anchor = adaptive_cost ? cost_fast_anchor * 0.35 + cost_main_anchor * 0.45 
 // Volatility / band（对齐 JS rollingCost 的 bandWidth）
 // ============================================================
 log_ret = close[1] > 0 ? math.log(close / close[1]) : 0.0
-annual_vol_raw = ta.stdev(log_ret, vol_len) * math.sqrt(trading_days)
+annual_vol_raw = ta.stdev(log_ret, vol_len, false) * math.sqrt(trading_days)
 annual_vol = na(annual_vol_raw) or annual_vol_raw <= 0 ? 0.01 : annual_vol_raw
 
 atr_14 = ta.atr(14)
@@ -102,7 +102,7 @@ atr_pct = atr_pct_raw
 
 // JS: volEstimate = stdev(returns over band rows) * sqrt(min(recent, returns.length))
 //     bandWidth = max(volEstimate, max(volEstimate*0.25, 0.005))
-vol_estimate = ta.stdev(log_ret, cost_len) * math.sqrt(math.min(recent_len, cost_len))
+vol_estimate = ta.stdev(log_ret, cost_len, false) * math.sqrt(math.min(recent_len, cost_len))
 min_band = math.max(vol_estimate * 0.25, 0.005)
 band_width = math.max(vol_estimate, min_band)
 // 删除 atr_regime 调节：JS 没有该项
