@@ -3,6 +3,8 @@ import { loadCsv } from './helpers/loadCsv.js'
 import { pineEquivalent } from '../../scripts/verify-pine-equivalence.mjs'
 import { buildMarketState } from '../domain/market-data/cost.js'
 import { getDeltaBands } from '../domain/formulas/options.js'
+import { deviationScore } from '../domain/formulas/core.js'
+import { normalCdf } from '../domain/formulas/probability.js'
 
 function jsGetDeltaBand(market, lastClose) {
   const r = getDeltaBands({
@@ -57,6 +59,17 @@ for (const { symbol, path } of FIXTURES) {
       const lpUpper = jsRef.costAnchor * (1 + 0.10 * 1.0)
       expect(rel(pine.lp_lower, lpLower)).toBeLessThan(0.0005)
       expect(rel(pine.lp_upper, lpUpper)).toBeLessThan(0.0005)
+    })
+    it('match_pct 差异 < 0.50%', () => {
+      const dev = deviationScore({
+        costDistance: jsRef.costDistance,
+        annualVol: jsRef.annualVol,
+        holdingDays: 30,
+        tradingDaysPerYear: 365,
+      })
+      const zAbs = Math.abs(dev.z)
+      const matchJs = zAbs >= 8 ? 1 : Math.max(0, Math.min(1, 2 * normalCdf(zAbs) - 1))
+      expect(rel(pine.match_pct, matchJs)).toBeLessThan(0.005)
     })
   })
 }

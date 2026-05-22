@@ -103,12 +103,26 @@ export function pineEquivalent(rows, inputs = {}) {
   const cost_distance = cost_anchor > 0 ? last.close / cost_anchor - 1 : 0
   const z_score = period_vol > 0 ? cost_distance / period_vol : 0
 
+  // Abramowitz 7.1.26 erf 近似（Pine 用同一套常数）
+  const normCdfAbs = (x) => {
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741
+    const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911
+    const signX = x >= 0 ? 1 : -1
+    const absX = Math.abs(x)
+    const t = 1 / (1 + p * absX)
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX)
+    return 0.5 * (1 + signX * y)
+  }
+  const z_abs = Math.abs(z_score)
+  const phi_z = normCdfAbs(z_abs / Math.sqrt(2))
+  const match_pct = z_abs >= 8 ? 1 : Math.max(0, Math.min(1, 2 * phi_z - 1))
+
   return {
     cost_anchor, cost_low, cost_high,
     lp_lower, lp_upper,
     annual_vol, atr_pct,
     long_cost, long_high, long_low,
-    z_score, cost_distance, period_vol,
+    z_score, cost_distance, period_vol, match_pct,
     band_width,
     last_close: last.close,
   }
