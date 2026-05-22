@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadCsv } from './helpers/loadCsv.js'
-import { pineEquivalent } from '../../scripts/verify-pine-equivalence.mjs'
+import { pineEquivalent, DEFAULTS as PINE_DEFAULTS } from '../../scripts/verify-pine-equivalence.mjs'
 import { buildMarketState } from '../domain/market-data/cost.js'
 import { getDeltaBands } from '../domain/formulas/options.js'
 import { deviationScore } from '../domain/formulas/core.js'
@@ -55,8 +55,9 @@ for (const { symbol, path } of FIXTURES) {
       expect(rel(pine.long_low, longLow)).toBeLessThan(0.003)
     })
     it('lp_lower / lp_upper 差异 < 0.05%', () => {
-      const lpLower = jsRef.costAnchor * Math.max(1 - 0.10, 0.001)
-      const lpUpper = jsRef.costAnchor * (1 + 0.10 * 1.0)
+      // 用 PINE_DEFAULTS 而非硬编码：默认值改动时测试会自然跟随，避免静默通过
+      const lpLower = jsRef.costAnchor * Math.max(1 - PINE_DEFAULTS.lp_range_width, 0.001)
+      const lpUpper = jsRef.costAnchor * (1 + PINE_DEFAULTS.lp_range_width * PINE_DEFAULTS.lp_skew)
       expect(rel(pine.lp_lower, lpLower)).toBeLessThan(0.0005)
       expect(rel(pine.lp_upper, lpUpper)).toBeLessThan(0.0005)
     })
@@ -68,6 +69,7 @@ for (const { symbol, path } of FIXTURES) {
         tradingDaysPerYear: 365,
       })
       const zAbs = Math.abs(dev.z)
+      // normalCdf(zAbs) 内部做 z=|x|/√2；等价于 Pine 的 norm_cdf_abs(z_abs/sqrt(2))
       const matchJs = zAbs >= 8 ? 1 : Math.max(0, Math.min(1, 2 * normalCdf(zAbs) - 1))
       expect(rel(pine.match_pct, matchJs)).toBeLessThan(0.005)
     })

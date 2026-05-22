@@ -3,7 +3,7 @@
 
 import { pathToFileURL } from 'node:url'
 
-const DEFAULTS = {
+export const DEFAULTS = {
   cost_len: 60,
   recent_len: 20,
   vol_len: 60,
@@ -28,6 +28,8 @@ function sampleStdev(values) {
 
 function simpleMeanAtr(rows, period = 14) {
   // Pine ta.sma(true_range, 14)，对齐 JS average(trueRanges[index-13..index])
+  // 注意：Pine 第一根 K 线的 true_range = na（close[1] na），此处用 0 作占位；
+  // 在 fixture ≥ 14 行时 slice(-14) 不会包含 index 0，行为等价。
   const trs = rows.map((row, i) => {
     if (i === 0) return 0
     const prevClose = rows[i - 1].close
