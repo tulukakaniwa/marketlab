@@ -40,6 +40,21 @@ git checkout -b feature/pine-website-alignment
 pnpm install --frozen-lockfile
 ```
 
+### Windows / Worktree 环境注意
+
+如果在 git worktree 里执行，`pnpm test` 会先跑 `pnpm run generate:data`，而 `scripts/csv2js.mjs` 的原子 `rename` 在 Windows + worktree 组合下会触发 `EPERM`。变通方案（首次进 worktree 跑一次即可）：
+
+```bash
+# 从主 checkout 复制已生成的 src/data/generated/ 进 worktree
+cp -r /f/devarea/marketlab/src/data/generated src/data/
+
+# 之后所有测试命令必须直接用 npx vitest run，不要走 pnpm test（避开 generate:data 步骤）
+npx vitest run                                       # 全量
+npx vitest run src/test/pine-equivalence.test.js     # 单文件
+```
+
+`pnpm run verify:pine`（含本计划 Task 12 后的 `verify:pine-equivalence`）不依赖 `generate:data`，可以正常跑。
+
 ---
 
 ## Task 1：CSV 加载 helper
@@ -77,7 +92,7 @@ describe('loadCsv', () => {
 
 ```bash
 cd F:/devarea/marketlab
-pnpm vitest run src/test/helpers/__tests__/loadCsv.test.js
+npx vitest run src/test/helpers/__tests__/loadCsv.test.js
 ```
 预期：`Cannot find module '../loadCsv.js'`
 
@@ -99,7 +114,7 @@ export function loadCsv(relativePath) {
 - [ ] **Step 4：跑测试确认通过**
 
 ```bash
-pnpm vitest run src/test/helpers/__tests__/loadCsv.test.js
+npx vitest run src/test/helpers/__tests__/loadCsv.test.js
 ```
 预期：1 passed
 
@@ -299,7 +314,7 @@ for (const { symbol, path } of FIXTURES) {
 - [ ] **Step 2：跑测试**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：
 - `cost_anchor 差异 < 0.05%` → **PASS**（4 个 fixture 都通过，VWAP 公式两边一致）
@@ -359,7 +374,7 @@ function sampleStdev(values) {
 - [ ] **Step 3：跑测试确认 annual_vol 通过**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：4 个 fixture 的 `annual_vol` 全部 PASS。
 
@@ -397,7 +412,7 @@ git commit -m "fix(pine): use sample stdev (n-1) to align with JS standardDeviat
 - [ ] **Step 2：跑测试，确认失败**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：`atr_pct` 在 4 个 fixture 上失败（Wilder RMA 与 simple mean 在趋势期偏差超过 0.3%）。
 
@@ -438,7 +453,7 @@ function simpleMeanAtr(rows, period = 14) {
 - [ ] **Step 5：跑测试**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：所有 fixture 的 `atr_pct` PASS。
 
@@ -506,7 +521,7 @@ function jsGetDeltaBand(market, lastClose) {
 - [ ] **Step 3：跑测试**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：所有 4 个 fixture × 5 条断言全 PASS。如有失败，定位是 JS 双胞胎漏抄了某行 Pine 逻辑（最常见：z 参数、target_return 默认值、wave clamp 0.99 vs 1）。
 
@@ -541,7 +556,7 @@ git commit -m "test: add cost band and GetDelta long band equivalence assertions
 - [ ] **Step 2：跑测试确认失败**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：`lp_lower / lp_upper` 失败（pineEquivalent 还没实现这两个字段）。
 
@@ -580,7 +595,7 @@ plot(show_lab and show_lp_band ? lp_upper : na, title="LP Range High", color=col
 - [ ] **Step 7：跑测试**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：所有断言全 PASS。
 
@@ -698,7 +713,7 @@ import { normalCdf } from '../domain/formulas/probability.js'
 - [ ] **Step 2：跑测试确认失败**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：`match_pct` 失败（双胞胎还没实现）。
 
@@ -771,7 +786,7 @@ show_match_row = input.bool(true, "Show Match Row", group=grp_lab)
 - [ ] **Step 7：跑测试**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 预期：4 fixture × 7 条断言全 PASS。
 
@@ -831,7 +846,7 @@ pnpm run verify:pine
 - [ ] **Step 4：跑 vitest（默认 inputs 在 JS 双胞胎里 auto_adapt 已经是 false，应继续全绿）**
 
 ```bash
-pnpm vitest run src/test/pine-equivalence.test.js
+npx vitest run src/test/pine-equivalence.test.js
 ```
 
 - [ ] **Step 5：commit**
@@ -973,7 +988,9 @@ pnpm run verify:pine
 - [ ] **Step 3：跑全量测试确认没有副作用**
 
 ```bash
-pnpm test
+# Worktree 环境用 npx vitest run（避开 generate:data EPERM）
+# 主 checkout 用 pnpm test
+npx vitest run
 ```
 预期：原有测试 + 新增 pine-equivalence 测试全 PASS。
 
