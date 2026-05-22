@@ -164,7 +164,7 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
 .lp-tabs button.active { background: var(--surface-active); border-color: var(--green); color: var(--green); }
 .lp-collapse { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); font-size: 0.72rem; cursor: pointer; flex-shrink: 0; }
 .lp-collapse:hover { border-color: var(--green); color: var(--green); }
-.lp-body { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 10px 12px; }
+.lp-body { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 10px 12px; }
 .lp-body > * { min-width: 0; max-width: 100%; }
 
 /* 移动端关闭按钮：默认隐藏，仅在 mobile 媒体查询里显示 */
@@ -178,13 +178,18 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
     left: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     max-width: 100vw;
     z-index: 50;
     background: var(--bg);
     transform: translateX(-100%);
     transition: transform 200ms ease;
-    overflow-y: auto;
+    overflow: hidden;
+    overscroll-behavior: contain;
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.18);
+  }
+  .lp.lp-mobile .lp-body {
+    -webkit-overflow-scrolling: touch;
   }
   .lp.lp-mobile.lp-mobile-open {
     transform: translateX(0);

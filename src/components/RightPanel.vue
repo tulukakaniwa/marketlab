@@ -165,7 +165,7 @@ function onGroupToggle(groupId, event) {
 .rp-collapse:hover { border-color: var(--green); color: var(--green); }
 
 /* 展开态 body */
-.rp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 8px 10px; }
+.rp-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 6px 8px 10px; }
 .rp-empty { margin: 12px 4px; padding: 14px; color: var(--muted); font-size: 0.78rem; text-align: center; border: 1px dashed var(--line); border-radius: 6px; }
 .rp-group { margin: 4px 0; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
 .rp-group > summary { display: flex; justify-content: space-between; align-items: center; padding: 6px 9px; font-size: 0.78rem; font-weight: 800; cursor: pointer; list-style: none; }
@@ -192,13 +192,18 @@ function onGroupToggle(groupId, event) {
     right: 0;
     width: 100vw;
     height: 100vh;
+    height: 100dvh;
     max-width: 100vw;
     z-index: 50;
     background: var(--bg);
     transform: translateX(100%);
     transition: transform 200ms ease;
-    overflow-y: auto;
+    overflow: hidden;
+    overscroll-behavior: contain;
     box-shadow: -2px 0 12px rgba(0, 0, 0, 0.18);
+  }
+  .rp.rp-mobile .rp-body {
+    -webkit-overflow-scrolling: touch;
   }
   .rp.rp-mobile.rp-mobile-open {
     transform: translateX(0);

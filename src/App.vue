@@ -323,7 +323,8 @@ const rootStyle = computed(() => ({
 
 <style>
 .app-root {
-  width: 100vw; height: 100vh;
+  width: 100%; max-width: 100%;
+  height: 100vh; height: 100dvh;
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--bg); color: var(--ink);
 }
@@ -331,7 +332,7 @@ const rootStyle = computed(() => ({
 .app-root.right-collapsed { --right-w: 36px !important; }
 
 .cols {
-  flex: 1; min-height: 0;
+  flex: 1; min-width: 0; min-height: 0; overflow: hidden;
   display: grid;
   grid-template-columns: var(--left-w) auto 1fr auto var(--right-w);
   transition: grid-template-columns 200ms ease;
