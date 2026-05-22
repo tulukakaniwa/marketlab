@@ -20,11 +20,10 @@ show_delta_band = input.bool(true, "Show GetDelta Band", group=grp_lab)
 show_lab_bg = input.bool(true, "Show Discount Premium BG", group=grp_lab)
 show_lab_panel = input.bool(true, "Show Status Panel", group=grp_lab)
 show_legend = input.bool(true, "Show Legend", group=grp_lab)
-// JS 端只用单一 cost 锚；adaptive_cost 默认关，开启后启用 pine 私有的 fast/main/slow 混合
-adaptive_cost = input.bool(false, "Adaptive Cost (Pine ext, off=JS aligned)", group=grp_lab)
-// auto_adapt / relax_mode 是 pine 私有工程扩展，不破坏 JS 口径
-auto_adapt = input.bool(true, "Auto Adapt Profile (Pine ext)", group=grp_lab)
-relax_mode = input.bool(false, "Relax Mode (Pine ext)", group=grp_lab)
+// 扩展开关，开启后会偏离 JS 网站；默认 OFF
+adaptive_cost = input.bool(false, "Adaptive Cost (extension, OFF=site aligned)", group=grp_lab)
+auto_adapt = input.bool(false, "Auto Adapt Profile (extension, OFF=site aligned)", group=grp_lab)
+relax_mode = input.bool(false, "Relax Mode (extension, OFF=site aligned)", group=grp_lab)
 
 fast_cost_len = input.int(20, "Fast Cost Window", minval=5, group=grp_lab)
 cost_len = input.int(60, "Cost Window", minval=10, group=grp_lab)
@@ -302,7 +301,8 @@ var table lab_table = table.new(position.top_right, 2, 10, border_width=1)
 if barstate.islast and show_lab and show_lab_panel
     state_color = lab_buy ? color.new(#10b981, 15) : lab_sell ? color.new(#f97316, 15) : lab_deep_discount ? color.new(#7c3aed, 75) : lab_overheat ? color.new(#dc2626, 75) : lab_wait_stop ? color.new(#0891b2, 75) : color.new(color.gray, 88)
     table.cell(lab_table, 0, 0, "Market Lab", text_color=color.white, bgcolor=color.black)
-    table.cell(lab_table, 1, 0, active_profile + (auto_adapt ? "*" : "") + (relax_mode ? " (R)" : ""), text_color=color.white, bgcolor=color.black)
+    profile_label = active_profile + " (auto: " + (auto_adapt ? "on" : "off") + (relax_mode ? ", relax" : "") + ")"
+    table.cell(lab_table, 1, 0, profile_label, text_color=color.white, bgcolor=color.black)
     if show_position_row
         table.cell(lab_table, 0, 1, "Position", text_color=color.black, bgcolor=color.white)
         table.cell(lab_table, 1, 1, position_label, text_color=color.black, bgcolor=color.white)
