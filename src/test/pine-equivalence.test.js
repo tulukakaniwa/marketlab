@@ -52,5 +52,11 @@ for (const { symbol, path } of FIXTURES) {
       expect(rel(pine.long_high, longHigh)).toBeLessThan(0.003)
       expect(rel(pine.long_low, longLow)).toBeLessThan(0.003)
     })
+    it('lp_lower / lp_upper 差异 < 0.05%', () => {
+      const lpLower = jsRef.costAnchor * Math.max(1 - 0.10, 0.001)
+      const lpUpper = jsRef.costAnchor * (1 + 0.10 * 1.0)
+      expect(rel(pine.lp_lower, lpLower)).toBeLessThan(0.0005)
+      expect(rel(pine.lp_upper, lpUpper)).toBeLessThan(0.0005)
+    })
   })
 }

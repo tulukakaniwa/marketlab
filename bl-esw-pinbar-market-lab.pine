@@ -34,6 +34,9 @@ vol_len = input.int(60, "Vol Window", minval=10, group=grp_lab)
 holding_days = input.int(30, "Holding Days", minval=1, group=grp_lab)
 trading_days = input.int(365, "Year Basis", options=[365, 252, 242, 179], group=grp_lab)
 target_return_pct = input.float(30.0, "Target Return %", minval=0.0, step=1.0, group=grp_lab)
+lp_range_width = input.float(0.10, "LP Range Width", minval=0.001, maxval=0.95, step=0.01, group=grp_lab)
+lp_skew = input.float(1.0, "LP Skew", minval=0.01, step=0.05, group=grp_lab)
+show_lp_band = input.bool(true, "Show LP Range", group=grp_lab)
 profile = input.string("Balanced", "Profile", options=["Conservative", "Balanced", "Aggressive"], group=grp_lab)
 
 // ============================================================
@@ -109,6 +112,8 @@ band_width = math.max(vol_estimate, min_band)
 
 cost_low = cost_anchor * (1 - band_width)
 cost_high = cost_anchor * (1 + band_width)
+lp_lower = cost_anchor * math.max(1 - lp_range_width, 0.001)
+lp_upper = cost_anchor * (1 + lp_range_width * lp_skew)
 cost_distance = cost_anchor > 0 ? close / cost_anchor - 1 : 0.0
 
 momentum5 = close[5] > 0 ? close / close[5] - 1 : 0.0
@@ -237,6 +242,8 @@ fill(cost_low_plot, cost_high_plot, color=na, title="ML Cost Zone")
 plot(show_lab and show_delta_band ? long_low : na, title="GetDelta Long Low", color=color.new(#0891b2, 55), linewidth=1)
 plot(show_lab and show_delta_band ? long_high : na, title="GetDelta Long High", color=color.new(#f97316, 55), linewidth=1)
 plot(show_lab and show_delta_band ? short_high : na, title="GetDelta Short High", color=color.new(#dc2626, 50), linewidth=1)
+plot(show_lab and show_lp_band ? lp_lower : na, title="LP Range Low", color=color.new(#a855f7, 40), linewidth=1, style=plot.style_circles)
+plot(show_lab and show_lp_band ? lp_upper : na, title="LP Range High", color=color.new(#a855f7, 40), linewidth=1, style=plot.style_circles)
 
 // 折扣 / 溢价区背景：极淡（绿冷红暖）
 bgcolor(show_lab and show_lab_bg and below_cost ? color.new(#10b981, 95) : na, title="Discount BG")

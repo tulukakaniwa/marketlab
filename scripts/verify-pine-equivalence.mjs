@@ -10,7 +10,6 @@ const DEFAULTS = {
   holding_days: 30,
   trading_days: 365,
   target_return_pct: 30,
-  // 以下两项预占给 Task 7 (LP 区间)，pineEquivalent 暂未读取
   lp_range_width: 0.10,
   lp_skew: 1.0,
   profile: 'Balanced',
@@ -71,6 +70,10 @@ export function pineEquivalent(rows, inputs = {}) {
   const cost_low = cost_anchor * (1 - band_width)
   const cost_high = cost_anchor * (1 + band_width)
 
+  // LP 区间
+  const lp_lower = cost_anchor * Math.max(1 - opts.lp_range_width, 0.001)
+  const lp_upper = cost_anchor * (1 + opts.lp_range_width * opts.lp_skew)
+
   // annual vol（用 vol_len 个收益，sample stdev n-1）
   // 镜像 Pine 的零价格保护
   const volRows = rows.slice(-(opts.vol_len + 1))
@@ -102,6 +105,7 @@ export function pineEquivalent(rows, inputs = {}) {
 
   return {
     cost_anchor, cost_low, cost_high,
+    lp_lower, lp_upper,
     annual_vol, atr_pct,
     long_cost, long_high, long_low,
     z_score, cost_distance, period_vol,
