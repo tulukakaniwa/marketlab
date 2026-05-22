@@ -40,6 +40,38 @@ if (/^\s*p_high\s*=/m.test(content)) {
   errors.push('Do not use p_high because it can collide with plot handles')
 }
 
+// 默认对齐网站：扩展开关默认 false
+if (!/auto_adapt\s*=\s*input\.bool\(false,/.test(content)) {
+  errors.push('auto_adapt must default to false to align with JS')
+}
+if (!/adaptive_cost\s*=\s*input\.bool\(false,/.test(content)) {
+  errors.push('adaptive_cost must default to false to align with JS')
+}
+if (!/relax_mode\s*=\s*input\.bool\(false,/.test(content)) {
+  errors.push('relax_mode must default to false to align with JS')
+}
+
+// stdev 必须用 sample 模式（biased=false）
+const stdevCalls = [...content.matchAll(/ta\.stdev\(([^)]*)\)/g)]
+for (const call of stdevCalls) {
+  const args = call[1].split(',').map((s) => s.trim())
+  if (args.length < 3 || args[2] !== 'false') {
+    errors.push(`ta.stdev must pass biased=false third arg: ta.stdev(${call[1]})`)
+  }
+}
+
+// 禁止 ta.atr( 直接调用（必须用自实现 simple-mean ATR）
+if (/ta\.atr\(/.test(content)) {
+  errors.push('Do not call ta.atr directly; use simple-mean ATR via ta.sma(true_range, 14) to align with JS')
+}
+
+// 必须存在的对齐变量
+for (const v of ['lp_lower', 'lp_upper', 'position_label', 'match_pct']) {
+  if (!new RegExp(`(^|\\s)${v}\\s*=`, 'm').test(content)) {
+    errors.push(`Missing alignment variable: ${v}`)
+  }
+}
+
 if (errors.length) {
   for (const error of errors) console.error(error)
   process.exit(1)

@@ -49,6 +49,34 @@ if ($content -match '(?m)^\s*p_high\s*=') {
   $errors.Add("Do not use p_high because it can collide with plot handles")
 }
 
+if ($content -notmatch 'auto_adapt\s*=\s*input\.bool\(false,') {
+  $errors.Add("auto_adapt must default to false to align with JS")
+}
+if ($content -notmatch 'adaptive_cost\s*=\s*input\.bool\(false,') {
+  $errors.Add("adaptive_cost must default to false to align with JS")
+}
+if ($content -notmatch 'relax_mode\s*=\s*input\.bool\(false,') {
+  $errors.Add("relax_mode must default to false to align with JS")
+}
+
+$stdevMatches = [regex]::Matches($content, 'ta\.stdev\(([^)]*)\)')
+foreach ($m in $stdevMatches) {
+  $stdevArgs = $m.Groups[1].Value -split ',' | ForEach-Object { $_.Trim() }
+  if ($stdevArgs.Count -lt 3 -or $stdevArgs[2] -ne 'false') {
+    $errors.Add("ta.stdev must pass biased=false third arg: ta.stdev($($m.Groups[1].Value))")
+  }
+}
+
+if ($content -match 'ta\.atr\(') {
+  $errors.Add("Do not call ta.atr directly; use simple-mean ATR via ta.sma(true_range, 14)")
+}
+
+foreach ($v in @('lp_lower', 'lp_upper', 'position_label', 'match_pct')) {
+  if ($content -notmatch "(?m)(^|\s)$v\s*=") {
+    $errors.Add("Missing alignment variable: $v")
+  }
+}
+
 if ($errors.Count -gt 0) {
   $errors | ForEach-Object { Write-Error $_ }
   exit 1
