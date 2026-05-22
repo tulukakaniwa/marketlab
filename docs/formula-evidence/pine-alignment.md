@@ -52,6 +52,7 @@
 - 前 60 根 K 线（cost_len 窗口未填满）：Pine 输出 `na`，JS 在 `returnBasis < 5` 时 fallback 全历史，本轮接受
 - `volume <= 0`（如指数）：JS 回退等权 typical；Pine `cost_main_anchor_raw` 在 `not has_volume` 时降级到 `ta.sma`，行为对齐
 - `wave >= 1`（极高波动）：JS `getDeltaBands` 返回 null；Pine `delta_ok = false`，画线为 na
+- **数据时点差**：网站使用静态 CSV 数据集（每日批量刷新），TradingView 是实时连续数据。两端在同一交易日开盘时偏差最小，盘中或刚收盘时网站可能落后 1-2 根 K 线。这会让 60 期 VWAP `cost_anchor` 偏差大致 = `(TV 现价 / 网站现价 - 1) / 60`。AAPL 2026-05-23 实测：网站现价 302.25 vs TV 309.47（+2.39%），`cost_anchor` 268.23 vs 268.97（+0.276%），符合预期传染量级，**不是公式问题**。验证方法：等网站数据集刷新到当日，或在 TV 上用 `Replay` 模式对齐到网站数据集 deadline 那根 bar。
 
 ## 5. 扩展开关启用后的偏离方向
 
