@@ -10,6 +10,7 @@ const DEFAULTS = {
   holding_days: 30,
   trading_days: 365,
   target_return_pct: 30,
+  // 以下两项预占给 Task 7 (LP 区间)，pineEquivalent 暂未读取
   lp_range_width: 0.10,
   lp_skew: 1.0,
   profile: 'Balanced',
@@ -28,6 +29,8 @@ function biasedStdev(values) {
 
 function wilderAtr(rows, period = 14) {
   // Pine ta.atr 用 RMA：RMA[i] = (RMA[i-1]*(n-1) + tr[i]) / n
+  // 已知暖机差异：Pine 从 bar 1 累积 RMA（数千根 bar 后收敛），JS 用 SMA seed；
+  // 行数不足时 ATR 偏高，测试 fixture 应保证 200+ 根以上才能接近 Pine 值。
   const trs = rows.map((row, i) => {
     if (i === 0) return row.high - row.low
     const prevClose = rows[i - 1].close
@@ -51,8 +54,9 @@ function vwapTypical(rows) {
 
 export function pineEquivalent(rows, inputs = {}) {
   const opts = { ...DEFAULTS, ...inputs }
-  if (rows.length < opts.cost_len + 5) {
-    throw new Error(`pineEquivalent 需要至少 ${opts.cost_len + 5} 根 K 线`)
+  const minRows = Math.max(opts.cost_len, opts.vol_len) + 5
+  if (rows.length < minRows) {
+    throw new Error(`pineEquivalent 需要至少 ${minRows} 根 K 线`)
   }
   const last = rows.at(-1)
 
@@ -61,8 +65,11 @@ export function pineEquivalent(rows, inputs = {}) {
   const cost_anchor = vwapTypical(anchorRows)
 
   // log returns（最近 cost_len 期，从 cost_len+1 行算 cost_len 个收益）
+  // 镜像 Pine: log_ret = close[1] > 0 ? math.log(close / close[1]) : 0.0
   const bandRows = rows.slice(-(opts.cost_len + 1))
-  const logRets = bandRows.slice(1).map((row, i) => Math.log(row.close / bandRows[i].close))
+  const logRets = bandRows.slice(1).map((row, i) =>
+    bandRows[i].close > 0 ? Math.log(row.close / bandRows[i].close) : 0,
+  )
   const vol_estimate = biasedStdev(logRets) * Math.sqrt(Math.min(opts.recent_len, logRets.length))
   const min_band = Math.max(vol_estimate * 0.25, 0.005)
   const band_width = Math.max(vol_estimate, min_band)
@@ -70,8 +77,11 @@ export function pineEquivalent(rows, inputs = {}) {
   const cost_high = cost_anchor * (1 + band_width)
 
   // annual vol（用 vol_len 个收益，biased stdev）
+  // 镜像 Pine 的零价格保护
   const volRows = rows.slice(-(opts.vol_len + 1))
-  const volRets = volRows.slice(1).map((row, i) => Math.log(row.close / volRows[i].close))
+  const volRets = volRows.slice(1).map((row, i) =>
+    volRows[i].close > 0 ? Math.log(row.close / volRows[i].close) : 0,
+  )
   const annual_vol = Math.max(biasedStdev(volRets) * Math.sqrt(opts.trading_days), 0.01)
 
   // atr_pct（Wilder RMA 14）
