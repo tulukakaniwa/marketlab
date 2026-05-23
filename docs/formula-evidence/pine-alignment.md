@@ -30,7 +30,7 @@
 | `lp_lower / lp_upper` | `lpLower / lpUpper` in `formulaPath.js` | 同 `costAnchor × (1 ± rangeWidth × skew)` |
 | `annual_vol` | `annualVol` in `cost.js` | sample stdev × √trading_days |
 | `atr_pct` | `atrPercent` in `cost.js` | simple-mean of 14 TR / close |
-| `long_cost / long_high / long_low` | `getDeltaBands.long.*` in `options.js` | 同 wave 公式（z=1 隐含） |
+| `long_cost / long_high / long_low` | `getDeltaBands.long.*` in `options.js` | 同 wave 公式（`entryPrice = cost_anchor`，`iv = annual_vol`，可被 `iv_override` 覆盖）|
 | `z_score` | `deviationScore.z` in `core.js` | 同 cost_distance / period_vol |
 | `match_pct` | `2·Φ(|z|) - 1` 用 `normalCdf` | Pine 用 Abramowitz 7.1.26 erf 近似 |
 | `position_label` | `orderPlan.js` 状态字符串 | "高于成本带" / "低于成本带" / "成本带内" |
