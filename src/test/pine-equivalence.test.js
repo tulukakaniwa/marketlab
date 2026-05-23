@@ -75,3 +75,45 @@ for (const { symbol, path } of FIXTURES) {
     })
   })
 }
+
+describe('iv_override 切换语义', () => {
+  const rows = loadCsv('public/data/AAPL-1d.csv')
+  const lastClose = rows.at(-1).close
+
+  it('iv_override = 0 时退化为 annual_vol（与默认一致）', () => {
+    const a = pineEquivalent(rows)
+    const b = pineEquivalent(rows, { iv_override: 0 })
+    expect(rel(a.long_cost, b.long_cost)).toBeLessThan(1e-12)
+  })
+
+  it('iv_override > 0 时 GetDelta band 用用户输入的 IV 计算', () => {
+    const userIv = 0.221
+    const result = pineEquivalent(rows, { iv_override: userIv })
+    // 用 jsGetDeltaBand 算 IV=0.221 的参考值（市场对象只用 annualVol 字段，所以伪造一个 jsRef）
+    const ref = jsGetDeltaBand({ annualVol: userIv }, lastClose)
+    expect(rel(result.long_cost, ref.longCost)).toBeLessThan(0.003)
+    expect(rel(result.long_high, ref.longHigh)).toBeLessThan(0.003)
+    expect(rel(result.long_low, ref.longLow)).toBeLessThan(0.003)
+  })
+})
+
+describe('iv_override 切换语义', () => {
+  const rows = loadCsv('public/data/AAPL-1d.csv')
+  const lastClose = rows.at(-1).close
+
+  it('iv_override = 0 时退化为 annual_vol（与默认一致）', () => {
+    const a = pineEquivalent(rows)
+    const b = pineEquivalent(rows, { iv_override: 0 })
+    expect(rel(a.long_cost, b.long_cost)).toBeLessThan(1e-12)
+  })
+
+  it('iv_override > 0 时 GetDelta band 用用户输入的 IV 计算', () => {
+    const userIv = 0.221
+    const result = pineEquivalent(rows, { iv_override: userIv })
+    // 用 jsGetDeltaBand 算 IV=0.221 的参考值（市场对象只用 annualVol 字段，所以伪造一个 jsRef）
+    const ref = jsGetDeltaBand({ annualVol: userIv }, lastClose)
+    expect(rel(result.long_cost, ref.longCost)).toBeLessThan(0.003)
+    expect(rel(result.long_high, ref.longHigh)).toBeLessThan(0.003)
+    expect(rel(result.long_low, ref.longLow)).toBeLessThan(0.003)
+  })
+})

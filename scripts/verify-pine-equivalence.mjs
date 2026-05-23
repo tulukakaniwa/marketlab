@@ -10,6 +10,7 @@ export const DEFAULTS = {
   holding_days: 30,
   trading_days: 365,
   target_return_pct: 30,
+  iv_override: 0,
   lp_range_width: 0.10,
   lp_skew: 1.0,
   profile: 'Balanced',
@@ -90,7 +91,9 @@ export function pineEquivalent(rows, inputs = {}) {
 
   // GetDelta band
   const target_return = opts.target_return_pct / 100
-  const wave_raw = annual_vol * Math.sqrt(opts.holding_days / (opts.trading_days * 2 * Math.PI))
+  // 同步网站 IV 输入框：iv_override > 0 时用用户填值，否则退化到 annual_vol
+  const effective_iv = opts.iv_override > 0 ? opts.iv_override : annual_vol
+  const wave_raw = effective_iv * Math.sqrt(opts.holding_days / (opts.trading_days * 2 * Math.PI))
   const wave = Math.min(wave_raw, 0.99)
   let long_cost = NaN, long_high = NaN, long_low = NaN
   if (wave > 0 && wave < 1 && last.close > 0) {
