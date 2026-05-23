@@ -96,9 +96,10 @@ export function pineEquivalent(rows, inputs = {}) {
   const wave_raw = effective_iv * Math.sqrt(opts.holding_days / (opts.trading_days * 2 * Math.PI))
   const wave = Math.min(wave_raw, 0.99)
   let long_cost = NaN, long_high = NaN, long_low = NaN
-  if (wave > 0 && wave < 1 && last.close > 0) {
+  if (wave > 0 && wave < 1 && cost_anchor > 0) {
     const long_ratio = ((1 + wave) / (1 - wave)) ** 2
-    long_cost = last.close * (target_return * long_ratio - target_return + 1) ** 2 / long_ratio
+    // 网站 formulaPath.js: entryPrice = bandAnchor (cost_anchor)，不是 close
+    long_cost = cost_anchor * (target_return * long_ratio - target_return + 1) ** 2 / long_ratio
     long_high = long_cost * long_ratio
     long_low = long_cost / long_ratio
   }

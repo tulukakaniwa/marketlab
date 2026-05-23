@@ -6,9 +6,10 @@ import { getDeltaBands } from '../domain/formulas/options.js'
 import { deviationScore } from '../domain/formulas/core.js'
 import { normalCdf } from '../domain/formulas/probability.js'
 
-function jsGetDeltaBand(market, lastClose) {
+function jsGetDeltaBand(market, costAnchor) {
+  // 镜像 formulaPath.js:51-57: entryPrice 用 cost_anchor，不是 close
   const r = getDeltaBands({
-    entryPrice: lastClose,
+    entryPrice: costAnchor,
     holdingDays: 30,
     iv: market.annualVol,
     targetReturn: 0.30,
@@ -49,7 +50,7 @@ for (const { symbol, path } of FIXTURES) {
       expect(rel(pine.cost_high, jsRef.costHigh)).toBeLessThan(0.001)
     })
     it('GetDelta long band 差异 < 0.30%', () => {
-      const { longCost, longHigh, longLow } = jsGetDeltaBand(jsRef, rows.at(-1).close)
+      const { longCost, longHigh, longLow } = jsGetDeltaBand(jsRef, jsRef.costAnchor)
       expect(rel(pine.long_cost, longCost)).toBeLessThan(0.003)
       expect(rel(pine.long_high, longHigh)).toBeLessThan(0.003)
       expect(rel(pine.long_low, longLow)).toBeLessThan(0.003)
@@ -78,7 +79,6 @@ for (const { symbol, path } of FIXTURES) {
 
 describe('iv_override 切换语义', () => {
   const rows = loadCsv('public/data/AAPL-1d.csv')
-  const lastClose = rows.at(-1).close
 
   it('iv_override = 0 时退化为 annual_vol（与默认一致）', () => {
     const a = pineEquivalent(rows)
@@ -89,29 +89,8 @@ describe('iv_override 切换语义', () => {
   it('iv_override > 0 时 GetDelta band 用用户输入的 IV 计算', () => {
     const userIv = 0.221
     const result = pineEquivalent(rows, { iv_override: userIv })
-    // 用 jsGetDeltaBand 算 IV=0.221 的参考值（市场对象只用 annualVol 字段，所以伪造一个 jsRef）
-    const ref = jsGetDeltaBand({ annualVol: userIv }, lastClose)
-    expect(rel(result.long_cost, ref.longCost)).toBeLessThan(0.003)
-    expect(rel(result.long_high, ref.longHigh)).toBeLessThan(0.003)
-    expect(rel(result.long_low, ref.longLow)).toBeLessThan(0.003)
-  })
-})
-
-describe('iv_override 切换语义', () => {
-  const rows = loadCsv('public/data/AAPL-1d.csv')
-  const lastClose = rows.at(-1).close
-
-  it('iv_override = 0 时退化为 annual_vol（与默认一致）', () => {
-    const a = pineEquivalent(rows)
-    const b = pineEquivalent(rows, { iv_override: 0 })
-    expect(rel(a.long_cost, b.long_cost)).toBeLessThan(1e-12)
-  })
-
-  it('iv_override > 0 时 GetDelta band 用用户输入的 IV 计算', () => {
-    const userIv = 0.221
-    const result = pineEquivalent(rows, { iv_override: userIv })
-    // 用 jsGetDeltaBand 算 IV=0.221 的参考值（市场对象只用 annualVol 字段，所以伪造一个 jsRef）
-    const ref = jsGetDeltaBand({ annualVol: userIv }, lastClose)
+    // 镜像 formulaPath.js: entryPrice = bandAnchor (cost_anchor)
+    const ref = jsGetDeltaBand({ annualVol: userIv }, result.cost_anchor)
     expect(rel(result.long_cost, ref.longCost)).toBeLessThan(0.003)
     expect(rel(result.long_high, ref.longHigh)).toBeLessThan(0.003)
     expect(rel(result.long_low, ref.longLow)).toBeLessThan(0.003)

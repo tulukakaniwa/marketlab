@@ -134,8 +134,9 @@ wave_raw = effective_iv * math.sqrt(holding_days / (trading_days * 2.0 * math.pi
 wave = math.min(wave_raw, 0.99)
 delta_ok = show_lab and close > 0 and effective_iv > 0 and wave > 0 and wave < 1
 
-// JS 端 entryPrice 默认是 markPrice（现价）；pine 用 close 同步
-entry_price = close
+// 网站 formulaPath.js: entryPrice = costPath[index].anchor，不是 close
+// 这意味着 GetDelta 上下沿是围绕成本锚展开的价格带，不是围绕现价
+entry_price = cost_anchor
 raw_ratio = delta_ok ? math.pow((1 + wave) / (1 - wave), 2) : na
 long_ratio = raw_ratio
 long_cost = delta_ok ? entry_price * math.pow(target_return * long_ratio - target_return + 1, 2) / long_ratio : na
