@@ -58,7 +58,9 @@ def main() -> int:
 
     pd, yf, ak, bs, requests = import_fetch_deps()
     start = args.start_date or args.preferred_start_date or (date.today() - timedelta(days=args.lookback_days)).isoformat()
-    end = args.end_date or date.today().isoformat()
+    # yfinance 的 end 参数是 exclusive（不含当天），cron 在凌晨触发时 today 还覆盖不到当日；
+    # 往后推 2 天保证最新交易日始终被包进去（baostock/akshare 是 inclusive，多 2 天无副作用）。
+    end = args.end_date or (date.today() + timedelta(days=2)).isoformat()
 
     frames = []
     bs_logged_in = False
@@ -189,7 +191,11 @@ def import_fetch_deps():
 
 def fetch_one(item, start, end, pd, yf, ak, bs, requests, args):
     if item.market == "加密":
-        return fetch_binance_daily(item.symbol, start, end, pd, requests)
+        frame = fetch_binance_daily(item.symbol, start, end, pd, requests)
+        if usable(frame):
+            return frame
+        # 兜底：binance 镜像也不可达时改用 yfinance 的 BTC-USD 形式（USDT → USD 近似）
+        return fetch_yfinance_daily(yahoo_crypto_symbol(item.symbol), start, end, pd, yf)
     if item.market == "A股":
         return fetch_a_share(item, start, end, pd, yf, ak, bs)
     if item.market == "港股":
@@ -316,7 +322,10 @@ def fetch_alpha_vantage_daily(symbol, pd, requests, api_key):
 def fetch_binance_daily(symbol, start, end, pd, requests):
     start_ms = int(pd.Timestamp(start).timestamp() * 1000)
     end_ms = int((pd.Timestamp(end) + pd.Timedelta(days=1)).timestamp() * 1000) - 1
-    url = "https://api.binance.com/api/v3/klines"
+    # api.binance.com 对部分云厂商 IP（含 GitHub Actions 美区 runner）会返回地区限制错误；
+    # 默认走 data-api.binance.vision 公开静态镜像，可在 GHA 上正常拉历史 K 线。
+    base = os.getenv("BINANCE_API_BASE", "https://data-api.binance.vision").rstrip("/")
+    url = f"{base}/api/v3/klines"
     rows = []
     while start_ms <= end_ms:
         params = {
@@ -414,6 +423,16 @@ def write_workbook(merged, output: Path, pd) -> None:
 
 def yahoo_a_symbol(symbol):
     return f"{symbol}.SS" if symbol.startswith("6") else f"{symbol}.SZ"
+
+
+def yahoo_crypto_symbol(symbol):
+    # binance USDT 对在 yfinance 上以 BTC-USD 形式存在；USDC 对统一近似回 USD。
+    upper = symbol.upper()
+    if upper.endswith("USDT"):
+        return f"{upper[:-4]}-USD"
+    if upper.endswith("USDC"):
+        return f"{upper[:-4]}-USD"
+    return f"{upper}-USD"
 
 
 def infer_market(symbol):

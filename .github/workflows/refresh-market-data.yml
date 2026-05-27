@@ -1,12 +1,12 @@
 # 每个美股交易日收盘后刷新价格表
-# 触发时刻：UTC 周一-周五 23:30 = 北京时间周二-周六 07:30
-# 美股夏令时收盘 04:00（北京时间），冬令时 05:00（北京时间）；07:30 跑可冬夏统一覆盖
+# 触发时刻：UTC 周二-周六 02:00 = 北京时间周二-周六 10:00
+# 美股夏令时收盘 04:00（北京时间），冬令时 05:00（北京时间）；10:00 跑数据已稳定 5+ 小时
 # 复用项目里的 `pnpm run refresh:market-data`：fetch -> convert -> generate -> check
 name: Refresh Market Data
 
 on:
   schedule:
-    - cron: '30 23 * * 1-5'
+    - cron: '0 2 * * 2-6'
   workflow_dispatch:
 
 permissions:
