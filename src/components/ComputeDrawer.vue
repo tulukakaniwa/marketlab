@@ -11,6 +11,7 @@ const props = defineProps({
   market: { type: Object, default: null },
   rows: { type: Array, default: () => [] },
   costPath: { type: Array, default: () => [] },
+  formulaPath: { type: Array, default: () => [] },
   sourceLabel: { type: String, default: '未载入' },
   activeFormulaId: { type: String, required: true },
   activeFormula: { type: Object, default: null },
@@ -38,7 +39,8 @@ const viewDeltaBands = computed(() => {
 })
 
 const metrics = computed(() => {
-  const m = viewMarket.value; const g = props.graph
+  const m = viewMarket.value
+  const g = props.graph
   const bands = viewDeltaBands.value
   const base = [
     { label: '现价', value: money(m?.markPrice), unit: props.sourceLabel },
@@ -71,8 +73,12 @@ const hoverOhlcv = computed(() => {
   }
 })
 
-function money(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
-function pct(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
+function money(v) {
+  return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—'
+}
+function pct(v) {
+  return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
+}
 function signedMoney(v) {
   if (!Number.isFinite(v)) return '—'
   return `${v > 0 ? '+' : ''}${money(v)}`
@@ -115,7 +121,12 @@ function compactVolume(v) {
 
     <section class="cd-section">
       <h3 class="cd-h">计算管线</h3>
-      <ChainFlow :graph="graph" :market="market" :active-id="activeFormulaId" @select="emit('select-formula', $event)" />
+      <ChainFlow
+        :graph="graph"
+        :market="market"
+        :active-id="activeFormulaId"
+        @select="emit('select-formula', $event)"
+      />
     </section>
 
     <section class="cd-section">
@@ -127,13 +138,9 @@ function compactVolume(v) {
         :market="market"
         :rows="rows"
         :cost-path="costPath"
+        :formula-path="formulaPath"
       />
-      <FormulaDrawerContent
-        v-if="activeFormulaId"
-        :formula-id="activeFormulaId"
-        :graph="graph"
-        :market="market"
-      />
+      <FormulaDrawerContent v-if="activeFormulaId" :formula-id="activeFormulaId" :graph="graph" :market="market" />
     </section>
 
     <section class="cd-section">
@@ -144,42 +151,130 @@ function compactVolume(v) {
 </template>
 
 <style>
-.cd-drawer { display: grid; gap: 16px; min-width: 0; }
-.cd-drawer > * { min-width: 0; }
-.cd-section { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); min-width: 0; }
-.cd-section:last-child { border-bottom: none; }
-.cd-h { margin: 0; color: var(--green); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cd-hover-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: rgba(14,117,88,0.12); color: var(--green); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; text-transform: none; font-variant-numeric: tabular-nums; }
-.cd-hover-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: cd-hover-pulse 1.4s ease-in-out infinite; }
-@keyframes cd-hover-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.cd-drawer {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.cd-drawer > * {
+  min-width: 0;
+}
+.cd-section {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.cd-section:last-child {
+  border-bottom: none;
+}
+.cd-h {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cd-hover-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(14, 117, 88, 0.12);
+  color: var(--green);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.cd-hover-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: cd-hover-pulse 1.4s ease-in-out infinite;
+}
+@keyframes cd-hover-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 /* hover OHLCV 信息条 */
 .cd-hover-ohlcv {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
-  gap: 4px; padding: 6px 8px;
-  border: 1px solid var(--line); border-radius: 6px;
-  background: rgba(14,117,88,0.04);
-  font-variant-numeric: tabular-nums; font-size: 0.74rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(14, 117, 88, 0.04);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
 }
-.cd-hover-ohlcv.dir-up { border-color: rgba(14,117,88,0.45); background: rgba(14,117,88,0.06); }
-.cd-hover-ohlcv.dir-down { border-color: rgba(169,50,38,0.45); background: rgba(169,50,38,0.06); }
+.cd-hover-ohlcv.dir-up {
+  border-color: rgba(14, 117, 88, 0.45);
+  background: rgba(14, 117, 88, 0.06);
+}
+.cd-hover-ohlcv.dir-down {
+  border-color: rgba(169, 50, 38, 0.45);
+  background: rgba(169, 50, 38, 0.06);
+}
 .cd-ohlcv-cell {
-  display: inline-flex; align-items: baseline; gap: 4px;
-  color: var(--ink); font-weight: 700; min-width: 0; white-space: nowrap;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--ink);
+  font-weight: 700;
+  min-width: 0;
+  white-space: nowrap;
 }
 .cd-ohlcv-cell em {
-  color: var(--muted); font-style: normal; font-size: 0.62rem;
-  font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--muted);
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .cd-ohlcv-cell small {
-  color: var(--muted); font-size: 0.66rem; font-weight: 600;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
 }
 .cd-hover-ohlcv.dir-up .cd-ohlcv-close,
-.cd-hover-ohlcv.dir-up .cd-ohlcv-change { color: #0e7558; }
-.cd-hover-ohlcv.dir-up .cd-ohlcv-change small { color: rgba(14,117,88,0.75); }
+.cd-hover-ohlcv.dir-up .cd-ohlcv-change {
+  color: #0e7558;
+}
+.cd-hover-ohlcv.dir-up .cd-ohlcv-change small {
+  color: rgba(14, 117, 88, 0.75);
+}
 .cd-hover-ohlcv.dir-down .cd-ohlcv-close,
-.cd-hover-ohlcv.dir-down .cd-ohlcv-change { color: #a93226; }
-.cd-hover-ohlcv.dir-down .cd-ohlcv-change small { color: rgba(169,50,38,0.75); }
+.cd-hover-ohlcv.dir-down .cd-ohlcv-change {
+  color: #a93226;
+}
+.cd-hover-ohlcv.dir-down .cd-ohlcv-change small {
+  color: rgba(169, 50, 38, 0.75);
+}
 /* 5 个市场指标在窄面板（< 360px）下自动换行成 2 行 */
-.cd-drawer .metric-strip { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 4px; padding: 0; }
-.cd-drawer .metric-strip article { padding: 6px 7px; min-width: 0; }
+.cd-drawer .metric-strip {
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 4px;
+  padding: 0;
+}
+.cd-drawer .metric-strip article {
+  padding: 6px 7px;
+  min-width: 0;
+}
 </style>

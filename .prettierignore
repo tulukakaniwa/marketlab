@@ -9,3 +9,7 @@ coverage/
 pnpm-lock.yaml
 *.pine
 LICENSE
+
+# Formula switchboards are hand-wrapped to stay under the 500-line guard.
+src/components/FormulaChart.vue
+src/composables/useFormulaChartModel.js

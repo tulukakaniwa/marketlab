@@ -10,6 +10,8 @@ const BOUNDARIES = {
   'asian-option': 'Payoff-fit research for averaging and normal-vol comparisons; not a strategy conclusion.',
   'lp-inventory': 'Requires a real LP position before it can describe user exposure.',
   'liquidity-fingerprint': 'Model distribution only; not an order book or real LP interval map.',
+  'lp-pool-coverage':
+    'Real pool aggregate snapshot only; it marks coverage quality and must not infer historical tick liquidity.',
   'amm-geometry': 'Geometry and protocol research only; no default order output.',
   'capital-efficiency': 'Describes range geometry; does not imply profitability.',
   funding: 'Proxy-only TWAP basis estimate until exchange funding schedules and settlement history are wired.',

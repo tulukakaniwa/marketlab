@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
-import { ammCurve, asianOption, bachelierOption, deviationScore, gammaPnl, liquidityFingerprint, meanReversionHalfLife, netCarry, netLpEfficiency, numoenSnapshot, riskSurface, volConfidence } from '../domain/formulas/core.js'
+import { ammCurve, asianOption, bachelierOption, deviationScore, liquidityFingerprint, netCarry, netLpEfficiency, numoenSnapshot, riskSurface } from '../domain/formulas/core.js'
+import { useFormulaSecondOrderModel } from './useFormulaSecondOrderModel.js'
 
 export function useFormulaChartModel(props) {
   const stage = computed(() => formulaStages.find((s) => s.id === props.formulaId))
@@ -8,16 +9,27 @@ export function useFormulaChartModel(props) {
   const activeIndex = computed(() => {
     if (!props.rows.length) return 0
     const next = Number.isFinite(props.cursor) ? props.cursor : props.rows.length - 1
-    return Math.max(0, Math.min(props.rows.length - 1, next))
+    const costLimited = props.costPath?.length ? props.costPath.length - 1 : next
+    return Math.max(0, Math.min(props.rows.length - 1, next, costLimited))
+  })
+  const activeRows = computed(() => props.rows.slice(0, activeIndex.value + 1))
+  const activeFormulaRow = computed(() => {
+    if (!props.formulaPath?.length) return null
+    return props.formulaPath[Math.min(activeIndex.value, props.formulaPath.length - 1)]
   })
 
   function fmt(v) { return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—' }
   function f4(v) { return Number.isFinite(v) ? v.toFixed(4) : '—' }
   function pctFmt(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : '—' }
+  function planSummary(plan) { return plan ? `${plan.status}${plan.targetId ? `/${plan.targetId}` : ''}${Number.isFinite(plan.expectedDays) ? ` ${plan.expectedDays}天` : ''}` : '—' }
+
+  const W = 520; const H = 200; const PL = 50; const PR = 16; const PT = 22; const PB = 24
+  const pw = W - PL - PR; const ph = H - PT - PB
+  const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
   /* ── path: 价格路径摘要 ── */
   const pathData = computed(() => {
-    const r = props.rows
+    const r = activeRows.value
     if (!r?.length) return null
     const first = r[0]; const last = r.at(-1)
     const totalReturn = last.close / first.close - 1
@@ -302,12 +314,43 @@ export function useFormulaChartModel(props) {
     const m = props.market; const g = props.graph
     return netCarry({ costDistance: m?.costDistance, fundingRate: g.funding?.funding, holdingDays: g.inputs?.holdingDays, tradingDaysPerYear: g.inputs?.tradingDaysPerYear })
   })
+  const lpPoolData = computed(() => {
+    const row = activeFormulaRow.value
+    if (!row) return null
+    const state = row.fieldStates?.lpPoolTurnover24h
+    return {
+      turnover24h: row.lpPoolTurnover24h,
+      topReserveShare: row.lpPoolTopReserveShare,
+      inputMode: state?.inputMode,
+      missingInputs: state?.missingInputs ?? [],
+      isSynthetic: state?.isSynthetic,
+      poolCoverage: state?.context?.poolCoverage,
+    }
+  })
+  const {
+    mrData,
+    dynamicHoldingData,
+    decayCurve,
+    hlMarker,
+    gpData,
+    gammaCurve,
+    gpMarker,
+    vcData,
+  } = useFormulaSecondOrderModel({
+    props,
+    activeIndex,
+    activeRows,
+    researchInputs,
+    devScoreData,
+    fingerprintData,
+    layout: { PL, pw, sy },
+  })
 
   /* ── 小白指南 ── */
   const guide = computed(() => {
     const id = props.formulaId; const m = props.market; const g = props.graph
     const b = g.deltaBands; const o = greeksData.value; const il = g.impermanentLoss
-    const ds = devScoreData.value; const nc = netCarryData.value; const nl = netLpData.value
+    const ds = devScoreData.value; const nc = netCarryData.value; const nl = netLpData.value; const dh = dynamicHoldingData.value
 
     const guides = {
       path: { title: '怎么看价格路径', body: `这里有 ${m?.rows || '—'} 天的 K 线数据。对数收益是把涨跌幅取对数，用来算波动率。区间跨越 ${m ? '多年' : '—'} ，数据量足够让公式稳定工作。` },
@@ -325,87 +368,22 @@ export function useFormulaChartModel(props) {
       'order-plan': { title: '模拟挂单', body: g.plan?.primaryOrders?.length ? `${g.plan.primaryOrders.length} 条模拟挂单来自已满足的信号条件和账户输入。` : `当前没有模拟挂单：${g.decision?.blockedReasons?.[0] || g.decision?.missingInputs?.[0] || '信号条件未触发'}。` },
       'deviation-score': { title: '偏离强度事实', body: `Z-score ${ds?.z?.toFixed(2)}，样本内偏离状态为 ${ds?.strength ?? '—'}。该值只衡量成本偏离强度，不单独构成交易信号。` },
       'risk-surface': { title: '怎么看风险曲面', body: `在 GetDelta 价格带 [${fmt(b?.long?.low)}, ${fmt(b?.long?.high)}] 上展开 Greeks：Delta 曲线（绿）从虚值到实值，Gamma（蓝）在入场价附近最大 → 这里风险敏感度最高，调仓最频繁。越远离入场价，Gamma 越小 → 风险变化平缓。` },
+      'lp-pool-coverage': { title: '研究层：LP 池覆盖', body: `池覆盖只读聚合池快照，展示 24h 换手和主池资金占比；tick 流动性历史和 LP 加减仓事件未接入，不作为交易结论。` },
       'net-lp-efficiency': { title: '研究层：LP 净效率', body: `当前净效率 ${nl ? nl.totalNet.toFixed(1) : '—'}× 只是 IL × CE 的估计。真实 LP 区间权重、手续费制度和再平衡规则未完成，不能判断“可行/赚钱”。` },
       'net-carry': { title: '研究层：持仓净收益', body: `当前净收益估计 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
       'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays ? Math.round(mrData.value.halfLifeDays) + ' 天' : '∞'}。该指标只描述历史偏离衰减速度。` },
+      'dynamic-holding-state': { title: '动态持仓状态', body: `当前阶段 ${dh?.phaseLabel ?? '—'}，状态 ${dh?.status ?? '—'}。短线 ${planSummary(dh?.holdingPlan?.shortTrade)}；基金周期 ${planSummary(dh?.holdingPlan?.fundCycle)}。输入只使用当前观察点之前的回撤、z、半衰期和结构目标。` },
       'gamma-pnl': { title: '怎么看 Gamma PnL', body: `Dollar Gamma ${fmt(gpData.value?.dollarGamma)}：标的价格变动 1 元，Delta 变化这么多。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。Gamma PnL = ½·Γ·(ΔP)²；这里仅展示波动平方项，不推导 LP 策略结论。` },
       'vol-confidence': { title: '波动率区间估计', body: `基于 ${vcData.value?.sampleSize} 天样本，波动率区间估计为 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}]。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)}，精度标签 ${vcData.value?.quality}。` },
     }
     return guides[id] || null
   })
-  /* ── 二阶: mean-reversion ── */
-  const mrData = computed(() => {
-    const series = (props.costPath || []).map((c, i) => {
-      const row = props.rows?.[i]
-      return c?.anchor > 0 && row ? (row.close - c.anchor) / c.anchor : null
-    }).filter(v => v !== null)
-    return series.length >= 5
-      ? meanReversionHalfLife({ costDistanceSeries: series, tradingDaysPerYear: props.graph.inputs?.tradingDaysPerYear })
-      : null
-  })
-  const decayCurve = computed(() => {
-    try {
-      const d = mrData.value; if (!d?.halfLifeDays || !Number.isFinite(d.theta)) return ''
-      const maxT = d.halfLifeDays * 3; const n = 50; const pts = []
-      for (let i = 0; i <= n; i++) {
-        const t = (maxT / n) * i; const decay = Math.exp(-d.theta * t)
-        if (Number.isFinite(decay)) pts.push(`${PL + (t / maxT) * pw},${sy(decay)}`)
-      }
-      return pts.join(' ')
-    } catch { return '' }
-  })
-  const hlMarker = computed(() => {
-    try {
-      const d = mrData.value; if (!d?.halfLifeDays || !Number.isFinite(d.halfLifeDays)) return { x: PL, y: sy(0) }
-      const maxT = d.halfLifeDays * 3
-      const x = PL + (d.halfLifeDays / maxT) * pw
-      if (!Number.isFinite(x)) return { x: PL, y: sy(0) }
-      return { x, y: sy(0.5) }
-    } catch { return { x: PL, y: sy(0) } }
-  })
-
-  /* ── 二阶: gamma-pnl ── */
-  const gpData = computed(() => gammaPnl({ gamma: props.graph.option?.gamma, priceChange: Math.abs(props.market?.costDistance ?? 0) * (props.market?.markPrice ?? 0), positionSize: 1 }))
-  const gammaCurve = computed(() => {
-    try {
-      const g = gpData.value; if (!g) return ''
-      const maxDP = (props.market?.markPrice || 1) * 0.3; const n = 50; const pts = []
-      const maxPnl = Math.abs(0.5 * (g.dollarGamma || 0.0001) * maxDP * maxDP) || 0.01
-      for (let i = 0; i <= n; i++) {
-        const dp = -maxDP + (2 * maxDP / n) * i
-        const pnl = 0.5 * (g.dollarGamma || 0) * dp * dp
-        const x = PL + ((dp + maxDP) / (2 * maxDP)) * pw
-        const y = sy(Math.min(1, Math.abs(pnl) / maxPnl))
-        if (Number.isFinite(x) && Number.isFinite(y)) pts.push(`${x},${y}`)
-      }
-      return pts.join(' ')
-    } catch { return '' }
-  })
-  const gpMarker = computed(() => {
-    try {
-      const g = gpData.value; const maxDP = (props.market?.markPrice || 1) * 0.3
-      const dp = g?.priceChange || 0
-      const maxPnl = Math.abs(0.5 * (g?.dollarGamma || 0.0001) * maxDP * maxDP) || 0.01
-      const cx = PL + ((dp + maxDP) / (2 * maxDP)) * pw
-      const cy = sy(Math.min(1, Math.abs(g?.gammaPnl || 0) / maxPnl))
-      if (!Number.isFinite(cx) || !Number.isFinite(cy)) return { cx: PL, cy: sy(0) }
-      return { cx, cy }
-    } catch { return { cx: PL, cy: sy(0) } }
-  })
-
-  /* ── 二阶: vol-confidence ── */
-  const vcData = computed(() => volConfidence({ annualVol: props.market?.annualVol || props.graph.inputs?.iv, sampleSize: Math.min(props.rows?.length || 60, 60) }))
-
   const orderData = computed(() => {
     const plan = props.graph.plan; if (!plan?.primaryOrders?.length) return null
     return plan.primaryOrders.map((o) => ({
       action: o.role, side: o.side, price: o.price, notional: o.notional, amount: o.amount, target: o.targetPrice, expected: o.expectedProfit,
     }))
   })
-
-  const W = 520; const H = 200; const PL = 50; const PR = 16; const PT = 22; const PB = 24
-  const pw = W - PL - PR; const ph = H - PT - PB
-  const sx = (v) => PL + v * pw; const sy = (v) => PT + (1 - v) * ph
 
   return {
     stage,
@@ -439,10 +417,12 @@ export function useFormulaChartModel(props) {
     normalCurve,
     zMarker,
     riskSurfaceData,
+    lpPoolData,
     netLpData,
     netCarryData,
     guide,
     mrData,
+    dynamicHoldingData,
     decayCurve,
     hlMarker,
     gpData,

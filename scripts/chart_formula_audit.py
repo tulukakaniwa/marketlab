@@ -21,7 +21,17 @@ def node_summary() -> dict:
       const csv = await readFile('./public/data/btcusdt-1d-2017-2025.csv', 'utf8')
       const rows = parseBinanceKlines(csv).slice(-220)
       const market = buildMarketState(rows)
-      const path = buildFormulaPath(rows, {
+      const lpOnchainSnapshot = {
+        hasPool: true,
+        hasPosition: false,
+        pool: { label: 'BTC/USDT 聚合池' },
+        pools: [],
+        quoteRoutes: [],
+        poolCoverage: { reserveUsd: 1000000, volumeUsd24h: 240000, topPoolReserveShare: 0.68 },
+        quotePrice: market.markPrice,
+        quoteSymbol: 'USDT',
+      }
+      const input = {
         entryPrice: market.markPrice,
         holdingDays: 30,
         iv: market.annualVol,
@@ -36,7 +46,10 @@ def node_summary() -> dict:
         liquidity: 1,
         perpTwap: market.markPrice * 1.0002,
         spotTwap: market.markPrice,
-      })
+        lpOnchainSnapshot,
+      }
+      const path = buildFormulaPath(rows, input)
+      const fallbackPath = buildFormulaPath(rows.slice(-80), { ...input, perpTwap: null, spotTwap: null, lpOnchainSnapshot: null })
       const summary = {}
       for (const key of Object.keys(path[0] ?? {})) {
         summary[key] = path.filter((row) => Number.isFinite(row[key])).length
@@ -46,7 +59,7 @@ def node_summary() -> dict:
         evidenceIds: formulaEvidenceCatalog.map((entry) => entry.id),
         length: path.length,
         summary,
-        statuses: [...new Set(path.flatMap((row) => row.status ?? []))]
+        statuses: [...new Set([...path, ...fallbackPath].flatMap((row) => row.status ?? []))]
       }))
     """
     result = subprocess.run(["node", "--input-type=module", "-e", code], cwd=ROOT, check=True, capture_output=True, text=True)

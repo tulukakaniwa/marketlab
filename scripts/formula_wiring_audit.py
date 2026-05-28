@@ -20,6 +20,7 @@ def run_node_checks() -> list[dict]:
         bachelierOption,
         blackScholes,
         capitalEfficiency,
+        deriveDynamicHoldingState,
         deviationScore,
         fundingRate,
         gammaPnl,
@@ -39,6 +40,7 @@ def run_node_checks() -> list[dict]:
       import { formulaEvidenceCatalog } from './src/domain/formulas/evidence.js'
       import { buildCostPath, buildMarketState, buildMarketStatePath } from './src/domain/market-data/cost.js'
       import { buildFormulaPath } from './src/domain/market-data/formulaPath.js'
+      import { lpPoolCoverageMetrics } from './src/domain/market-data/lpPoolMetrics.js'
       import { parseBinanceKlines, parseCsvText } from './src/domain/market-data/ohlcv.js'
       import { buildDecisionGraph } from './src/domain/strategy-planning/orderPlan.js'
 
@@ -50,6 +52,16 @@ def run_node_checks() -> list[dict]:
         { symbol: 'TSLA', rows: parseCsvText(await readFile('./public/data/TSLA-1d.csv', 'utf8')).slice(-220) },
       ]
       const market = buildMarketState(rows)
+      const lpOnchainSnapshot = {
+        hasPool: true,
+        hasPosition: false,
+        pool: { label: 'BTC/USDT 聚合池' },
+        pools: [],
+        quoteRoutes: [],
+        poolCoverage: { reserveUsd: 1000000, volumeUsd24h: 240000, topPoolReserveShare: 0.68 },
+        quotePrice: market.markPrice,
+        quoteSymbol: 'USDT',
+      }
       const input = {
         entryPrice: market.markPrice,
         holdingDays: 30,
@@ -75,6 +87,7 @@ def run_node_checks() -> list[dict]:
         perpTwap: market.markPrice * 1.0002,
         spotTwap: market.markPrice,
         tradingDaysPerYear: 365,
+        lpOnchainSnapshot,
       }
       const formulaPath = buildFormulaPath(rows, input)
       const marketPath = buildMarketStatePath(rows)
@@ -99,6 +112,7 @@ def run_node_checks() -> list[dict]:
       const asian = asianOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, iv: 0.4, riskFreeRate: 0.04, type: 'put' })
       const bach = bachelierOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, normalVol: 40, riskFreeRate: 0.04, type: 'put' })
       const lp = uniswapV3Inventory({ markPrice: 110, lowerPrice: 80, upperPrice: 130, liquidity: 10 })
+      const lpCoverage = lpPoolCoverageMetrics(lpOnchainSnapshot.poolCoverage)
       const lpBelow = uniswapV3Inventory({ markPrice: 70, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
       const lpInside = uniswapV3Inventory({ markPrice: 100, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
       const lpAbove = uniswapV3Inventory({ markPrice: 130, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
@@ -125,6 +139,22 @@ def run_node_checks() -> list[dict]:
       const halfLife = meanReversionHalfLife({ costDistanceSeries: marketPath.map((item) => item.costDistance) })
       const gp = gammaPnl({ gamma: option?.gamma, priceChange: 5, positionSize: 2 })
       const vc = volConfidence({ annualVol: market.annualVol, sampleSize: 60 })
+      const dynamicHolding = deriveDynamicHoldingState({
+        zScore: -2.8,
+        halfLifeDays: 6,
+        entryPrice: 90,
+        anchorPrice: 100,
+        targetPrices: { costLower: 94, anchor: 100, lpUpper: 103 },
+        costSlopePct: 0,
+        drawdown: {
+          status: 'ok',
+          drawdownDepth: -0.22,
+          drawdownSpeed5: 0.002,
+          drawdownSpeed20: 0.04,
+          drawdownRepair: 0.22,
+          drawdownAge: { peakDays: 58, troughDays: 6 },
+        },
+      })
       const finite = (value) => Number.isFinite(value)
       const nonEmpty = (arr) => Array.isArray(arr) && arr.length > 0
       const pathFinite = (field) => formulaPath.some((row) => finite(row[field]))
@@ -159,6 +189,7 @@ def run_node_checks() -> list[dict]:
         'option-greeks': finite(option?.price) && finite(option?.delta) && finite(option?.gamma) && pathFinite('optionGamma'),
         'asian-option': finite(asian?.price) && finite(asian?.delta) && finite(bach?.price) && finite(bach?.delta),
         'lp-inventory': finite(lp?.token0) && finite(lp?.token1) && finite(lp?.value) && pathFinite('lpValue') && lpBelow?.zone === 'token0' && lpInside?.zone === 'range' && lpAbove?.zone === 'token1',
+        'lp-pool-coverage': finite(lpCoverage?.turnover24h) && finite(lpCoverage?.topReserveShare) && pathFinite('lpPoolTurnover24h') && pathFinite('lpPoolTopReserveShare'),
         'liquidity-fingerprint': nonEmpty(fingerprint?.segments) && fingerprint.inputMode === 'hybrid-model' && fingerprint.stats?.orderShare > 0 && Math.abs(fingerprint.segments.reduce((sum, seg) => sum + seg.weight, 0) - 1) < 1e-6,
         'amm-geometry': nonEmpty(amm?.points) && numoen?.status === 'protocol-unverified' && finite(numoen?.R0),
         'capital-efficiency': finite(ce?.efficiency) && ce.efficiency > 1 && pathFinite('capitalEfficiency'),
@@ -170,6 +201,7 @@ def run_node_checks() -> list[dict]:
         'net-lp-efficiency': finite(netLp?.totalNet),
         'net-carry': carry?.status === 'proxy-only' && finite(carry?.netReturn) && pathFinite('netCarry'),
         'mean-reversion': halfLife !== null && Object.prototype.hasOwnProperty.call(halfLife, 'halfLifeDays') && typeof halfLife.speed === 'string',
+        'dynamic-holding-state': dynamicHolding?.phase === 'repair-start' && nonEmpty(dynamicHolding?.milestones) && dynamicHolding?.holdingPlan?.shortTrade?.status === '观察',
         'gamma-pnl': finite(gp?.gammaPnl),
         'vol-confidence': finite(vc?.se) && finite(vc?.lower) && finite(vc?.upper),
       }

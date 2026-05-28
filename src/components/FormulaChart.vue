@@ -1,4 +1,5 @@
 <script setup>
+import FormulaFusionViews from './FormulaFusionViews.vue'
 import LiquidityFingerprintRack from './LiquidityFingerprintRack.vue'
 import { useFormulaChartModel } from '../composables/useFormulaChartModel.js'
 
@@ -17,8 +18,9 @@ const {
   greeksData, lpData, syH, lpV3Curve, lpV3Marker, lpRealMarker, lpV3Bounds, ceData,
   ceCurve, ceDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
   bachelierData, ammData, fingerprintData, devScoreData, normalCurve, zMarker,
-  riskSurfaceData, guide, mrData, decayCurve, hlMarker, gpData, gammaCurve,
-  gpMarker, vcData, orderData, W, H, PL, PR, PT, PB, pw, ph, sx, sy,
+  riskSurfaceData, lpPoolData, netLpData, netCarryData, guide, mrData, dynamicHoldingData,
+  decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, orderData,
+  W, H, PL, PR, pw, ph, sx, sy,
 } = useFormulaChartModel(props)
 </script>
 
@@ -315,24 +317,16 @@ const {
       <text :x="W-PR" :y="sy(0)+18" text-anchor="end" class="fc-tick">{{ fmt(riskSurfaceData.bandHigh) }}</text>
     </svg>
 
-    <!-- NET LP EFFICIENCY -->
-    <svg v-else-if="formulaId === 'net-lp-efficiency' && netLpData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">LP 净效率 · 研究层</text>
-      <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
-      <!-- CE gain bar -->
-      <rect x="80" :y="sy(netLpData.grossGain / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1))" width="50" :height="Math.max(2, (netLpData.grossGain / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) * ph)" fill="var(--green)" rx="2" opacity="0.7" />
-      <text x="105" :y="sy(netLpData.grossGain / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) - 4" text-anchor="middle" class="fc-tick" fill="var(--green)">CE +{{ netLpData.grossGain.toFixed(1) }}×</text>
-      <!-- IL loss bar -->
-      <rect v-if="netLpData.impermanentLoss < 0" x="160" y="60" width="50" :height="Math.max(2, (Math.abs(netLpData.impermanentLoss) / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) * ph)" fill="var(--red)" rx="2" opacity="0.7" />
-      <text v-if="netLpData.impermanentLoss < 0" x="185" y="56" text-anchor="middle" class="fc-tick" fill="var(--red)">IL {{ pctFmt(netLpData.impermanentLoss) }}</text>
-      <!-- Fee bar -->
-      <rect x="240" :y="sy(netLpData.feeBoost / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1))" width="50" :height="Math.max(2, (netLpData.feeBoost / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) * ph)" fill="var(--blue)" rx="2" opacity="0.6" />
-      <text x="265" :y="sy(netLpData.feeBoost / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) - 2" text-anchor="middle" class="fc-tick" fill="var(--blue)">Fee {{ netLpData.feeBoost.toFixed(2) }}×</text>
-      <!-- Net total line -->
-      <line :x1="PL" :x2="W-PR" :y1="sy(netLpData.totalNet / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1))" :y2="sy(netLpData.totalNet / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1))" stroke="var(--ink)" stroke-width="2" />
-      <text :x="W-PR" :y="sy(netLpData.totalNet / Math.max(netLpData.grossGain, Math.abs(netLpData.impermanentLoss), 0.1)) - 3" text-anchor="end" class="fc-tick">净 {{ netLpData.totalNet.toFixed(2) }}×</text>
-      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">CE {{ netLpData.ce.toFixed(1) }}×</text>
-    </svg>
+    <!-- FUSION CARDS -->
+    <FormulaFusionViews
+      v-else-if="formulaId === 'net-lp-efficiency' || formulaId === 'dynamic-holding-state' || formulaId === 'lp-pool-coverage'"
+      :formula-id="formulaId"
+      :net-lp-data="netLpData"
+      :lp-pool-data="lpPoolData"
+      :dynamic-holding-data="dynamicHoldingData"
+      :fmt="fmt"
+      :pct-fmt="pctFmt"
+    />
 
     <!-- NET CARRY -->
     <svg v-else-if="formulaId === 'net-carry' && netCarryData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
@@ -351,7 +345,7 @@ const {
     </svg>
 
     <!-- MEAN REVERSION -->
-    <svg v-else-if="formulaId === 'mean-reversion'" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
+    <svg v-else-if="formulaId === 'mean-reversion' && mrData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">均值回归 · 半衰期 {{ mrData.halfLifeDays !== null ? Math.round(mrData.halfLifeDays) + '天' : '∞' }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Decay curve: e^(-θ×t) -->
