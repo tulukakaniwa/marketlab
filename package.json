@@ -4,6 +4,11 @@
   "version": "0.0.0",
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "engines": {
+    "node": ">=20.10",
+    "pnpm": ">=11.1.2"
+  },
+  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "dev": "pnpm run generate:data && pnpm run generate:recommended-pool && vite",
     "build": "pnpm run generate:data && pnpm run generate:recommended-pool && pnpm run check:size && pnpm run check:domain-boundary && pnpm run check:data && pnpm run check:generated-data && pnpm run verify:domain && vite build",
