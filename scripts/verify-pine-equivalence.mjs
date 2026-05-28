@@ -11,7 +11,7 @@ export const DEFAULTS = {
   trading_days: 365,
   target_return_pct: 30,
   iv_override: 0,
-  lp_range_width: 0.10,
+  lp_range_width: 0.1,
   lp_skew: 1.0,
   profile: 'Balanced',
   auto_adapt: false,
@@ -64,9 +64,9 @@ export function pineEquivalent(rows, inputs = {}) {
   // log returns（最近 cost_len 期，从 cost_len+1 行算 cost_len 个收益）
   // 镜像 Pine: log_ret = close[1] > 0 ? math.log(close / close[1]) : 0.0
   const bandRows = rows.slice(-(opts.cost_len + 1))
-  const logRets = bandRows.slice(1).map((row, i) =>
-    bandRows[i].close > 0 ? Math.log(row.close / bandRows[i].close) : 0,
-  )
+  const logRets = bandRows
+    .slice(1)
+    .map((row, i) => (bandRows[i].close > 0 ? Math.log(row.close / bandRows[i].close) : 0))
   const vol_estimate = sampleStdev(logRets) * Math.sqrt(Math.min(opts.recent_len, logRets.length))
   const min_band = Math.max(vol_estimate * 0.25, 0.005)
   const band_width = Math.max(vol_estimate, min_band)
@@ -80,9 +80,7 @@ export function pineEquivalent(rows, inputs = {}) {
   // annual vol（用 vol_len 个收益，sample stdev n-1）
   // 镜像 Pine 的零价格保护
   const volRows = rows.slice(-(opts.vol_len + 1))
-  const volRets = volRows.slice(1).map((row, i) =>
-    volRows[i].close > 0 ? Math.log(row.close / volRows[i].close) : 0,
-  )
+  const volRets = volRows.slice(1).map((row, i) => (volRows[i].close > 0 ? Math.log(row.close / volRows[i].close) : 0))
   const annual_vol = Math.max(sampleStdev(volRets) * Math.sqrt(opts.trading_days), 0.01)
 
   // atr_pct（simple mean SMA 14，对齐 Pine ta.sma(true_range, 14)）
@@ -95,13 +93,22 @@ export function pineEquivalent(rows, inputs = {}) {
   const effective_iv = opts.iv_override > 0 ? opts.iv_override : annual_vol
   const wave_raw = effective_iv * Math.sqrt(opts.holding_days / (opts.trading_days * 2 * Math.PI))
   const wave = Math.min(wave_raw, 0.99)
-  let long_cost = NaN, long_high = NaN, long_low = NaN
+  let long_cost = NaN,
+    long_high = NaN,
+    long_low = NaN
+  let short_cost = NaN,
+    short_high = NaN,
+    short_low = NaN
   if (wave > 0 && wave < 1 && cost_anchor > 0) {
     const long_ratio = ((1 + wave) / (1 - wave)) ** 2
     // 网站 formulaPath.js: entryPrice = bandAnchor (cost_anchor)，不是 close
-    long_cost = cost_anchor * (target_return * long_ratio - target_return + 1) ** 2 / long_ratio
+    long_cost = (cost_anchor * (target_return * long_ratio - target_return + 1) ** 2) / long_ratio
     long_high = long_cost * long_ratio
     long_low = long_cost / long_ratio
+    const short_ratio = 1 / long_ratio
+    short_cost = (cost_anchor * (target_return * short_ratio - target_return + 1) ** 2) / short_ratio
+    short_high = short_cost / short_ratio
+    short_low = short_cost * short_ratio
   }
 
   // z score（用 holding 周期化）
@@ -111,12 +118,16 @@ export function pineEquivalent(rows, inputs = {}) {
 
   // Abramowitz 7.1.26 erf 近似（Pine 用同一套常数）
   const normCdfAbs = (x) => {
-    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741
-    const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911
+    const a1 = 0.254829592,
+      a2 = -0.284496736,
+      a3 = 1.421413741
+    const a4 = -1.453152027,
+      a5 = 1.061405429,
+      p = 0.3275911
     const signX = x >= 0 ? 1 : -1
     const absX = Math.abs(x)
     const t = 1 / (1 + p * absX)
-    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX)
+    const y = 1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX)
     return 0.5 * (1 + signX * y)
   }
   const z_abs = Math.abs(z_score)
@@ -124,11 +135,23 @@ export function pineEquivalent(rows, inputs = {}) {
   const match_pct = z_abs >= 8 ? 1 : Math.max(0, Math.min(1, 2 * phi_z - 1))
 
   return {
-    cost_anchor, cost_low, cost_high,
-    lp_lower, lp_upper,
-    annual_vol, atr_pct,
-    long_cost, long_high, long_low,
-    z_score, cost_distance, period_vol, match_pct,
+    cost_anchor,
+    cost_low,
+    cost_high,
+    lp_lower,
+    lp_upper,
+    annual_vol,
+    atr_pct,
+    long_cost,
+    long_high,
+    long_low,
+    short_cost,
+    short_high,
+    short_low,
+    z_score,
+    cost_distance,
+    period_vol,
+    match_pct,
     band_width,
     last_close: last.close,
   }
@@ -136,7 +159,7 @@ export function pineEquivalent(rows, inputs = {}) {
 
 // CLI 用法：node scripts/verify-pine-equivalence.mjs public/data/GOOG-1d.csv
 // pathToFileURL 处理 Windows 三斜杠（file:///F:/...）和 Unix 差异
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const { readFileSync } = await import('node:fs')
   const { resolve } = await import('node:path')
   const { parseCsvText } = await import('../src/domain/market-data/ohlcv.js')

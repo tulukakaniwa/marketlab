@@ -5,18 +5,26 @@ import { buildMarketState } from '../domain/market-data/cost.js'
 import { getDeltaBands } from '../domain/formulas/options.js'
 import { deviationScore } from '../domain/formulas/core.js'
 import { normalCdf } from '../domain/formulas/probability.js'
+import { inferTdpy } from '../domain/market-data/tdpy.js'
 
-function jsGetDeltaBand(market, costAnchor) {
+function jsGetDeltaBand(market, costAnchor, tradingDaysPerYear) {
   // 镜像 formulaPath.js:51-57: entryPrice 用 cost_anchor，不是 close
   const r = getDeltaBands({
     entryPrice: costAnchor,
     holdingDays: 30,
     iv: market.annualVol,
-    targetReturn: 0.30,
+    targetReturn: 0.3,
     z: 1,
-    tradingDaysPerYear: 365,
+    tradingDaysPerYear,
   })
-  return { longCost: r.long.cost, longHigh: r.long.high, longLow: r.long.low }
+  return {
+    longCost: r.long.cost,
+    longHigh: r.long.high,
+    longLow: r.long.low,
+    shortCost: r.short.cost,
+    shortHigh: r.short.high,
+    shortLow: r.short.low,
+  }
 }
 
 const FIXTURES = [
@@ -31,8 +39,13 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-9)
 for (const { symbol, path } of FIXTURES) {
   describe(`Pine ↔ JS alignment: ${symbol}`, () => {
     const rows = loadCsv(path)
-    const jsRef = buildMarketState(rows, 365)
-    const pine = pineEquivalent(rows)
+    const tdpy = inferTdpy({ symbol }).value
+    const jsRef = buildMarketState(rows, tdpy)
+    const pine = pineEquivalent(rows, { trading_days: tdpy })
+
+    it('使用网站推导的交易日年化口径', () => {
+      expect(tdpy).toBe(symbol === 'BTCUSDT' ? 365 : symbol === '600519' ? 242 : 252)
+    })
 
     it('cost_anchor 差异 < 0.05%', () => {
       expect(rel(pine.cost_anchor, jsRef.costAnchor)).toBeLessThan(0.0005)
@@ -50,10 +63,16 @@ for (const { symbol, path } of FIXTURES) {
       expect(rel(pine.cost_high, jsRef.costHigh)).toBeLessThan(0.001)
     })
     it('GetDelta long band 差异 < 0.30%', () => {
-      const { longCost, longHigh, longLow } = jsGetDeltaBand(jsRef, jsRef.costAnchor)
+      const { longCost, longHigh, longLow } = jsGetDeltaBand(jsRef, jsRef.costAnchor, tdpy)
       expect(rel(pine.long_cost, longCost)).toBeLessThan(0.003)
       expect(rel(pine.long_high, longHigh)).toBeLessThan(0.003)
       expect(rel(pine.long_low, longLow)).toBeLessThan(0.003)
+    })
+    it('GetDelta short band 差异 < 0.30%', () => {
+      const { shortCost, shortHigh, shortLow } = jsGetDeltaBand(jsRef, jsRef.costAnchor, tdpy)
+      expect(rel(pine.short_cost, shortCost)).toBeLessThan(0.003)
+      expect(rel(pine.short_high, shortHigh)).toBeLessThan(0.003)
+      expect(rel(pine.short_low, shortLow)).toBeLessThan(0.003)
     })
     it('lp_lower / lp_upper 差异 < 0.05%', () => {
       // 用 PINE_DEFAULTS 而非硬编码：默认值改动时测试会自然跟随，避免静默通过
@@ -67,7 +86,7 @@ for (const { symbol, path } of FIXTURES) {
         costDistance: jsRef.costDistance,
         annualVol: jsRef.annualVol,
         holdingDays: 30,
-        tradingDaysPerYear: 365,
+        tradingDaysPerYear: tdpy,
       })
       const zAbs = Math.abs(dev.z)
       // normalCdf(zAbs) 内部做 z=|x|/√2；等价于 Pine 的 norm_cdf_abs(z_abs/sqrt(2))
@@ -90,7 +109,7 @@ describe('iv_override 切换语义', () => {
     const userIv = 0.221
     const result = pineEquivalent(rows, { iv_override: userIv })
     // 镜像 formulaPath.js: entryPrice = bandAnchor (cost_anchor)
-    const ref = jsGetDeltaBand({ annualVol: userIv }, result.cost_anchor)
+    const ref = jsGetDeltaBand({ annualVol: userIv }, result.cost_anchor, PINE_DEFAULTS.trading_days)
     expect(rel(result.long_cost, ref.longCost)).toBeLessThan(0.003)
     expect(rel(result.long_high, ref.longHigh)).toBeLessThan(0.003)
     expect(rel(result.long_low, ref.longLow)).toBeLessThan(0.003)

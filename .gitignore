@@ -20,6 +20,8 @@ lerna-debug.log*
 .env.*
 !.env.example
 *.local
+.venv/
+.agents/
 
 # Vite / test caches
 .vite/

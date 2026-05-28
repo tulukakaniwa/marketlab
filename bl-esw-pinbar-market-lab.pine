@@ -302,6 +302,9 @@ plotcandle(p_open, pin_high, p_low_candle, p_close, title="Pinbar Black Overlay"
 // ============================================================
 var table lab_table = table.new(position.top_right, 2, 10, border_width=1)
 
+if barstate.islast
+    table.clear(lab_table, 0, 0, 1, 9)
+
 if barstate.islast and show_lab and show_lab_panel
     state_color = lab_buy ? color.new(#10b981, 15) : lab_sell ? color.new(#f97316, 15) : lab_deep_discount ? color.new(#7c3aed, 75) : lab_overheat ? color.new(#dc2626, 75) : lab_wait_stop ? color.new(#0891b2, 75) : color.new(color.gray, 88)
     table.cell(lab_table, 0, 0, "Market Lab", text_color=color.white, bgcolor=color.black)
@@ -332,6 +335,9 @@ if barstate.islast and show_lab and show_lab_panel
 // Legend（5 类核心信号）
 // ============================================================
 var table legend_table = table.new(position.bottom_right, 2, 6, border_width=1)
+if barstate.islast
+    table.clear(legend_table, 0, 0, 1, 5)
+
 if barstate.islast and show_lab and show_legend
     table.cell(legend_table, 0, 0, "Symbol", text_color=color.white, bgcolor=color.black)
     table.cell(legend_table, 1, 0, "Meaning", text_color=color.white, bgcolor=color.black)
