@@ -115,11 +115,11 @@ function pctSign(v) {
         @set="(id) => emit('set-profile', id)"
         @set-auto="(v) => emit('set-auto-profile', v)"
       />
-      <button class="tb-theme" type="button" @click="$emit('toggle-theme')" title="切换主题">
+      <button class="tb-theme" type="button" title="切换主题" @click="$emit('toggle-theme')">
         <Moon v-if="theme === 'light'" :size="14" />
         <Sun v-else :size="14" />
       </button>
-      <button class="tb-reset" type="button" @click="$emit('reset')" title="清空持久化参数">重置</button>
+      <button class="tb-reset" type="button" title="清空持久化参数" @click="$emit('reset')">重置</button>
     </div>
     <div v-if="isMobile" class="tb-overflow-wrap">
       <button

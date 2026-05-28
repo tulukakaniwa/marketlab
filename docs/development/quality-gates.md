@@ -29,6 +29,14 @@ pnpm run check:size
 
 This enforces the `src/` file-size rule. If a source file grows past the limit, split by responsibility instead of hiding the warning.
 
+## Domain Boundary Check
+
+```bash
+pnpm run check:domain-boundary
+```
+
+Enforces the DDD boundary in `AGENTS.md`: `src/domain/` may not import Vue, Pinia, or chart libraries. If a file under `src/domain/` needs framework features, move it to `src/composables/` or `src/stores/` first.
+
 ## Full Build Gate
 
 ```bash
@@ -39,10 +47,11 @@ The build runs:
 
 1. generated data refresh
 2. size check
-3. data index check
-4. generated data check
-5. domain verification
-6. Vite production build
+3. domain boundary check
+4. data index check
+5. generated data check
+6. domain verification
+7. Vite production build
 
 ## Pine Gate
 
@@ -67,6 +76,46 @@ Use this when formula evidence, source status, formula wiring, or chart coverage
 - Components: `src/components/__tests__/`.
 - Composables: `src/composables/__tests__/`.
 - Store orchestration: `src/stores/__tests__/`.
+
+## Lint and Format
+
+```bash
+pnpm run lint           # ESLint full scan (warnings allowed, 0 errors required)
+pnpm run lint:fix       # auto-fix what's auto-fixable
+pnpm run format         # Prettier write all files
+pnpm run format:check   # Prettier check only
+```
+
+Husky pre-commit runs `lint-staged` automatically, scoped to changed files.
+
+## Coverage Gate
+
+```bash
+pnpm run test:cov
+```
+
+Runs Vitest with V8 coverage, scoped to `src/domain/**`. Writes `coverage/` (text report to terminal, HTML to `coverage/index.html`, JSON summary). Thresholds enforced:
+
+| metric     | threshold |
+| ---------- | --------- |
+| lines      | 80%       |
+| statements | 75%       |
+| functions  | 85%       |
+| branches   | 60%       |
+
+Drop below any of these and the command exits non-zero. Thresholds sit slightly under the current baseline (lines 82.21% / statements 76.44% / functions 89.11% / branches 64.2% as of 2026-05) so accidents are caught early but normal feature work is not blocked.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push to `main` and every PR:
+
+1. `pnpm install --frozen-lockfile`
+2. `pnpm run lint`
+3. `pnpm test`
+4. `pnpm run build`
+5. `pnpm run verify:pine` (only when Pine files changed)
+
+Skipped on commits that only touch `public/data/**`, `src/data/stock-index.json`, `src/data/lp-onchain-snapshots.json`, `docs/**`, or top-level `*.md` files.
 
 ## Before Merge
 

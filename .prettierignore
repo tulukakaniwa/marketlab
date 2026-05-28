@@ -1,0 +1,11 @@
+dist/
+node_modules/
+src/data/generated/
+src/data/.generated-*/
+src/data/recommended-pools/
+src/data/recommended-pool-latest.json
+public/recommended-pool/
+coverage/
+pnpm-lock.yaml
+*.pine
+LICENSE

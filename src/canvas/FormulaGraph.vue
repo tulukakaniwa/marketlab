@@ -61,8 +61,8 @@ function edgeAlpha(edge) {
       :key="node.id"
       class="gn-node"
       :transform="`translate(${node.x}, ${node.y})`"
-      @click="emit('select-stage', node.stage.id)"
       :style="{ cursor: 'pointer' }"
+      @click="emit('select-stage', node.stage.id)"
     >
       <rect
         x="0" y="0"

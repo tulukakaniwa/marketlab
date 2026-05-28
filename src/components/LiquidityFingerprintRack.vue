@@ -116,7 +116,7 @@ function pct(value) {
   </aside>
 
   <Teleport to="body">
-    <div v-if="expanded" class="lf-modal" @click.self="closeExpanded" @keydown.esc="closeExpanded" tabindex="-1">
+    <div v-if="expanded" class="lf-modal" tabindex="-1" @click.self="closeExpanded" @keydown.esc="closeExpanded">
       <section class="lf-panel">
         <header class="lf-panel-head">
           <div>
@@ -124,13 +124,13 @@ function pct(value) {
             <strong>{{ expandedModel.meta.title }} / 密度 / 挂单刻度</strong>
           </div>
           <div class="lf-toolbar">
-            <button type="button" title="缩小" @click="zoomBy(-1)" :disabled="zoom <= 0">
+            <button type="button" title="缩小" :disabled="zoom <= 0" @click="zoomBy(-1)">
               <Minus :size="15" />
             </button>
             <button type="button" title="重置" @click="resetZoom">
               <RotateCcw :size="15" />
             </button>
-            <button type="button" title="放大" @click="zoomBy(1)" :disabled="zoom >= 3">
+            <button type="button" title="放大" :disabled="zoom >= 3" @click="zoomBy(1)">
               <Plus :size="15" />
             </button>
             <button type="button" title="关闭" @click="closeExpanded">

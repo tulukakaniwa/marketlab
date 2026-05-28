@@ -1,6 +1,6 @@
 import { computed } from 'vue'
-import { formulaStages } from '../formulas/registry.js'
-import { ammCurve, asianOption, bachelierOption, deviationScore, gammaPnl, liquidityFingerprint, meanReversionHalfLife, netCarry, netLpEfficiency, numoenSnapshot, riskSurface, volConfidence } from '../formulas/core.js'
+import { formulaStages } from '../domain/formulas/registry.js'
+import { ammCurve, asianOption, bachelierOption, deviationScore, gammaPnl, liquidityFingerprint, meanReversionHalfLife, netCarry, netLpEfficiency, numoenSnapshot, riskSurface, volConfidence } from '../domain/formulas/core.js'
 
 export function useFormulaChartModel(props) {
   const stage = computed(() => formulaStages.find((s) => s.id === props.formulaId))

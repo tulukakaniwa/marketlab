@@ -247,7 +247,7 @@ const rootStyle = computed(() => ({
 
     <p v-if="lab.error" class="err-bar" :class="`kind-${lab.error.kind}`">
       <span class="err-msg">{{ lab.error.message }}</span>
-      <button v-if="lab.error.sample" class="err-btn" @click="lab.retryLast()" :disabled="lab.loading">
+      <button v-if="lab.error.sample" class="err-btn" :disabled="lab.loading" @click="lab.retryLast()">
         {{ lab.loading ? '重试中…' : '重试' }}
       </button>
       <button class="err-btn err-dismiss" @click="lab.dismissError()">关闭</button>
