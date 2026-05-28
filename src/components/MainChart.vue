@@ -487,11 +487,10 @@ function onMobileTap(e) {
 .main-chart-shell { position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
 .main-chart-canvas { width: 100%; height: 100%; }
 
-/* 移动端：保证主图至少占 60vh。 */
+/* 移动端：在父容器够高时主图铺满（继承桌面 height: 100%），父容器若意外塌缩，60vh 兜底。 */
 @media (max-width: 768px) {
   .main-chart-shell {
     min-height: 60vh;
-    height: auto;
   }
   .main-chart-canvas { min-height: 60vh; }
 }

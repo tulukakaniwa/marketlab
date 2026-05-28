@@ -48,6 +48,9 @@ page-snapshot*.md
 *-loaded.png
 fullpage-*.png
 result-panel-*.png
+
+# AI 工作流过程产物（plan/spec/draft），不进仓库
+docs/superpowers/
 market-lab-*.png
 
 # Editor directories and files

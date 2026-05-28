@@ -18,7 +18,7 @@ export const formulaEvidenceCatalog = [
   entry('net-lp-efficiency', 'heuristic', 'research-only', false, ['capitalEfficiency', 'impermanentLoss', 'feeRate'], ['totalNet'], [], ['fee-model', 'rebalance-rules']),
   entry('net-carry', 'heuristic', 'proxy-only', false, ['costDistance', 'fundingProxy'], ['netReturn'], [], ['exchange-schedule']),
   entry('mean-reversion', 'heuristic', 'implemented', false, ['costDistanceSeries'], ['halfLife'], []),
-  entry('dynamic-holding-state', 'heuristic', 'implemented', false, ['drawdownDepth', 'zScore', 'halfLife', 'costAnchor', 'lpUpper'], ['phase', 'milestones', 'holdingPlan'], []),
+  entry('dynamic-holding-state', 'heuristic', 'implemented', false, ['drawdownDepth', 'drawdownSpeed', 'drawdownRepair', 'zScore', 'halfLifeDays', 'costLower', 'costAnchor', 'lpUpper'], ['phase', 'milestones', 'expectation', 'holdingPlan', 'blockedReasons'], []),
   entry('gamma-pnl', 'paper', 'implemented', false, ['gamma', 'priceChange'], ['gammaPnl'], ['black-scholes-1973']),
   entry('vol-confidence', 'heuristic', 'implemented', false, ['annualVol', 'sampleSize'], ['confidenceRange'], []),
 ]
