@@ -88,6 +88,40 @@ pnpm run format:check   # Prettier check only
 
 Husky pre-commit runs `lint-staged` automatically, scoped to changed files.
 
+## Coverage Gate
+
+```bash
+pnpm run test:cov
+```
+
+Runs Vitest with V8 coverage, scoped to `src/domain/**`. Writes `coverage/` (text report to terminal, HTML to `coverage/index.html`, JSON summary). Thresholds enforced:
+
+| metric     | threshold |
+| ---------- | --------- |
+| lines      | 80%       |
+| statements | 75%       |
+| functions  | 85%       |
+| branches   | 60%       |
+
+Drop below any of these and the command exits non-zero. Thresholds sit slightly under the current baseline (lines 82.21% / statements 76.44% / functions 89.11% / branches 64.2% as of 2026-05) so accidents are caught early but normal feature work is not blocked.
+
+## Coverage Gate
+
+```bash
+pnpm run test:cov
+```
+
+Runs Vitest with V8 coverage, scoped to `src/domain/**`. Writes `coverage/` (text report to terminal, HTML to `coverage/index.html`, JSON summary). Thresholds enforced:
+
+| metric     | threshold |
+| ---------- | --------- |
+| lines      | 80%       |
+| statements | 75%       |
+| functions  | 85%       |
+| branches   | 60%       |
+
+Drop below any of these and the command exits non-zero. Thresholds sit slightly under the current baseline (lines 82.21% / statements 76.44% / functions 89.11% / branches 64.2% as of 2026-05) so accidents are caught early but normal feature work is not blocked.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every push to `main` and every PR:

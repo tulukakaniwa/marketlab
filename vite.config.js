@@ -30,5 +30,20 @@ export default defineConfig({
     setupFiles: ['./src/test/setupLocalStorage.js'],
     include: ['src/**/*.{test,spec}.{js,mjs}'],
     exclude: ['node_modules', 'dist'],
+    coverage: {
+      // 仅守 src/domain/，因为它是业务/公式核心
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      include: ['src/domain/**/*.{js,mjs}'],
+      exclude: ['src/domain/**/__tests__/**', 'src/domain/**/*.{test,spec}.{js,mjs}'],
+      // 阈值锁在略低于当前 baseline 的位置，防止退化但不阻塞日常开发
+      // 当前 baseline（2026-05）：lines 82.21% / statements 76.44% / functions 89.11% / branches 64.2%
+      thresholds: {
+        lines: 80,
+        statements: 75,
+        functions: 85,
+        branches: 60,
+      },
+    },
   },
 })

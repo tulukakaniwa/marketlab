@@ -28,6 +28,7 @@
     "check:domain-boundary": "node scripts/check-domain-boundaries.mjs",
     "test": "pnpm run generate:data && vitest run",
     "test:watch": "pnpm run generate:data && vitest",
+    "test:cov": "pnpm run generate:data && vitest run --coverage",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -54,6 +55,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/coverage-v8": "^4.1.7",
     "@vue/test-utils": "^2.4.10",
     "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
