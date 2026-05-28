@@ -77,6 +77,29 @@ Use this when formula evidence, source status, formula wiring, or chart coverage
 - Composables: `src/composables/__tests__/`.
 - Store orchestration: `src/stores/__tests__/`.
 
+## Lint and Format
+
+```bash
+pnpm run lint           # ESLint full scan (warnings allowed, 0 errors required)
+pnpm run lint:fix       # auto-fix what's auto-fixable
+pnpm run format         # Prettier write all files
+pnpm run format:check   # Prettier check only
+```
+
+Husky pre-commit runs `lint-staged` automatically, scoped to changed files.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push to `main` and every PR:
+
+1. `pnpm install --frozen-lockfile`
+2. `pnpm run lint`
+3. `pnpm test`
+4. `pnpm run build`
+5. `pnpm run verify:pine` (only when Pine files changed)
+
+Skipped on commits that only touch `public/data/**`, `src/data/stock-index.json`, `src/data/lp-onchain-snapshots.json`, `docs/**`, or top-level `*.md` files.
+
 ## Before Merge
 
 Run:
