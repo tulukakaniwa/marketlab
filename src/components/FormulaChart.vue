@@ -227,8 +227,10 @@ const {
         <text :x="PL" :y="H-4" class="fc-tick">组合曲线: 黑 combined · 绿 LP · 蓝 option · 红 hedge</text>
       </g>
       <!-- Waterfall bars -->
-      <rect v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars" :key="i" :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="bar.fill" rx="2" />
-      <text v-if="!portfolioCurves" v-for="(bar, i) in waterfallBars" :key="'t'+i" :x="bar.x + bar.w/2" :y="bar.y - 4" text-anchor="middle" class="fc-tick">{{ bar.label }} {{ fmt(bar.val) }}</text>
+      <template v-if="!portfolioCurves">
+        <rect v-for="(bar, i) in waterfallBars" :key="i" :x="bar.x" :y="bar.y" :width="bar.w" :height="bar.h" :fill="bar.fill" rx="2" />
+        <text v-for="(bar, i) in waterfallBars" :key="'t'+i" :x="bar.x + bar.w/2" :y="bar.y - 4" text-anchor="middle" class="fc-tick">{{ bar.label }} {{ fmt(bar.val) }}</text>
+      </template>
     </svg>
 
     <!-- ORDER PLAN -->
@@ -253,7 +255,7 @@ const {
           <div><b>失效上沿</b><span>{{ fmt(props.graph.plan?.invalidation?.upper) }}</span></div>
           <div><b>缺失输入</b><span>{{ props.graph.decision?.missingInputs?.join(' / ') || '无' }}</span></div>
         </div>
-        <div class="fc-meta" v-if="props.graph.decision?.invalidations?.length">
+        <div v-if="props.graph.decision?.invalidations?.length" class="fc-meta">
           <div v-for="(inv, idx) in props.graph.decision.invalidations" :key="idx">• {{ inv }}</div>
         </div>
       </div>

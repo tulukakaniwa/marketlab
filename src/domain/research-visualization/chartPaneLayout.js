@@ -51,7 +51,7 @@ export function buildPaneLayout({ volume, greeks, lp, carry, equity, kdj, rsi })
   if (carry) layout.carry = next++
   if (equity) layout.equity = next++
   if (kdj) layout.kdj = next++
-  if (rsi) layout.rsi = next++
+  if (rsi) layout.rsi = next
   return layout
 }
 

@@ -108,8 +108,8 @@ function tierTitle(kind) {
             { kind: 'focus', items: focusItems },
             { kind: 'wait', items: waitItems },
           ]"
-          :key="group.kind"
           v-show="!isMobile || mobileTab === group.kind"
+          :key="group.kind"
           class="pool-group"
         >
           <h2>{{ tierTitle(group.kind) }}</h2>

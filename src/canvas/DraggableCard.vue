@@ -55,13 +55,13 @@ const style = computed(() =>
     :class="{ detached, minimized, dragging }"
     :style="style"
   >
-    <div class="dnd-bar" @mousedown="onDragStart" data-card-drag>
+    <div class="dnd-bar" data-card-drag @mousedown="onDragStart">
       <GripVertical :size="14" class="dnd-grip" />
       <span class="dnd-title">{{ title }}</span>
-      <button type="button" class="dnd-act" @click.stop="minimized = !minimized" :title="minimized ? '展开' : '最小化'">
+      <button type="button" class="dnd-act" :title="minimized ? '展开' : '最小化'" @click.stop="minimized = !minimized">
         <Minimize2 :size="13" />
       </button>
-      <button type="button" class="dnd-act" @click.stop="detached = !detached" :title="detached ? '停靠' : '分离'">
+      <button type="button" class="dnd-act" :title="detached ? '停靠' : '分离'" @click.stop="detached = !detached">
         <X :size="13" :style="{ transform: detached ? 'none' : 'rotate(45deg)' }" />
       </button>
     </div>

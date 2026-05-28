@@ -9,7 +9,7 @@ defineProps({
 <template>
   <div class="cot-grid">
     <label v-for="t in CHART_OVERLAY_TOGGLES" :key="t.key" class="cot-row">
-      <input type="checkbox" v-model="overlays[t.key]" />
+      <input v-model="overlays[t.key]" type="checkbox" />
       <span>{{ t.label }}</span>
     </label>
   </div>
