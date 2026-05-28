@@ -36,7 +36,7 @@ export const useLabStore = defineStore('lab', () => {
   const { rows, cursor } = data
   const observationDates = persistedReactive('lab.observationDates.v1', {})
   const sourceKey = computed(() => data.source.value?.id ?? data.source.value?.symbol ?? data.source.value?.label ?? '')
-  const observationDate = computed(() => sourceKey.value ? (observationDates[sourceKey.value] ?? '') : '')
+  const observationDate = computed(() => (sourceKey.value ? (observationDates[sourceKey.value] ?? '') : ''))
 
   // 3. tdpy：按品种自动 + 用户覆盖
   const tdpyMeta = computed(() => inferTdpy(data.source.value))
@@ -55,7 +55,7 @@ export const useLabStore = defineStore('lab', () => {
 
   // 5. 市场态只吃事实输入；不被回放或研究层反向污染。
   const marketState = useMarketState(rows, cursor, baseInput)
-  const activeMarketStates = computed(() => marketState.marketStateFull.value.slice(0, cursor.value + 1))
+  const activeMarketStates = computed(() => marketState.marketStateActive.value)
 
   // 6. ReplayAccount 是显式开启的旁路查询；只有 replayAutoProfile 打开才参与 profile 选择。
   const replayLayer = useReplay(marketState.activeRows, input, baseInput, activeMarketStates, planning.featureFlags)
@@ -63,17 +63,20 @@ export const useLabStore = defineStore('lab', () => {
   const effectiveInput = computed(() => ({
     ...baseInput.value,
     lpOnchainSnapshot: resolveLpOnchainSnapshot(data.source.value, lpOnchainSnapshots),
-    strategyProfile: planning.featureFlags.replayAccount && planning.featureFlags.replayAutoProfile
-      ? replayLayer.recommendedProfile.value.id
-      : input.strategyProfile,
+    strategyProfile:
+      planning.featureFlags.replayAccount && planning.featureFlags.replayAutoProfile
+        ? replayLayer.recommendedProfile.value.id
+        : input.strategyProfile,
   }))
 
   // 7. 默认条件图 + 研究层快照并列组合。
   //    StrategyPlanning 不直接依赖研究层，facade 只为 UI 组装查询模型。
-  const planningGraph = computed(() => buildDecisionGraph({
-    market: marketState.market.value,
-    input: effectiveInput.value,
-  }))
+  const planningGraph = computed(() =>
+    buildDecisionGraph({
+      market: marketState.market.value,
+      input: effectiveInput.value,
+    }),
+  )
   const researchGraph = computed(() => {
     if (!marketState.market.value || !planningGraph.value?.inputs) return null
     return buildResearchSnapshot({
@@ -101,10 +104,10 @@ export const useLabStore = defineStore('lab', () => {
   })
 
   function syncInputFromCursor() {
-    const currentRows = rows.value
+    const currentRows = rows.value.slice(0, cursor.value + 1)
     if (!currentRows.length) return
     const tdpy = effectiveTdpy.value
-    const market = buildMarketStatePath(currentRows, tdpy)[cursor.value]
+    const market = buildMarketStatePath(currentRows, tdpy).at(-1)
     if (!market) return
     input.entryPrice = round(market.markPrice, 2)
     input.iv = round(market.annualVol, 4)
@@ -166,7 +169,9 @@ export const useLabStore = defineStore('lab', () => {
     hoverIndex.value = Math.max(0, Math.min(len - 1, Math.round(n)))
   }
   // 切换品种 → 清空 hoverIndex，避免脏索引
-  watch(rows, () => { hoverIndex.value = null })
+  watch(rows, () => {
+    hoverIndex.value = null
+  })
 
   const isHovering = computed(() => hoverIndex.value !== null)
   const hoverRow = computed(() => {
@@ -183,7 +188,7 @@ export const useLabStore = defineStore('lab', () => {
   const hoverMarket = computed(() => {
     const idx = hoverIndex.value
     if (idx === null) return marketState.market.value
-    return marketState.marketStateFull.value[idx] ?? marketState.market.value
+    return marketState.marketStateActive.value[idx] ?? marketState.market.value
   })
   const hoverFormulaRow = computed(() => {
     const idx = hoverIndex.value
