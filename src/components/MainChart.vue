@@ -1,25 +1,17 @@
 <script setup>
-import {
-  CandlestickSeries,
-  HistogramSeries,
-  LineSeries,
-  LineStyle,
-  createChart,
-  createSeriesMarkers,
-} from 'lightweight-charts'
+import { createChart } from 'lightweight-charts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChartStatusBar from './ChartStatusBar.vue'
 import MainChartHoverLegend from './MainChartHoverLegend.vue'
 import StockChipProfileOverlay from './StockChipProfileOverlay.vue'
-import { SERIES_META } from './mainChartLegendMeta.js'
 import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
-import { resolveChartOverlayPlan } from '../domain/research-visualization/chartPaneLayout.js'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
 import { useStockChipViewport } from '../composables/useStockChipViewport.js'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
 import { buildChartOptions, finiteOrNull, regimeColor, themeOptions } from '../composables/mainChartTheme.js'
 import { useMainChartLegend } from '../composables/useMainChartLegend.js'
+import { useMainChartSeries } from '../composables/useMainChartSeries.js'
 
 const { isMobile } = useBreakpoint()
 
@@ -40,19 +32,20 @@ const emit = defineEmits(['cursor-change', 'param-change'])
 const el = ref(null)
 const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== false)
 let chart = null
-let markersApi = null
 let themeObserver = null
-const series = {} // 当前已挂载的 series 实例
-const seriesMeta = {} // 每个 series 的展示 metadata（title/color/unit/group）
 let resizeObserver = null
-let paneLayout = { main: 0 }
-let overlayPlan = null
-let paneLayoutSignature = ''
+
+const chartSeries = useMainChartSeries({
+  getChart: () => chart,
+  getProps: () => props,
+})
+const { series, seriesMeta, applyOverlays, getPaneLayout, getMarkersApi } = chartSeries
+
 const stockChipViewport = useStockChipViewport({
   getChart: () => chart,
   getSeries: () => series,
   getRows: () => props.rows,
-  getPaneIndex: () => paneLayout.main,
+  getPaneIndex: () => getPaneLayout().main,
   isEnabled: () => showStockChipProfile.value,
 })
 const {
@@ -113,289 +106,13 @@ watch(showStockChipProfile, (on) => {
   }
 })
 
-function applyOverlays() {
-  if (!chart) return
-  overlayPlan = resolveChartOverlayPlan({ overlays: props.overlays, formulaPath: props.formulaPath })
-  const nextLayout = overlayPlan.panes
-  const nextSignature = JSON.stringify(nextLayout)
-  if (nextSignature !== paneLayoutSignature) {
-    resetOverlaySeries()
-    paneLayoutSignature = nextSignature
-  }
-  paneLayout = nextLayout
-  // 蜡烛 + 量始终存在；用 visibility 控制其它项
-  ensure('candle', () =>
-    chart.addSeries(CandlestickSeries, {
-      upColor: '#0e7558',
-      downColor: '#a93226',
-      borderVisible: false,
-      wickUpColor: '#0e7558',
-      wickDownColor: '#a93226',
-      priceLineVisible: false,
-    }),
-  )
-  toggle('cost', overlayPlan.price.costBand, () => addLine('成本锚', '#0e7558', 2))
-  toggle('costUpper', overlayPlan.price.costBand, () => addLine('成本上沿', '#8b5a16', 1, LineStyle.Dashed))
-  toggle('costLower', overlayPlan.price.costBand, () => addLine('成本下沿', '#274f9f', 1, LineStyle.Dashed))
-  toggle('deltaUpper', overlayPlan.price.deltaBand, () => addLine('GetDelta 上沿', '#9a4f00', 1, LineStyle.Dotted))
-  toggle('deltaLower', overlayPlan.price.deltaBand, () => addLine('GetDelta 下沿', '#1f5fbf', 1, LineStyle.Dotted))
-  toggle('lpLower', overlayPlan.price.lpBand, () => addLine('LP区间下沿', '#7a5cff', 1, LineStyle.Dashed))
-  toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('LP区间上沿', '#7a5cff', 1, LineStyle.Dashed))
-  toggle('lpRealPrice', overlayPlan.price.lpRealPrice, () => addLine('链上池价', '#8b5a16', 2, LineStyle.Dotted))
-  toggle('entry', overlayPlan.price.entryLine, () => addLine('入场', '#b3261e', 1, LineStyle.Dotted))
-  toggle('volume', overlayPlan.paneOn.volume, () =>
-    chart.addSeries(
-      HistogramSeries,
-      {
-        priceFormat: { type: 'volume' },
-        priceScaleId: '',
-        color: '#b7c1d8',
-        priceLineVisible: false,
-        lastValueVisible: true,
-      },
-      paneLayout.volume,
-    ),
-  )
-  toggle('regime', overlayPlan.paneOn.volume, () =>
-    chart.addSeries(
-      HistogramSeries,
-      {
-        priceFormat: { type: 'volume' },
-        priceScaleId: '',
-        priceLineVisible: false,
-        lastValueVisible: false,
-      },
-      paneLayout.volume,
-    ),
-  )
-  toggle('bsDelta', overlayPlan.paneOn.greeks, () =>
-    addPaneLine('期权 Delta', '#a93226', paneLayout.greeks, { priceScaleId: 'greeks-delta' }),
-  )
-  toggle('bsGamma', overlayPlan.paneOn.greeks, () =>
-    addPaneLine('期权 Gamma', '#8b5a16', paneLayout.greeks, { priceScaleId: 'greeks-gamma' }),
-  )
-  toggle('bsTheta', overlayPlan.paneOn.greeks, () =>
-    addPaneLine('期权 Theta/日', '#274f9f', paneLayout.greeks, { priceScaleId: 'greeks-theta' }),
-  )
-  toggle('greeksZero', overlayPlan.paneOn.greeks, () =>
-    addPaneLine('0', '#888', paneLayout.greeks, {
-      priceScaleId: 'greeks-delta',
-      lineStyle: LineStyle.Dashed,
-      lastValueVisible: false,
-    }),
-  )
-  toggle('lpDelta', overlayPlan.paneOn.lp, () =>
-    addPaneLine('LP库存暴露', '#0e7558', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
-  )
-  toggle('lpValue', overlayPlan.paneOn.lp, () =>
-    addPaneLine('LP库存价值', '#7a5cff', paneLayout.lp, { priceScaleId: 'lp-quote' }),
-  )
-  toggle('lpRealDiv', overlayPlan.paneOn.lp, () =>
-    addPaneLine('链上池价偏离', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
-  )
-  toggle('lpPoolTurnover', overlayPlan.paneOn.lpPoolCoverage, () =>
-    addPaneLine('真实池24h换手', '#b3261e', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),
-  )
-  toggle('lpPoolConcentration', overlayPlan.paneOn.lpPoolCoverage, () =>
-    addPaneLine('主池资金占比', '#274f9f', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),
-  )
-  toggle('lpCe', overlayPlan.paneOn.lp, () =>
-    addPaneLine('资本效率', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-multiple' }),
-  )
-  toggle('lpZero', overlayPlan.paneOn.lp, () =>
-    addPaneLine('LP暴露零线', '#888', paneLayout.lp, {
-      priceScaleId: 'lp-ratio',
-      lineStyle: LineStyle.Dashed,
-      lastValueVisible: false,
-    }),
-  )
-  toggle('fundingProxy', overlayPlan.paneOn.carry, () =>
-    addPaneLine('Funding估算', '#a93226', paneLayout.carry, { priceScaleId: 'carry-return' }),
-  )
-  toggle('netCarry', overlayPlan.paneOn.carry, () =>
-    addPaneLine('净持有收益', '#0e7558', paneLayout.carry, { priceScaleId: 'carry-return' }),
-  )
-  toggle('carryZero', overlayPlan.paneOn.carry, () =>
-    addPaneLine('持有收益零线', '#888', paneLayout.carry, {
-      priceScaleId: 'carry-return',
-      lineStyle: LineStyle.Dashed,
-      lastValueVisible: false,
-    }),
-  )
-  toggle('equity', overlayPlan.paneOn.equity, () =>
-    chart.addSeries(
-      LineSeries,
-      {
-        title: '回放权益',
-        color: '#1f5fbf',
-        lineWidth: 2,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        priceFormat: { type: 'price', precision: 0, minMove: 1 },
-      },
-      paneLayout.equity,
-    ),
-  )
-  toggle('equityZero', overlayPlan.paneOn.equity, () =>
-    chart.addSeries(
-      LineSeries,
-      {
-        title: '盈亏=0',
-        color: '#888',
-        lineWidth: 1,
-        lineStyle: LineStyle.Dashed,
-        priceLineVisible: false,
-        lastValueVisible: false,
-      },
-      paneLayout.equity,
-    ),
-  )
-  toggle('kdjK', overlayPlan.paneOn.kdj, () =>
-    chart.addSeries(
-      LineSeries,
-      {
-        title: 'K/D均线',
-        color: 'rgba(255, 165, 0, 0.5)',
-        lineWidth: 1,
-        priceLineVisible: false,
-        lastValueVisible: false,
-      },
-      paneLayout.kdj,
-    ),
-  )
-  toggle('kdjJ', overlayPlan.paneOn.kdj, () =>
-    chart.addSeries(
-      LineSeries,
-      {
-        title: 'J线',
-        color: '#4e4e4e',
-        lineWidth: 2,
-        priceLineVisible: false,
-        lastValueVisible: false,
-      },
-      paneLayout.kdj,
-    ),
-  )
-  if (series.kdjJ && !series.kdjJ.__hlinesInstalled) {
-    series.kdjJ.__hlinesInstalled = true
-    series.kdjJ.createPriceLine({
-      price: 100,
-      color: 'rgba(255,0,0,0.3)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: false,
-    })
-    series.kdjJ.createPriceLine({
-      price: 0,
-      color: 'rgba(0,167,6,0.3)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Dashed,
-      axisLabelVisible: false,
-    })
-  }
-  toggle('rsi', overlayPlan.paneOn.rsi, () =>
-    chart.addSeries(
-      LineSeries,
-      {
-        title: 'RSI相对强弱',
-        color: '#2e2e2e',
-        lineWidth: 3,
-        priceLineVisible: false,
-        lastValueVisible: false,
-      },
-      paneLayout.rsi,
-    ),
-  )
-  if (series.rsi && !series.rsi.__hlinesInstalled) {
-    series.rsi.__hlinesInstalled = true
-    series.rsi.createPriceLine({
-      price: 100,
-      color: 'rgba(120,123,134,0.5)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: false,
-    })
-    series.rsi.createPriceLine({
-      price: 50,
-      color: 'rgba(0,0,0,0.7)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: false,
-    })
-    series.rsi.createPriceLine({
-      price: 0,
-      color: 'rgba(120,123,134,0.5)',
-      lineWidth: 1,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: false,
-    })
-  }
-  if (!markersApi) markersApi = createSeriesMarkers(series.candle, [])
-  rebalancePanes()
-  refreshSeriesMeta()
-}
-
-function ensure(key, factory) {
-  if (!series[key]) series[key] = factory()
-}
-function toggle(key, on, factory) {
-  if (on && !series[key]) {
-    series[key] = factory()
-  } else if (!on && series[key]) {
-    chart.removeSeries(series[key])
-    delete series[key]
-    delete seriesMeta[key]
-  }
-}
-
-function refreshSeriesMeta() {
-  for (const key of Object.keys(series)) {
-    if (key === 'candle' || key === 'volume' || key === 'regime') continue
-    if (key.endsWith('Zero')) continue
-    if (SERIES_META[key]) seriesMeta[key] = SERIES_META[key]
-  }
-  // 清掉已经移除的 series 的 meta
-  for (const key of Object.keys(seriesMeta)) {
-    if (!series[key]) delete seriesMeta[key]
-  }
-}
-
-function resetOverlaySeries() {
-  if (!chart) return
-  for (const key of Object.keys(series)) {
-    if (key === 'candle') continue
-    chart.removeSeries(series[key])
-    delete series[key]
-  }
-}
-
-function rebalancePanes() {
-  const panes = chart.panes()
-  if (!panes.length) return
-  for (let i = 1; i < panes.length; i += 1) panes[i]?.setStretchFactor(0)
-  panes[paneLayout.main]?.setStretchFactor(0.54)
-  if (paneLayout.volume !== undefined) panes[paneLayout.volume]?.setStretchFactor(0.12)
-  if (paneLayout.greeks !== undefined) panes[paneLayout.greeks]?.setStretchFactor(0.12)
-  if (paneLayout.lp !== undefined) panes[paneLayout.lp]?.setStretchFactor(0.12)
-  if (paneLayout.carry !== undefined) panes[paneLayout.carry]?.setStretchFactor(0.1)
-  if (paneLayout.equity !== undefined) panes[paneLayout.equity]?.setStretchFactor(0.06)
-  if (paneLayout.kdj !== undefined) panes[paneLayout.kdj]?.setStretchFactor(0.13)
-  if (paneLayout.rsi !== undefined) panes[paneLayout.rsi]?.setStretchFactor(0.13)
-}
-
 function syncChart() {
   if (!chart || !series.candle) return
   const dark = document.documentElement.classList.contains('dark')
-  // 主题相关的 layout/grid/rightPriceScale/timeScale 配置统一从 themeOptions 取，避免与 chartOptions 重复
+  // 主题相关的 layout/grid/rightPriceScale/timeScale 配置统一从 themeOptions 取
   chart.applyOptions(themeOptions(dark))
   series.candle.setData(
-    props.rows.map((row) => ({
-      time: row.date,
-      open: row.open,
-      high: row.high,
-      low: row.low,
-      close: row.close,
-    })),
+    props.rows.map((row) => ({ time: row.date, open: row.open, high: row.high, low: row.low, close: row.close })),
   )
   if (series.cost)
     setLine(
@@ -562,7 +279,8 @@ function syncChart() {
       rsi.map((r) => ({ time: r.date, value: finiteOrNull(r.custom) })).filter((p) => p.value !== null),
     )
   }
-  // markers：replay trades + 当前决策点 + 研究层状态（domain helper）
+  // markers：replay trades + 当前决策点 + 研究层状态
+  const markersApi = getMarkersApi()
   if (markersApi) {
     markersApi.setMarkers(
       buildChartMarkers({
@@ -578,47 +296,9 @@ function syncChart() {
   stockChipViewport.queue()
 }
 
-function addLine(title, color, width, style = LineStyle.Solid) {
-  return chart.addSeries(LineSeries, {
-    title,
-    color,
-    lineWidth: width,
-    lineStyle: style,
-    priceLineVisible: false,
-    lastValueVisible: true,
-  })
-}
-
-function addPaneLine(title, color, paneIndex, options = {}) {
-  const line = chart.addSeries(LineSeries, deltaLine(title, color, options), paneIndex)
-  line.priceScale().applyOptions({
-    scaleMargins: { top: 0.18, bottom: 0.18 },
-    alignLabels: true,
-  })
-  return line
-}
-
-function deltaLine(title, color, options = {}) {
-  return {
-    title,
-    color,
-    lineWidth: options.lineWidth ?? 1,
-    lineStyle: options.lineStyle ?? LineStyle.Solid,
-    priceScaleId: options.priceScaleId,
-    priceLineVisible: false,
-    lastValueVisible: options.lastValueVisible ?? true,
-    priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
-  }
-}
-
 function setLine(lineSeries, values) {
   lineSeries.setData(
-    props.rows
-      .map((row, i) => ({
-        time: row.date,
-        value: finiteOrNull(values[i]),
-      }))
-      .filter((p) => p.value !== null),
+    props.rows.map((row, i) => ({ time: row.date, value: finiteOrNull(values[i]) })).filter((p) => p.value !== null),
   )
 }
 
