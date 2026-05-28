@@ -29,6 +29,14 @@ pnpm run check:size
 
 This enforces the `src/` file-size rule. If a source file grows past the limit, split by responsibility instead of hiding the warning.
 
+## Domain Boundary Check
+
+```bash
+pnpm run check:domain-boundary
+```
+
+Enforces the DDD boundary in `AGENTS.md`: `src/domain/` may not import Vue, Pinia, or chart libraries. If a file under `src/domain/` needs framework features, move it to `src/composables/` or `src/stores/` first.
+
 ## Full Build Gate
 
 ```bash
@@ -39,10 +47,11 @@ The build runs:
 
 1. generated data refresh
 2. size check
-3. data index check
-4. generated data check
-5. domain verification
-6. Vite production build
+3. domain boundary check
+4. data index check
+5. generated data check
+6. domain verification
+7. Vite production build
 
 ## Pine Gate
 

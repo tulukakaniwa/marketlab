@@ -1,6 +1,6 @@
 <script setup>
 import LiquidityFingerprintRack from './LiquidityFingerprintRack.vue'
-import { useFormulaChartModel } from '../domain/research-visualization/useFormulaChartModel.js'
+import { useFormulaChartModel } from '../composables/useFormulaChartModel.js'
 
 const props = defineProps({
   formulaId: { type: String, required: true },

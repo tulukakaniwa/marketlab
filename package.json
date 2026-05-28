@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm run generate:data && pnpm run generate:recommended-pool && vite",
-    "build": "pnpm run generate:data && pnpm run generate:recommended-pool && pnpm run check:size && pnpm run check:data && pnpm run check:generated-data && pnpm run verify:domain && vite build",
+    "build": "pnpm run generate:data && pnpm run generate:recommended-pool && pnpm run check:size && pnpm run check:domain-boundary && pnpm run check:data && pnpm run check:generated-data && pnpm run verify:domain && vite build",
     "generate:data": "node scripts/csv2js.mjs",
     "generate:recommended-pool": "node scripts/generate-recommended-pool.mjs && node scripts/render-recommended-pool-page.mjs",
     "fetch:market-data": "python3 scripts/fetch-market-data.py --output data/workbooks/stocks_latest.xlsx",
@@ -20,6 +20,7 @@
     "check:data": "node scripts/check-data-index.mjs",
     "check:generated-data": "node scripts/check-generated-data.mjs",
     "check:size": "node scripts/check-file-size.mjs",
+    "check:domain-boundary": "node scripts/check-domain-boundaries.mjs",
     "test": "pnpm run generate:data && vitest run",
     "test:watch": "pnpm run generate:data && vitest",
     "preview": "vite preview"
