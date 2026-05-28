@@ -77,6 +77,21 @@ foreach ($v in @('lp_lower', 'lp_upper', 'position_label', 'match_pct')) {
   }
 }
 
+# JS 双胞胎 DEFAULTS 里的每个字段，在 pine 文件里必须有同名 input.* 声明。
+# 防御 iv_override 类的"使用但未声明"漂移。保持与 verify-pine-equivalence.mjs 的 DEFAULTS 同步。
+$alignmentInputs = @(
+  'cost_len', 'recent_len', 'vol_len',
+  'holding_days', 'trading_days',
+  'target_return_pct', 'iv_override',
+  'lp_range_width', 'lp_skew',
+  'profile', 'auto_adapt', 'relax_mode', 'adaptive_cost'
+)
+foreach ($name in $alignmentInputs) {
+  if ($content -notmatch "(?m)(^|\s)$name\s*=\s*input\.") {
+    $errors.Add("Missing input declaration for alignment field: $name")
+  }
+}
+
 if ($errors.Count -gt 0) {
   $errors | ForEach-Object { Write-Error $_ }
   exit 1

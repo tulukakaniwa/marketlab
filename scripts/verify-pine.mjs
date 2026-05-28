@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs'
+import { DEFAULTS } from './verify-pine-equivalence.mjs'
 
 const file = process.argv[2] || 'bl-esw-pinbar-market-lab.pine'
 const content = readFileSync(file, 'utf8')
@@ -69,6 +70,15 @@ if (/ta\.atr\(/.test(content)) {
 for (const v of ['lp_lower', 'lp_upper', 'position_label', 'match_pct']) {
   if (!new RegExp(`(^|\\s)${v}\\s*=`, 'm').test(content)) {
     errors.push(`Missing alignment variable: ${v}`)
+  }
+}
+
+// JS 双胞胎 DEFAULTS 里的每个字段，在 pine 文件里必须有同名 input.* 声明。
+// 防御类似 iv_override 的"使用但未声明"漂移：双胞胎给字段定了默认值，
+// 但 pine 漏写 input 声明，等价测试用默认值仍然全绿，bug 被掩盖。
+for (const name of Object.keys(DEFAULTS)) {
+  if (!new RegExp(`(^|\\s)${name}\\s*=\\s*input\\.`, 'm').test(content)) {
+    errors.push(`Missing input declaration for alignment field: ${name}`)
   }
 }
 
