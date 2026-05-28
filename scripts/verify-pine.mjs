@@ -14,16 +14,19 @@ if (!/shorttitle="([^"]{1,10})"/.test(content)) {
   errors.push('shorttitle must exist and be 10 chars or less')
 }
 
-for (const signal of ['Try', 'Low Buy', 'Pull Buy', 'Reclaim', 'Wait', 'Deep', 'Trim', 'No Chase']) {
+// 信号体系按 JS buildEntryTiming 同步：5 类核心信号
+for (const signal of ['Low Buy', 'Wait Stop', 'Deep Discount', 'Trim', 'No Chase']) {
   if (!content.includes(signal)) errors.push(`Missing chart signal: ${signal}`)
 }
 
+// 成本锚保留三档候选，adaptive_cost 决定是否混合
 if (!content.includes('cost_fast_anchor') || !content.includes('cost_slow_anchor')) {
   errors.push('Missing adaptive three-layer cost anchor')
 }
 
-if (!content.includes('lab_pull_buy') || !content.includes('lab_reclaim_buy')) {
-  errors.push('Missing trend pullback/reclaim buy logic')
+// 同步 JS 后核心信号变量
+if (!content.includes('lab_buy') || !content.includes('lab_sell') || !content.includes('lab_wait_stop') || !content.includes('lab_deep_discount') || !content.includes('lab_overheat')) {
+  errors.push('Missing core market lab signal variables (lab_buy / lab_sell / lab_wait_stop / lab_deep_discount / lab_overheat)')
 }
 
 const names = new Map()
