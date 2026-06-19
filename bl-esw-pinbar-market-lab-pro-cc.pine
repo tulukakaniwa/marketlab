@@ -466,3 +466,80 @@ alertcondition(touch_alert_on and tl_shorthigh_weak, title="Touch GD Short High 
 // 聚合告警（任一触线，适合只想要一条统配告警的场景）
 alertcondition(touch_alert_on and any_touch_strong, title="Any Strong Touch", message="强触线：价格收盘穿越关键线")
 alertcondition(touch_alert_on and any_touch_weak, title="Any Weak Touch", message="弱触线：影线测试关键线后被拒")
+
+// ============================================================
+// 使用说明（脚本含义 + 所有开关/设置项作用）
+// ============================================================
+//
+// 【脚本是什么】
+//   成本带 + GetDelta 价格带 + 触线 的多周期工作台，主用日线、主做美股。
+//   核心思路：以"成交量加权成本锚"为中心展开成本带与 GetDelta 带，价格
+//   相对这些带的位置 + 动量 + 量能，决定强弱两级、买卖对称的信号；价格
+//   触碰每条关键线本身就是独立提示（强=收盘穿越，弱=影线触及被拒）。
+//   数学层与配套网站口径一致，信号层在其上做了买卖对称与质量增强。
+//
+// 【图上元素】
+//   关键线（粗）：Cost Anchor 成本锚（紫，最粗）/ Cost Low 成本下沿（绿）
+//                / Cost High 成本上沿（红）/ GD Long Low·High 多头带（青/橙）
+//                / GD Short High 空头上沿（红）/ LP Low·High 流动性区间（紫点）
+//   信号：▲BUY 大绿三角=强买 / ●绿点=弱买观察 / ◆=深度折价
+//        ▼SELL 大红三角=强卖 / ●橙点=弱卖减仓 / ✕=过热别追
+//   触线：↑↓ 蓝/橙箭头=强触线（收盘穿越）/ ●灰点=弱触线（影线被拒）
+//   趋势 MA（EMA200/55/BBI）画得很淡，仅背景参考，不压制任何信号。
+//
+// 【信号判定（强弱两级，买卖对称）】
+//   强买 = 跌破成本下沿 + 在 GD 多头带内 + 成本止跌 + 动量上升 + 折扣达标 + 放量
+//   弱买 = 跌破成本下沿、在带内，但上述条件未全满足（观察）
+//   深度折价 = 跌破成本下沿且跌穿 GD 多头下沿（超出默认入场带）
+//   强卖 = 升破成本上沿 + 在 GD 空头带内 + 溢价达标 + 动量转跌 + 放量（治卖飞）
+//   弱卖 = 升破成本上沿、溢价达标，但动量仍在上（减仓提示）
+//   过热 = 升破成本上沿且突破 GD 空头上沿（别追高）
+//   防闪烁：同类信号在 Signal Cooldown 根 K 线内不重复触发。
+//
+// 【Inputs 开关与设置项】
+//   ── 基础 ──
+//   Source            计算用价格源，默认 close
+//   Exponential MA    趋势均线用 EMA(开)还是 SMA(关)
+//   ── Pinbar ──
+//   Show Pinbar Black 是否高亮 Pinbar（针线形态）K 线为黑色
+//   Wick Body Ratio   判定 Pinbar 的"影线/实体"最小比值，越大越严格
+//   ── Market Lab ──
+//   Enable Cost Strategy   成本带策略总开关（关闭则不出 ML 信号与带）
+//   Show Cost Band         显示成本锚 / 上沿 / 下沿
+//   Show GetDelta Band     显示 GetDelta 多头/空头价格带
+//   Show Discount Premium BG 折扣区(绿)/溢价区(红)淡背景
+//   Show Status Panel      右上角状态面板
+//   Show Legend            右下角图例
+//   Cost Window            成本锚回看窗口（默认 60）
+//   Recent Window          近端波动估计窗口（默认 20）
+//   Vol Window             年化波动率窗口（默认 60）
+//   Holding Days           持仓天数 T，影响 GetDelta 带宽与 z 周期化（默认 30）
+//   Year Basis             年化基准天数 365/252/242/179
+//   Target Return %        GetDelta 目标收益率（默认 30%）
+//   IV Override            手填隐含波动率；0=用实际年化波动率
+//   LP Range Width         LP 流动性区间宽度
+//   LP Skew                LP 区间上沿偏移系数（>1 上沿更宽）
+//   Show LP Range          显示 LP 区间
+//   Show Position Row      面板显示"价格相对成本带位置"行
+//   Show Match Row         面板显示"偏离匹配度 %"行
+//   Profile                风险档：Conservative/Balanced/Aggressive，
+//                          越保守门槛越高、信号越少越稳
+//   ── Pro Signals ──
+//   Signal Cooldown        同类信号冷却根数，防闪烁（日线建议 3）
+//   Volume MA Length       放量判定的量能均线长度（默认 20）
+//   Show Line Touch Signals 显示触线箭头/圆点
+//   Enable Line Touch Alerts 触线告警总开关（关掉可消除"太吵"）
+//   Show MA Cross          显示旧版均线金叉死叉（默认关）
+//   Show Trend MA          显示淡色趋势 MA 背景参考（默认开）
+//   Panel Font Size        面板字号 Tiny/Small/Normal（默认 Small）
+//
+// 【告警】
+//   信号类 6 条：强买/弱买/深度折价/强卖/弱卖/过热
+//   触线类：6 条关键线 ×（强上穿/强下穿/弱触及），受 Enable Line Touch Alerts 控制
+//   聚合 2 条：Any Strong Touch / Any Weak Touch（只想要一条统配告警时用）
+//
+// 【实测建议】
+//   日线挂 AAPL/NVDA/GOOG 核对：箭头位置是否合理、有无满屏乱跳
+//   （乱跳就调大 Signal Cooldown）；告警太多就关 Enable Line Touch Alerts
+//   或只用 Any Strong/Weak Touch 两条聚合告警。
+// ============================================================
