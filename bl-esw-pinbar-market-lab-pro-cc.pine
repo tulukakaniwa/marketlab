@@ -314,15 +314,18 @@ plotshape(show_ma and sell_cond, title="MA Sell", style=shape.triangledown, loca
 // ============================================================
 // Plots：关键线（加粗，便于看触碰）
 // ============================================================
-plot(show_lab and show_cost_band ? cost_low : na, title="Cost Low", color=color.new(#059669, 10), linewidth=2)
-plot(show_lab and show_cost_band ? cost_high : na, title="Cost High", color=color.new(#dc2626, 10), linewidth=2)
+// 第一梯队（核心，加深加粗）：成本锚 + 成本带上下沿，是信号判定与碰线提示的核心
+plot(show_lab and show_cost_band ? cost_low : na, title="Cost Low", color=color.new(#059669, 0), linewidth=2)
+plot(show_lab and show_cost_band ? cost_high : na, title="Cost High", color=color.new(#dc2626, 0), linewidth=2)
 plot(show_lab and show_cost_band ? cost_anchor : na, title="Cost Anchor", color=color.new(#7c3aed, 0), linewidth=3)
 
-plot(show_lab and show_delta_band ? long_low : na, title="GD Long Low", color=color.new(#0891b2, 30), linewidth=2)
-plot(show_lab and show_delta_band ? long_high : na, title="GD Long High", color=color.new(#f97316, 30), linewidth=2)
-plot(show_lab and show_delta_band ? short_high : na, title="GD Short High", color=color.new(#dc2626, 30), linewidth=2)
-plot(show_lab and show_lp_band ? lp_lower : na, title="LP Low", color=color.new(#a855f7, 40), linewidth=1, style=plot.style_circles)
-plot(show_lab and show_lp_band ? lp_upper : na, title="LP High", color=color.new(#a855f7, 40), linewidth=1, style=plot.style_circles)
+// 第二梯队（淡化变细）：GetDelta 三条线，参考用，不抢 K 线
+plot(show_lab and show_delta_band ? long_low : na, title="GD Long Low", color=color.new(#0891b2, 72), linewidth=1)
+plot(show_lab and show_delta_band ? long_high : na, title="GD Long High", color=color.new(#f97316, 72), linewidth=1)
+plot(show_lab and show_delta_band ? short_high : na, title="GD Short High", color=color.new(#dc2626, 72), linewidth=1)
+// 第三梯队（最淡）：LP 区间，几乎只作边界提示
+plot(show_lab and show_lp_band ? lp_lower : na, title="LP Low", color=color.new(#a855f7, 82), linewidth=1, style=plot.style_circles)
+plot(show_lab and show_lp_band ? lp_upper : na, title="LP High", color=color.new(#a855f7, 82), linewidth=1, style=plot.style_circles)
 
 // 折扣 / 溢价背景
 bgcolor(show_lab and show_lab_bg and below_cost ? color.new(#10b981, 92) : na, title="Discount BG")
