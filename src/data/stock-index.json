@@ -3397,7 +3397,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/AAVEUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-ADAUSDT-1d",
@@ -3407,7 +3407,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/ADAUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-ADBE-1d",
@@ -3547,7 +3547,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/AVAXUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-AVGO-1d",
@@ -3567,7 +3567,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/BCHUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-BE-1d",
@@ -3587,7 +3587,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/BNBUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-BTCUSDT-1d",
@@ -3597,7 +3597,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/BTCUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-CCJ-1d",
@@ -3737,7 +3737,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/DOGEUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-DOTUSDT-1d",
@@ -3747,7 +3747,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/DOTUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-EME-1d",
@@ -3777,7 +3777,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/ETHUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-ETN-1d",
@@ -3957,7 +3957,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/LINKUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-LITE-1d",
@@ -3987,7 +3987,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/LTCUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-MAGS-1d",
@@ -4177,7 +4177,7 @@
     "interval": "1日",
     "source": "yfinance / Alpha Vantage / akshare",
     "url": "/data/PSTG-1d.csv",
-    "rows": 1367
+    "rows": 1327
   },
   {
     "id": "auto-PWR-1d",
@@ -4287,7 +4287,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/SOLUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-SOXX-1d",
@@ -4367,7 +4367,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/TRXUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-TSLA-1d",
@@ -4407,7 +4407,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/UNIUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-URA-1d",
@@ -4467,7 +4467,7 @@
     "interval": "1日",
     "source": "Binance public klines",
     "url": "/data/XRPUSDT-1d.csv",
-    "rows": 1996
+    "rows": 1997
   },
   {
     "id": "auto-ZS-1d",
