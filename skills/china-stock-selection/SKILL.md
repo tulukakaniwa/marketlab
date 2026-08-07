@@ -105,37 +105,46 @@ Hard exclusion:
 
 Complete formula stack:
 
-| 模块 | 公式 | 模式 |
-|---|---|---|
-| 价格路径 → 市场成本 | costAnchor, costBand, costDistance, costSlope5 | real |
-| 波动口径 | annualVol, atrPercent | real |
-| Δ 成本带 | GetDelta bands (long/short) | real |
-| 期权 Greeks | blackScholes delta/gamma/theta | synthetic |
-| 亚式近似 | asianOption price | synthetic |
-| LP 库存曲线 | uniswapV3Inventory (V3) | **synthetic** |
-| 流动性指纹 | liquidityFingerprint (混合密度) | **synthetic** |
-| AMM 几何 | ammCurve (xy=k) | **synthetic** |
-| 资本效率 | capitalEfficiency | **synthetic** |
-| 偏离强度 | deviationScore (z-score) | real |
-| 风险曲面 | riskSurface | synthetic |
-| Gamma PnL | gammaPnl | synthetic |
-| LP 净效率 | netLpEfficiency | **synthetic** |
-| 波动率置信 | volConfidence | real |
-| 均值回归 | meanReversionHalfLife | real |
-| VIX Fix | vixFix | real |
-| 订单决策 | buildDecisionGraph | real |
-| 资金费率 / 持仓净收益 | fundingRate / netCarry | fallback (no perp data) |
+| 模块                  | 公式                                           | 模式                    |
+| --------------------- | ---------------------------------------------- | ----------------------- |
+| 价格路径 → 市场成本   | costAnchor, costBand, costDistance, costSlope5 | real                    |
+| 波动口径              | annualVol, atrPercent                          | real                    |
+| Δ 成本带              | GetDelta bands (long/short)                    | real                    |
+| 期权 Greeks           | blackScholes delta/gamma/theta                 | synthetic               |
+| 亚式近似              | asianOption price                              | synthetic               |
+| LP 库存曲线           | uniswapV3Inventory (V3)                        | **synthetic**           |
+| 流动性指纹            | liquidityFingerprint (混合密度)                | **synthetic**           |
+| AMM 几何              | ammCurve (xy=k)                                | **synthetic**           |
+| 资本效率              | capitalEfficiency                              | **synthetic**           |
+| 偏离强度              | deviationScore (z-score)                       | real                    |
+| 风险曲面              | riskSurface                                    | synthetic               |
+| Gamma PnL             | gammaPnl                                       | synthetic               |
+| LP 净效率             | netLpEfficiency                                | **synthetic**           |
+| 波动率置信            | volConfidence                                  | real                    |
+| 均值回归              | meanReversionHalfLife                          | real                    |
+| VIX Fix               | vixFix                                         | real                    |
+| 订单决策              | buildDecisionGraph                             | real                    |
+| 资金费率 / 持仓净收益 | fundingRate / netCarry                         | fallback (no perp data) |
+
+Second-order reporting rules:
+
+- `meanReversion.rho` is the raw AR(1) coefficient from the cost-distance series. Only `abs(rho) < 1` has a defined decay half-life; `rho < 0` means alternating-sign decay, and `abs(rho) >= 1` must be reported as non-stationary rather than clipped into a slow half-life.
+- `dynamicHolding.phase = post-anchor-extension` means price is already above the long-side cost anchor. Keep it as `等待 / review-extension`; never relabel it as insufficient history and never invent a mean-reversion target beyond the anchor.
+- `gammaConvexity.positionGamma = gamma * positionSize`; `dollarGamma = positionGamma * markPrice^2`. Absolute-price Gamma PnL is `0.5 * positionGamma * priceChange^2`, equivalent to `0.5 * dollarGamma * (priceChange / markPrice)^2`. For the A-share screen this remains a unit-size synthetic option scenario, not actual RMB PnL.
+- `volConfidence.standardErrorPct` uses `SE(sigma) = sigma / sqrt(2n)` under the normal-return approximation. The interval uses the requested two-sided confidence level and must disclose sample size, critical z, standard error, and relative uncertainty.
 
 ## Screening Semantics
 
 Three-pillar scoring with LP percentile as the dominant signal:
 
 ### 成本锚 (30 points)
+
 - **锚方向**: rising ↑ = full points, flattening → = partial, declining ↓ = low
 - **价格位置**: within or near cost band scores highest
 - Interpretation: anchor direction is the confirmation signal; a declining anchor means wait even if LP/z are aligned
 
 ### 合成 LP (45 points)
+
 - **lpValue 分位数 (0-30)**: P<5% = 30, P<10% = 25, P<25% = 18, P<50% = 10
   - P<5% means LP inventory value at 1-year extreme low — LP accumulated maximum stock at cheapest prices
 - **zone (0-10)**: range = 10, token0 + low percentile = 10 (best entry setup: LP holds stock at historical low), token0 alone = 4
@@ -146,6 +155,7 @@ Three-pillar scoring with LP percentile as the dominant signal:
 - Interpretation: token0 zone at P<5% + 3年 LP 曾大幅高于现在 = 周期底部囤货，不是价值陷阱。锚企稳是最佳确认信号。
 
 ### z-score (15 points)
+
 - **回归概率 (0-8)**: prob ≥ 95% = 8, ≥ 85% = 6, ≥ 70% = 4, ≥ 55% = 2
   - Higher probability = stronger mean-reversion signal
 - **折价深度 (0-7)**: z ≤ -3 = 7, ≤ -2 = 6, ≤ -1 = 4
@@ -191,17 +201,18 @@ Three-pillar scoring with LP percentile as the dominant signal:
 ```
 
 ### 数据质量 (10 points)
+
 - Data freshness (stale > 10d penalized) + history depth (500+/1000+ rows bonus)
 
 ### 排除规则 (全部默认开启)
 
-| 类别 | 数量 | 排除标的 | 关闭参数 |
-|---|---|---|---|
-| 酒水 | 9 | 茅台/五粮液/泸州老窖/洋河/今世缘/酒鬼酒/汾酒/古井贡/水井坊 | `--exclude-alcohol false` |
-| 银行 | 22 | 平安/浦发/华夏/民生/招商/兴业/北京/农业/交通/工商/光大/建设/中国/中信/宁波/江苏/杭州/南京/上海/浙商/成都/邮储/渝农商行 | `--exclude-banks false` |
-| 地产 | 3 | 万科A/保利发展/招商蛇口 | `--exclude-realestate false` |
-| 东三省 | 3 | 长春高新/恒力石化/中航沈飞 | `--exclude-northeast false` |
-| 社保持仓 | 80只白名单 | 仅保留 Q1 2026 前十大流通股东含社保基金的标的 | `--require-shebao false` |
+| 类别     | 数量       | 排除标的                                                                                                               | 关闭参数                     |
+| -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 酒水     | 9          | 茅台/五粮液/泸州老窖/洋河/今世缘/酒鬼酒/汾酒/古井贡/水井坊                                                             | `--exclude-alcohol false`    |
+| 银行     | 22         | 平安/浦发/华夏/民生/招商/兴业/北京/农业/交通/工商/光大/建设/中国/中信/宁波/江苏/杭州/南京/上海/浙商/成都/邮储/渝农商行 | `--exclude-banks false`      |
+| 地产     | 3          | 万科A/保利发展/招商蛇口                                                                                                | `--exclude-realestate false` |
+| 东三省   | 3          | 长春高新/恒力石化/中航沈飞                                                                                             | `--exclude-northeast false`  |
+| 社保持仓 | 80只白名单 | 仅保留 Q1 2026 前十大流通股东含社保基金的标的                                                                          | `--require-shebao false`     |
 
 Map results:
 
@@ -247,6 +258,7 @@ LP 3年比值 = 近3年 LP 最大值 / 当前 LP 值
 ### 政治事件叠加
 
 2026-2027 年重大政策窗口：
+
 - **3月两会**：GDP 目标 4.5-5%，"反内卷"政策升级，科技+消费双主线
 - **H2 中央经济工作会议**：定调次年，通常在 12 月
 - **十五五规划**：AI 终端普及率 70%+，数字经济核心产业 GDP 占比 12.5%

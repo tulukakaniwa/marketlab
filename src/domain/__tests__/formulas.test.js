@@ -55,7 +55,9 @@ describe('deriveShortHoldWindow', () => {
   it('拒绝 z 不够深或一周内回补不足的短线候选', () => {
     expect(deriveShortHoldWindow({ zScore: -1.1, halfLifeDays: 3 })?.blockedReasons).toContain('z-threshold')
     expect(deriveShortHoldWindow({ zScore: -2.4, halfLifeDays: 31.5 })?.blockedReasons).toContain('holding-window')
-    expect(deriveShortHoldWindow({ zScore: -2.1, halfLifeDays: 10, costDistance: -0.01 })?.blockedReasons).toContain('gross-return')
+    expect(deriveShortHoldWindow({ zScore: -2.1, halfLifeDays: 10, costDistance: -0.01 })?.blockedReasons).toContain(
+      'gross-return',
+    )
   })
 
   it('保留完整回到 zExit 的理论时间用于对照', () => {
@@ -203,6 +205,7 @@ describe('deriveDynamicHoldingState', () => {
     expect(state.status).toBe('需刷新数据')
     expect(state.phase).toBe('insufficient-history')
   })
+
 })
 
 describe('getDeltaBands', () => {
@@ -237,7 +240,14 @@ describe('getDeltaBands', () => {
 
 describe('blackScholes', () => {
   it('匹配标准 Black-Scholes call benchmark', () => {
-    const o = blackScholes({ entryPrice: 100, strikePrice: 100, holdingDays: 365, iv: 0.2, riskFreeRate: 0.05, type: 'call' })
+    const o = blackScholes({
+      entryPrice: 100,
+      strikePrice: 100,
+      holdingDays: 365,
+      iv: 0.2,
+      riskFreeRate: 0.05,
+      type: 'call',
+    })
     expect(o.price).toBeCloseTo(10.4506, 2)
     expect(o.delta).toBeCloseTo(0.6368, 2)
     expect(Number.isFinite(o.rho)).toBe(true)
@@ -245,14 +255,28 @@ describe('blackScholes', () => {
     expect(Number.isFinite(o.thetaAnnual)).toBe(true)
   })
   it('看跌的 delta 在 [-1, 0]', () => {
-    const o = blackScholes({ entryPrice: 100, strikePrice: 100, holdingDays: 30, iv: 0.4, riskFreeRate: 0.04, type: 'put' })
+    const o = blackScholes({
+      entryPrice: 100,
+      strikePrice: 100,
+      holdingDays: 30,
+      iv: 0.4,
+      riskFreeRate: 0.04,
+      type: 'put',
+    })
     expect(o.delta).toBeLessThanOrEqual(0)
     expect(o.delta).toBeGreaterThanOrEqual(-1)
     expect(o.gamma).toBeGreaterThan(0)
     expect(o.rho).toBeLessThanOrEqual(0)
   })
   it('看涨的 delta 在 [0, 1]', () => {
-    const o = blackScholes({ entryPrice: 100, strikePrice: 100, holdingDays: 30, iv: 0.4, riskFreeRate: 0.04, type: 'call' })
+    const o = blackScholes({
+      entryPrice: 100,
+      strikePrice: 100,
+      holdingDays: 30,
+      iv: 0.4,
+      riskFreeRate: 0.04,
+      type: 'call',
+    })
     expect(o.delta).toBeGreaterThanOrEqual(0)
     expect(o.delta).toBeLessThanOrEqual(1)
     expect(o.rho).toBeGreaterThanOrEqual(0)
@@ -261,8 +285,22 @@ describe('blackScholes', () => {
 
 describe('Asian / Bachelier research formulas', () => {
   it('输出有限研究值并拒绝非法参数', () => {
-    const asian = asianOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, iv: 0.4, riskFreeRate: 0.02, type: 'put' })
-    const bach = bachelierOption({ entryPrice: 100, strikePrice: 105, holdingDays: 30, normalVol: 40, riskFreeRate: 0.02, type: 'put' })
+    const asian = asianOption({
+      entryPrice: 100,
+      strikePrice: 105,
+      holdingDays: 30,
+      iv: 0.4,
+      riskFreeRate: 0.02,
+      type: 'put',
+    })
+    const bach = bachelierOption({
+      entryPrice: 100,
+      strikePrice: 105,
+      holdingDays: 30,
+      normalVol: 40,
+      riskFreeRate: 0.02,
+      type: 'put',
+    })
     expect(Number.isFinite(asian.price)).toBe(true)
     expect(Number.isFinite(asian.gamma)).toBe(true)
     expect(Number.isFinite(bach.price)).toBe(true)
@@ -312,7 +350,14 @@ describe('Option portfolio research model', () => {
 
   it('非法或空 legs 返回 null', () => {
     expect(buildOptionPortfolio({ entryPrice: 100, holdingDays: 30, iv: 0.2, legs: [] })).toBeNull()
-    expect(buildOptionPortfolio({ entryPrice: 0, holdingDays: 30, iv: 0.2, legs: [{ type: 'call', strikePrice: 100, quantity: 1 }] })).toBeNull()
+    expect(
+      buildOptionPortfolio({
+        entryPrice: 0,
+        holdingDays: 30,
+        iv: 0.2,
+        legs: [{ type: 'call', strikePrice: 100, quantity: 1 }],
+      }),
+    ).toBeNull()
   })
 })
 
@@ -336,7 +381,7 @@ describe('LP / IL / CE / Funding', () => {
     const f = fundingRate({ perpTwap: 101, spotTwap: 100, hours: 8 })
     expect(f.funding).toBeGreaterThan(0)
     expect(f.status).toBe('proxy-only')
-    expect(f.cumulativeFundingEstimate).toBeCloseTo(f.basisEstimate * 8 / 24, 10)
+    expect(f.cumulativeFundingEstimate).toBeCloseTo((f.basisEstimate * 8) / 24, 10)
   })
   it('netCarry 直接消费累计 funding proxy，不重复乘时间', () => {
     const c = netCarry({ costDistance: 0.1, fundingRate: 0.02, holdingDays: 30, tradingDaysPerYear: 365 })
@@ -372,7 +417,13 @@ describe('Liquidity / AMM research formulas', () => {
   })
 
   it('流动性指纹按积分离散且权重归一', () => {
-    const fp = liquidityFingerprint({ entryPrice: 100, priceGrid: 80, segmentCount: 12, lowerFactor: 0.8, upperFactor: 1.3 })
+    const fp = liquidityFingerprint({
+      entryPrice: 100,
+      priceGrid: 80,
+      segmentCount: 12,
+      lowerFactor: 0.8,
+      upperFactor: 1.3,
+    })
     const total = fp.segments.reduce((sum, seg) => sum + seg.weight, 0)
     expect(total).toBeCloseTo(1, 5)
     expect(fp.segments.every((seg, index, arr) => index === 0 || seg.lower >= arr[index - 1].upper)).toBe(true)

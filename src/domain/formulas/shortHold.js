@@ -1,3 +1,17 @@
+import {
+  DEFAULT_DYNAMIC_HOLDING_PROFILES,
+  buildExpectation,
+  buildHoldingPlan,
+  buildMilestones,
+  classifyPhase,
+  emptyDynamicState,
+  normalizeProfiles,
+  phaseLabel,
+  unique,
+} from './dynamicHoldingSupport.js'
+
+export { DEFAULT_DYNAMIC_HOLDING_PROFILES } from './dynamicHoldingSupport.js'
+
 export function deriveShortHoldWindow({
   zScore,
   halfLifeDays,
@@ -10,9 +24,21 @@ export function deriveShortHoldWindow({
   minGrossReturn = 0.01,
   side = 'long',
 } = {}) {
-  if (![zScore, halfLifeDays, recoveryFraction, zExit, minAbsZ, minExecutableDays, maxHoldingDays, minGrossReturn].every(Number.isFinite)) return null
+  if (
+    ![zScore, halfLifeDays, recoveryFraction, zExit, minAbsZ, minExecutableDays, maxHoldingDays, minGrossReturn].every(
+      Number.isFinite,
+    )
+  )
+    return null
   if (halfLifeDays <= 0 || recoveryFraction <= 0 || recoveryFraction >= 1 || zExit <= 0) return null
-  if (minAbsZ < 0 || minExecutableDays < 0 || maxHoldingDays <= 0 || minExecutableDays > maxHoldingDays || minGrossReturn < 0) return null
+  if (
+    minAbsZ < 0 ||
+    minExecutableDays < 0 ||
+    maxHoldingDays <= 0 ||
+    minExecutableDays > maxHoldingDays ||
+    minGrossReturn < 0
+  )
+    return null
 
   const absZ = Math.abs(zScore)
   const daysToZExit = absZ > zExit ? halfLifeDays * log2(absZ / zExit) : 0
@@ -61,31 +87,60 @@ export function deriveStructuralHoldWindow({
   minGrossReturn = 0.01,
   side = 'long',
 } = {}) {
-  if (![zScore, halfLifeDays, entryPrice, anchorPrice, anchorRecoveryFraction, minAbsZ, minExecutableDays, maxHoldingDays, minGrossReturn].every(Number.isFinite)) return null
-  if (halfLifeDays <= 0 || entryPrice <= 0 || anchorPrice <= 0 || anchorRecoveryFraction <= 0 || anchorRecoveryFraction >= 1) return null
-  if (minAbsZ < 0 || minExecutableDays < 0 || maxHoldingDays <= 0 || minExecutableDays > maxHoldingDays || minGrossReturn < 0) return null
+  if (
+    ![
+      zScore,
+      halfLifeDays,
+      entryPrice,
+      anchorPrice,
+      anchorRecoveryFraction,
+      minAbsZ,
+      minExecutableDays,
+      maxHoldingDays,
+      minGrossReturn,
+    ].every(Number.isFinite)
+  )
+    return null
+  if (
+    halfLifeDays <= 0 ||
+    entryPrice <= 0 ||
+    anchorPrice <= 0 ||
+    anchorRecoveryFraction <= 0 ||
+    anchorRecoveryFraction >= 1
+  )
+    return null
+  if (
+    minAbsZ < 0 ||
+    minExecutableDays < 0 ||
+    maxHoldingDays <= 0 ||
+    minExecutableDays > maxHoldingDays ||
+    minGrossReturn < 0
+  )
+    return null
 
   const direction = side === 'short' ? -1 : 1
   const anchorGap = (anchorPrice - entryPrice) * direction
   if (anchorGap <= 0) return null
 
   const candidates = Object.entries(targetPrices)
-    .map(([id, rawPrice]) => buildTargetCandidate({
-      id,
-      rawPrice,
-      direction,
-      zScore,
-      halfLifeDays,
-      entryPrice,
-      anchorPrice,
-      anchorGap,
-      anchorRecoveryFraction,
-      minAbsZ,
-      minExecutableDays,
-      maxHoldingDays,
-      minGrossReturn,
-      side,
-    }))
+    .map(([id, rawPrice]) =>
+      buildTargetCandidate({
+        id,
+        rawPrice,
+        direction,
+        zScore,
+        halfLifeDays,
+        entryPrice,
+        anchorPrice,
+        anchorGap,
+        anchorRecoveryFraction,
+        minAbsZ,
+        minExecutableDays,
+        maxHoldingDays,
+        minGrossReturn,
+        side,
+      }),
+    )
     .filter(Boolean)
 
   const selected = candidates.find((candidate) => candidate.eligible) ?? null
@@ -99,11 +154,6 @@ export function deriveStructuralHoldWindow({
     selected,
     candidates,
   }
-}
-
-export const DEFAULT_DYNAMIC_HOLDING_PROFILES = {
-  shortTrade: { minDays: 2, maxDays: 10, minGrossReturn: 0.03 },
-  fundCycle: { minDays: 20, maxDays: 120, minGrossReturn: 0.03 },
 }
 
 export function deriveDrawdownFeatures({ rows, index = null, lookback = 120, minSamples = 30 } = {}) {
@@ -157,6 +207,31 @@ export function deriveDynamicHoldingState({
   side = 'long',
 } = {}) {
   const normalizedProfiles = normalizeProfiles(profiles)
+  if (!drawdown || drawdown.status === 'insufficient-history') {
+    return emptyDynamicState({
+      status: '需刷新数据',
+      phase: 'insufficient-history',
+      structural: null,
+      profiles: normalizedProfiles,
+    })
+  }
+
+  const phase = classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct })
+  const state = {
+    zScore,
+    absZ: Math.abs(zScore),
+    halfLifeDays,
+    lpPercentile,
+    costSlopePct,
+    drawdown,
+  }
+
+  // A long position above its anchor no longer has a valid mean-reversion gap.
+  // Preserve the phase and risk state instead of misreporting valid history as missing.
+  if (phase === 'post-anchor-extension') {
+    return buildDynamicState({ phase, state, structural: null, profiles: normalizedProfiles })
+  }
+
   const maxWindow = Math.max(normalizedProfiles.shortTrade.maxDays, normalizedProfiles.fundCycle.maxDays)
   const structural = deriveStructuralHoldWindow({
     zScore,
@@ -172,35 +247,40 @@ export function deriveDynamicHoldingState({
     side,
   })
 
-  if (!drawdown || drawdown.status === 'insufficient-history' || !structural) {
-    return emptyDynamicState({ status: '需刷新数据', phase: 'insufficient-history', structural, profiles: normalizedProfiles })
+  if (!structural) {
+    return emptyDynamicState({
+      status: '需刷新数据',
+      phase: 'insufficient-history',
+      structural,
+      profiles: normalizedProfiles,
+    })
   }
 
-  const milestones = buildMilestones(structural)
-  const phase = classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct })
-  const shortTrade = buildHoldingPlan({ kind: 'shortTrade', profile: normalizedProfiles.shortTrade, phase, milestones })
-  const fundCycle = buildHoldingPlan({ kind: 'fundCycle', profile: normalizedProfiles.fundCycle, phase, milestones })
-  const status = phase === 'falling-expansion'
-    ? '等待'
-    : [shortTrade, fundCycle].some((plan) => plan.status === '观察')
-      ? '观察'
-      : [shortTrade, fundCycle].every((plan) => plan.status === '剔除') ? '剔除' : '等待'
+  return buildDynamicState({ phase, state, structural, profiles: normalizedProfiles })
+}
+
+function buildDynamicState({ phase, state, structural, profiles }) {
+  const milestones = structural ? buildMilestones(structural) : []
+  const shortTrade = buildHoldingPlan({ kind: 'shortTrade', profile: profiles.shortTrade, phase, milestones })
+  const fundCycle = buildHoldingPlan({ kind: 'fundCycle', profile: profiles.fundCycle, phase, milestones })
+  const status =
+    phase === 'falling-expansion'
+      ? '等待'
+      : [shortTrade, fundCycle].some((plan) => plan.status === '观察')
+        ? '观察'
+        : [shortTrade, fundCycle].every((plan) => plan.status === '剔除')
+          ? '剔除'
+          : '等待'
 
   return {
     status,
     phase,
     phaseLabel: phaseLabel(phase),
-    state: {
-      zScore,
-      absZ: Math.abs(zScore),
-      halfLifeDays,
-      lpPercentile,
-      costSlopePct,
-      drawdown,
-    },
+    state,
     milestones,
-    expectation: buildExpectation({ milestones, structural, profiles: normalizedProfiles }),
+    expectation: buildExpectation({ milestones, structural, profiles }),
     holdingPlan: { shortTrade, fundCycle },
+    profiles,
     blockedReasons: unique([...shortTrade.blockedReasons, ...fundCycle.blockedReasons]),
   }
 }
@@ -238,9 +318,8 @@ function buildTargetCandidate({
   if (recoveryFraction <= 0) blockedReasons.push('target-behind-entry')
   if (recoveryFraction >= 1) blockedReasons.push('post-anchor-extension')
 
-  const partialRecoveryDays = recoveryFraction > 0 && recoveryFraction < 1
-    ? halfLifeDays * log2(1 / (1 - recoveryFraction))
-    : null
+  const partialRecoveryDays =
+    recoveryFraction > 0 && recoveryFraction < 1 ? halfLifeDays * log2(1 / (1 - recoveryFraction)) : null
   const executableHoldingDays = partialRecoveryDays !== null ? Math.max(minExecutableDays, partialRecoveryDays) : null
   const grossReturn = direction === 1 ? effectiveTargetPrice / entryPrice - 1 : entryPrice / effectiveTargetPrice - 1
 
@@ -263,163 +342,6 @@ function buildTargetCandidate({
   }
 }
 
-function buildMilestones(structural) {
-  const alias = { costLower: 'firstRepair', anchor: 'baseAnchor', lpUpper: 'stretch' }
-  return structural.candidates.map((candidate) => ({
-    id: alias[candidate.id] ?? candidate.id,
-    sourceId: candidate.id,
-    targetPrice: candidate.targetPrice,
-    effectiveTargetPrice: candidate.effectiveTargetPrice,
-    expectedDays: candidate.partialRecoveryDays,
-    executableDays: candidate.executableHoldingDays,
-    halfLifeDays: candidate.halfLifeDays,
-    grossReturn: candidate.grossReturn,
-    returnPerDayPct: Number.isFinite(candidate.grossReturn) && Number.isFinite(candidate.partialRecoveryDays) ? round(candidate.grossReturn * 100 / candidate.partialRecoveryDays, 4) : null,
-    monthlyEfficiencyPct: Number.isFinite(candidate.grossReturn) && Number.isFinite(candidate.partialRecoveryDays) ? round(candidate.grossReturn * 100 / candidate.partialRecoveryDays * 21, 2) : null,
-    recoveryFraction: candidate.recoveryFraction,
-    zAtTarget: candidate.zAtTarget,
-    isStretch: candidate.id === 'lpUpper',
-    blockedReasons: candidate.blockedReasons,
-  }))
-}
-
-function buildHoldingPlan({ kind, profile, phase, milestones }) {
-  if (phase === 'insufficient-history') return plan('需刷新数据', 'refresh-data', null, ['insufficient-history'])
-  if (phase === 'falling-expansion') return plan('等待', 'wait-drawdown-stabilize', null, ['drawdown-expanding'])
-  if (phase === 'post-anchor-extension') return plan('等待', 'review-extension', milestoneById(milestones, 'stretch'), ['post-anchor-extension'])
-
-  const firstRepair = milestoneById(milestones, 'firstRepair')
-  const baseAnchor = milestoneById(milestones, 'baseAnchor')
-  const candidates = kind === 'fundCycle' ? [baseAnchor, firstRepair] : [firstRepair, baseAnchor]
-  const target = candidates.find((item) => usableMilestone(item, profile, kind))
-
-  if (kind === 'shortTrade' && phase === 'low-compression') return plan('观察', 'wait-repair-start', firstRepair, ['drawdown-repair-insufficient'])
-  if (target) {
-    const action = kind === 'fundCycle' ? 'review' : 'execute'
-    return {
-      ...plan('观察', action, target, []),
-      firstReviewDays: Number.isFinite(firstRepair?.expectedDays) ? Math.max(1, Math.round(firstRepair.expectedDays)) : null,
-    }
-  }
-
-  const horizonCandidate = candidates.find((item) => Number.isFinite(item?.expectedDays))
-  const reasons = horizonCandidate?.expectedDays > profile.maxDays ? ['holding-window'] : ['no-structural-target']
-  return plan(reasons.includes('no-structural-target') ? '剔除' : '等待', 'wait-window', horizonCandidate ?? null, reasons)
-}
-
-function usableMilestone(item, profile, kind) {
-  if (!item || item.blockedReasons.includes('post-anchor-extension')) return false
-  if (!Number.isFinite(item.expectedDays) || item.expectedDays > profile.maxDays) return false
-  if (kind === 'fundCycle' && item.id !== 'firstRepair' && item.expectedDays < profile.minDays) return false
-  if (kind !== 'fundCycle' && item.expectedDays < profile.minDays) return false
-  return Number.isFinite(item.grossReturn) && item.grossReturn >= profile.minGrossReturn
-}
-
-function classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct }) {
-  if (entryPrice >= anchorPrice) return 'post-anchor-extension'
-  if (drawdown.drawdownSpeed5 <= -0.015 || drawdown.drawdownSpeed20 <= -0.035) return 'falling-expansion'
-  if (drawdown.drawdownRepair >= 0.35) return 'mean-reverting'
-  if (drawdown.drawdownRepair >= 0.15 && drawdown.drawdownSpeed5 >= -0.005 && costSlopePct >= -1.5) return 'repair-start'
-  return 'low-compression'
-}
-
-function buildExpectation({ milestones, structural, profiles }) {
-  const firstRepair = milestoneById(milestones, 'firstRepair')
-  const baseAnchor = milestoneById(milestones, 'baseAnchor')
-  const stretch = milestoneById(milestones, 'stretch')
-  return {
-    firstRepairDays: roundNullable(firstRepair?.expectedDays),
-    baseAnchorDays: roundNullable(baseAnchor?.expectedDays),
-    stretchDays: roundNullable(stretch?.expectedDays),
-    baseReturnPct: rangePct(firstRepair?.grossReturn, baseAnchor?.grossReturn),
-    stretchReturnPct: roundNullable((stretch?.grossReturn ?? null) * 100),
-    profileExpectations: {
-      shortTrade: buildProfileExpectation({ profile: profiles.shortTrade, structural, milestones }),
-      fundCycle: buildProfileExpectation({ profile: profiles.fundCycle, structural, milestones }),
-    },
-  }
-}
-
-function buildProfileExpectation({ profile, structural, milestones }) {
-  if (!structural) {
-    return {
-      minDays: profile.minDays,
-      maxDays: profile.maxDays,
-      expectedReturnAtMinPct: null,
-      expectedReturnAtMaxPct: null,
-      expectedReturnRangePct: null,
-      monthlyEfficiencyPct: null,
-      reachedMilestone: null,
-      nextMilestone: null,
-    }
-  }
-  const atMin = expectedReturnAtDays({ days: profile.minDays, structural, milestones })
-  const atMax = expectedReturnAtDays({ days: profile.maxDays, structural, milestones })
-  const targetInWindow = milestones.find((item) => Number.isFinite(item.expectedDays) && item.expectedDays >= profile.minDays && item.expectedDays <= profile.maxDays && !item.blockedReasons.includes('post-anchor-extension')) ?? null
-  const nextMilestone = milestones.find((item) => Number.isFinite(item.expectedDays) && item.expectedDays > profile.maxDays && !item.blockedReasons.includes('post-anchor-extension')) ?? null
-  return {
-    minDays: profile.minDays,
-    maxDays: profile.maxDays,
-    expectedReturnAtMinPct: atMin.returnPct,
-    expectedReturnAtMaxPct: atMax.returnPct,
-    expectedReturnRangePct: rangePct(atMin.grossReturn, atMax.grossReturn),
-    monthlyEfficiencyPct: atMax.days > 0 && Number.isFinite(atMax.grossReturn) ? round(atMax.grossReturn * 100 / atMax.days * 21, 2) : null,
-    reachedMilestone: targetInWindow?.id ?? null,
-    nextMilestone: nextMilestone?.id ?? null,
-  }
-}
-
-function expectedReturnAtDays({ days, structural, milestones }) {
-  const halfLifeDays = milestones.find((item) => Number.isFinite(item.expectedDays))?.halfLifeDays
-  if (!Number.isFinite(days) || !Number.isFinite(halfLifeDays) || halfLifeDays <= 0) return { days, grossReturn: null, returnPct: null }
-  const direction = structural.side === 'short' ? -1 : 1
-  const anchorGap = (structural.anchorPrice - structural.entryPrice) * direction
-  if (!Number.isFinite(anchorGap) || anchorGap <= 0) return { days, grossReturn: null, returnPct: null }
-  const baseAnchor = milestoneById(milestones, 'baseAnchor')
-  const cap = Number.isFinite(baseAnchor?.recoveryFraction) ? baseAnchor.recoveryFraction : 0.875
-  const recoveryFraction = Math.min(cap, 1 - Math.pow(2, -days / halfLifeDays))
-  const price = structural.entryPrice + direction * anchorGap * recoveryFraction
-  const grossReturn = direction === 1 ? price / structural.entryPrice - 1 : structural.entryPrice / price - 1
-  return { days, grossReturn, returnPct: roundNullable(grossReturn * 100) }
-}
-
-function plan(status, action, target, blockedReasons) {
-  return {
-    status,
-    action,
-    target,
-    targetId: target?.id ?? null,
-    expectedDays: roundNullable(target?.expectedDays),
-    expectedReturnPct: roundNullable((target?.grossReturn ?? null) * 100),
-    blockedReasons,
-  }
-}
-
-function normalizeProfiles(profiles) {
-  return {
-    shortTrade: { ...DEFAULT_DYNAMIC_HOLDING_PROFILES.shortTrade, ...(profiles?.shortTrade ?? {}) },
-    fundCycle: { ...DEFAULT_DYNAMIC_HOLDING_PROFILES.fundCycle, ...(profiles?.fundCycle ?? {}) },
-  }
-}
-
-function emptyDynamicState({ status, phase, structural, profiles }) {
-  const milestones = structural ? buildMilestones(structural) : []
-  return {
-    status,
-    phase,
-    phaseLabel: phaseLabel(phase),
-    state: null,
-    milestones,
-    expectation: buildExpectation({ milestones, structural, profiles }),
-    holdingPlan: {
-      shortTrade: plan(status, 'refresh-data', null, ['insufficient-history']),
-      fundCycle: plan(status, 'refresh-data', null, ['insufficient-history']),
-    },
-    profiles,
-    blockedReasons: ['insufficient-history'],
-  }
-}
-
 function drawdownDepthAt(rows, index, lookback) {
   const end = Math.min(Math.max(index, 0), rows.length - 1)
   const start = Math.max(0, end - lookback + 1)
@@ -430,25 +352,19 @@ function drawdownDepthAt(rows, index, lookback) {
 }
 
 function insufficientDrawdown(sampleSize) {
-  return { status: 'insufficient-history', sampleSize, drawdownDepth: null, drawdownSpeed5: null, drawdownSpeed20: null, drawdownRepair: null, drawdownAge: { peakDays: null, troughDays: null } }
+  return {
+    status: 'insufficient-history',
+    sampleSize,
+    drawdownDepth: null,
+    drawdownSpeed5: null,
+    drawdownSpeed20: null,
+    drawdownRepair: null,
+    drawdownAge: { peakDays: null, troughDays: null },
+  }
 }
 
-function milestoneById(milestones, id) { return milestones.find((item) => item.id === id) ?? null }
-function rangePct(a, b) { return [a, b].every(Number.isFinite) ? `${roundNullable(a * 100)}%~${roundNullable(b * 100)}%` : null }
-function roundNullable(value, digits = 2) { return Number.isFinite(value) ? round(value, digits) : null }
-function round(value, digits = 2) { const factor = 10 ** digits; return Math.round(value * factor) / factor }
-function clamp01(value) { return Math.max(0, Math.min(1, value)) }
-function unique(values) { return [...new Set(values.filter(Boolean))] }
-
-function phaseLabel(phase) {
-  return ({
-    'falling-expansion': '下跌扩张',
-    'low-compression': '低位压缩',
-    'repair-start': '修复启动',
-    'mean-reverting': '回归中',
-    'post-anchor-extension': '锚后扩展',
-    'insufficient-history': '数据不足',
-  })[phase] ?? phase
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value))
 }
 
 function passesZDirection({ zScore, minAbsZ, side }) {

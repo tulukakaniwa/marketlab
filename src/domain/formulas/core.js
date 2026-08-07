@@ -43,7 +43,7 @@ export {
   deriveStructuralHoldWindow,
 } from './shortHold.js'
 
-import { normalCdf } from './probability.js'
+import { inverseNormalCdf, normalCdf } from './probability.js'
 
 export function vixFix({ highestClose, low }) {
   if (![highestClose, low].every(Number.isFinite) || highestClose <= 0) return null
@@ -61,12 +61,10 @@ export function capitalEfficiency({ rangeWidth, skew }) {
     efficiency: 1 / (1 - Math.pow(lower / upper, 0.25)),
     frontierSlope: Math.abs(
       (-skew - 1) /
-      (
-        4 *
-        Math.pow(Math.pow(upper, 0.25) - Math.pow(lower, 0.25), 2) *
-        Math.pow(lower, 0.75) *
-        Math.pow(upper, 0.75)
-      ),
+        (4 *
+          Math.pow(Math.pow(upper, 0.25) - Math.pow(lower, 0.25), 2) *
+          Math.pow(lower, 0.75) *
+          Math.pow(upper, 0.75)),
     ),
   }
 }
@@ -93,7 +91,13 @@ export function deviationScore({ costDistance, annualVol, holdingDays = 1, tradi
   const z = periodVol > 0 ? costDistance / periodVol : 0
   const phi = normalCdf(Math.abs(z))
   const prob = phi !== null ? Math.max(0, Math.min(1, phi)) : 0.5
-  return { z, periodVol, regressionProb: prob, regime: costDistance < 0 ? '折价' : costDistance > 0 ? '溢价' : '平价', strength: Math.abs(z) < 0.5 ? '弱' : Math.abs(z) < 1.5 ? '中' : '强' }
+  return {
+    z,
+    periodVol,
+    regressionProb: prob,
+    regime: costDistance < 0 ? '折价' : costDistance > 0 ? '溢价' : '平价',
+    strength: Math.abs(z) < 0.5 ? '弱' : Math.abs(z) < 1.5 ? '中' : '强',
+  }
 }
 
 export function netLpEfficiency({ capitalEfficiency, impermanentLoss, feeRate = 0 }) {
@@ -103,7 +107,15 @@ export function netLpEfficiency({ capitalEfficiency, impermanentLoss, feeRate = 
   const netGain = grossGain + impermanentLoss
   const feeBoost = capitalEfficiency * feeRate
   const totalNet = netGain + feeBoost
-  return { grossGain, impermanentLoss, feeBoost, totalNet, efficient: totalNet > 0, ce: capitalEfficiency, status: 'research-only' }
+  return {
+    grossGain,
+    impermanentLoss,
+    feeBoost,
+    totalNet,
+    efficient: totalNet > 0,
+    ce: capitalEfficiency,
+    status: 'research-only',
+  }
 }
 
 export function meanReversionHalfLife({ costDistanceSeries, tradingDaysPerYear = 365 }) {
@@ -117,44 +129,109 @@ export function meanReversionHalfLife({ costDistanceSeries, tradingDaysPerYear =
     sumXY += valid[i] * valid[i - 1]
     sumX2 += valid[i - 1] * valid[i - 1]
   }
-  const rho = sumX2 > 0 ? Math.max(-0.99, Math.min(0.99, sumXY / sumX2)) : 0
-  const theta = -Math.log(Math.abs(rho))
-  const halfLife = rho !== 0 && Math.abs(rho) < 1 ? Math.log(2) / theta : Infinity
-  const halfLifeDays = Number.isFinite(halfLife) ? halfLife : null
+  const rho = sumX2 > 0 ? sumXY / sumX2 : 0
+  const absRho = Math.abs(rho)
+  const isMeanReverting = absRho < 1
+  const theta = absRho > 0 && isMeanReverting ? -Math.log(absRho) : null
+  const halfLifeDays = absRho === 0 ? 0 : Number.isFinite(theta) && theta > 0 ? Math.log(2) / theta : null
 
-  const tradingDays = tradingDaysPerYear || 365
-  const dayFrac = tradingDays / 365
-  const speed = halfLifeDays !== null
-    ? halfLifeDays < 5 * dayFrac ? '极快' : halfLifeDays < 15 * dayFrac ? '快' : halfLifeDays < 45 * dayFrac ? '中' : halfLifeDays < 90 * dayFrac ? '慢' : '极慢'
-    : '无回归'
+  const tradingDays = Number.isFinite(tradingDaysPerYear) && tradingDaysPerYear > 0 ? tradingDaysPerYear : 365
+  const speed =
+    halfLifeDays !== null
+      ? halfLifeDays < 5
+        ? '极快'
+        : halfLifeDays < 15
+          ? '快'
+          : halfLifeDays < 45
+            ? '中'
+            : halfLifeDays < 90
+              ? '慢'
+              : '极慢'
+      : '无回归'
 
-  return { rho, theta, halfLifeDays, speed, periodNote: `基于 ${tradingDaysPerYear} 日年基，半衰 ${halfLifeDays !== null ? Math.round(halfLifeDays) : '∞'} 天` }
+  const decayMode = !isMeanReverting
+    ? 'non-stationary'
+    : absRho === 0
+      ? 'immediate'
+      : rho < 0
+        ? 'oscillating-decay'
+        : 'monotonic-decay'
+  return {
+    rho,
+    theta,
+    halfLifeDays,
+    speed,
+    isMeanReverting,
+    decayMode,
+    sampleSize: valid.length,
+    periodNote: `基于 ${valid.length} 个交易日样本（${tradingDays} 日年基），半衰 ${halfLifeDays !== null ? Math.round(halfLifeDays) : '不可定义'} 个交易日`,
+  }
 }
 
-export function gammaPnl({ gamma, priceChange, positionSize = 1 }) {
+export function gammaPnl({ gamma, priceChange, positionSize = 1, markPrice = null }) {
   if (![gamma, priceChange, positionSize].every(Number.isFinite)) return null
-  const dollarGamma = gamma * positionSize
-  const pnl = 0.5 * dollarGamma * priceChange * priceChange
-  return { dollarGamma, priceChange, gammaPnl: pnl, dailyEstimate: pnl, convexityNote: gamma > 0 ? '多头凸性 · 波动有利' : '空头凸性 · 波动不利' }
+  if (markPrice !== null && (!Number.isFinite(markPrice) || markPrice <= 0)) return null
+  const positionGamma = gamma * positionSize
+  const hasMarkPrice = Number.isFinite(markPrice) && markPrice > 0
+  const dollarGamma = hasMarkPrice ? positionGamma * markPrice * markPrice : null
+  const priceChangePct = hasMarkPrice ? priceChange / markPrice : null
+  const pnl = 0.5 * positionGamma * priceChange * priceChange
+  const convexityNote = positionGamma > 0 ? '多头凸性 · 波动有利' : positionGamma < 0 ? '空头凸性 · 波动不利' : '零凸性'
+  return {
+    positionGamma,
+    dollarGamma,
+    priceChange,
+    priceChangePct,
+    gammaPnl: pnl,
+    dailyEstimate: pnl,
+    convexityNote,
+    dollarGammaNote: hasMarkPrice
+      ? 'Dollar Gamma = positionGamma × markPrice²；Gamma PnL = 0.5 × Dollar Gamma × (ΔP / markPrice)²'
+      : '未提供 markPrice；仅计算绝对价格变动口径的 Gamma PnL，Dollar Gamma 不可用',
+  }
 }
 
 export function volConfidence({ annualVol, sampleSize = 60, confidenceLevel = 0.68 }) {
-  if (![annualVol, sampleSize].every(Number.isFinite)) return null
-  if (annualVol <= 0 || sampleSize < 5) return null
+  if (![annualVol, sampleSize, confidenceLevel].every(Number.isFinite)) return null
+  if (annualVol <= 0 || sampleSize < 5 || confidenceLevel <= 0 || confidenceLevel >= 1) return null
 
   const se = annualVol / Math.sqrt(2 * sampleSize)
-  const z = confidenceLevel === 0.95 ? 1.96 : confidenceLevel === 0.68 ? 1.0 : 1.65
+  const z = inverseNormalCdf((1 + confidenceLevel) / 2)
+  if (!Number.isFinite(z)) return null
   const lower = Math.max(0, annualVol - z * se)
   const upper = annualVol + z * se
   const relativeUncertainty = se / annualVol
 
-  const seBaseline = 1 / Math.sqrt(2 * sampleSize)
-  const quality = relativeUncertainty < seBaseline * 2 ? '高精度' : relativeUncertainty < seBaseline * 4 ? '中精度' : relativeUncertainty < seBaseline * 8 ? '低精度' : '不可靠'
+  const quality =
+    relativeUncertainty <= 0.1
+      ? '高精度'
+      : relativeUncertainty <= 0.2
+        ? '中精度'
+        : relativeUncertainty <= 0.3
+          ? '低精度'
+          : '不可靠'
 
-  return { annualVol, se, lower, upper, relativeUncertainty, quality, sampleSize, note: `基于 ${sampleSize} 样本，波动率区间估计为 [${(lower * 100).toFixed(1)}%, ${(upper * 100).toFixed(1)}%]（区间水平 ${(confidenceLevel * 100).toFixed(0)}%）` }
+  return {
+    annualVol,
+    se,
+    lower,
+    upper,
+    relativeUncertainty,
+    quality,
+    sampleSize,
+    confidenceLevel,
+    zScore: z,
+    note: `基于 ${sampleSize} 样本，波动率区间估计为 [${(lower * 100).toFixed(1)}%, ${(upper * 100).toFixed(1)}%]（区间水平 ${(confidenceLevel * 100).toFixed(0)}%）`,
+  }
 }
 
-export function netCarry({ costDistance, fundingRate, fundingCost: explicitFundingCost = null, holdingDays = 1, tradingDaysPerYear = 365 }) {
+export function netCarry({
+  costDistance,
+  fundingRate,
+  fundingCost: explicitFundingCost = null,
+  holdingDays = 1,
+  tradingDaysPerYear = 365,
+}) {
   if (![costDistance, holdingDays, tradingDaysPerYear].every(Number.isFinite)) return null
   const fundingCost = Number.isFinite(explicitFundingCost)
     ? Math.abs(explicitFundingCost)
@@ -164,5 +241,13 @@ export function netCarry({ costDistance, fundingRate, fundingCost: explicitFundi
   if (fundingCost === null) return null
   const netReturn = Math.abs(costDistance) - fundingCost
   const breakEven = fundingCost
-  return { costDistance, fundingCost, netReturn, breakEven, viable: netReturn > 0, requiredReturn: breakEven + 0.01, status: 'proxy-only' }
+  return {
+    costDistance,
+    fundingCost,
+    netReturn,
+    breakEven,
+    viable: netReturn > 0,
+    requiredReturn: breakEven + 0.01,
+    status: 'proxy-only',
+  }
 }

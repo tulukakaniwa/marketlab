@@ -4,19 +4,19 @@
 
 ## 变量命名边界
 
-| Symbol | Code field | Meaning |
-| --- | --- | --- |
-| `S` | `markPrice` | 当前标的价格 |
-| `P` | `entryPrice` | GetDelta 入场价 |
-| `C` | `costAnchor` | 市场成本锚 |
-| `K` | `strikePrice` | 期权行权价 |
-| `S0` | `startPrice` | LP / hedge 建仓基准价 |
-| `T` | `holdingDays / tradingDaysPerYear` | 年化时间 |
-| `sigma` | `iv` / `annualVol` | 年化波动率 |
-| `d` | `deltaSlope` | GetDelta 局部斜率约束 |
-| `g` | `exitTargetReturn` | 账户退出收益目标 |
-| `L` | `liquidity` | LP 流动性规模 |
-| `H` | `hedgeSize` | 线性对冲规模 |
+| Symbol  | Code field                         | Meaning               |
+| ------- | ---------------------------------- | --------------------- |
+| `S`     | `markPrice`                        | 当前标的价格          |
+| `P`     | `entryPrice`                       | GetDelta 入场价       |
+| `C`     | `costAnchor`                       | 市场成本锚            |
+| `K`     | `strikePrice`                      | 期权行权价            |
+| `S0`    | `startPrice`                       | LP / hedge 建仓基准价 |
+| `T`     | `holdingDays / tradingDaysPerYear` | 年化时间              |
+| `sigma` | `iv` / `annualVol`                 | 年化波动率            |
+| `d`     | `deltaSlope`                       | GetDelta 局部斜率约束 |
+| `g`     | `exitTargetReturn`                 | 账户退出收益目标      |
+| `L`     | `liquidity`                        | LP 流动性规模         |
+| `H`     | `hedgeSize`                        | 线性对冲规模          |
 
 `d` 和 `g` 不能共用字段。`d` 进入 GetDelta；`g` 进入退出计划。
 
@@ -528,16 +528,18 @@ theta = -ln(abs(rho))
 halfLife = ln(2) / theta
 ```
 
-Status: research-only speed estimate.
+The implementation reports the raw through-origin AR(1) coefficient. The half-life is defined only for `abs(rho) < 1`; a negative coefficient is an oscillating decay, while `abs(rho) >= 1` is non-stationary and returns no half-life. Status: research-only speed estimate.
 
 ## 16. Gamma PnL
 
 ```txt
-dollarGamma = gamma * positionSize
-gammaPnl = 0.5 * dollarGamma * priceChange^2
+positionGamma = gamma * positionSize
+dollarGamma = positionGamma * markPrice^2
+gammaPnl = 0.5 * positionGamma * priceChange^2
+         = 0.5 * dollarGamma * (priceChange / markPrice)^2
 ```
 
-Status: research-only convexity estimate.
+`positionGamma` uses absolute price changes. `dollarGamma` uses relative returns and requires `markPrice`; it is not interchangeable with position Gamma. Status: research-only convexity estimate.
 
 ## 17. Volatility Confidence
 
@@ -546,6 +548,7 @@ SE_sigma = sigma / sqrt(2n)
 CI_low = max(0, sigma - z * SE_sigma)
 CI_high = sigma + z * SE_sigma
 relativeUncertainty = SE_sigma / sigma
+z = inverseNormalCdf((1 + confidenceLevel) / 2)
 ```
 
-Status: research-only uncertainty label.
+The standard-error approximation assumes normally distributed returns. Precision labels use fixed relative-SE thresholds (`<=10%`, `<=20%`, `<=30%`, otherwise unreliable), so the label changes with sample size instead of comparing the error with itself. Status: research-only uncertainty label.

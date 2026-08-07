@@ -356,7 +356,7 @@ const {
       <text v-if="mrData.halfLifeDays !== null" :x="(hlMarker?.x ?? PL) + 6" :y="(hlMarker?.y ?? sy(0)) - 4" class="fc-tick" fill="var(--red)">t½={{ Math.round(mrData.halfLifeDays) }}天</text>
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">{{ Math.round(mrData.halfLifeDays * 3) || 90 }}天</text>
-      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">ρ={{ mrData.rho.toFixed(3) }} · θ={{ mrData.theta.toFixed(4) }} · {{ mrData.speed }}</text>
+      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">ρ={{ mrData.rho.toFixed(3) }} · θ={{ Number.isFinite(mrData.theta) ? mrData.theta.toFixed(4) : '—' }} · {{ mrData.speed }}</text>
     </svg>
 
     <!-- GAMMA PNL -->

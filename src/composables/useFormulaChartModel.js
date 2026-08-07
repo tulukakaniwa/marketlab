@@ -371,9 +371,9 @@ export function useFormulaChartModel(props) {
       'lp-pool-coverage': { title: '研究层：LP 池覆盖', body: `池覆盖只读聚合池快照，展示 24h 换手和主池资金占比；tick 流动性历史和 LP 加减仓事件未接入，不作为交易结论。` },
       'net-lp-efficiency': { title: '研究层：LP 净效率', body: `当前净效率 ${nl ? nl.totalNet.toFixed(1) : '—'}× 只是 IL × CE 的估计。真实 LP 区间权重、手续费制度和再平衡规则未完成，不能判断“可行/赚钱”。` },
       'net-carry': { title: '研究层：持仓净收益', body: `当前净收益估计 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
-      'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays ? Math.round(mrData.value.halfLifeDays) + ' 天' : '∞'}。该指标只描述历史偏离衰减速度。` },
+      'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays !== null && mrData.value?.halfLifeDays !== undefined ? Math.round(mrData.value.halfLifeDays) + ' 个交易日' : '不可定义'}。只有 |ρ|<1 才是历史均值回归；ρ<0 表示偏离正负交替衰减。` },
       'dynamic-holding-state': { title: '动态持仓状态', body: `当前阶段 ${dh?.phaseLabel ?? '—'}，状态 ${dh?.status ?? '—'}。短线 ${planSummary(dh?.holdingPlan?.shortTrade)}；基金周期 ${planSummary(dh?.holdingPlan?.fundCycle)}。输入只使用当前观察点之前的回撤、z、半衰期和结构目标。` },
-      'gamma-pnl': { title: '怎么看 Gamma PnL', body: `Dollar Gamma ${fmt(gpData.value?.dollarGamma)}：标的价格变动 1 元，Delta 变化这么多。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。Gamma PnL = ½·Γ·(ΔP)²；这里仅展示波动平方项，不推导 LP 策略结论。` },
+      'gamma-pnl': { title: '怎么看 Gamma PnL', body: `持仓 Gamma ${fmt(gpData.value?.positionGamma)}，Dollar Gamma ${fmt(gpData.value?.dollarGamma)}。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。绝对价格口径用 ½·持仓Γ·(ΔP)²；收益率口径等价为 ½·Dollar Gamma·(ΔP/P)²。这里是模型情景值，不是实际人民币收益。` },
       'vol-confidence': { title: '波动率区间估计', body: `基于 ${vcData.value?.sampleSize} 天样本，波动率区间估计为 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}]。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)}，精度标签 ${vcData.value?.quality}。` },
     }
     return guides[id] || null

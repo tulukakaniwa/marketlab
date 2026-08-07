@@ -76,6 +76,7 @@ export function useFormulaSecondOrderModel({
       gamma: props.graph.option?.gamma,
       priceChange: Math.abs(props.market?.costDistance ?? 0) * (props.market?.markPrice ?? 0),
       positionSize: 1,
+      markPrice: props.market?.markPrice,
     }),
   )
   const gammaCurve = computed(() => {
@@ -85,10 +86,10 @@ export function useFormulaSecondOrderModel({
       const maxDP = (props.market?.markPrice || 1) * 0.3
       const n = 50
       const pts = []
-      const maxPnl = Math.abs(0.5 * (g.dollarGamma || 0.0001) * maxDP * maxDP) || 0.01
+      const maxPnl = Math.abs(0.5 * (g.positionGamma || 0.0001) * maxDP * maxDP) || 0.01
       for (let i = 0; i <= n; i++) {
         const dp = -maxDP + ((2 * maxDP) / n) * i
-        const pnl = 0.5 * (g.dollarGamma || 0) * dp * dp
+        const pnl = 0.5 * (g.positionGamma || 0) * dp * dp
         const x = PL + ((dp + maxDP) / (2 * maxDP)) * pw
         const y = sy(Math.min(1, Math.abs(pnl) / maxPnl))
         if (Number.isFinite(x) && Number.isFinite(y)) pts.push(`${x},${y}`)
@@ -103,7 +104,7 @@ export function useFormulaSecondOrderModel({
       const g = gpData.value
       const maxDP = (props.market?.markPrice || 1) * 0.3
       const dp = g?.priceChange || 0
-      const maxPnl = Math.abs(0.5 * (g?.dollarGamma || 0.0001) * maxDP * maxDP) || 0.01
+      const maxPnl = Math.abs(0.5 * (g?.positionGamma || 0.0001) * maxDP * maxDP) || 0.01
       const cx = PL + ((dp + maxDP) / (2 * maxDP)) * pw
       const cy = sy(Math.min(1, Math.abs(g?.gammaPnl || 0) / maxPnl))
       if (!Number.isFinite(cx) || !Number.isFinite(cy)) return { cx: PL, cy: sy(0) }

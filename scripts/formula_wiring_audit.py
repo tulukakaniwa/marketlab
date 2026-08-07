@@ -137,7 +137,7 @@ def run_node_checks() -> list[dict]:
       const netLp = netLpEfficiency({ capitalEfficiency: ce?.efficiency, impermanentLoss: il?.impermanentLoss, feeRate: 0.003 })
       const carry = netCarry({ costDistance: 0.1, fundingRate: funding?.cumulativeFundingEstimate, holdingDays: 30 })
       const halfLife = meanReversionHalfLife({ costDistanceSeries: marketPath.map((item) => item.costDistance) })
-      const gp = gammaPnl({ gamma: option?.gamma, priceChange: 5, positionSize: 2 })
+      const gp = gammaPnl({ gamma: option?.gamma, markPrice: market.markPrice, priceChange: 5, positionSize: 2 })
       const vc = volConfidence({ annualVol: market.annualVol, sampleSize: 60 })
       const dynamicHolding = deriveDynamicHoldingState({
         zScore: -2.8,

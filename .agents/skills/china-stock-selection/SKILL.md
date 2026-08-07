@@ -138,6 +138,13 @@ Complete formula stack:
 | 订单决策 | buildDecisionGraph | real |
 | 资金费率 / 持仓净收益 | fundingRate / netCarry | fallback (no perp data) |
 
+Second-order reporting rules:
+
+- `meanReversion.rho` is the raw AR(1) coefficient from the cost-distance series. Only `abs(rho) < 1` has a defined decay half-life; `rho < 0` means alternating-sign decay, and `abs(rho) >= 1` must be reported as non-stationary rather than clipped into a slow half-life.
+- `dynamicHolding.phase = post-anchor-extension` means price is already above the long-side cost anchor. Keep it as `等待 / review-extension`; never relabel it as insufficient history and never invent a mean-reversion target beyond the anchor.
+- `gammaConvexity.positionGamma = gamma * positionSize`; `dollarGamma = positionGamma * markPrice^2`. Absolute-price Gamma PnL is `0.5 * positionGamma * priceChange^2`, equivalent to `0.5 * dollarGamma * (priceChange / markPrice)^2`. For the A-share screen this remains a unit-size synthetic option scenario, not actual RMB PnL.
+- `volConfidence.standardErrorPct` uses `SE(sigma) = sigma / sqrt(2n)` under the normal-return approximation. The interval uses the requested two-sided confidence level and must disclose sample size, critical z, standard error, and relative uncertainty.
+
 ## Screening Semantics
 
 Three-pillar scoring with LP percentile as the dominant signal:

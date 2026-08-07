@@ -4,13 +4,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inferTdpy } from '../../../../src/domain/market-data/tdpy.js'
-import { buildMarketStatePath } from '../../../../src/domain/market-data/cost.js'
+import { buildMarketStatePath, deriveWindows } from '../../../../src/domain/market-data/cost.js'
 import {
   asianOption,
   bachelierOption,
   blackScholes,
   capitalEfficiency,
   deviationScore,
+  deriveDrawdownFeatures,
+  deriveDynamicHoldingState,
   gammaPnl,
   getDeltaBands,
   impermanentLoss,
@@ -188,7 +190,12 @@ function buildFormula(entry, rows) {
   }) : null
 
   // Gamma PnL
-  const gamma = gammaPnl({ gamma: option?.gamma ?? 0, priceChange: (market?.atr ?? 0), positionSize: 1 })
+  const gamma = gammaPnl({
+    gamma: option?.gamma ?? 0,
+    markPrice: latest.close,
+    priceChange: market?.atr ?? 0,
+    positionSize: 1,
+  })
 
   // LP 库存 (合成模式)
   const rangeWidth = Math.max(market?.atrPercent ?? 0.05, 0.03)
@@ -259,11 +266,25 @@ function buildFormula(entry, rows) {
   const carry = null
 
   // 波动率置信
-  const vci = volConfidence({ annualVol: iv, sampleSize: Math.min(120, Math.max(rows.length - 1, 5)), confidenceLevel: 0.68 })
+  const volSampleSize = Math.min(deriveWindows(rows.length).vol, Math.max(rows.length - 1, 5))
+  const vci = volConfidence({ annualVol: iv, sampleSize: volSampleSize, confidenceLevel: 0.68 })
 
   // 均值回归
   const costSeries = marketPath.map(x => x.costDistance).filter(Number.isFinite)
   const mr = meanReversionHalfLife({ costDistanceSeries: costSeries.slice(-180), tradingDaysPerYear: tdpy.value })
+  const drawdown = deriveDrawdownFeatures({ rows })
+  const dynamicHolding = Number.isFinite(mr?.halfLifeDays) && mr.halfLifeDays > 0 && market
+    ? deriveDynamicHoldingState({
+      zScore: deviation.z,
+      halfLifeDays: mr.halfLifeDays,
+      entryPrice: latest.close,
+      anchorPrice: market.costAnchor,
+      targetPrices: { costLower: market.costLow, anchor: market.costAnchor, lpUpper: synUpper },
+      drawdown,
+      lpPercentile,
+      costSlopePct: (market.costSlope5 ?? 0) * 100,
+    })
+    : null
 
   // VIX Fix
   const recent22 = rows.slice(-22)
@@ -300,8 +321,25 @@ function buildFormula(entry, rows) {
       asianPrice: asian ? round(asian.price, 3) : null,
       bachelierPrice: bachelier ? round(bachelier.price, 3) : null,
       riskSurfacePoints: surface?.points?.length ?? 0,
+      positionGamma: gamma ? round(gamma.positionGamma, 8) : null,
+      dollarGamma: gamma ? round(gamma.dollarGamma, 6) : null,
       gammaPnl: gamma ? round(gamma.gammaPnl, 6) : null,
     },
+    gammaConvexity: gamma ? {
+      model: 'synthetic Black-Scholes call',
+      strikePrice: round(strikePrice, 3),
+      holdingDays,
+      positionSize: 1,
+      positionGamma: round(gamma.positionGamma, 8),
+      dollarGamma: round(gamma.dollarGamma, 6),
+      shockType: 'one-ATR absolute price move',
+      priceChange: round(gamma.priceChange, 6),
+      priceChangePct: round(gamma.priceChangePct * 100, 4),
+      gammaPnl: round(gamma.gammaPnl, 6),
+      convexityNote: gamma.convexityNote,
+      formula: '0.5 × positionGamma × ΔP² = 0.5 × dollarGamma × (ΔP/P)²',
+      unitNote: 'positionSize=1 的合成期权单位情景值，不是实际人民币持仓收益',
+    } : null,
     synLp: {
       value: synLp?.value !== null && Number.isFinite(synLp?.value) ? round(synLp.value, 4) : null,
       zone: synLp?.zone ?? null,
@@ -329,11 +367,27 @@ function buildFormula(entry, rows) {
     funding: { hasFunding, basisEstimate: null, cumulativeFunding: null },
     netCarry: null,
     volConfidence: vci ? {
-      lowerPct: round(vci.lower * 100, 1), upperPct: round(vci.upper * 100, 1), quality: vci.quality,
+      annualVolPct: round(vci.annualVol * 100, 2),
+      standardErrorPct: round(vci.se * 100, 2),
+      lowerPct: round(vci.lower * 100, 2),
+      upperPct: round(vci.upper * 100, 2),
+      relativeUncertaintyPct: round(vci.relativeUncertainty * 100, 2),
+      confidenceLevelPct: round(vci.confidenceLevel * 100, 1),
+      zCritical: round(vci.zScore, 4),
+      sampleSize: vci.sampleSize,
+      quality: vci.quality,
     } : null,
     meanReversion: mr ? {
-      halfLifeDays: mr.halfLifeDays === null ? null : round(mr.halfLifeDays, 1), speed: mr.speed,
+      rho: round(mr.rho, 6),
+      theta: mr.theta === null ? null : round(mr.theta, 6),
+      halfLifeDays: mr.halfLifeDays === null ? null : round(mr.halfLifeDays, 2),
+      speed: mr.speed,
+      isMeanReverting: mr.isMeanReverting,
+      decayMode: mr.decayMode,
+      sampleSize: mr.sampleSize,
+      periodNote: mr.periodNote,
     } : null,
+    dynamicHolding: dynamicHolding ? { ...dynamicHolding, zBasisDays: holdingDays } : null,
     vixFix: vix !== null && vix !== undefined ? round(Number(vix) * 100, 2) : null,
     orderPlan: {
       state: decisionGraph.decision?.state ?? '等待',
@@ -455,7 +509,7 @@ function printMarkdown(rows, meta) {
   console.log(`评分: 成本锚(0-30) + 合成LP(0-45·分位数主导) + z-score(0-15) + 数据质量(0-10)`)
   console.log(`LP分位权重: P<5%=30, P<10%=25, P<25%=18, P<50%=10; zone+netLp加成最多15`)
   console.log(`合成LP: liquidity=1, rangeWidth=ATR推导, 无链上数据依赖`)
-  console.log(`完整JSON: --format json 含全量公式字段 (options/deltaBands/fingerprint/amm/mr/volConfidence/orderPlan)`)
+  console.log(`完整JSON: --format json 含全量公式字段 (options/gammaConvexity/dynamicHolding/mr/volConfidence/orderPlan)`)
   console.log(`本报告仅基于本地OHLCV的研究筛选，不构成投资建议。`)
   if (meta.skipped.length) console.log(`跳过: ${meta.skipped.length} 个标的数据缺失或不足`)
 }
