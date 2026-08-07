@@ -87,7 +87,7 @@ export function buildExpectation({ milestones, structural, profiles }) {
     firstRepairDays: roundNullable(firstRepair?.expectedDays),
     baseAnchorDays: roundNullable(baseAnchor?.expectedDays),
     stretchDays: roundNullable(stretch?.expectedDays),
-    baseReturnPct: rangePct(firstRepair?.grossReturn, baseAnchor?.grossReturn),
+    baseReturnPct: rangePct(forwardGrossReturn(firstRepair), forwardGrossReturn(baseAnchor)),
     stretchReturnPct: Number.isFinite(stretch?.grossReturn) ? roundNullable(stretch.grossReturn * 100) : null,
     profileExpectations: {
       shortTrade: buildProfileExpectation({ profile: profiles.shortTrade, structural, milestones }),
@@ -232,8 +232,17 @@ function milestoneById(milestones, id) {
   return milestones.find((item) => item.id === id) ?? null
 }
 
+function forwardGrossReturn(item) {
+  if (!Number.isFinite(item?.grossReturn) || item.grossReturn <= 0) return null
+  if (item.blockedReasons.includes('target-behind-entry') || item.blockedReasons.includes('post-anchor-extension')) return null
+  return item.grossReturn
+}
+
 function rangePct(a, b) {
-  return [a, b].every(Number.isFinite) ? `${roundNullable(a * 100)}%~${roundNullable(b * 100)}%` : null
+  const values = [a, b].filter(Number.isFinite)
+  if (!values.length) return null
+  if (values.length === 1) return `${roundNullable(values[0] * 100)}%`
+  return `${roundNullable(Math.min(...values) * 100)}%~${roundNullable(Math.max(...values) * 100)}%`
 }
 
 function roundNullable(value, digits = 2) {

@@ -45,6 +45,7 @@ describe('deriveDynamicHoldingState second-order regressions', () => {
     expect(state.holdingPlan.shortTrade.status).toBe('观察')
     expect(state.holdingPlan.shortTrade.targetId).toBe('baseAnchor')
     expect(state.holdingPlan.shortTrade.expectedReturnPct).toBeGreaterThan(0)
+    expect(state.expectation.baseReturnPct).toBe('0.88%')
   })
 })
 
