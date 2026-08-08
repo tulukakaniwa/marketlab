@@ -49,6 +49,24 @@ describe('deriveDynamicHoldingState second-order regressions', () => {
     expect(state.holdingPlan.shortTrade.expectedReturnPct).toBeGreaterThan(0)
     expect(state.expectation.baseReturnPct).toBe('0.88%')
   })
+
+  it('目标带有 z-threshold 时不把动态持仓状态升级为观察', () => {
+    const state = deriveDynamicHoldingState({
+      zScore: -0.57,
+      halfLifeDays: 10.76,
+      entryPrice: 49.76,
+      anchorPrice: 55.63,
+      targetPrices: { costLower: 45.55, anchor: 55.63 },
+      costSlopePct: -0.41,
+      drawdown: repairDrawdown,
+    })
+
+    expect(state.phase).toBe('repair-start')
+    expect(state.status).toBe('等待')
+    expect(state.holdingPlan.fundCycle.status).toBe('等待')
+    expect(state.holdingPlan.fundCycle.target?.blockedReasons).toContain('z-threshold')
+    expect(state.holdingPlan.fundCycle.blockedReasons).toContain('z-threshold')
+  })
 })
 
 describe('meanReversionHalfLife', () => {

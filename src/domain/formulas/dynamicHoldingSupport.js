@@ -43,7 +43,7 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   if (phase === 'low-compression') {
     if (target) return plan('等待', 'wait-repair-start', target, ['drawdown-repair-insufficient'])
     const pendingTarget = candidates.find(forwardMilestone) ?? null
-    const reasons = ['drawdown-repair-insufficient']
+    const reasons = unique(['drawdown-repair-insufficient', ...(pendingTarget?.blockedReasons ?? [])])
     if (!pendingTarget) reasons.push('no-structural-target')
     if (pendingTarget && (pendingTarget.expectedDays < profile.minDays || pendingTarget.expectedDays > profile.maxDays))
       reasons.push('holding-window')
@@ -61,9 +61,13 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   }
 
   const horizonCandidate = candidates.find((item) => Number.isFinite(item?.expectedDays))
-  const reasons = horizonCandidate?.expectedDays > profile.maxDays ? ['holding-window'] : ['no-structural-target']
+  const reasons = unique([
+    ...(horizonCandidate?.blockedReasons ?? []),
+    ...(horizonCandidate?.expectedDays > profile.maxDays ? ['holding-window'] : []),
+  ])
+  if (!reasons.length) reasons.push('no-structural-target')
   return plan(
-    reasons.includes('no-structural-target') ? '剔除' : '等待',
+    reasons.includes('holding-window') || reasons.includes('z-threshold') ? '等待' : '剔除',
     'wait-window',
     horizonCandidate ?? null,
     reasons,
@@ -139,7 +143,7 @@ export function unique(values) {
 }
 
 function usableMilestone(item, profile, kind) {
-  if (!item || item.blockedReasons.includes('post-anchor-extension')) return false
+  if (!item || item.blockedReasons.length > 0) return false
   if (!Number.isFinite(item.expectedDays) || item.expectedDays > profile.maxDays) return false
   if (kind === 'fundCycle' && item.id !== 'firstRepair' && item.expectedDays < profile.minDays) return false
   if (kind !== 'fundCycle' && item.expectedDays < profile.minDays) return false
