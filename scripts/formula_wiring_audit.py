@@ -20,6 +20,7 @@ def run_node_checks() -> list[dict]:
         bachelierOption,
         blackScholes,
         capitalEfficiency,
+        ckCapitalEfficiencyReference,
         deriveDynamicHoldingState,
         deviationScore,
         fundingRate,
@@ -30,14 +31,14 @@ def run_node_checks() -> list[dict]:
         liquidityFingerprint,
         meanReversionHalfLife,
         netCarry,
-        netLpEfficiency,
+        lpResearchAttribution,
         numoenSnapshot,
-        portfolioValue,
         riskSurface,
         uniswapV3Inventory,
         volConfidence,
       } from './src/domain/formulas/core.js'
       import { formulaEvidenceCatalog } from './src/domain/formulas/evidence.js'
+      import { buildPortfolioResearch } from './src/domain/formula-research/portfolioResearch.js'
       import { buildCostPath, buildMarketState, buildMarketStatePath } from './src/domain/market-data/cost.js'
       import { buildFormulaPath } from './src/domain/market-data/formulaPath.js'
       import { lpPoolCoverageMetrics } from './src/domain/market-data/lpPoolMetrics.js'
@@ -129,12 +130,22 @@ def run_node_checks() -> list[dict]:
       const amm = ammCurve({ price: 100, invariant: 10000 })
       const numoen = numoenSnapshot()
       const ce = capitalEfficiency({ rangeWidth: 0.1, skew: 1.4 })
+      const ckCe = ckCapitalEfficiencyReference()
       const funding = fundingRate({ perpTwap: 101, spotTwap: 100, hours: 24 })
       const il = impermanentLoss({ markPrice: 110, startPrice: 100, liquidity: 10 })
       const lpCurve = hedgedLpPortfolioCurve({ startPrice: 100, lowerPrice: 80, upperPrice: 130, liquidity: 10, hedgeSize: 0.1, fees: 2, fundingCost: 0.5 })
       const dev = deviationScore({ costDistance: -0.1, annualVol: 0.4, holdingDays: 30 })
       const surface = riskSurface({ entryPrice: 100, strikePrice: 105, holdingDays: 30, iv: 0.4, bandLow: 80, bandHigh: 130 })
-      const netLp = netLpEfficiency({ capitalEfficiency: ce?.efficiency, impermanentLoss: il?.impermanentLoss, feeRate: 0.003 })
+      const netLp = lpResearchAttribution({ capitalEfficiency: ce?.efficiency, impermanentLoss: il?.impermanentLoss, horizonDays: 30 })
+      const portfolioLedger = buildPortfolioResearch({
+        lpMark: lp.value,
+        lpEntryValue: lp.value - 1,
+        lpPnl: 1,
+        optionPortfolio: { value: option.price, entryCost: option.price, pnl: 0, missingInputs: [] },
+        hedgePnl: 0,
+        feePnl: 0,
+        fundingPnl: -1,
+      })
       const carry = netCarry({ costDistance: 0.1, fundingRate: funding?.cumulativeFundingEstimate, holdingDays: 30 })
       const halfLife = meanReversionHalfLife({ costDistanceSeries: marketPath.map((item) => item.costDistance) })
       const gp = gammaPnl({ gamma: option?.gamma, markPrice: market.markPrice, priceChange: 5, positionSize: 2 })
@@ -192,13 +203,13 @@ def run_node_checks() -> list[dict]:
         'lp-pool-coverage': finite(lpCoverage?.turnover24h) && finite(lpCoverage?.topReserveShare) && pathFinite('lpPoolTurnover24h') && pathFinite('lpPoolTopReserveShare'),
         'liquidity-fingerprint': nonEmpty(fingerprint?.segments) && fingerprint.inputMode === 'hybrid-model' && fingerprint.stats?.orderShare > 0 && Math.abs(fingerprint.segments.reduce((sum, seg) => sum + seg.weight, 0) - 1) < 1e-6,
         'amm-geometry': nonEmpty(amm?.points) && numoen?.status === 'protocol-unverified' && finite(numoen?.R0),
-        'capital-efficiency': finite(ce?.efficiency) && ce.efficiency > 1 && pathFinite('capitalEfficiency'),
+        'capital-efficiency': finite(ce?.efficiency) && ce.efficiency > 1 && finite(ckCe?.rangeWidth) && Math.abs(ckCe.secondDerivative) < 1e-10 && pathFinite('capitalEfficiency'),
         funding: funding?.status === 'proxy-only' && finite(funding?.basisEstimate) && finite(funding?.cumulativeFundingEstimate) && pathFinite('fundingProxy') && missingFundingOk,
-        portfolio: nonEmpty(lpCurve?.points) && finite(portfolioValue({ lpValue: lp.value, optionValue: option.price, fundingCost: 1 })),
+        portfolio: nonEmpty(lpCurve?.points) && finite(portfolioLedger?.pnl?.scenarioTotal) && portfolioLedger?.pnl?.total === null,
         'order-plan': Array.isArray(graph.plan?.primaryOrders) && graph.plan.primaryOrders.length > 0 && graph.plan.primaryOrders.every((order) => finite(order.price) && finite(order.targetPrice)),
-        'deviation-score': finite(dev?.z) && finite(dev?.regressionProb),
+        'deviation-score': finite(dev?.z) && finite(dev?.deviationPercentile) && finite(dev?.twoSidedTailProbability) && !Object.prototype.hasOwnProperty.call(dev, 'regressionProb'),
         'risk-surface': nonEmpty(surface?.points) && surface.points.some((point) => finite(point.gamma)),
-        'net-lp-efficiency': finite(netLp?.totalNet),
+        'net-lp-efficiency': finite(netLp?.geometry?.capitalEfficiency) && netLp?.returns?.netReturn === null && netLp?.missingInputs?.includes('realized-or-path-fee-return'),
         'net-carry': carry?.status === 'proxy-only' && finite(carry?.netReturn) && pathFinite('netCarry'),
         'mean-reversion': halfLife !== null && Object.prototype.hasOwnProperty.call(halfLife, 'halfLifeDays') && typeof halfLife.speed === 'string',
         'dynamic-holding-state': dynamicHolding?.phase === 'repair-start' && nonEmpty(dynamicHolding?.milestones) && dynamicHolding?.holdingPlan?.shortTrade?.status === '观察',

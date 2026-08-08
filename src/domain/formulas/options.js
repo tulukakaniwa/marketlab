@@ -6,8 +6,17 @@ export const GET_DELTA_SOURCE = {
   status: 'implemented',
 }
 
-export function getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, z = 1, tradingDaysPerYear = 365 }) {
-  if (![entryPrice, holdingDays, iv, targetReturn, z, tradingDaysPerYear].every(Number.isFinite)) return null
+export function getDeltaBands({
+  entryPrice,
+  holdingDays,
+  iv,
+  deltaSlope,
+  targetReturn,
+  z = 1,
+  tradingDaysPerYear = 365,
+}) {
+  const d = Number.isFinite(deltaSlope) ? deltaSlope : targetReturn
+  if (![entryPrice, holdingDays, iv, d, z, tradingDaysPerYear].every(Number.isFinite)) return null
   if (entryPrice <= 0 || holdingDays <= 0 || iv <= 0 || z <= 0 || tradingDaysPerYear <= 0) return null
 
   const timeScale = Math.sqrt(holdingDays / (tradingDaysPerYear * 2 * Math.PI))
@@ -16,9 +25,9 @@ export function getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, z = 1
 
   const rawRatio = Math.pow(1 + wave, 2) / Math.pow(1 - wave, 2)
   const longRatio = rawRatio * z
-  const longCost = entryPrice * Math.pow(targetReturn * longRatio - targetReturn + 1, 2) / longRatio
+  const longCost = (entryPrice * Math.pow(d * longRatio - d + 1, 2)) / longRatio
   const shortRatio = 1 / longRatio
-  const shortCost = entryPrice * Math.pow(targetReturn * shortRatio - targetReturn + 1, 2) / shortRatio
+  const shortCost = (entryPrice * Math.pow(d * shortRatio - d + 1, 2)) / shortRatio
 
   const long = {
     high: longCost * longRatio,
@@ -38,7 +47,7 @@ export function getDeltaBands({ entryPrice, holdingDays, iv, targetReturn, z = 1
       P: entryPrice,
       T: holdingDays,
       s: iv,
-      d: targetReturn,
+      d,
       tradingDaysPerYear,
     },
     timeScale,
@@ -102,17 +111,15 @@ export function blackScholes({
   const callPrice = discountS * nd1 - discountK * nd2
   const putPrice = discountK * normalCdf(-d2) - discountS * normalCdf(-d1)
   const isPut = type === 'put'
-  const gamma = Math.exp(-dividendYield * time) * normalPdf(d1) / (entryPrice * iv * sqrtT)
+  const gamma = (Math.exp(-dividendYield * time) * normalPdf(d1)) / (entryPrice * iv * sqrtT)
   const thetaAnnualCall =
-    -(discountS * normalPdf(d1) * iv) / (2 * sqrtT) -
-    riskFreeRate * discountK * nd2 +
-    dividendYield * discountS * nd1
+    -(discountS * normalPdf(d1) * iv) / (2 * sqrtT) - riskFreeRate * discountK * nd2 + dividendYield * discountS * nd1
   const thetaAnnualPut =
     -(discountS * normalPdf(d1) * iv) / (2 * sqrtT) +
     riskFreeRate * discountK * normalCdf(-d2) -
     dividendYield * discountS * normalCdf(-d1)
-  const rhoCall = strikePrice * time * Math.exp(-riskFreeRate * time) * nd2 / 100
-  const rhoPut = -strikePrice * time * Math.exp(-riskFreeRate * time) * normalCdf(-d2) / 100
+  const rhoCall = (strikePrice * time * Math.exp(-riskFreeRate * time) * nd2) / 100
+  const rhoPut = (-strikePrice * time * Math.exp(-riskFreeRate * time) * normalCdf(-d2)) / 100
 
   return {
     d1,
@@ -123,14 +130,23 @@ export function blackScholes({
     theta: (isPut ? thetaAnnualPut : thetaAnnualCall) / tradingDaysPerYear,
     thetaDaily: (isPut ? thetaAnnualPut : thetaAnnualCall) / tradingDaysPerYear,
     thetaAnnual: isPut ? thetaAnnualPut : thetaAnnualCall,
-    vega: entryPrice * Math.exp(-dividendYield * time) * normalPdf(d1) * sqrtT / 100,
+    vega: (entryPrice * Math.exp(-dividendYield * time) * normalPdf(d1) * sqrtT) / 100,
     rho: isPut ? rhoPut : rhoCall,
     dividendYield,
-    probabilityOfTouch: Math.min(0.999, Math.abs((isPut ? nd1 - 1 : nd1) * 2)),
+    touchProbabilityProxy: Math.min(0.999, Math.abs((isPut ? nd1 - 1 : nd1) * 2)),
+    touchProbabilityStatus: 'delta-based-proxy-not-calibrated-hitting-probability',
   }
 }
 
-export function asianOption({ entryPrice, strikePrice, holdingDays, iv, riskFreeRate = 0, type = 'put', tradingDaysPerYear = 365 }) {
+export function asianOption({
+  entryPrice,
+  strikePrice,
+  holdingDays,
+  iv,
+  riskFreeRate = 0,
+  type = 'put',
+  tradingDaysPerYear = 365,
+}) {
   if (![entryPrice, strikePrice, holdingDays, iv, riskFreeRate].every(Number.isFinite)) return null
   if (entryPrice <= 0 || strikePrice <= 0 || holdingDays <= 0 || iv <= 0) return null
   const sigmaGeo = iv / Math.sqrt(3)
@@ -155,7 +171,15 @@ export function asianOption({ entryPrice, strikePrice, holdingDays, iv, riskFree
   }
 }
 
-export function bachelierOption({ entryPrice, strikePrice, holdingDays, normalVol, riskFreeRate = 0, type = 'put', tradingDaysPerYear = 365 }) {
+export function bachelierOption({
+  entryPrice,
+  strikePrice,
+  holdingDays,
+  normalVol,
+  riskFreeRate = 0,
+  type = 'put',
+  tradingDaysPerYear = 365,
+}) {
   const time = holdingDays / tradingDaysPerYear
   if (![entryPrice, strikePrice, holdingDays, normalVol, riskFreeRate].every(Number.isFinite)) return null
   if (holdingDays <= 0 || normalVol <= 0 || time <= 0) return null
@@ -170,7 +194,7 @@ export function bachelierOption({ entryPrice, strikePrice, holdingDays, normalVo
     d,
     price: Math.max(0, isPut ? put : call),
     delta: discount * (isPut ? normalCdf(d) - 1 : normalCdf(d)),
-    gamma: discount * normalPdf(d) / std,
+    gamma: (discount * normalPdf(d)) / std,
     vegaNormal: discount * Math.sqrt(time) * normalPdf(d),
     thetaDaily: null,
     normalVol,
@@ -178,13 +202,31 @@ export function bachelierOption({ entryPrice, strikePrice, holdingDays, normalVo
   }
 }
 
-export function riskSurface({ entryPrice, strikePrice, holdingDays, iv, riskFreeRate = 0, bandLow, bandHigh, steps = 40, tradingDaysPerYear = 365 }) {
+export function riskSurface({
+  entryPrice,
+  strikePrice,
+  holdingDays,
+  iv,
+  riskFreeRate = 0,
+  bandLow,
+  bandHigh,
+  steps = 40,
+  tradingDaysPerYear = 365,
+}) {
   if (![entryPrice, strikePrice, holdingDays, iv, bandLow, bandHigh].every(Number.isFinite)) return null
   if (entryPrice <= 0 || holdingDays <= 0 || iv <= 0 || bandLow <= 0 || bandLow >= bandHigh) return null
   const points = []
   for (let i = 0; i <= steps; i += 1) {
-    const price = bandLow + (bandHigh - bandLow) * i / steps
-    const option = blackScholes({ entryPrice: price, strikePrice, holdingDays, iv, riskFreeRate, type: 'call', tradingDaysPerYear })
+    const price = bandLow + ((bandHigh - bandLow) * i) / steps
+    const option = blackScholes({
+      entryPrice: price,
+      strikePrice,
+      holdingDays,
+      iv,
+      riskFreeRate,
+      type: 'call',
+      tradingDaysPerYear,
+    })
     if (option) points.push({ price, delta: option.delta, gamma: option.gamma, theta: option.theta })
   }
   return { points, entryPrice, strikePrice, bandLow, bandHigh }

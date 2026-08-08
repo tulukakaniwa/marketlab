@@ -491,17 +491,21 @@ Do not multiply the cumulative estimate by `holdingDays / tradingDaysPerYear` ag
 Research composition:
 
 ```txt
-Portfolio(S) = LP(S) + Option(S) + Hedge(S) + Fees - Funding
+PnL(S, path) = LP_PnL(S)
+             + Option_PnL(S)
+             + Hedge_PnL(S)
+             + RealizedFees(path)
+             - FundingSettlement(path)
+             - Costs(path)
 ```
 
-Current curve form:
+Each leg uses a ledger shape: `mark`, `entryCashflow`, `pnl`, `currency`, `notional` and `horizon`. The scenario curve may expose known components, but formal `totalPnl` stays `null` until option premium, path fees, funding settlement and costs share the same basis.
+
+Current scenario curve form:
 
 ```txt
-combined(S) = lpPnl(S)
-            + optionWeight * optionValue(S)
-            + hedgePnl(S)
-            + fees
-            - fundingCost
+scenarioTotal(S) = sum(known leg PnL components)
+formalTotalPnl(S) = null while required ledger inputs are missing
 ```
 
 Status: research-only until leg lifecycle exists  
@@ -512,11 +516,14 @@ Missing: option expiry, LP rebalance, fee accrual, funding settlement, hedge adj
 ```txt
 periodVol = annualVol * sqrt(holdingDays / tradingDaysPerYear)
 z = costDistance / periodVol
-regressionProbProxy = Phi(abs(z))
+deviationPercentile = 2 * Phi(abs(z)) - 1
+twoSidedTailProbability = 2 * (1 - Phi(abs(z)))
 ```
 
-Status: executable filter / heuristic  
-Boundary: it is signal strength, not a probability guarantee.
+Status: descriptive distribution reference
+Boundary: both outputs describe the extremeness of the observed deviation. Neither estimates `P(future reversion | current state)` and neither may independently upgrade an execution state.
+
+`orderPlan.signalStrength` reuses `deviationPercentile`. It is therefore a normal-reference extremeness coordinate, not confidence, win probability, or calibrated edge. Any profile-scaled risk budget, notional, or `expectedProfit` produced from it is a simulation scenario, not an executable position recommendation.
 
 ## 15. Mean Reversion Half-Life
 
@@ -528,7 +535,9 @@ theta = -ln(abs(rho))
 halfLife = ln(2) / theta
 ```
 
-The implementation reports the raw through-origin AR(1) coefficient. The half-life is defined only for `abs(rho) < 1`; a negative coefficient is an oscillating decay, while `abs(rho) >= 1` is non-stationary and returns no half-life. Status: research-only speed estimate.
+The implementation reports the raw through-origin AR(1) coefficient. The half-life is defined only for `abs(rho) < 1`; a negative coefficient is an oscillating decay, while `abs(rho) >= 1` is non-stationary and returns no half-life. Only `0 < rho < 1` with `decayMode=monotonic-decay` may enter dynamic holding. There is no intercept, confidence interval, residual diagnostic, parameter-stability gate, or holdout calibration, so this remains a sample diagnostic.
+
+Dynamic-holding `expectedDays`, `expectedReturn*`, and `monthlyEfficiency*` assume zero future shocks and a frozen signal-day structure. They are conditional path projections rather than expected realized returns or holding-time forecasts.
 
 ## 16. Gamma PnL
 

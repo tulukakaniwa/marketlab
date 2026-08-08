@@ -42,7 +42,9 @@ describe('deriveDynamicHoldingState second-order regressions', () => {
     })
 
     expect(state.phase).toBe('low-compression')
-    expect(state.holdingPlan.shortTrade.status).toBe('观察')
+    expect(state.status).toBe('等待')
+    expect(state.holdingPlan.shortTrade.status).toBe('等待')
+    expect(state.holdingPlan.fundCycle.status).toBe('等待')
     expect(state.holdingPlan.shortTrade.targetId).toBe('baseAnchor')
     expect(state.holdingPlan.shortTrade.expectedReturnPct).toBeGreaterThan(0)
     expect(state.expectation.baseReturnPct).toBe('0.88%')

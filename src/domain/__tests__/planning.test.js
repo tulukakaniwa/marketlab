@@ -19,12 +19,12 @@ function makeRows(n, gen) {
 
 describe('strategyProfileList', () => {
   it('档位顺序固定：保守 / 均衡 / 激进 / 自定义', () => {
-    expect(strategyProfileList.map(p => p.id)).toEqual(['conservative', 'balanced', 'aggressive', 'custom'])
+    expect(strategyProfileList.map((p) => p.id)).toEqual(['conservative', 'balanced', 'aggressive', 'custom'])
   })
 })
 
 describe('buildDecisionGraph', () => {
-  const rows = makeRows(120, i => 100 + Math.sin(i / 10) * 5)
+  const rows = makeRows(120, (i) => 100 + Math.sin(i / 10) * 5)
   const market = buildMarketStatePath(rows).at(-1)
   const baseInput = {
     entryPrice: market.markPrice,
@@ -59,10 +59,16 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.triggeredConditions).toBeDefined()
     expect(g.decision.blockedReasons).toBeDefined()
     expect(g.decision.missingInputs).toBeDefined()
-    expect(g.formulaStrategy.steps.map((step) => step.id)).toEqual(['cost', 'delta-band', 'deviation-score', 'order-plan'])
+    expect(g.decision.signalSemantics).toBe('normal-reference-extremeness-not-confidence-or-win-probability')
+    expect(g.formulaStrategy.steps.map((step) => step.id)).toEqual([
+      'cost',
+      'delta-band',
+      'deviation-score',
+      'order-plan',
+    ])
     expect(g.formulaStrategy.formulaBasis.sourceId).toBe('943334771f')
     expect(g.formulaStrategy.formulaBasis.terms.map((row) => row[0])).toContain('r_T')
-    expect(g.plan.primaryOrders.every(o => Number.isFinite(o.price))).toBe(true)
+    expect(g.plan.primaryOrders.every((o) => Number.isFinite(o.price))).toBe(true)
   })
 
   it('deltaSlope 驱动 GetDelta，exitTargetReturn 独立驱动退出目标', () => {
@@ -109,7 +115,10 @@ describe('buildDecisionGraph', () => {
     expect(g.profile.riskMin).toBeGreaterThan(0)
     expect(g.decision.timing.side).toBe('buy')
     expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
-    expect(g.plan.primaryOrders.every(o => o.side === 'buy')).toBe(true)
+    expect(g.plan.primaryOrders.every((o) => o.side === 'buy')).toBe(true)
+    expect(g.position.executionStatus).toBe('simulation-only')
+    expect(g.plan.executionStatus).toBe('simulation-only')
+    expect(g.plan.primaryOrders.every((o) => o.executionStatus === 'simulation-only')).toBe(true)
   })
 
   it('偏离强度使用自有公式里的持仓窗口口径', () => {
@@ -127,10 +136,18 @@ describe('buildDecisionGraph', () => {
       momentum20: 0.01,
       costSlope5: 0,
     }
-    const short = buildDecisionGraph({ market: buyMarket, input: { ...baseInput, holdingDays: 1, entryPrice: 100, iv: 0.4 } })
-    const long = buildDecisionGraph({ market: buyMarket, input: { ...baseInput, holdingDays: 30, entryPrice: 100, iv: 0.4 } })
+    const short = buildDecisionGraph({
+      market: buyMarket,
+      input: { ...baseInput, holdingDays: 1, entryPrice: 100, iv: 0.4 },
+    })
+    const long = buildDecisionGraph({
+      market: buyMarket,
+      input: { ...baseInput, holdingDays: 30, entryPrice: 100, iv: 0.4 },
+    })
     expect(Math.abs(long.decision.timing.zScore)).toBeLessThan(Math.abs(short.decision.timing.zScore))
-    expect(long.formulaStrategy.steps.find((step) => step.id === 'deviation-score').formula).toBe('costDistance / periodVol')
+    expect(long.formulaStrategy.steps.find((step) => step.id === 'deviation-score').formula).toBe(
+      'costDistance / periodVol',
+    )
   })
 
   it('无账户资金输入时不生成名义金额和候选订单', () => {
@@ -152,6 +169,8 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.timing.side).toBe('buy')
     expect(g.position.maxNotional).toBeNull()
     expect(g.position.riskBudget).toBeNull()
+    expect(g.position.executionStatus).toBe('blocked')
+    expect(g.plan.executionStatus).toBe('blocked')
     expect(g.decision.missingInputs).toContain('account.capital')
     expect(g.plan.primaryOrders).toEqual([])
   })
@@ -178,11 +197,14 @@ describe('buildDecisionGraph', () => {
       momentum20: 0,
       costSlope5: 0,
     }
-    const g = buildDecisionGraph({ market: sellMarket, input: { ...baseInput, entryPrice: 110, iv: 0.4, baseNotional: 10000 } })
+    const g = buildDecisionGraph({
+      market: sellMarket,
+      input: { ...baseInput, entryPrice: 110, iv: 0.4, baseNotional: 10000 },
+    })
     expect(g.profile.exposureMax).toBeGreaterThan(0)
     expect(g.decision.timing.side).toBe('sell')
     expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
-    expect(g.plan.primaryOrders.every(o => o.side === 'sell')).toBe(true)
+    expect(g.plan.primaryOrders.every((o) => o.side === 'sell')).toBe(true)
   })
 
   it('纯底仓账户在卖出信号下不要求现金本金', () => {
@@ -207,7 +229,7 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.timing.side).toBe('sell')
     expect(g.decision.missingInputs).not.toContain('account.capital')
     expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
-    expect(g.plan.primaryOrders.every(o => o.side === 'sell')).toBe(true)
+    expect(g.plan.primaryOrders.every((o) => o.side === 'sell')).toBe(true)
   })
 
   it('回测账户按当前权益缩放仓位，不继续用启动本金放大风险', () => {
@@ -272,8 +294,8 @@ describe('buildDecisionGraph', () => {
     expect(changed.research).toBeUndefined()
     expect(changed.portfolio).toBeUndefined()
     expect(changed.portfolioResearch).toBeUndefined()
-    expect(changed.plan.primaryOrders.map(o => o.price)).toEqual(base.plan.primaryOrders.map(o => o.price))
-    expect(changed.plan.primaryOrders.map(o => o.notional)).toEqual(base.plan.primaryOrders.map(o => o.notional))
+    expect(changed.plan.primaryOrders.map((o) => o.price)).toEqual(base.plan.primaryOrders.map((o) => o.price))
+    expect(changed.plan.primaryOrders.map((o) => o.notional)).toEqual(base.plan.primaryOrders.map((o) => o.notional))
   })
 
   it('卖出信号在无底仓时不生成挂单', () => {
@@ -308,11 +330,25 @@ describe('buildDecisionGraph', () => {
     }
     const small = buildDecisionGraph({
       market: buyMarket,
-      input: { ...baseInput, entryPrice: 100, iv: 0.4, strategyProfile: 'custom', strategyRiskPct: 0.005, strategyExposurePct: 0.1 },
+      input: {
+        ...baseInput,
+        entryPrice: 100,
+        iv: 0.4,
+        strategyProfile: 'custom',
+        strategyRiskPct: 0.005,
+        strategyExposurePct: 0.1,
+      },
     })
     const large = buildDecisionGraph({
       market: buyMarket,
-      input: { ...baseInput, entryPrice: 100, iv: 0.4, strategyProfile: 'custom', strategyRiskPct: 0.04, strategyExposurePct: 0.8 },
+      input: {
+        ...baseInput,
+        entryPrice: 100,
+        iv: 0.4,
+        strategyProfile: 'custom',
+        strategyRiskPct: 0.04,
+        strategyExposurePct: 0.8,
+      },
     })
     expect(small.profile.id).toBe('custom')
     expect(large.profile.riskMax).toBeGreaterThan(small.profile.riskMax)

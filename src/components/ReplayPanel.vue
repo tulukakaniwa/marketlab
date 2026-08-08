@@ -21,19 +21,23 @@ const statusText = computed(() => {
   if (isMissingAccount.value) return '需要账户资金或底仓名义'
   return `${props.replay.range || '等待样本'} · 下一根 K 线验证`
 })
-const showProfileScan = computed(() =>
-  isRunnable.value && props.profileReplays.some(item => !item.replay?.status)
+const showProfileScan = computed(() => isRunnable.value && props.profileReplays.some((item) => !item.replay?.status))
+const drawdownBasis = computed(
+  () =>
+    props.replay.drawdownBasis ?? {
+      label: '现货路径回撤',
+      source: '成本路径 → GetDelta → 偏离强度 → OrderPlan',
+      note: '这里只是现货账户权益路径；期权、LP、资金费率和流动性重分配还没有进入组合回测引擎。',
+    },
 )
-const drawdownBasis = computed(() => props.replay.drawdownBasis ?? {
-  label: '现货路径回撤',
-  source: '成本路径 → GetDelta → 偏离强度 → OrderPlan',
-  note: '这里只是现货账户权益路径；期权、LP、资金费率和流动性重分配还没有进入组合回测引擎。',
-})
-const engineScope = computed(() => props.replay.engineScope ?? {
-  label: '现货路径回放',
-  status: 'partial',
-  excludes: ['期权腿生命周期', 'LP 区间库存', '资金费率结算', '流动性重分配治理'],
-})
+const engineScope = computed(
+  () =>
+    props.replay.engineScope ?? {
+      label: '现货路径回放',
+      status: 'partial',
+      excludes: ['期权腿生命周期', 'LP 区间库存', '资金费率结算', '流动性重分配治理'],
+    },
+)
 const emptyText = computed(() => {
   if (isDisabled.value) return '现货路径回放未启用。'
   if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行现货路径回放并显示成交记录。'
@@ -60,15 +64,15 @@ function pct(value) {
     </header>
     <div v-if="isRunnable" class="replay-grid">
       <article>
-        <span>执行</span>
+        <span>历史成交</span>
         <strong>{{ replay.tradeCount }}</strong>
       </article>
       <article>
-        <span>兑现胜率</span>
+        <span>历史正收益率</span>
         <strong>{{ pct(replay.winRate) }}</strong>
       </article>
       <article>
-        <span>账户回报</span>
+        <span>历史情景回报</span>
         <strong>{{ pct(replay.returnOnUsedNotional) }}</strong>
       </article>
       <article>
@@ -101,7 +105,10 @@ function pct(value) {
       >
         <span>{{ item.profile.label }}</span>
         <strong>{{ pct(item.replay.returnOnUsedNotional) }}</strong>
-        <small>最大回撤 {{ money(item.replay.maxDrawdown) }} · {{ pct(item.replay.maxDrawdownPct) }} / {{ item.replay.tradeCount }} 次</small>
+        <small
+          >最大回撤 {{ money(item.replay.maxDrawdown) }} · {{ pct(item.replay.maxDrawdownPct) }} /
+          {{ item.replay.tradeCount }} 次</small
+        >
       </article>
     </div>
     <table v-if="isRunnable && replay.trades.length">

@@ -1,6 +1,19 @@
 import { computed } from 'vue'
 import { formulaStages } from '../domain/formulas/registry.js'
-import { ammCurve, asianOption, bachelierOption, deviationScore, liquidityFingerprint, netCarry, netLpEfficiency, numoenSnapshot, riskSurface } from '../domain/formulas/core.js'
+import {
+  ammCurve,
+  asianOption,
+  bachelierOption,
+  capitalEfficiencyFrontier,
+  ckCapitalEfficiencyReference,
+  deviationScore,
+  liquidityFingerprint,
+  lpResearchAttribution,
+  netCarry,
+  numoenSnapshot,
+  riskSurface,
+  sampleCapitalEfficiencyCurve,
+} from '../domain/formulas/core.js'
 import { useFormulaSecondOrderModel } from './useFormulaSecondOrderModel.js'
 
 export function useFormulaChartModel(props) {
@@ -48,7 +61,7 @@ export function useFormulaChartModel(props) {
   const volData = computed(() => {
     const m = props.market; const g = props.graph
     if (!m) return null
-    return { annualVol: m.annualVol, atr: m.atrPercent, momentum5: m.momentum5, momentum20: m.momentum20, iv: g.inputs?.iv }
+    return { annualVol: m.annualVol, atr: m.atrPercent, momentum5: m.momentum5, momentum20: m.momentum20, iv: g.inputs?.iv, ivSource: researchInputs.value.volatilitySource ?? g.inputs?.ivSource ?? 'scenario-unspecified' }
   })
 
   /* ── delta-band ── */
@@ -77,6 +90,7 @@ export function useFormulaChartModel(props) {
         legs: portfolio.legs?.length ?? 0,
         strategyClass: portfolio.strategyClass,
         isPortfolio: true,
+        volatilitySource: portfolio.volatilitySource,
       }
     }
     const o = props.graph.option; if (!o) return null
@@ -91,7 +105,7 @@ export function useFormulaChartModel(props) {
   const syH = (v) => PT + (1 - v) * (200 - PT - PB)
   const lpV3Curve = computed(() => {
     const mp = props.market?.markPrice || props.graph.inputs?.entryPrice
-    if (!mp) return ''
+    if (!mp || researchInputs.value.rangeStatus === 'invalid-input') return ''
     try {
       const lo = mp * 0.5; const hi = mp * 2; const n = 50
       const rangeW = Number(researchInputs.value.rangeWidth) || 0.1
@@ -140,6 +154,7 @@ export function useFormulaChartModel(props) {
   })
   const lpV3Bounds = computed(() => {
     try {
+      if (researchInputs.value.rangeStatus === 'invalid-input') return { loX: PL, hiX: PL + pw }
       const mp = props.market?.markPrice; if (!mp) return { loX: PL, hiX: PL + pw }
       const lo = mp * 0.5; const hi = mp * 2
       const rangeW = Number(researchInputs.value.rangeWidth) || 0.1
@@ -151,20 +166,35 @@ export function useFormulaChartModel(props) {
   })
 
   /* ── capital-efficiency ── */
-  const ceData = computed(() => { const e = props.graph.efficiency; return e ? { efficiency: e.efficiency, lower: e.lower, upper: e.upper } : null })
+  const ceData = computed(() => {
+    const current = props.graph.efficiency
+    if (!current) return null
+    const skew = Math.max(Number(researchInputs.value.skew) || 1, 0)
+    return {
+      ...current,
+      downMove: Number.isFinite(current.downMove) ? current.downMove : -(1 - current.lower),
+      upMove: Number.isFinite(current.upMove) ? current.upMove : current.upper - 1,
+      skew,
+      ckReference: ckCapitalEfficiencyReference(),
+      currentFrontier: capitalEfficiencyFrontier({ skew }),
+    }
+  })
   const ceCurve = computed(() => {
     try {
-      const n = 50; const pts = []
-      for (let i = 1; i <= n; i++) {
-        const w = i / n; const lo = 1 - w; const up = 1 + w
-        if (lo <= 0) continue
-        const eff = 1 / (1 - Math.pow(lo / up, 0.25))
-        if (!Number.isFinite(eff) || eff > 100) continue
-        const x = PL + (w / 1.0) * pw; const y = sy(Math.min(1, eff / 50))
-        if (Number.isFinite(x) && Number.isFinite(y)) pts.push(`${x},${y}`)
-      }
-      return pts.join(' ')
+      const skew = ceData.value?.skew ?? 1
+      return sampleCapitalEfficiencyCurve({ skew, steps: 80, maxEfficiency: 50 })
+        .map((point) => `${PL + point.rangeWidth * pw},${sy(Math.min(1, point.efficiency / 50))}`)
+        .join(' ')
     } catch { return '' }
+  })
+  const ceFrontierDot = computed(() => {
+    const frontier = ceData.value?.currentFrontier
+    if (!frontier) return null
+    return {
+      cx: PL + frontier.rangeWidth * pw,
+      cy: sy(Math.min(1, frontier.efficiency / 50)),
+      label: ceData.value.skew === 1 ? 'CK 端点比 ±84.13%' : `偏斜端点比 ${pctFmt(frontier.rangeWidth)}`,
+    }
   })
   const ceDot = computed(() => {
     try {
@@ -182,9 +212,21 @@ export function useFormulaChartModel(props) {
 
   /* ── portfolio ── */
   const portData = computed(() => {
-    const p = props.graph.portfolioResearch?.value; const h = props.graph.lpV3Hedged
-    if (!Number.isFinite(p)) return null
-    return { total: p, lpPnl: h?.lpPnl ?? 0, hedgePnl: h?.hedgePnl ?? 0, feeIncome: h?.feeIncome ?? 0, optionVal: props.graph.option?.price ?? 0, curve: props.graph.lpPortfolio?.points ?? [] }
+    const research = props.graph.portfolioResearch
+    const p = research?.pnl
+    if (!p || !Number.isFinite(p.scenarioTotal)) return null
+    return {
+      total: p.total,
+      scenarioTotal: p.scenarioTotal,
+      status: research.status,
+      missingInputs: p.missingInputs ?? [],
+      lpPnl: p.lp ?? 0,
+      hedgePnl: p.hedge ?? 0,
+      feeIncome: p.fees ?? 0,
+      optionPnl: p.option ?? 0,
+      fundingPnl: p.funding ?? 0,
+      curve: props.graph.lpPortfolio?.points ?? [],
+    }
   })
   const waterfallBars = computed(() => {
     const p = portData.value; if (!p) return []
@@ -192,7 +234,8 @@ export function useFormulaChartModel(props) {
       { label: 'LP PnL', val: p.lpPnl || 0 },
       { label: '对冲', val: p.hedgePnl || 0 },
       { label: '手续费', val: p.feeIncome || 0 },
-      { label: '期权', val: p.optionVal || 0 },
+      { label: '期权 PnL', val: p.optionPnl || 0 },
+      { label: 'Funding', val: p.fundingPnl || 0 },
     ]
     const maxAbs = Math.max(...items.map(i => Math.abs(i.val)), 1)
     const barW = Math.min(60, Math.max(20, (pw - 40) / items.length))
@@ -306,7 +349,13 @@ export function useFormulaChartModel(props) {
   /* ── Fusion: net-lp-efficiency ── */
   const netLpData = computed(() => {
     const g = props.graph
-    return netLpEfficiency({ capitalEfficiency: g.efficiency?.efficiency, impermanentLoss: g.impermanentLoss?.impermanentLoss, feeRate: 0.003 })
+    return lpResearchAttribution({
+      capitalEfficiency: g.efficiency?.efficiency,
+      impermanentLoss: g.impermanentLoss?.impermanentLoss,
+      feeReturn: null,
+      feeSource: null,
+      horizonDays: g.inputs?.holdingDays,
+    })
   })
 
   /* ── Fusion: net-carry ── */
@@ -353,28 +402,28 @@ export function useFormulaChartModel(props) {
     const ds = devScoreData.value; const nc = netCarryData.value; const nl = netLpData.value; const dh = dynamicHoldingData.value
 
     const guides = {
-      path: { title: '怎么看价格路径', body: `这里有 ${m?.rows || '—'} 天的 K 线数据。对数收益是把涨跌幅取对数，用来算波动率。区间跨越 ${m ? '多年' : '—'} ，数据量足够让公式稳定工作。` },
+      path: { title: '怎么看价格路径', body: `这里有 ${m?.rows || '—'} 天的 K 线数据。对数收益用于计算样本波动率；样本长度只说明覆盖量，不等于参数稳定、样本外有效或未来可预测。` },
       cost: { title: '市场成本事实', body: `成本锚 ${fmt(m?.costAnchor)} 是滚动成交量加权价格。现价 ${fmt(m?.markPrice)}，相对成本偏离 ${pctFmt(m?.costDistance)}。成本带上沿和下沿只表示当前样本内的成本区间，不单独构成操作结论。` },
       volatility: { title: '波动口径事实', body: `年化波动 ${pctFmt(m?.annualVol)}，ATR ${pctFmt(m?.atrPercent)}。这些数值只描述样本波动，不代表未来波动或仓位建议。` },
       'delta-band': { title: 'GetDelta 价格带', body: `在 ${g.inputs?.holdingDays || 30} 天窗口、${pctFmt(g.inputs?.iv)} 波动下，GetDelta 输出多头带 ${fmt(b?.long?.low)} ~ ${fmt(b?.long?.high)}。该带是公式输出，进入模拟挂单前还需要市场成本状态和账户输入共同满足。` },
-      'option-greeks': { title: '怎么看期权 Greeks', body: `${o?.isPortfolio ? '组合' : '单腿'} Delta ${f4(o?.delta)}：标的涨 1 元，模型价值约变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 偏多暴露' : '负 Delta = 偏空/保护暴露'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗，Rho ${f4(o?.rho)} 管利率敏感度。该页是 research-only 风险拆解。` },
+      'option-greeks': { title: '怎么看期权 Greeks', body: `${o?.isPortfolio ? '组合' : '单腿'} Delta ${f4(o?.delta)}：标的涨 1 元，模型价值约变动 ${f4(o?.delta)} 元。${(o?.delta ?? 0) > 0 ? '正 Delta = 偏多暴露' : '负 Delta = 偏空/保护暴露'}。Gamma ${f4(o?.gamma)} 管曲率，Theta/日 ${f4(o?.thetaDaily ?? o?.theta)} 管时间损耗。当前波动来源为 ${o?.volatilitySource ?? researchInputs.value.volatilitySource ?? 'scenario-unspecified'}；未由期权报价反推时只能叫情景 σ，不能叫市场 IV。` },
       'asian-option': { title: '研究层：Asian/Bachelier', body: `Asian 使用几何均价近似，Bachelier 使用 normal vol 口径，两者用于观察 LP payoff 的平滑贴合关系。它们是研究层曲线，不参与默认挂单结论。` },
       'lp-inventory': { title: '研究层：LP 库存', body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}，无常损失估计 ${pctFmt(il?.impermanentLoss)}。这些值来自研究层输入，不等于真实链上 LP 仓位。` },
-      'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `连续密度现在按底层分布、现价、成本锚、区间和模拟挂单拆成成分，再归一化离散成 LP 区间权重；右侧竖仓仍是模型目标仓，不是市场盘口。池级链上快照可作为来源状态，真实 tick 分布和链上 LP NFT 权重仍未接入。` },
+      'liquidity-fingerprint': { title: '研究层：流动性指纹', body: `目标分配核按底层形状、现价、成本锚、区间和模拟挂单拆成成分，再在当前展示范围归一化为 LP 区间权重。它不是价格发生概率。聚合池报价只作校准代理；只有真实 tick 深度才能进入对照和缺口机会查询。` },
       'amm-geometry': { title: '研究层：AMM 几何', body: `绿线是恒定乘积，蓝线是 Lambert W 研究曲线，Numoen 快照只展示 reverse-engineered invariant / quoter / slippage，状态为 protocol-unverified，不能作为交易信号。` },
-      'capital-efficiency': { title: '研究层：资本效率', body: `资本效率 ${(g.efficiency?.efficiency ?? 0).toFixed(1)}×，区间 [${(g.efficiency?.lower ?? 0).toFixed(2)}, ${(g.efficiency?.upper ?? 0).toFixed(2)}]。该值只描述区间宽度函数，不判断仓位是否有效。` },
+      'capital-efficiency': { title: 'CK 端点比资本效率边际拐点', body: `CK 在 Pa=P0(1-x)、Pb=P0(1+x) 的端点比曲线上精确解得 x*=84.1299%、CE*=2.1826×；这里 CE 在区间几何中点估值，P0 只是算术宽度坐标。若把 P0 当真实当前价，同一边界的 CE 是 ${(g.efficiency?.efficiencyAtArithmeticCenter ?? 0).toFixed(2)}×，必须另算。该定理不是概率覆盖，也不推出手续费或 PnL 最优。` },
       funding: { title: '研究层：资金费率', body: `当前只有 perp TWAP / spot TWAP - 1 的估计：${pctFmt(g.funding?.ratio)}。还没有接真实永续资金费率、结算周期、交易所制度和历史结算数据，不能作为持仓结论。` },
-      portfolio: { title: '研究层：组合研究', body: `组合视图只是把 LP、期权、对冲、手续费和资金费率估计放在一起检查。由于 LP payoff、资金费率和真实区间权重仍未校准，这里不参与默认挂单。` },
+      portfolio: { title: '研究层：组合情景 PnL', body: `组合视图按同一 PnL 列分列 LP、期权、对冲、手续费和 funding；mark 与入场现金流不再混加。缺真实权利金、路径手续费或资金结算时只显示情景合计并标记待校准，不参与默认挂单。` },
       'order-plan': { title: '模拟挂单', body: g.plan?.primaryOrders?.length ? `${g.plan.primaryOrders.length} 条模拟挂单来自已满足的信号条件和账户输入。` : `当前没有模拟挂单：${g.decision?.blockedReasons?.[0] || g.decision?.missingInputs?.[0] || '信号条件未触发'}。` },
-      'deviation-score': { title: '偏离强度事实', body: `Z-score ${ds?.z?.toFixed(2)}，样本内偏离状态为 ${ds?.strength ?? '—'}。该值只衡量成本偏离强度，不单独构成交易信号。` },
+      'deviation-score': { title: '偏离强度事实', body: `Z-score ${ds?.z?.toFixed(2)}，正态参考偏离百分位 ${pctFmt(ds?.deviationPercentile)}，双尾质量 ${pctFmt(ds?.twoSidedTailProbability)}。这些量只描述极端度，不是未来回归概率，也不单独构成交易信号。` },
       'risk-surface': { title: '怎么看风险曲面', body: `在 GetDelta 价格带 [${fmt(b?.long?.low)}, ${fmt(b?.long?.high)}] 上展开 Greeks：Delta 曲线（绿）从虚值到实值，Gamma（蓝）在入场价附近最大 → 这里风险敏感度最高，调仓最频繁。越远离入场价，Gamma 越小 → 风险变化平缓。` },
       'lp-pool-coverage': { title: '研究层：LP 池覆盖', body: `池覆盖只读聚合池快照，展示 24h 换手和主池资金占比；tick 流动性历史和 LP 加减仓事件未接入，不作为交易结论。` },
-      'net-lp-efficiency': { title: '研究层：LP 净效率', body: `当前净效率 ${nl ? nl.totalNet.toFixed(1) : '—'}× 只是 IL × CE 的估计。真实 LP 区间权重、手续费制度和再平衡规则未完成，不能判断“可行/赚钱”。` },
+      'net-lp-efficiency': { title: '研究层：LP 归因拆解', body: `CE ${nl?.geometry?.capitalEfficiency?.toFixed(2) ?? '—'}× 是几何倍数，不能与 IL/手续费收益相加。只有同本金、同期限的路径手续费和 IL 才能得到净收益；fee≈theta 也只是在同币种、期限和名义本金归一后的经济类比。` },
       'net-carry': { title: '研究层：持仓净收益', body: `当前净收益估计 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
-      'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays !== null && mrData.value?.halfLifeDays !== undefined ? Math.round(mrData.value.halfLifeDays) + ' 个交易日' : '不可定义'}。只有 |ρ|<1 才是历史均值回归；ρ<0 表示偏离正负交替衰减。` },
-      'dynamic-holding-state': { title: '动态持仓状态', body: `当前阶段 ${dh?.phaseLabel ?? '—'}，状态 ${dh?.status ?? '—'}。短线 ${planSummary(dh?.holdingPlan?.shortTrade)}；基金周期 ${planSummary(dh?.holdingPlan?.fundCycle)}。输入只使用当前观察点之前的回撤、z、半衰期和结构目标。` },
+      'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays !== null && mrData.value?.halfLifeDays !== undefined ? Math.round(mrData.value.halfLifeDays) + ' 个交易日' : '不可定义'}。这是穿过原点的 AR(1) 样本诊断；只有 0<ρ<1 的单调衰减能进入动态持仓，ρ<0 的正负交替衰减保持阻断。` },
+      'dynamic-holding-state': { title: '动态持仓状态', body: `当前阶段 ${dh?.phaseLabel ?? '—'}，状态 ${dh?.status ?? '—'}。短线 ${planSummary(dh?.holdingPlan?.shortTrade)}；基金周期 ${planSummary(dh?.holdingPlan?.fundCycle)}。周期和收益是在信号日结构冻结、AR 零冲击下的条件路径投影，不是预测或预期实现值。` },
       'gamma-pnl': { title: '怎么看 Gamma PnL', body: `持仓 Gamma ${fmt(gpData.value?.positionGamma)}，Dollar Gamma ${fmt(gpData.value?.dollarGamma)}。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。绝对价格口径用 ½·持仓Γ·(ΔP)²；收益率口径等价为 ½·Dollar Gamma·(ΔP/P)²。这里是模型情景值，不是实际人民币收益。` },
-      'vol-confidence': { title: '波动率区间估计', body: `基于 ${vcData.value?.sampleSize} 天样本，波动率区间估计为 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}]。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)}，精度标签 ${vcData.value?.quality}。` },
+      'vol-confidence': { title: '波动率样本区间', body: `基于 ${vcData.value?.sampleSize} 天样本，近似抽样区间为 [${pctFmt(vcData.value?.lower)}, ${pctFmt(vcData.value?.upper)}]。相对误差 ${pctFmt(vcData.value?.relativeUncertainty)}，精度标签 ${vcData.value?.quality}；它不是未来波动率保证。` },
     }
     return guides[id] || null
   })
@@ -405,6 +454,7 @@ export function useFormulaChartModel(props) {
     ceData,
     ceCurve,
     ceDot,
+    ceFrontierDot,
     fundData,
     portData,
     waterfallBars,

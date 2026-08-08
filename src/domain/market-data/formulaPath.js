@@ -1,4 +1,14 @@
-import { blackScholes, capitalEfficiency, fundingRate, getDeltaBands, impermanentLoss, netCarry, netLpEfficiency, resolveDeltaSlope, uniswapV3Inventory } from '../formulas/core.js'
+import {
+  blackScholes,
+  capitalEfficiency,
+  fundingRate,
+  getDeltaBands,
+  impermanentLoss,
+  netCarry,
+  resolveArithmeticRangeSpec,
+  resolveDeltaSlope,
+  uniswapV3Inventory,
+} from '../formulas/core.js'
 import { buildCostPath, deriveWindows } from './cost.js'
 import { buildLpDataState } from './lpOnchain.js'
 import { lpPoolCoverageMetrics } from './lpPoolMetrics.js'
@@ -14,7 +24,13 @@ export const FORMULA_PATH_FIELDS = {
   deltaUpper: { source: 'delta-band', unit: 'price', pane: 'priceBands', status: 'implemented', drawable: true },
   optionDelta: { source: 'option-greeks', unit: 'delta', pane: 'greeksPane', status: 'research-only', drawable: true },
   optionGamma: { source: 'option-greeks', unit: 'gamma', pane: 'greeksPane', status: 'research-only', drawable: true },
-  optionThetaDaily: { source: 'option-greeks', unit: 'theta/day', pane: 'greeksPane', status: 'research-only', drawable: true },
+  optionThetaDaily: {
+    source: 'option-greeks',
+    unit: 'theta/day',
+    pane: 'greeksPane',
+    status: 'research-only',
+    drawable: true,
+  },
   lpLowerPrice: { source: 'lp-inventory', unit: 'price', pane: 'priceBands', status: 'research-only', drawable: true },
   lpUpperPrice: { source: 'lp-inventory', unit: 'price', pane: 'priceBands', status: 'research-only', drawable: true },
   lpValue: { source: 'lp-inventory', unit: 'quote', pane: 'lpPane', status: 'research-only', drawable: true },
@@ -22,17 +38,56 @@ export const FORMULA_PATH_FIELDS = {
   lpNormalizedDelta: { source: 'lp-inventory', unit: 'ratio', pane: 'lpPane', status: 'research-only', drawable: true },
   lpRealPrice: { source: 'lp-inventory', unit: 'price', pane: 'priceBands', status: 'research-only', drawable: true },
   lpRealDivergence: { source: 'lp-inventory', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: true },
-  lpPoolTurnover24h: { source: 'lp-pool-coverage', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: true },
-  lpPoolTopReserveShare: { source: 'lp-pool-coverage', unit: 'ratio', pane: 'lpPane', status: 'research-only', drawable: true },
-  capitalEfficiency: { source: 'capital-efficiency', unit: 'multiple', pane: 'lpPane', status: 'research-only', drawable: true },
+  lpPoolTurnover24h: {
+    source: 'lp-pool-coverage',
+    unit: 'return',
+    pane: 'lpPane',
+    status: 'research-only',
+    drawable: true,
+  },
+  lpPoolTopReserveShare: {
+    source: 'lp-pool-coverage',
+    unit: 'ratio',
+    pane: 'lpPane',
+    status: 'research-only',
+    drawable: true,
+  },
+  capitalEfficiency: {
+    source: 'capital-efficiency',
+    unit: 'multiple',
+    pane: 'lpPane',
+    status: 'research-only',
+    drawable: true,
+  },
   impermanentLoss: { source: 'lp-inventory', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: false },
-  netLpEfficiency: { source: 'net-lp-efficiency', unit: 'return', pane: 'lpPane', status: 'research-only', drawable: false },
+  netLpEfficiency: {
+    source: 'net-lp-efficiency',
+    unit: 'return',
+    pane: 'lpPane',
+    status: 'missing-input',
+    drawable: false,
+    numeric: false,
+  },
   fundingBasis: { source: 'funding', unit: 'return', pane: 'carryPane', status: 'proxy-only', drawable: false },
   fundingProxy: { source: 'funding', unit: 'return', pane: 'carryPane', status: 'proxy-only', drawable: true },
   netCarry: { source: 'net-carry', unit: 'return', pane: 'carryPane', status: 'proxy-only', drawable: true },
   breakEvenFunding: { source: 'net-carry', unit: 'return', pane: 'carryPane', status: 'proxy-only', drawable: false },
-  status: { source: 'formula-path', unit: 'label', pane: 'researchMarkers', status: 'implemented', drawable: false, numeric: false },
-  fieldStates: { source: 'formula-path', unit: 'metadata', pane: 'researchMarkers', status: 'implemented', drawable: false, numeric: false },
+  status: {
+    source: 'formula-path',
+    unit: 'label',
+    pane: 'researchMarkers',
+    status: 'implemented',
+    drawable: false,
+    numeric: false,
+  },
+  fieldStates: {
+    source: 'formula-path',
+    unit: 'metadata',
+    pane: 'researchMarkers',
+    status: 'implemented',
+    drawable: false,
+    numeric: false,
+  },
 }
 
 export const FORMULA_PATH_CURVES = Object.fromEntries(
@@ -52,7 +107,7 @@ export function buildFormulaPath(rows, input) {
       entryPrice: bandAnchor,
       holdingDays: positive(input.holdingDays) || 30,
       iv,
-      targetReturn: deltaSlope,
+      deltaSlope,
       tradingDaysPerYear: tdpy,
     })
     const scenarioStrike = input.pathUsesScenarioInputs ? positive(input.strikePrice) : null
@@ -72,8 +127,14 @@ export function buildFormulaPath(rows, input) {
       type: input.optionType,
       tradingDaysPerYear: tdpy,
     })
-    const lowerPrice = lpLower(input, scenarioStart || bandAnchor)
-    const upperPrice = lpUpper(input, scenarioStart || bandAnchor)
+    const rangeSpec = resolveArithmeticRangeSpec({
+      referencePrice: scenarioStart || bandAnchor,
+      rangeWidth: input.rangeWidth,
+      skew: input.skew,
+      defaultRangeWidth: 0.1,
+    })
+    const lowerPrice = rangeSpec?.lowerPrice ?? null
+    const upperPrice = rangeSpec?.upperPrice ?? null
     const hasLiquidity = positive(input.liquidity) !== null
     const liquidity = positive(input.liquidity) ?? 1
     const lpDataState = buildLpDataState(input.lpOnchainSnapshot)
@@ -88,6 +149,7 @@ export function buildFormulaPath(rows, input) {
         ...lpDataState.missingInputs,
         hasLiquidity ? null : 'liquidity',
         scenarioStart ? null : 'startPrice',
+        rangeSpec ? null : 'valid-arithmetic-range-width',
       ].filter(Boolean),
       context: {
         pool: lpDataState.pool,
@@ -120,7 +182,7 @@ export function buildFormulaPath(rows, input) {
       upperPrice,
       liquidity,
     })
-    const ce = capitalEfficiency({ rangeWidth: rangeWidth(input), skew: Math.max(Number(input.skew) || 1, 0.01) })
+    const ce = rangeSpec ? capitalEfficiency({ rangeWidth: rangeSpec.rangeWidth, skew: rangeSpec.skew }) : null
     const il = impermanentLoss({ markPrice: row.close, startPrice: scenarioStart || bandAnchor, liquidity })
     const hasPerpTwap = positive(input.perpTwap) !== null
     const hasSpotTwap = positive(input.spotTwap) !== null
@@ -138,15 +200,19 @@ export function buildFormulaPath(rows, input) {
     })
     const funding = hasFundingInputs
       ? fundingRate({
-        perpTwap: positive(input.perpTwap),
-        spotTwap: positive(input.spotTwap),
-        hours: (positive(input.holdingDays) || 30) * 24,
-      })
+          perpTwap: positive(input.perpTwap),
+          spotTwap: positive(input.spotTwap),
+          hours: (positive(input.holdingDays) || 30) * 24,
+        })
       : null
     const carry = funding
-      ? netCarry({ costDistance: bandAnchor > 0 ? (row.close - bandAnchor) / bandAnchor : 0, fundingRate: funding.cumulativeFundingEstimate, holdingDays: positive(input.holdingDays) || 30, tradingDaysPerYear: tdpy })
+      ? netCarry({
+          costDistance: bandAnchor > 0 ? (row.close - bandAnchor) / bandAnchor : 0,
+          fundingRate: funding.cumulativeFundingEstimate,
+          holdingDays: positive(input.holdingDays) || 30,
+          tradingDaysPerYear: tdpy,
+        })
       : null
-    const netLp = netLpEfficiency({ capitalEfficiency: ce?.efficiency, impermanentLoss: il?.impermanentLoss, feeRate: 0.003 })
 
     const fieldStates = buildFieldStates({ optionState, lpState, lpPoolState, fundingState })
     return {
@@ -173,7 +239,7 @@ export function buildFormulaPath(rows, input) {
       lpPoolTopReserveShare: finite(lpPoolMetrics.topReserveShare),
       capitalEfficiency: finite(ce?.efficiency),
       impermanentLoss: finite(il?.impermanentLoss),
-      netLpEfficiency: finite(netLp?.totalNet),
+      netLpEfficiency: null,
       fundingBasis: finite(funding?.basisEstimate),
       fundingProxy: finite(funding?.cumulativeFundingEstimate),
       netCarry: finite(carry?.netReturn),
@@ -197,21 +263,6 @@ function rollingAnnualVol(rows, index, tradingDaysPerYear = 365, volWindow = 60)
   return standardDeviation(returns) * Math.sqrt(tradingDaysPerYear)
 }
 
-function lpLower(input, start) {
-  const width = rangeWidth(input)
-  return start * Math.max(1 - width, 0.001)
-}
-
-function lpUpper(input, start) {
-  const width = rangeWidth(input)
-  const skew = Math.max(Number(input.skew) || 1, 0.01)
-  return start * (1 + width * skew)
-}
-
-function rangeWidth(input) {
-  return Math.min(Math.max(Number(input.rangeWidth) || 0.1, 0.001), 0.95)
-}
-
 function normalizeInventory(lp, markPrice) {
   if (!lp || !Number.isFinite(lp.value) || lp.value <= 0 || markPrice <= 0) return null
   return (lp.inventoryDelta * markPrice) / lp.value
@@ -232,7 +283,14 @@ function finite(value) {
   return Number.isFinite(value) ? value : null
 }
 
-function fieldState({ source, status, inputMode, missingInputs = [], context = null, isSynthetic = inputMode !== 'real' }) {
+function fieldState({
+  source,
+  status,
+  inputMode,
+  missingInputs = [],
+  context = null,
+  isSynthetic = inputMode !== 'real',
+}) {
   return {
     source,
     status,
@@ -255,7 +313,19 @@ function buildFieldStates({ optionState, lpState, lpPoolState, fundingState }) {
     deltaUpper: fieldState({ source: 'delta-band', status: 'implemented', inputMode: 'real' }),
   }
   for (const field of ['optionDelta', 'optionGamma', 'optionThetaDaily']) base[field] = optionState
-  for (const field of ['lpLowerPrice', 'lpUpperPrice', 'lpValue', 'lpInventoryDelta', 'lpNormalizedDelta', 'lpRealPrice', 'lpRealDivergence', 'impermanentLoss', 'capitalEfficiency', 'netLpEfficiency']) base[field] = lpState
+  for (const field of [
+    'lpLowerPrice',
+    'lpUpperPrice',
+    'lpValue',
+    'lpInventoryDelta',
+    'lpNormalizedDelta',
+    'lpRealPrice',
+    'lpRealDivergence',
+    'impermanentLoss',
+    'capitalEfficiency',
+    'netLpEfficiency',
+  ])
+    base[field] = lpState
   for (const field of ['lpPoolTurnover24h', 'lpPoolTopReserveShare']) base[field] = lpPoolState
   for (const field of ['fundingBasis', 'fundingProxy', 'netCarry', 'breakEvenFunding']) base[field] = fundingState
   return base

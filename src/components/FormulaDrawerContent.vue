@@ -74,7 +74,7 @@ const currentValues = computed(() => {
       v.push(['组合研究', fmt(g.portfolio)])
       break
     case 'order-plan':
-      v.push(['挂单档数', g.plan?.primaryOrders?.length ?? 0])
+      v.push(['模拟挂单档数', g.plan?.primaryOrders?.length ?? 0])
       v.push(['失效下沿', fmt(g.plan?.invalidation?.lower)])
       v.push(['失效上沿', fmt(g.plan?.invalidation?.upper)])
       v.push(['信号状态', g.decision?.state ?? '—'])
@@ -89,16 +89,16 @@ const decisionImpact = computed(() => {
   const id = props.formulaId
   const map = {
     path: '所有下游计算的输入口径',
-    cost: '决定挂单的成本锚、上下沿、回归目标',
-    volatility: '决定挂单间距与失效阈值',
-    'delta-band': '直接生成挂单价格梯队（试仓/加仓/极值）',
+    cost: '决定模拟挂单的成本锚、上下沿、结构目标',
+    volatility: '决定模拟挂单间距与失效阈值',
+    'delta-band': '生成模拟价格梯队（试仓/加仓/极值）',
     'option-greeks': '研究层风险拆解；模拟挂单不消费期权组合',
     'lp-inventory': 'LP 库存暴露 → 组合 Delta 一部分',
     'lp-pool-coverage': '标注聚合池覆盖质量，不推断历史 tick 流动性',
     'capital-efficiency': '决定 LP 区间是否值得收窄',
     funding: '永续持仓的累计成本，影响 net carry',
     portfolio: '统一检查 LP/期权/对冲/费用是否相加正',
-    'order-plan': '最终输出：挂买/挂卖/失效线/目标价',
+    'order-plan': '情景输出：模拟买卖/失效线/目标价；不可直接执行',
     'deviation-score': '判断当前偏离是否够强，是否触发交易',
     'risk-surface': '展示不同价格上的 Greeks 曲线，挂单前看曲率',
     'net-lp-efficiency': 'IL × CE 净效率 → LP 是否可行',

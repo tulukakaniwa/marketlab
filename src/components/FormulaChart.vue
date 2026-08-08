@@ -16,7 +16,7 @@ const props = defineProps({
 const {
   stage, activeIndex, fmt, f4, pctFmt, pathData, costData, volData, bandData,
   greeksData, lpData, syH, lpV3Curve, lpV3Marker, lpRealMarker, lpV3Bounds, ceData,
-  ceCurve, ceDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
+  ceCurve, ceDot, ceFrontierDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
   bachelierData, ammData, fingerprintData, devScoreData, normalCurve, zMarker,
   riskSurfaceData, lpPoolData, netLpData, netCarryData, guide, mrData, dynamicHoldingData,
   decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, orderData,
@@ -84,8 +84,9 @@ const {
         <div><b>ATR%</b><span>{{ pctFmt(volData.atr) }}</span></div>
         <div><b>动量5日</b><span :class="volData.momentum5 >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentum5) }}</span></div>
         <div><b>动量20日</b><span :class="volData.momentum20 >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentum20) }}</span></div>
-        <div><b>输入 IV</b><span>{{ pctFmt(volData.iv) }}</span></div>
+        <div><b>情景 σ</b><span>{{ pctFmt(volData.iv) }}</span></div>
       </div>
+      <div class="fc-meta">来源 {{ volData.ivSource }} · 非期权报价反推时不标记为市场 IV</div>
     </div>
 
     <!-- DELTA BANDS -->
@@ -117,7 +118,7 @@ const {
         <div class="fc-gi"><b>ρ</b><span>{{ f4(greeksData.rho) }}</span></div>
       </div>
       <div v-if="greeksData.isPortfolio" class="fc-meta">
-        {{ greeksData.legs }} legs · {{ greeksData.strategyClass }} · Θ/年 {{ f4(greeksData.thetaAnnual) }} · research-only
+        {{ greeksData.legs }} legs · {{ greeksData.strategyClass }} · Θ/年 {{ f4(greeksData.thetaAnnual) }} · σ来源 {{ greeksData.volatilitySource }}
       </div>
       <div v-else class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }} · Θ/年 {{ f4(greeksData.thetaAnnual) }}</div>
     </div>
@@ -196,14 +197,17 @@ const {
 
     <!-- CAPITAL EFFICIENCY -->
     <svg v-else-if="formulaId === 'capital-efficiency' && ceData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">资本效率 · 效率 vs 区间宽度</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">CK 端点比资本效率 · 几何中点评估</text>
       <polyline :points="ceCurve" fill="none" stroke="var(--green)" stroke-width="2" />
+      <line v-if="ceFrontierDot" :x1="ceFrontierDot.cx" :x2="ceFrontierDot.cx" :y1="22" :y2="sy(0)" stroke="var(--blue)" stroke-width="1" stroke-dasharray="3,3" />
+      <circle v-if="ceFrontierDot" :cx="ceFrontierDot.cx" :cy="ceFrontierDot.cy" r="4" fill="var(--blue)" />
+      <text v-if="ceFrontierDot" :x="ceFrontierDot.cx - 6" :y="ceFrontierDot.cy + 15" text-anchor="end" class="fc-tick" fill="var(--blue)">{{ ceFrontierDot.label }} · CE {{ ceData.currentFrontier.efficiency.toFixed(4) }}×</text>
       <circle :cx="ceDot?.cx ?? PL" :cy="ceDot?.cy ?? sy(0)" r="5" fill="var(--ink)" />
-      <text :x="(ceDot?.cx ?? PL) + 8" :y="(ceDot?.cy ?? sy(0)) - 6" class="fc-tick">{{ ceData.efficiency.toFixed(1) }}× @ {{ ((1 - ceData.lower) * 100).toFixed(1) }}%</text>
+      <text :x="(ceDot?.cx ?? PL) + 8" :y="(ceDot?.cy ?? sy(0)) - 6" class="fc-tick">端点比 CE {{ ceData.efficiency.toFixed(2) }}× · {{ (ceData.downMove * 100).toFixed(1) }}% / +{{ (ceData.upMove * 100).toFixed(1) }}%</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0%</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">100%</text>
-      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">区间宽度（1 - lower/upper）</text>
+      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">CK ±84.13% 是几何中点口径的精确边际拐点；非当前价执行最优</text>
     </svg>
 
     <!-- FUNDING -->
@@ -219,14 +223,14 @@ const {
 
     <!-- PORTFOLIO -->
     <svg v-else-if="formulaId === 'portfolio' && portData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">组合研究值 {{ fmt(portData.total) }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">组合情景 PnL {{ fmt(portData.scenarioTotal) }} · {{ portData.total === null ? '待校准' : '已归因' }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <g v-if="portfolioCurves">
         <polyline :points="portfolioCurves.lp" fill="none" stroke="var(--green)" stroke-width="1.4" />
         <polyline :points="portfolioCurves.option" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="4,3" />
         <polyline :points="portfolioCurves.hedge" fill="none" stroke="var(--red)" stroke-width="1" stroke-dasharray="3,3" />
         <polyline :points="portfolioCurves.combined" fill="none" stroke="var(--ink)" stroke-width="2" />
-        <text :x="PL" :y="H-4" class="fc-tick">组合曲线: 黑 combined · 绿 LP · 蓝 option · 红 hedge</text>
+        <text :x="PL" :y="H-4" class="fc-tick">同列 PnL: 黑 combined · 绿 LP · 蓝 option · 红 hedge</text>
       </g>
       <!-- Waterfall bars -->
       <template v-if="!portfolioCurves">
@@ -243,8 +247,8 @@ const {
           <div v-for="(o, i) in orderData" :key="i" class="fc-orow">
             <span class="fc-orole">{{ o.action }}</span>
             <span>{{ o.side === 'buy' ? '买' : '卖' }} @ {{ fmt(o.price) }}</span>
-            <span class="fc-onotional">名义 {{ fmt(o.notional) }}</span>
-            <span v-if="o.expected" :class="o.expected > 0 ? 'green' : 'red'">预期 {{ fmt(o.expected) }}</span>
+            <span class="fc-onotional">模拟名义 {{ fmt(o.notional) }}</span>
+            <span v-if="o.expected" :class="o.expected > 0 ? 'green' : 'red'">情景 {{ fmt(o.expected) }}</span>
           </div>
         </div>
       </template>
@@ -297,7 +301,7 @@ const {
       <!-- Zero line -->
       <line :x1="W/2" :x2="W/2" :y1="sy(1)" :y2="sy(0.02)" stroke="var(--line)" stroke-width="1" stroke-dasharray="3,3" />
       <text :x="W/2" :y="sy(0)+18" text-anchor="middle" class="fc-tick">0σ</text>
-      <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">回归概率 {{ (devScoreData.regressionProb * 100).toFixed(0) }}%</text>
+      <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">偏离百分位 {{ (devScoreData.deviationPercentile * 100).toFixed(1) }}% · 双尾 {{ (devScoreData.twoSidedTailProbability * 100).toFixed(1) }}%</text>
     </svg>
 
     <!-- RISK SURFACE -->

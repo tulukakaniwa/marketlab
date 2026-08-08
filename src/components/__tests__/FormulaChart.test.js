@@ -3,14 +3,35 @@ import { describe, expect, it } from 'vitest'
 import FormulaChart from '../FormulaChart.vue'
 
 describe('FormulaChart', () => {
-  it('LP 净效率使用 ViewModel 数据渲染分项，不落回公式说明占位', () => {
+  it('LP 研究拆解将 CE 几何与同期限收益分列', () => {
     const wrapper = mount(FormulaChart, {
       props: makeProps('net-lp-efficiency'),
     })
 
-    expect(wrapper.text()).toContain('LP 净效率')
-    expect(wrapper.text()).toContain('CE 毛效率')
-    expect(wrapper.text()).toContain('真实 LP 权重')
+    expect(wrapper.text()).toContain('LP 研究拆解')
+    expect(wrapper.text()).toContain('CE 几何')
+    expect(wrapper.text()).toContain('可与收益相加否')
+    expect(wrapper.text()).toContain('fee≈theta')
+  })
+
+  it('资本效率展示 CK 精确 ±84.13% 拐点并声明几何中点评估边界', () => {
+    const wrapper = mount(FormulaChart, {
+      props: makeProps('capital-efficiency', {
+        graph: { ...makeGraph(), researchInputs: { rangeWidth: 0.08, skew: 1, liquidity: 1 } },
+      }),
+    })
+    expect(wrapper.text()).toContain('CK 端点比资本效率')
+    expect(wrapper.text()).toContain('±84.13%')
+    expect(wrapper.text()).toContain('几何中点')
+    expect(wrapper.text()).toContain('非当前价执行最优')
+  })
+
+  it('偏离图只展示极端度和双尾质量，不展示回归概率', () => {
+    const wrapper = mount(FormulaChart, { props: makeProps('deviation-score') })
+    expect(wrapper.text()).toContain('偏离百分位')
+    expect(wrapper.text()).toContain('双尾')
+    expect(wrapper.text()).toContain('不是未来回归概率')
+    expect(wrapper.text()).not.toMatch(/回归概率\s*\d/)
   })
 
   it('动态持仓状态接入二阶公式输出，展示计划和里程碑', () => {

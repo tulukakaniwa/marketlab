@@ -32,11 +32,11 @@ describe('ReplayPanel', () => {
     expect(wrapper.text()).toContain('账户资金')
     expect(wrapper.text()).toContain('底仓名义')
     expect(wrapper.find('.replay-grid').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('兑现胜率')
-    expect(wrapper.text()).not.toContain('账户回报')
+    expect(wrapper.text()).not.toContain('历史正收益率')
+    expect(wrapper.text()).not.toContain('历史情景回报')
   })
 
-  it('可运行现货路径回放才展示执行、胜率和回撤指标', () => {
+  it('可运行现货路径回放才展示历史成交、正收益率和回撤指标', () => {
     const wrapper = mount(ReplayPanel, {
       props: {
         replay: replay({
@@ -54,8 +54,9 @@ describe('ReplayPanel', () => {
     })
 
     expect(wrapper.find('.replay-grid').exists()).toBe(true)
-    expect(wrapper.text()).toContain('执行')
-    expect(wrapper.text()).toContain('兑现胜率')
+    expect(wrapper.text()).toContain('历史成交')
+    expect(wrapper.text()).toContain('历史正收益率')
+    expect(wrapper.text()).toContain('历史情景回报')
     expect(wrapper.text()).toContain('回撤')
     expect(wrapper.text()).toContain('现货路径回撤')
     expect(wrapper.text()).toContain('成本路径')

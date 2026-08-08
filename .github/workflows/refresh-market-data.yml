@@ -54,7 +54,7 @@ jobs:
       - name: Refresh market data
         env:
           # 可选：在仓库 Settings -> Secrets and variables -> Actions 配置
-          # 配置后 yfinance/akshare 在美股部分失败时会回落到 Alpha Vantage
+          # 配置后 Nasdaq/AkShare 在美股部分失败时会回落到 Alpha Vantage
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
         run: pnpm run refresh:market-data
 

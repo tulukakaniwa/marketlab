@@ -100,7 +100,8 @@ The current refresh script uses provider fallbacks for different markets:
 
 - Binance public klines for crypto daily data.
 - BaoStock for A-shares where available.
-- yfinance / akshare for Hong Kong and US instruments.
+- AkShare-adjusted / adjusted Tencent data for Hong Kong instruments.
+- Nasdaq / AkShare-adjusted data for US instruments.
 - Alpha Vantage as US fallback when `ALPHA_VANTAGE_API_KEY` is set.
 
 Provider behavior can drift. Treat data refresh failures as pipeline issues first, not UI issues.

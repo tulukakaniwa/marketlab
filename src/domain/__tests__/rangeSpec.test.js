@@ -1,0 +1,72 @@
+import { describe, expect, it } from 'vitest'
+import { buildResearchSnapshot } from '../formula-research/researchSnapshot.js'
+import { buildFormulaPath } from '../market-data/formulaPath.js'
+
+const rows = Array.from({ length: 40 }, (_, index) => {
+  const close = 100 + Math.sin(index / 5)
+  return {
+    date: `2026-01-${String(index + 1).padStart(2, '0')}`,
+    open: close,
+    high: close + 1,
+    low: close - 1,
+    close,
+    volume: 1000,
+  }
+})
+
+const input = {
+  entryPrice: 100,
+  holdingDays: 30,
+  iv: 0.3,
+  deltaSlope: 0.2,
+  strikePrice: 100,
+  startPrice: 100,
+  rangeWidth: 1.2,
+  skew: 1,
+  liquidity: 1,
+  capital: 10000,
+  optionType: 'put',
+}
+
+describe('arithmetic LP range validation', () => {
+  it('formula path does not silently clamp an invalid width', () => {
+    const path = buildFormulaPath(rows, input)
+    expect(path.at(-1).lpLowerPrice).toBeNull()
+    expect(path.at(-1).lpUpperPrice).toBeNull()
+    expect(path.at(-1).capitalEfficiency).toBeNull()
+    expect(path.at(-1).fieldStates.lpLowerPrice.missingInputs).toContain('valid-arithmetic-range-width')
+  })
+
+  it('research snapshot blocks the same invalid width', () => {
+    const snapshot = buildResearchSnapshot({
+      market: { costAnchor: 100 },
+      input,
+      executable: { inputs: { entryPrice: 100, holdingDays: 30, iv: 0.3, capital: 10000 } },
+    })
+    expect(snapshot.researchInputs.rangeStatus).toBe('invalid-input')
+    expect(snapshot.lpV3).toBeNull()
+    expect(snapshot.efficiency).toBeNull()
+    expect(snapshot.portfolioResearch.missingInputs).toContain('valid-lp-position-range')
+    expect(snapshot.portfolioResearch.pnl.missingInputs).toEqual(snapshot.portfolioResearch.missingInputs)
+    expect(snapshot.portfolioResearch.pnl.total).toBeNull()
+    expect(snapshot.portfolioResearch.status).toBe('calibration-required')
+  })
+
+  it('research snapshot directly unions optionPortfolio missingInputs into the final ledger', () => {
+    const snapshot = buildResearchSnapshot({
+      market: { costAnchor: 100 },
+      input: {
+        ...input,
+        rangeWidth: 0.1,
+        optionPremium: 1,
+        ivSource: 'market-option-quote-implied',
+        ivSourceVerified: false,
+      },
+      executable: { inputs: { entryPrice: 100, holdingDays: 30, iv: 0.3, capital: 10000 } },
+    })
+    expect(snapshot.optionPortfolio.missingInputs).toContain('verified-market-iv-source')
+    expect(snapshot.portfolioResearch.missingInputs).toContain('verified-market-iv-source')
+    expect(snapshot.portfolioResearch.pnl.missingInputs).toEqual(snapshot.portfolioResearch.missingInputs)
+    expect(snapshot.portfolioResearch.pnl.total).toBeNull()
+  })
+})

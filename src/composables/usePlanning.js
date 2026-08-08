@@ -18,6 +18,7 @@ export function usePlanning() {
     entryPrice: 0,
     holdingDays: 30,
     iv: 0,
+    ivSource: 'unset',
     deltaSlope: 0.3,
     exitTargetReturn: 0,
     targetReturn: 0.3,
@@ -40,7 +41,7 @@ export function usePlanning() {
     optionSide: 'long',
     optionQuantity: 1,
     optionMultiplier: 1,
-    optionPremium: 0,
+    optionPremium: null,
     optionWidthPct: 0.05,
     strikePrice2: 0,
     startPrice: 0,
@@ -93,16 +94,22 @@ export function usePlanning() {
   const rightPanelOpen = persistedRef('lab.rightPanelOpen.v1', true)
   const activeLeftTab = persistedRef('lab.activeLeftTab.v1', 'decision')
 
-  function toggleLeftPanel() { leftPanelOpen.value = !leftPanelOpen.value }
-  function toggleRightPanel() { rightPanelOpen.value = !rightPanelOpen.value }
+  function toggleLeftPanel() {
+    leftPanelOpen.value = !leftPanelOpen.value
+  }
+  function toggleRightPanel() {
+    rightPanelOpen.value = !rightPanelOpen.value
+  }
 
   // 面板宽度（v3.2 拖宽）
-  const LEFT_MIN  = 200, LEFT_MAX  = 400
-  const RIGHT_MIN = 200, RIGHT_MAX = 380
-  const LEFT_DEFAULT  = 280
+  const LEFT_MIN = 200,
+    LEFT_MAX = 400
+  const RIGHT_MIN = 200,
+    RIGHT_MAX = 380
+  const LEFT_DEFAULT = 280
   const RIGHT_DEFAULT = 240
 
-  const leftPanelW  = persistedRef('lab.leftPanelW.v1', LEFT_DEFAULT)
+  const leftPanelW = persistedRef('lab.leftPanelW.v1', LEFT_DEFAULT)
   const rightPanelW = persistedRef('lab.rightPanelW.v1', RIGHT_DEFAULT)
 
   function setLeftPanelW(w) {
@@ -111,8 +118,12 @@ export function usePlanning() {
   function setRightPanelW(w) {
     rightPanelW.value = clamp(w, RIGHT_MIN, RIGHT_MAX)
   }
-  function resetLeftPanelW()  { leftPanelW.value  = LEFT_DEFAULT }
-  function resetRightPanelW() { rightPanelW.value = RIGHT_DEFAULT }
+  function resetLeftPanelW() {
+    leftPanelW.value = LEFT_DEFAULT
+  }
+  function resetRightPanelW() {
+    rightPanelW.value = RIGHT_DEFAULT
+  }
 
   function clamp(value, min, max) {
     if (!Number.isFinite(value)) return min
