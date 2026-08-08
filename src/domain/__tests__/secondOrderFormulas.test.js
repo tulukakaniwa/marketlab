@@ -67,6 +67,23 @@ describe('deriveDynamicHoldingState second-order regressions', () => {
     expect(state.holdingPlan.fundCycle.target?.blockedReasons).toContain('z-threshold')
     expect(state.holdingPlan.fundCycle.blockedReasons).toContain('z-threshold')
   })
+
+  it('把周期配置的最低收益阻断理由透传到动态持仓状态', () => {
+    const state = deriveDynamicHoldingState({
+      zScore: -2.2,
+      halfLifeDays: 2,
+      entryPrice: 99,
+      anchorPrice: 100,
+      targetPrices: { costLower: 98, anchor: 100 },
+      drawdown: repairDrawdown,
+    })
+
+    expect(state.phase).toBe('repair-start')
+    expect(state.status).toBe('等待')
+    expect(state.holdingPlan.shortTrade.status).toBe('剔除')
+    expect(state.holdingPlan.shortTrade.blockedReasons).toContain('gross-return')
+    expect(state.blockedReasons).toContain('gross-return')
+  })
 })
 
 describe('meanReversionHalfLife', () => {

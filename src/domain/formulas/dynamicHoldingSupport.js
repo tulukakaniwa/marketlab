@@ -43,11 +43,10 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   if (phase === 'low-compression') {
     if (target) return plan('等待', 'wait-repair-start', target, ['drawdown-repair-insufficient'])
     const pendingTarget = candidates.find(forwardMilestone) ?? null
-    const reasons = unique(['drawdown-repair-insufficient', ...(pendingTarget?.blockedReasons ?? [])])
-    if (!pendingTarget) reasons.push('no-structural-target')
-    if (pendingTarget && (pendingTarget.expectedDays < profile.minDays || pendingTarget.expectedDays > profile.maxDays))
-      reasons.push('holding-window')
-    if (pendingTarget && pendingTarget.grossReturn < profile.minGrossReturn) reasons.push('gross-return')
+    const reasons = unique([
+      'drawdown-repair-insufficient',
+      ...profileMilestoneBlockedReasons(pendingTarget, profile, kind),
+    ])
     return plan('等待', 'wait-repair-start', pendingTarget, reasons)
   }
   if (target) {
@@ -61,11 +60,7 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   }
 
   const horizonCandidate = candidates.find((item) => Number.isFinite(item?.expectedDays))
-  const reasons = unique([
-    ...(horizonCandidate?.blockedReasons ?? []),
-    ...(horizonCandidate?.expectedDays > profile.maxDays ? ['holding-window'] : []),
-  ])
-  if (!reasons.length) reasons.push('no-structural-target')
+  const reasons = profileMilestoneBlockedReasons(horizonCandidate, profile, kind)
   return plan(
     reasons.includes('holding-window') || reasons.includes('z-threshold') ? '等待' : '剔除',
     'wait-window',
@@ -143,11 +138,17 @@ export function unique(values) {
 }
 
 function usableMilestone(item, profile, kind) {
-  if (!item || item.blockedReasons.length > 0) return false
-  if (!Number.isFinite(item.expectedDays) || item.expectedDays > profile.maxDays) return false
-  if (kind === 'fundCycle' && item.id !== 'firstRepair' && item.expectedDays < profile.minDays) return false
-  if (kind !== 'fundCycle' && item.expectedDays < profile.minDays) return false
-  return Number.isFinite(item.grossReturn) && item.grossReturn >= profile.minGrossReturn
+  return profileMilestoneBlockedReasons(item, profile, kind).length === 0
+}
+
+function profileMilestoneBlockedReasons(item, profile, kind) {
+  if (!item) return ['no-structural-target']
+  const reasons = [...item.blockedReasons]
+  const belowMinimumWindow = item.expectedDays < profile.minDays && !(kind === 'fundCycle' && item.id === 'firstRepair')
+  if (!Number.isFinite(item.expectedDays) || belowMinimumWindow || item.expectedDays > profile.maxDays)
+    reasons.push('holding-window')
+  if (!Number.isFinite(item.grossReturn) || item.grossReturn < profile.minGrossReturn) reasons.push('gross-return')
+  return unique(reasons)
 }
 
 function forwardMilestone(item) {
