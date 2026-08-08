@@ -40,8 +40,8 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   const candidates = kind === 'fundCycle' ? [baseAnchor, firstRepair] : [firstRepair, baseAnchor]
   const target = candidates.find((item) => usableMilestone(item, profile, kind))
 
-  if (kind === 'shortTrade' && phase === 'low-compression') {
-    if (target) return plan('观察', 'wait-repair-start', target, ['drawdown-repair-insufficient'])
+  if (phase === 'low-compression') {
+    if (target) return plan('等待', 'wait-repair-start', target, ['drawdown-repair-insufficient'])
     const pendingTarget = candidates.find(forwardMilestone) ?? null
     const reasons = ['drawdown-repair-insufficient']
     if (!pendingTarget) reasons.push('no-structural-target')
@@ -234,7 +234,8 @@ function milestoneById(milestones, id) {
 
 function forwardGrossReturn(item) {
   if (!Number.isFinite(item?.grossReturn) || item.grossReturn <= 0) return null
-  if (item.blockedReasons.includes('target-behind-entry') || item.blockedReasons.includes('post-anchor-extension')) return null
+  if (item.blockedReasons.includes('target-behind-entry') || item.blockedReasons.includes('post-anchor-extension'))
+    return null
   return item.grossReturn
 }
 

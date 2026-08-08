@@ -77,7 +77,7 @@ export function useMainChartSeries({ getChart, getProps }) {
       addPaneLine('链上池价偏离', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
     )
     toggle('lpPoolTurnover', overlayPlan.paneOn.lpPoolCoverage, () =>
-      addPaneLine('真实池24h换手', '#b3261e', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),
+      addPaneLine('聚合池24h换手', '#b3261e', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),
     )
     toggle('lpPoolConcentration', overlayPlan.paneOn.lpPoolCoverage, () =>
       addPaneLine('主池资金占比', '#274f9f', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),

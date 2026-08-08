@@ -60,7 +60,7 @@ export function liquidityFingerprint({
   const upper = entryPrice * upperFactor
   if (!Number.isFinite(lower) || !Number.isFinite(upper) || upper <= lower) return null
   const n = priceGrid && priceGrid > 2 ? Math.round(priceGrid) : 60
-  const prices = Array.from({ length: n }, (_, i) => lower + (upper - lower) * i / (n - 1))
+  const prices = Array.from({ length: n }, (_, i) => lower + ((upper - lower) * i) / (n - 1))
   const logMu = mu ?? Math.log(entryPrice)
   const lam = lambda ?? 2
   const kap = kappa ?? 1
@@ -86,7 +86,9 @@ export function liquidityFingerprint({
   const density = (price) => components.reduce((sum, component) => sum + componentDensity(component, price), 0)
 
   const values = prices.map((price) => {
-    const componentValues = Object.fromEntries(components.map((component) => [component.id, componentDensity(component, price)]))
+    const componentValues = Object.fromEntries(
+      components.map((component) => [component.id, componentDensity(component, price)]),
+    )
     return {
       price,
       density: Object.values(componentValues).reduce((sum, value) => sum + value, 0),
@@ -102,8 +104,8 @@ export function liquidityFingerprint({
   const totalIntegral = integrateTrapezoid(density, lower, upper, integrationSteps) ?? 0
   const count = Math.max(1, Math.round(segmentCount))
   const rawSegments = Array.from({ length: count }, (_, i) => {
-    const lo = lower + (upper - lower) * i / count
-    const hi = lower + (upper - lower) * (i + 1) / count
+    const lo = lower + ((upper - lower) * i) / count
+    const hi = lower + ((upper - lower) * (i + 1)) / count
     const mass = integrateTrapezoid(density, lo, hi, Math.max(16, Math.round(integrationSteps / count))) ?? 0
     const componentMass = componentMasses(components, lo, hi, Math.max(16, Math.round(integrationSteps / count)))
     return {
@@ -132,13 +134,21 @@ export function liquidityFingerprint({
     maxDensity,
     totalIntegral,
     segments,
-    components: components.map(({ fn, ...component }) => component),
+    components: components.map(({ fn: _fn, ...component }) => component),
     stats: fingerprintStats({ prices: values, segments, components, activePrice: activePrice ?? entryPrice }),
     status: 'research-only',
+    semantics: {
+      measure: 'normalized-model-mass',
+      displayUnit: 'share',
+      interpretation: 'target-allocation-weight',
+      isProbabilityForecast: false,
+      calibrationStatus: 'not-statistically-calibrated',
+      normalizationRange: { lower, upper },
+    },
     inputMode: components.length > 1 ? 'hybrid-model' : 'model-only',
     missingInputs: ['real-ticks', 'lp-nft-weights', 'order-book-depth'],
     params: { distribution, mu: logMu, lambda: lam, kappa: kap, segmentCount: count },
-    note: 'research-only: hybrid model density normalized by component integration, then discretized into LP interval weights',
+    note: 'research-only: target allocation density normalized over the displayed range; not a forecast probability',
   }
 }
 
@@ -160,18 +170,19 @@ export function buildDensityComponents({
   weights,
 }) {
   const vol = Math.max(0.02, Math.min(2, Number(volatility) || 0.35))
-  const logSigma = Math.max(0.015, vol / Math.sqrt(365) * 4)
+  const logSigma = Math.max(0.015, (vol / Math.sqrt(365)) * 4)
   const components = [
     {
       id: 'base',
       label: 'base target density',
       kind: distribution,
       weight: weights.baseWeight,
-      fn: distribution === 'log-laplace'
-        ? (p) => logLaplaceDensity(p, { mu: logMu, lambda, kappa, lower, upper }) ?? 0
-        : distribution === 'covered-call-fit'
-          ? (p) => coveredCallFit(p, { strikePrice: entryPrice, iv: 1 / Math.max(lambda, 0.001), lower, upper }) ?? 0
-          : (p) => laplaceDensity(p, { mu: entryPrice, lambda, kappa }) ?? 0,
+      fn:
+        distribution === 'log-laplace'
+          ? (p) => logLaplaceDensity(p, { mu: logMu, lambda, kappa, lower, upper }) ?? 0
+          : distribution === 'covered-call-fit'
+            ? (p) => coveredCallFit(p, { strikePrice: entryPrice, iv: 1 / Math.max(lambda, 0.001), lower, upper }) ?? 0
+            : (p) => laplaceDensity(p, { mu: entryPrice, lambda, kappa }) ?? 0,
     },
   ]
 
@@ -182,7 +193,10 @@ export function buildDensityComponents({
       kind: 'log-normal-bump',
       weight: weights.activeWeight,
       anchor: activePrice,
-      fn: (p) => validPrice(p) ? logDensityToPriceDensity(p, normalDensity(Math.log(p), { mu: Math.log(activePrice), sigma: logSigma })) : 0,
+      fn: (p) =>
+        validPrice(p)
+          ? logDensityToPriceDensity(p, normalDensity(Math.log(p), { mu: Math.log(activePrice), sigma: logSigma }))
+          : 0,
     })
   }
   if (validPrice(costAnchor)) {
@@ -192,7 +206,13 @@ export function buildDensityComponents({
       kind: 'log-normal-bump',
       weight: weights.costWeight,
       anchor: costAnchor,
-      fn: (p) => validPrice(p) ? logDensityToPriceDensity(p, normalDensity(Math.log(p), { mu: Math.log(costAnchor), sigma: logSigma * 1.35 })) : 0,
+      fn: (p) =>
+        validPrice(p)
+          ? logDensityToPriceDensity(
+              p,
+              normalDensity(Math.log(p), { mu: Math.log(costAnchor), sigma: logSigma * 1.35 }),
+            )
+          : 0,
     })
   }
 
@@ -205,14 +225,19 @@ export function buildDensityComponents({
       kind: 'order-bumps',
       weight: weights.orderWeight,
       orderCount: orders.length,
-      buyShare: orders.filter((order) => order.side !== 'sell').reduce((sum, order) => sum + order.notional, 0) / orders.reduce((sum, order) => sum + order.notional, 0),
+      buyShare:
+        orders.filter((order) => order.side !== 'sell').reduce((sum, order) => sum + order.notional, 0) /
+        orders.reduce((sum, order) => sum + order.notional, 0),
       fn: (p) => {
         if (!validPrice(p)) return 0
         const x = Math.log(p)
         return orders.reduce((sum, order) => {
           const sideBoost = order.side === 'sell' ? 0.92 : 1
           const weight = Math.sqrt(order.notional / maxNotional) * sideBoost
-          return sum + weight * logDensityToPriceDensity(p, normalDensity(x, { mu: Math.log(order.price), sigma: logSigma * 0.7 }))
+          return (
+            sum +
+            weight * logDensityToPriceDensity(p, normalDensity(x, { mu: Math.log(order.price), sigma: logSigma * 0.7 }))
+          )
         }, 0)
       },
     })
@@ -261,22 +286,29 @@ export function componentDensity(component, price) {
 }
 
 export function componentMasses(components, lower, upper, integrationSteps = 32) {
-  return Object.fromEntries(components.map((component) => [
-    component.id,
-    integrateTrapezoid((price) => componentDensity(component, price), lower, upper, integrationSteps) ?? 0,
-  ]))
+  return Object.fromEntries(
+    components.map((component) => [
+      component.id,
+      integrateTrapezoid((price) => componentDensity(component, price), lower, upper, integrationSteps) ?? 0,
+    ]),
+  )
 }
 
 export function fingerprintStats({ prices, segments, components, activePrice }) {
   const weights = segments.map((segment) => Math.max(0, segment.weight))
   const entropy = normalizedEntropy(weights)
   const concentration = Math.max(...weights, 0)
-  const bidShare = segments.filter((segment) => segment.mid < activePrice).reduce((sum, segment) => sum + segment.weight, 0)
+  const bidShare = segments
+    .filter((segment) => segment.mid < activePrice)
+    .reduce((sum, segment) => sum + segment.weight, 0)
   const activeShare = components
     .filter((component) => ['active', 'cost', 'range'].includes(component.id))
     .reduce((sum, component) => sum + component.normalizedWeight, 0)
   const orderShare = components.find((component) => component.id === 'orders')?.normalizedWeight ?? 0
-  const peak = prices.reduce((best, point) => point.density > best.density ? point : best, { price: null, density: -Infinity })
+  const peak = prices.reduce((best, point) => (point.density > best.density ? point : best), {
+    price: null,
+    density: -Infinity,
+  })
   return {
     entropy,
     concentration,
@@ -292,7 +324,7 @@ export function fingerprintStats({ prices, segments, components, activePrice }) 
 
 function normalizedEntropy(weights) {
   if (!weights.length) return 0
-  const entropy = weights.reduce((sum, weight) => weight > 0 ? sum - weight * Math.log(weight) : sum, 0)
+  const entropy = weights.reduce((sum, weight) => (weight > 0 ? sum - weight * Math.log(weight) : sum), 0)
   return weights.length > 1 ? entropy / Math.log(weights.length) : 0
 }
 
@@ -306,7 +338,10 @@ function countModes(points) {
 }
 
 function dominantComponent(componentMass) {
-  return Object.entries(componentMass).reduce((best, [key, value]) => value > best.value ? { key, value } : best, { key: null, value: -Infinity }).key
+  return Object.entries(componentMass).reduce((best, [key, value]) => (value > best.value ? { key, value } : best), {
+    key: null,
+    value: -Infinity,
+  }).key
 }
 
 function normalizeOrderLevels(orderLevels) {

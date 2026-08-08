@@ -36,6 +36,18 @@ export { ammCurve, ammLambertCurve, lambertW, numoenSnapshot } from './amm.js'
 export { formulaEvidenceCatalog, getFormulaEvidence } from './evidence.js'
 export { resolveDeltaSlope, resolveExitTargetReturn } from './inputSemantics.js'
 export {
+  CK_CAPITAL_EFFICIENCY_INFLECTION,
+  capitalEfficiency,
+  capitalEfficiencyAtPrice,
+  capitalEfficiencyFrontier,
+  capitalEfficiencySecondDerivative,
+  capitalEfficiencySlope,
+  ckCapitalEfficiencyReference,
+  resolveArithmeticRangeSpec,
+  sampleCapitalEfficiencyCurve,
+} from './capitalEfficiency.js'
+export { compareFeeCarryToTheta, estimateLpPathFees, lpResearchAttribution, netLpEfficiency } from './lpResearch.js'
+export {
   DEFAULT_DYNAMIC_HOLDING_PROFILES,
   deriveDrawdownFeatures,
   deriveDynamicHoldingState,
@@ -48,25 +60,6 @@ import { inverseNormalCdf, normalCdf } from './probability.js'
 export function vixFix({ highestClose, low }) {
   if (![highestClose, low].every(Number.isFinite) || highestClose <= 0) return null
   return Math.max(0, (highestClose - low) / highestClose)
-}
-
-export function capitalEfficiency({ rangeWidth, skew }) {
-  if (![rangeWidth, skew].every(Number.isFinite) || rangeWidth <= 0 || rangeWidth >= 1 || skew < 0) return null
-  const lower = 1 - rangeWidth
-  const upper = 1 + skew * rangeWidth
-  return {
-    lower,
-    upper,
-    rangeRatio: lower / upper,
-    efficiency: 1 / (1 - Math.pow(lower / upper, 0.25)),
-    frontierSlope: Math.abs(
-      (-skew - 1) /
-        (4 *
-          Math.pow(Math.pow(upper, 0.25) - Math.pow(lower, 0.25), 2) *
-          Math.pow(lower, 0.75) *
-          Math.pow(upper, 0.75)),
-    ),
-  }
 }
 
 export function fundingRate({ perpTwap, spotTwap, hours }) {
@@ -90,31 +83,18 @@ export function deviationScore({ costDistance, annualVol, holdingDays = 1, tradi
   const periodVol = annualVol * Math.sqrt(holdingDays / tradingDaysPerYear)
   const z = periodVol > 0 ? costDistance / periodVol : 0
   const phi = normalCdf(Math.abs(z))
-  const prob = phi !== null ? Math.max(0, Math.min(1, phi)) : 0.5
+  const absoluteZPercentile = phi !== null ? Math.max(0.5, Math.min(1, phi)) : 0.5
+  const deviationPercentile = Math.max(0, Math.min(1, 2 * absoluteZPercentile - 1))
+  const twoSidedTailProbability = Math.max(0, Math.min(1, 2 * (1 - absoluteZPercentile)))
   return {
     z,
     periodVol,
-    regressionProb: prob,
+    absoluteZPercentile,
+    deviationPercentile,
+    twoSidedTailProbability,
+    probabilitySemantics: 'normal-reference-extremeness-not-mean-reversion-probability',
     regime: costDistance < 0 ? '折价' : costDistance > 0 ? '溢价' : '平价',
     strength: Math.abs(z) < 0.5 ? '弱' : Math.abs(z) < 1.5 ? '中' : '强',
-  }
-}
-
-export function netLpEfficiency({ capitalEfficiency, impermanentLoss, feeRate = 0 }) {
-  if (![capitalEfficiency, impermanentLoss].every(Number.isFinite)) return null
-  if (capitalEfficiency <= 0) return null
-  const grossGain = capitalEfficiency - 1
-  const netGain = grossGain + impermanentLoss
-  const feeBoost = capitalEfficiency * feeRate
-  const totalNet = netGain + feeBoost
-  return {
-    grossGain,
-    impermanentLoss,
-    feeBoost,
-    totalNet,
-    efficient: totalNet > 0,
-    ce: capitalEfficiency,
-    status: 'research-only',
   }
 }
 

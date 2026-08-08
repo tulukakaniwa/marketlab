@@ -4,24 +4,19 @@ import {
   bachelierOption,
   blackScholes,
   buildOptionPortfolio,
-  capitalEfficiency,
+  deviationScore,
   deriveDrawdownFeatures,
   deriveDynamicHoldingState,
   deriveShortHoldWindow,
   deriveStructuralHoldWindow,
-  fundingRate,
   getDeltaBands,
-  impermanentLoss,
   integrateTrapezoid,
   lambertW,
   liquidityFingerprint,
   logLaplaceDensity,
-  netCarry,
   numoenSnapshot,
   normalCdf,
   optionLegsFromTemplate,
-  uniswapV3HedgedPosition,
-  uniswapV3Inventory,
 } from '../formulas/core.js'
 
 describe('normalCdf', () => {
@@ -33,6 +28,16 @@ describe('normalCdf', () => {
   it('处理无穷', () => {
     expect(normalCdf(Infinity)).toBe(1)
     expect(normalCdf(-Infinity)).toBe(0)
+  })
+})
+
+describe('deviationScore probability semantics', () => {
+  it('只输出正态参考极端度与双尾质量，不伪造均值回归概率', () => {
+    const score = deviationScore({ costDistance: -0.04, annualVol: 0.3, holdingDays: 20, tradingDaysPerYear: 252 })
+    expect(score.deviationPercentile).toBeGreaterThan(0)
+    expect(score.twoSidedTailProbability).toBeCloseTo(1 - score.deviationPercentile, 10)
+    expect(score.probabilitySemantics).toContain('not-mean-reversion-probability')
+    expect(score).not.toHaveProperty('regressionProb')
   })
 })
 
@@ -205,7 +210,6 @@ describe('deriveDynamicHoldingState', () => {
     expect(state.status).toBe('需刷新数据')
     expect(state.phase).toBe('insufficient-history')
   })
-
 })
 
 describe('getDeltaBands', () => {
@@ -348,6 +352,43 @@ describe('Option portfolio research model', () => {
     expect(combo.scope).toContain('LP replication only')
   })
 
+  it('空权利金保持 missing，显式零仍是输入值', () => {
+    const missing = buildOptionPortfolio({
+      entryPrice: 100,
+      holdingDays: 30,
+      iv: 0.3,
+      legs: [{ type: 'put', side: 'long', strikePrice: 100, quantity: 1, premium: null }],
+    })
+    const explicitZero = buildOptionPortfolio({
+      entryPrice: 100,
+      holdingDays: 30,
+      iv: 0.3,
+      legs: [{ type: 'put', side: 'long', strikePrice: 100, quantity: 1, premium: 0 }],
+    })
+    expect(missing.missingInputs).toContain('option-leg-premium')
+    expect(missing.legs[0].premiumSource).toBe('model')
+    expect(explicitZero.missingInputs).not.toContain('option-leg-premium')
+    expect(explicitZero.legs[0].premiumSource).toBe('input')
+    expect(explicitZero.entryCost).toBe(0)
+  })
+
+  it('市场 IV 标签必须有独立来源校验才成立', () => {
+    const args = {
+      entryPrice: 100,
+      holdingDays: 30,
+      iv: 0.3,
+      volatilitySource: 'market-option-quote-implied',
+      legs: [{ type: 'put', side: 'long', strikePrice: 100, quantity: 1, premium: 4 }],
+    }
+    const unverified = buildOptionPortfolio(args)
+    const verified = buildOptionPortfolio({ ...args, volatilitySourceVerified: true })
+
+    expect(unverified.isMarketIv).toBe(false)
+    expect(unverified.missingInputs).toContain('verified-market-iv-source')
+    expect(verified.isMarketIv).toBe(true)
+    expect(verified.missingInputs).not.toContain('verified-market-iv-source')
+  })
+
   it('非法或空 legs 返回 null', () => {
     expect(buildOptionPortfolio({ entryPrice: 100, holdingDays: 30, iv: 0.2, legs: [] })).toBeNull()
     expect(
@@ -358,52 +399,6 @@ describe('Option portfolio research model', () => {
         legs: [{ type: 'call', strikePrice: 100, quantity: 1 }],
       }),
     ).toBeNull()
-  })
-})
-
-describe('LP / IL / CE / Funding', () => {
-  it('uniswapV3Inventory 区间内 token0/token1 都为正', () => {
-    const lp = uniswapV3Inventory({ markPrice: 100, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
-    expect(lp.token0).toBeGreaterThan(0)
-    expect(lp.token1).toBeGreaterThan(0)
-    expect(Number.isFinite(lp.value)).toBe(true)
-  })
-  it('impermanentLoss 同价无损', () => {
-    const il = impermanentLoss({ markPrice: 100, startPrice: 100, liquidity: 10 })
-    expect(Math.abs(il.impermanentLoss)).toBeLessThan(1e-9)
-  })
-  it('capitalEfficiency 区间越窄效率越高', () => {
-    const wide = capitalEfficiency({ rangeWidth: 0.5, skew: 1 })
-    const narrow = capitalEfficiency({ rangeWidth: 0.05, skew: 1 })
-    expect(narrow.efficiency).toBeGreaterThan(wide.efficiency)
-  })
-  it('fundingRate 永续溢价时为正', () => {
-    const f = fundingRate({ perpTwap: 101, spotTwap: 100, hours: 8 })
-    expect(f.funding).toBeGreaterThan(0)
-    expect(f.status).toBe('proxy-only')
-    expect(f.cumulativeFundingEstimate).toBeCloseTo((f.basisEstimate * 8) / 24, 10)
-  })
-  it('netCarry 直接消费累计 funding proxy，不重复乘时间', () => {
-    const c = netCarry({ costDistance: 0.1, fundingRate: 0.02, holdingDays: 30, tradingDaysPerYear: 365 })
-    expect(c.fundingCost).toBeCloseTo(0.02, 10)
-    expect(c.netReturn).toBeCloseTo(0.08, 10)
-    expect(c.status).toBe('proxy-only')
-  })
-  it('uniswapV3HedgedPosition 使用非对称真实 v3 区间', () => {
-    const lp = uniswapV3HedgedPosition({
-      markPrice: 110,
-      startPrice: 100,
-      lowerPrice: 70,
-      upperPrice: 130,
-      liquidity: 10,
-      hedgeSize: 0.2,
-      fees: 1,
-    })
-    expect(lp.status).toBe('research-only')
-    expect(lp.zone).toBe('range')
-    expect(lp.lowerPrice).toBe(70)
-    expect(lp.upperPrice).toBe(130)
-    expect(Number.isFinite(lp.combinedValue)).toBe(true)
   })
 })
 
@@ -453,6 +448,8 @@ describe('Liquidity / AMM research formulas', () => {
     expect(fp.segments.some((segment) => segment.componentMass.orders > 0)).toBe(true)
     expect(fp.prices.some((point) => point.orderDensity > 0 && point.rangeDensity > 0)).toBe(true)
     expect(fp.segments.reduce((sum, seg) => sum + seg.weight, 0)).toBeCloseTo(1, 5)
+    expect(fp.semantics.isProbabilityForecast).toBe(false)
+    expect(fp.semantics.interpretation).toBe('target-allocation-weight')
   })
 
   it('Lambert W principal branch 满足定义', () => {

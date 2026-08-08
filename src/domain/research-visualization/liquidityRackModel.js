@@ -1,4 +1,4 @@
-// liquidityRackModel：把 fingerprint 连续密度 + 真实池快照 + 模拟挂单
+// liquidityRackModel：把 fingerprint 目标权重 + 真实 tick 深度 + 模拟挂单
 // 折算为可渲染的价格层级（shelves）+ 元数据（meta）+ 机会扫描（opportunity）。
 // 主入口仅负责拉装与组合，重逻辑在 ./liquidityRackModel/ 子模块。
 
@@ -117,6 +117,7 @@ export function buildLiquidityRackModel({
       viewMode: mode,
       gapMode: normalizedGapMode,
       hasRealSignal: realProfile.hasSignal,
+      hasCalibrationSignal: realProfile.hasCalibrationSignal,
     }),
     viewMode: mode,
     effectiveViewMode,
@@ -138,6 +139,7 @@ export function buildLiquidityRackModel({
     components: fingerprint?.components ?? [],
     realProfile,
     hasRealSignal: realProfile.hasSignal,
+    hasCalibrationSignal: realProfile.hasCalibrationSignal,
     status: fingerprint?.status ?? 'research-only',
     inputMode: fingerprint?.inputMode ?? 'model-only',
   }
@@ -211,8 +213,16 @@ function emptyRack(range = { lower: null, upper: null }) {
     stats: { peakWeight: 0, orderCount: 0, belowShare: 0, aboveShare: 0 },
     fingerprintStats: null,
     components: [],
-    realProfile: { hasSignal: false, pool: null, quotePrice: null, weights: [] },
+    realProfile: {
+      hasSignal: false,
+      hasCalibrationSignal: false,
+      pool: null,
+      quotePrice: null,
+      weights: [],
+      calibrationWeights: [],
+    },
     hasRealSignal: false,
+    hasCalibrationSignal: false,
     status: 'research-only',
     inputMode: 'model-only',
   }

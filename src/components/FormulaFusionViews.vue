@@ -14,11 +14,21 @@ const lpParts = computed(() => {
   const d = props.netLpData
   if (!d) return []
   return [
-    { id: 'gross', label: 'CE 毛效率', value: d.grossGain, display: signedX(d.grossGain) },
-    { id: 'il', label: 'IL', value: d.impermanentLoss, display: props.pctFmt(d.impermanentLoss) },
-    { id: 'fee', label: '手续费估计', value: d.feeBoost, display: signedX(d.feeBoost, 2) },
-    { id: 'net', label: '净效率', value: d.totalNet, display: signedX(d.totalNet, 2), strong: true },
-  ]
+    {
+      id: 'il',
+      label: '同期限 IL',
+      value: d.returns?.impermanentLoss,
+      display: props.pctFmt(d.returns?.impermanentLoss),
+    },
+    { id: 'fee', label: '路径手续费', value: d.returns?.feeReturn, display: props.pctFmt(d.returns?.feeReturn) },
+    {
+      id: 'net',
+      label: '同口径净收益',
+      value: d.returns?.netReturn,
+      display: props.pctFmt(d.returns?.netReturn),
+      strong: true,
+    },
+  ].filter((item) => Number.isFinite(item.value))
 })
 const lpScale = computed(() => Math.max(...lpParts.value.map((item) => Math.abs(item.value || 0)), 0.01))
 const dynamicPlans = computed(() => {
@@ -33,10 +43,6 @@ const dynamicPlans = computed(() => {
 
 function barWidth(value) {
   return `${Math.max(2, Math.min(100, (Math.abs(value || 0) / lpScale.value) * 100)).toFixed(1)}%`
-}
-function signedX(value, digits = 1) {
-  if (!Number.isFinite(value)) return '—'
-  return `${value >= 0 ? '+' : ''}${value.toFixed(digits)}×`
 }
 function fixed(value, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '—'
@@ -92,23 +98,25 @@ function reasonText(reasons = []) {
   <div v-if="formulaId === 'net-lp-efficiency'" class="ff-card">
     <template v-if="netLpData">
       <header class="ff-head">
-        <span class="fc-ttl">LP 净效率</span>
-        <strong :class="netLpData.totalNet >= 0 ? 'green' : 'red'">净 {{ signedX(netLpData.totalNet, 2) }}</strong>
+        <span class="fc-ttl">LP 研究拆解</span>
+        <strong :class="netLpData.returns?.netReturn >= 0 ? 'green' : 'red'">{{
+          Number.isFinite(netLpData.returns?.netReturn) ? `净 ${pctFmt(netLpData.returns.netReturn)}` : '待路径校准'
+        }}</strong>
         <em>{{ netLpData.status }}</em>
       </header>
       <div class="ff-metrics">
         <div>
-          <b>CE</b><span>{{ fixed(netLpData.ce, 1) }}×</span>
+          <b>CE 几何</b><span>{{ fixed(netLpData.geometry?.capitalEfficiency, 2) }}×</span>
+        </div>
+        <div><b>可与收益相加</b><span>否</span></div>
+        <div>
+          <b>同期限 IL</b
+          ><span :class="netLpData.returns?.impermanentLoss < 0 ? 'red' : 'green'">{{
+            pctFmt(netLpData.returns?.impermanentLoss)
+          }}</span>
         </div>
         <div>
-          <b>毛效率</b><span>{{ signedX(netLpData.grossGain) }}</span>
-        </div>
-        <div>
-          <b>IL</b
-          ><span :class="netLpData.impermanentLoss < 0 ? 'red' : 'green'">{{ pctFmt(netLpData.impermanentLoss) }}</span>
-        </div>
-        <div>
-          <b>手续费</b><span>{{ signedX(netLpData.feeBoost, 2) }}</span>
+          <b>路径手续费</b><span>{{ pctFmt(netLpData.returns?.feeReturn) }}</span>
         </div>
       </div>
       <div class="ff-bars">
@@ -120,7 +128,10 @@ function reasonText(reasons = []) {
           <strong>{{ part.display }}</strong>
         </div>
       </div>
-      <div class="ff-note">真实 LP 权重 / 手续费制度 / 再平衡规则：未接入</div>
+      <div class="ff-note">
+        CE 与收益分列。待补：{{ netLpData.missingInputs.join(' / ') || '无' }}；fee≈theta
+        仅为统一币种/期限/名义后的类比。
+      </div>
     </template>
     <div v-else class="ff-empty">等待 CE / IL 数据</div>
   </div>
@@ -193,7 +204,7 @@ function reasonText(reasons = []) {
           <strong :class="statusClass(item.plan.status)">{{ item.plan.status }}</strong>
           <span>{{ actionName(item.plan.action) }} · {{ targetName(item.plan.targetId) }}</span>
           <small
-            >{{ day(item.plan.expectedDays) }} ·
+            >条件 {{ day(item.plan.expectedDays) }} ·
             {{
               Number.isFinite(item.plan.expectedReturnPct)
                 ? item.plan.expectedReturnPct + '%'
@@ -204,7 +215,7 @@ function reasonText(reasons = []) {
       </div>
       <div class="ff-table">
         <div class="ff-row head">
-          <span>目标</span><span>价格</span><span>周期</span><span>收益</span><span>状态</span>
+          <span>目标</span><span>价格</span><span>条件周期</span><span>条件收益</span><span>状态</span>
         </div>
         <div v-for="milestone in dynamicHoldingData.milestones" :key="milestone.id" class="ff-row">
           <span>{{ targetName(milestone.id) }}</span>
@@ -214,6 +225,7 @@ function reasonText(reasons = []) {
           <span>{{ reasonText(milestone.blockedReasons) }}</span>
         </div>
       </div>
+      <div class="ff-note">周期和收益按信号日结构、AR 零冲击衰减投影，仅是情景坐标，不是预测或预期实现值。</div>
     </template>
     <div v-else class="ff-empty">等待回撤 / z / 半衰期 / 结构目标</div>
   </div>

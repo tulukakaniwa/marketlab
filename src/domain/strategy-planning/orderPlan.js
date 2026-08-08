@@ -1,5 +1,6 @@
 import { deviationScore, getDeltaBands, resolveDeltaSlope, resolveExitTargetReturn } from '../formulas/core.js'
 import { buildFormulaStrategyComposition } from './formulaStrategy.js'
+import { clamp, erfApprox, fmt, formatPrice, pctFmt, positive } from './orderPlanUtils.js'
 import {
   resolveExecutableProfile,
   resolveProfile,
@@ -10,13 +11,7 @@ import {
 
 const LADDER_WEIGHTS = [0.2, 0.3, 0.5]
 
-export {
-  resolveExecutableProfile,
-  resolveProfile,
-  scaleProfileToMarket,
-  strategyProfileList,
-  strategyProfiles,
-}
+export { resolveExecutableProfile, resolveProfile, scaleProfileToMarket, strategyProfileList, strategyProfiles }
 
 export function buildDecisionGraph({ market, input, account }) {
   if (!market) return emptyGraph()
@@ -26,7 +21,14 @@ export function buildDecisionGraph({ market, input, account }) {
   const timing = buildEntryTiming(market, executable.deltaBands, profile, executable.inputs)
   const position = buildPositionPlan(timing, executable.deltaBands, nextAccount, profile, market, executable.inputs)
   const plan = buildExecutionPlan(position, executable.deltaBands, nextAccount, market)
-  const formulaStrategy = buildFormulaStrategyComposition({ market, executable, timing, position, plan, account: nextAccount })
+  const formulaStrategy = buildFormulaStrategyComposition({
+    market,
+    executable,
+    timing,
+    position,
+    plan,
+    account: nextAccount,
+  })
 
   return {
     ...executable,
@@ -63,7 +65,8 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   const aboveCost = market.markPrice > market.costHigh
   const insideLongBand = !bands || market.markPrice >= bands.long.low
   const insideShortBand = !bands || market.markPrice <= bands.short.high
-  const costStillFalling = market.costSlope5 < -Math.max(atr * executableProfile.costSlopeAtr, executableProfile.costSlopeMin)
+  const costStillFalling =
+    market.costSlope5 < -Math.max(atr * executableProfile.costSlopeAtr, executableProfile.costSlopeMin)
   const momentumRising = market.momentum5 > executableProfile.momentumMin
 
   const regimeLabel = belowCost ? '折价区' : aboveCost ? '溢价区' : '成本回归区'
@@ -81,13 +84,18 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
     zStrength: zLabel,
     costDistance: market.costDistance,
     signalStrength,
+    signalSemantics: 'normal-reference-extremeness-not-confidence-or-win-probability',
     triggeredConditions: [],
     blockedReasons: [],
     missingInputs: [],
   }
 
   function buildReason() {
-    const parts = [`${regimeLabel} · Z=${zScore.toFixed(2)}σ · ${zLabel}`, `动量 ${momentumLabel}`, `成本 ${costTrendLabel}`]
+    const parts = [
+      `${regimeLabel} · Z=${zScore.toFixed(2)}σ · ${zLabel}`,
+      `动量 ${momentumLabel}`,
+      `成本 ${costTrendLabel}`,
+    ]
     if (belowCost && momentumRising && !costStillFalling) parts.push('动量止跌条件满足')
     if (belowCost && (costStillFalling || !momentumRising)) parts.push('止跌条件未满足')
     if (aboveCost) parts.push('处于成本带上方')
@@ -128,7 +136,12 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       stop: Math.min(market.costLow, bands?.long.low ?? market.costLow),
       target: market.costAnchor,
       ...withFacts(baseFacts, {
-        triggeredConditions: ['价格低于成本带', '成本未继续下行', '5 日动量满足策略档位阈值', '折价幅度达到策略档位阈值'],
+        triggeredConditions: [
+          '价格低于成本带',
+          '成本未继续下行',
+          '5 日动量满足策略档位阈值',
+          '折价幅度达到策略档位阈值',
+        ],
       }),
     })
   }
@@ -171,17 +184,6 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
   })
 }
 
-function erfApprox(x) {
-  const sign = x < 0 ? -1 : 1; const z = Math.abs(x)
-  const t = 1 / (1 + 0.3275911 * z)
-  const a = [0.254829592, -0.284496736, 1.421413741, -1.453152027, 1.061405429]
-  const poly = ((((a[4] * t + a[3]) * t + a[2]) * t + a[1]) * t + a[0]) * t
-  return sign * (1 - poly * Math.exp(-z * z))
-}
-
-function pctFmt(v) { return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—' }
-function fmt(v) { return Number.isFinite(v) ? Math.round(v).toLocaleString('zh-CN') : '—' }
-
 export function buildPositionPlan(timing, bands, account, profile, market, executableInputs = {}) {
   const executableProfile = ensureExecutableProfile(profile, market)
   if (!account.isConfigured) {
@@ -212,9 +214,12 @@ export function buildPositionPlan(timing, bands, account, profile, market, execu
   const stopDistance = Math.max(Math.abs(market.markPrice - timing.stop) / market.markPrice, 0.001)
   const signalStrength = timing.signalStrength ?? 0
   const sizingCapital = Math.max(account.equity ?? account.capital ?? 0, 0)
-  const riskBudgetPct = executableProfile.riskMin + (executableProfile.riskMax - executableProfile.riskMin) * signalStrength
+  const riskBudgetPct =
+    executableProfile.riskMin + (executableProfile.riskMax - executableProfile.riskMin) * signalStrength
   const riskBudget = sizingCapital * riskBudgetPct
-  const exposureCap = sizingCapital * (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * signalStrength)
+  const exposureCap =
+    sizingCapital *
+    (executableProfile.exposureMin + (executableProfile.exposureMax - executableProfile.exposureMin) * signalStrength)
   const buyCap = Math.min(account.cash, exposureCap, riskBudget / stopDistance)
   const sellCap = Math.min(account.base * market.markPrice, exposureCap)
   const maxNotional = timing.side === 'buy' ? buyCap : sellCap
@@ -238,33 +243,41 @@ export function buildPositionPlan(timing, bands, account, profile, market, execu
     exitTargetReturn,
     addToPrice,
     holdDays: account.holdingDays,
-    rule: timing.side === 'buy'
-      ? `账户资金已配置；模拟挂单使用 ${pctFmt(executableProfile.firstWeight)} 首笔权重和失效线 ${fmt(timing.stop)}。`
-      : `底仓已配置；模拟挂单使用成本锚 ${fmt(timing.target)} 作为减仓观察价。`,
+    executionStatus: 'simulation-only',
+    sizingBasis: 'profile-scaled-by-normal-reference-extremeness',
+    rule:
+      timing.side === 'buy'
+        ? `账户资金已配置；模拟挂单使用 ${pctFmt(executableProfile.firstWeight)} 首笔权重和失效线 ${fmt(timing.stop)}。`
+        : `底仓已配置；模拟挂单使用成本锚 ${fmt(timing.target)} 作为减仓观察价。`,
     missingInputs: [],
   }
 }
 
 export function buildExecutionPlan(position, bands, account, market) {
   if (!position?.side || position.maxNotional <= 0 || !bands) return emptyPlan()
-  const prices = position.side === 'buy'
-    ? uniqueSorted([market.markPrice, (market.markPrice + position.addToPrice) / 2, position.addToPrice], 'desc')
-    : uniqueSorted([market.markPrice, (market.markPrice + position.addToPrice) / 2, position.addToPrice], 'asc')
-  const primaryOrders = prices.map((price, index) => orderRow({
-    side: position.side,
-    price,
-    targetPrice: position.targetPrice,
-    targetReturn: position.targetReturn,
-    stopPrice: position.stopPrice,
-    holdDays: position.holdDays,
-    notional: position.maxNotional * LADDER_WEIGHTS[index],
-    role: orderRole(position.side, index),
-    reason: position.rule,
-  }))
+  const prices =
+    position.side === 'buy'
+      ? uniqueSorted([market.markPrice, (market.markPrice + position.addToPrice) / 2, position.addToPrice], 'desc')
+      : uniqueSorted([market.markPrice, (market.markPrice + position.addToPrice) / 2, position.addToPrice], 'asc')
+  const primaryOrders = prices.map((price, index) =>
+    orderRow({
+      side: position.side,
+      price,
+      targetPrice: position.targetPrice,
+      targetReturn: position.targetReturn,
+      stopPrice: position.stopPrice,
+      holdDays: position.holdDays,
+      notional: position.maxNotional * LADDER_WEIGHTS[index],
+      role: orderRole(position.side, index),
+      reason: position.rule,
+    }),
+  )
   return {
     buyOrders: position.side === 'buy' ? primaryOrders : [],
     sellOrders: position.side === 'sell' ? primaryOrders : [],
     primaryOrders,
+    executionStatus: 'simulation-only',
+    sizingBasis: position.sizingBasis,
     invalidation: {
       lower: position.side === 'buy' ? position.stopPrice : market.costLow,
       upper: position.side === 'sell' ? position.stopPrice : market.costHigh,
@@ -285,24 +298,44 @@ function buildExecutableContext({ market, input }) {
   const exitTargetReturn = resolveExitTargetReturn(input)
   const capital = Math.max(Number(input.capital) || 0, 0)
   const tdpy = Number(input.tradingDaysPerYear) || 365
-  const deltaBands = getDeltaBands({ entryPrice, holdingDays, iv, targetReturn: deltaSlope, tradingDaysPerYear: tdpy })
+  const deltaBands = getDeltaBands({ entryPrice, holdingDays, iv, deltaSlope, tradingDaysPerYear: tdpy })
 
   return {
-    inputs: { entryPrice, holdingDays, iv, deltaSlope, exitTargetReturn, targetReturn: deltaSlope, capital, costAnchor: market.costAnchor, tradingDaysPerYear: tdpy },
+    inputs: {
+      entryPrice,
+      holdingDays,
+      iv,
+      deltaSlope,
+      exitTargetReturn,
+      targetReturn: deltaSlope,
+      capital,
+      costAnchor: market.costAnchor,
+      tradingDaysPerYear: tdpy,
+    },
     deltaBands,
   }
 }
 
 function buildDecision({ market, timing, position, holdingDays }) {
   const invalidations = timing?.side
-    ? [`收盘价越过失效线 ${formatPrice(position.stopPrice)}`, `目标价 ${formatPrice(position.targetPrice)}`, `${holdingDays} 天后未触发则到期`]
-    : [`价格低于成本下沿 ${formatPrice(market.costLow)}`, `价格高于成本上沿 ${formatPrice(market.costHigh)}`, `偏离阈值参考 ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))}`]
+    ? [
+        `收盘价越过失效线 ${formatPrice(position.stopPrice)}`,
+        `目标价 ${formatPrice(position.targetPrice)}`,
+        `${holdingDays} 天后未触发则到期`,
+      ]
+    : [
+        `价格低于成本下沿 ${formatPrice(market.costLow)}`,
+        `价格高于成本上沿 ${formatPrice(market.costHigh)}`,
+        `偏离阈值参考 ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))}`,
+      ]
   return {
     state: timing?.state ?? '等待',
     path: timing?.path ?? '等待路径',
     timing,
     position,
     signalStrength: timing?.signalStrength ?? 0,
+    signalSemantics: timing?.signalSemantics ?? 'normal-reference-extremeness-not-confidence-or-win-probability',
+    executionStatus: position?.executionStatus ?? 'blocked',
     holdingWindow: `${holdingDays} 天`,
     invalidations,
     regime: timing?.regime ?? null,
@@ -337,14 +370,38 @@ function activeTiming(timing) {
 }
 
 function waitTiming({ state, reason, facts }) {
-  return { state, side: null, action: '未触发', path: '信号条件未触发', edge: 0, stop: null, target: null, reason, ...facts }
+  return {
+    state,
+    side: null,
+    action: '未触发',
+    path: '信号条件未触发',
+    edge: 0,
+    stop: null,
+    target: null,
+    reason,
+    ...facts,
+  }
 }
 
 function orderRow({ side, price, targetPrice, targetReturn, stopPrice, holdDays, notional, role, reason }) {
   const amount = price > 0 ? notional / price : 0
   const executionTarget = orderTargetPrice({ side, price, targetPrice, targetReturn })
   const expectedProfit = side === 'buy' ? (executionTarget - price) * amount : (price - executionTarget) * amount
-  return { side, price, targetPrice: executionTarget, referenceTargetPrice: targetPrice, targetReturn, stopPrice, holdDays, notional, amount, expectedProfit, role, reason }
+  return {
+    side,
+    price,
+    targetPrice: executionTarget,
+    referenceTargetPrice: targetPrice,
+    targetReturn,
+    stopPrice,
+    holdDays,
+    notional,
+    amount,
+    expectedProfit,
+    role,
+    reason,
+    executionStatus: 'simulation-only',
+  }
 }
 
 function orderTargetPrice({ side, price, targetPrice, targetReturn }) {
@@ -374,13 +431,22 @@ function emptyPosition(timing, account = {}) {
     targetPrice: timing?.target ?? null,
     targetReturn: null,
     addToPrice: null,
+    executionStatus: 'blocked',
+    sizingBasis: null,
     rule: timing?.reason ?? '信号条件未触发。',
     missingInputs: [],
   }
 }
 
 function emptyPlan() {
-  return { buyOrders: [], sellOrders: [], primaryOrders: [], invalidation: { lower: null, upper: null } }
+  return {
+    buyOrders: [],
+    sellOrders: [],
+    primaryOrders: [],
+    executionStatus: 'blocked',
+    sizingBasis: null,
+    invalidation: { lower: null, upper: null },
+  }
 }
 
 function emptyGraph() {
@@ -396,21 +462,10 @@ function emptyGraph() {
 }
 
 function uniqueSorted(values, direction) {
-  const sorted = values.filter((value) => Number.isFinite(value) && value > 0).sort((a, b) => direction === 'desc' ? b - a : a - b)
+  const sorted = values
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => (direction === 'desc' ? b - a : a - b))
   return sorted.filter((value, index) => index === 0 || Math.abs(value - sorted[index - 1]) > 1e-9)
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value))
-}
-
-function positive(value) {
-  const next = Number(value)
-  return Number.isFinite(next) && next > 0 ? next : null
-}
-
-function formatPrice(value) {
-  return Number.isFinite(value) ? Math.round(value).toLocaleString('zh-CN') : '未知'
 }
 
 function withFacts(baseFacts, patch = {}) {

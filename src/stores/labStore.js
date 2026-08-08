@@ -111,6 +111,7 @@ export const useLabStore = defineStore('lab', () => {
     if (!market) return
     input.entryPrice = round(market.markPrice, 2)
     input.iv = round(market.annualVol, 4)
+    input.ivSource = 'historical-realized-scenario'
     input.strikePrice = round(market.markPrice * 1.05, 2)
     input.startPrice = round(market.costAnchor, 2)
     if (samePrice(input.perpTwap, market.markPrice) && samePrice(input.spotTwap, market.costAnchor)) {
