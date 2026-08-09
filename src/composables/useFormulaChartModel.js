@@ -419,7 +419,7 @@ export function useFormulaChartModel(props) {
       'risk-surface': { title: '怎么看风险曲面', body: `在 GetDelta 价格带 [${fmt(b?.long?.low)}, ${fmt(b?.long?.high)}] 上展开 Greeks：Delta 曲线（绿）从虚值到实值，Gamma（蓝）在入场价附近最大 → 这里风险敏感度最高，调仓最频繁。越远离入场价，Gamma 越小 → 风险变化平缓。` },
       'lp-pool-coverage': { title: '研究层：LP 池覆盖', body: `池覆盖只读聚合池快照，展示 24h 换手和主池资金占比；tick 流动性历史和 LP 加减仓事件未接入，不作为交易结论。` },
       'net-lp-efficiency': { title: '研究层：LP 归因拆解', body: `CE ${nl?.geometry?.capitalEfficiency?.toFixed(2) ?? '—'}× 是几何倍数，不能与 IL/手续费收益相加。只有同本金、同期限的路径手续费和 IL 才能得到净收益；fee≈theta 也只是在同币种、期限和名义本金归一后的经济类比。` },
-      'net-carry': { title: '研究层：持仓净收益', body: `当前净收益估计 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
+      'net-carry': { title: '研究层：持仓归因代理', body: `当前归因代理 ${pctFmt(nc?.netReturn)} 只使用 TWAP 偏离。真实资金费率和结算制度未接入，不能作为持仓是否有利的结论。` },
       'mean-reversion': { title: '均值回归半衰期', body: `自回归系数 ρ=${mrData.value?.rho?.toFixed(3)}，半衰期 ${mrData.value?.halfLifeDays !== null && mrData.value?.halfLifeDays !== undefined ? Math.round(mrData.value.halfLifeDays) + ' 个交易日' : '不可定义'}。这是穿过原点的 AR(1) 样本诊断；只有 0<ρ<1 的单调衰减能进入动态持仓，ρ<0 的正负交替衰减保持阻断。` },
       'dynamic-holding-state': { title: '动态持仓状态', body: `当前阶段 ${dh?.phaseLabel ?? '—'}，状态 ${dh?.status ?? '—'}。短线 ${planSummary(dh?.holdingPlan?.shortTrade)}；基金周期 ${planSummary(dh?.holdingPlan?.fundCycle)}。周期和收益是在信号日结构冻结、AR 零冲击下的条件路径投影，不是预测或预期实现值。` },
       'gamma-pnl': { title: '怎么看 Gamma PnL', body: `持仓 Gamma ${fmt(gpData.value?.positionGamma)}，Dollar Gamma ${fmt(gpData.value?.dollarGamma)}。本次价格变动 ${fmt(gpData.value?.priceChange)}，凸性估计 ${fmt(gpData.value?.gammaPnl)}。${gpData.value?.convexityNote}。绝对价格口径用 ½·持仓Γ·(ΔP)²；收益率口径等价为 ½·Dollar Gamma·(ΔP/P)²。这里是模型情景值，不是实际人民币收益。` },

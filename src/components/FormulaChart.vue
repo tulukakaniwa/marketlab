@@ -72,7 +72,7 @@ const {
       <div class="fc-vol">
         <div class="fc-vol-main">
           <span class="fc-big">{{ pctFmt(volData.annualVol) }}</span>
-          <small>年化波动率</small>
+          <small>历史年化波动</small>
         </div>
         <div class="fc-vol-main">
           <span class="fc-big">{{ pctFmt(volData.atr) }}</span>
@@ -80,7 +80,7 @@ const {
         </div>
       </div>
       <div class="fc-kv">
-        <div><b>年化波动</b><span>{{ pctFmt(volData.annualVol) }}</span></div>
+        <div><b>历史年化波动</b><span>{{ pctFmt(volData.annualVol) }}</span></div>
         <div><b>ATR%</b><span>{{ pctFmt(volData.atr) }}</span></div>
         <div><b>动量5日</b><span :class="volData.momentum5 >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentum5) }}</span></div>
         <div><b>动量20日</b><span :class="volData.momentum20 >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentum20) }}</span></div>
@@ -334,7 +334,7 @@ const {
 
     <!-- NET CARRY -->
     <svg v-else-if="formulaId === 'net-carry' && netCarryData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">持仓净收益 · 研究层</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">持仓归因情景 · 未接真实结算</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Cost distance bar (potential gain) -->
       <rect x="80" :y="sy(Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" width="60" :height="Math.max(2, (Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) * ph)" fill="var(--green)" rx="2" opacity="0.6" />
@@ -344,13 +344,13 @@ const {
       <text x="210" :y="sy(netCarryData.fundingCost / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 4" text-anchor="middle" class="fc-tick" fill="var(--red)">成本 {{ pctFmt(netCarryData.fundingCost) }}</text>
       <!-- Net result -->
       <line :x1="PL" :x2="W-PR" :y1="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" :y2="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" stroke="var(--ink)" stroke-width="2" />
-      <text :x="W-PR" :y="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 3" text-anchor="end" class="fc-tick">净 {{ pctFmt(netCarryData.netReturn) }}</text>
+      <text :x="W-PR" :y="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 3" text-anchor="end" class="fc-tick">代理 {{ pctFmt(netCarryData.netReturn) }}</text>
       <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">盈亏平衡估计 @ {{ pctFmt(netCarryData.breakEven) }} · 未接真实资金费率</text>
     </svg>
 
     <!-- MEAN REVERSION -->
     <svg v-else-if="formulaId === 'mean-reversion' && mrData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">均值回归 · 半衰期 {{ mrData.halfLifeDays !== null ? Math.round(mrData.halfLifeDays) + '天' : '∞' }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">AR(1) 样本诊断 · 半衰期 {{ mrData.halfLifeDays !== null ? Math.round(mrData.halfLifeDays) + '天' : '不可定义' }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Decay curve: e^(-θ×t) -->
       <polyline :points="decayCurve" fill="none" stroke="var(--green)" stroke-width="2" />
@@ -365,7 +365,7 @@ const {
 
     <!-- GAMMA PNL -->
     <svg v-else-if="formulaId === 'gamma-pnl' && gpData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">Gamma PnL · ½Γ(ΔP)²</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">Gamma 情景值 · ½Γ(ΔP)²</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <line :x1="W/2" :x2="W/2" :y1="sy(1)" :y2="sy(0)" stroke="var(--line)" stroke-width="0.5" stroke-dasharray="3,3" />
       <!-- Parabola: ½Γx² -->
@@ -379,7 +379,7 @@ const {
 
     <!-- VOL CONFIDENCE -->
     <svg v-else-if="formulaId === 'vol-confidence' && vcData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">波动率区间 · {{ vcData.quality }} · ±{{ pctFmt(vcData.relativeUncertainty) }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">历史波动样本区间 · {{ vcData.quality }} · ±{{ pctFmt(vcData.relativeUncertainty) }}</text>
       <!-- Center line -->
       <line :x1="PL" :x2="W-PR" :y1="sy(0.5)" :y2="sy(0.5)" stroke="var(--green)" stroke-width="2" />
       <text :x="PL-4" :y="sy(0.5)+4" text-anchor="end" class="fc-tick">{{ pctFmt(vcData.annualVol) }}</text>

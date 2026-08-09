@@ -264,10 +264,10 @@ export const formulaStages = [
   {
     id: 'net-carry',
     layer: '融合',
-    label: '持仓净收益',
-    role: 'Funding × Cost 的研究视图；资金费率未接真实结算制度',
+    label: '持仓归因情景',
+    role: 'Funding × Cost 的研究视图；资金费率未接真实结算制度，不输出真实净收益',
     inputs: ['成本偏离', '资金费率', '持仓天数'],
-    outputs: ['净收益估计', '资金成本估计', '研究提示'],
+    outputs: ['持仓归因代理', '资金成本估计', '研究提示'],
     formulas: [
       'research net = |costDistance| - |cumulativeFundingEstimate|',
       'breakEvenFunding = |fundingCost|',
@@ -281,7 +281,7 @@ export const formulaStages = [
     id: 'mean-reversion',
     layer: '二阶',
     label: '均值回归半衰期',
-    role: 'e/π/质数结构：AR(1) 估计回归速度，半衰期 = ln(2)/θ，以质数天衡量',
+    role: 'AR(1) 样本诊断：满足平稳衰减边界时给出节奏坐标，不预测未来回归时点',
     inputs: ['成本偏离序列', '年时间基'],
     outputs: ['ρ 自回归系数', 'θ 回归速度', '半衰期天数', '速度评级', '短线回补窗口', '结构目标持仓时间'],
     formulas: [
@@ -315,8 +315,8 @@ export const formulaStages = [
   {
     id: 'gamma-pnl',
     layer: '二阶',
-    label: 'Gamma PnL / 凸性收益',
-    role: '½·Γ·(ΔP)² ：凸性头寸的实际波动收益，连接方差结构与 π',
+    label: 'Gamma PnL / 凸性情景',
+    role: '½·Γ·(ΔP)²：按给定单位与名义本金估算凸性情景值，不代表已实现人民币收益',
     inputs: ['Gamma', '标的价格', '价格变动', '仓位规模'],
     outputs: ['Position Gamma', 'Dollar Gamma', 'Gamma PnL', '凸性方向'],
     formulas: [
@@ -331,8 +331,8 @@ export const formulaStages = [
   {
     id: 'vol-confidence',
     layer: '二阶',
-    label: '波动率区间',
-    role: 'σ 的估计误差 ≈ σ/√(2n)：展示样本波动率的区间误差',
+    label: '历史波动样本区间',
+    role: 'σ 的估计误差 ≈ σ/√(2n)：展示历史已实现波动的样本区间，不是市场 IV 区间',
     inputs: ['年化波动', '样本量', '区间水平'],
     outputs: ['标准误', '估计区间', '精度评级'],
     formulas: ['SE(σ) = σ / √(2n)', 'CI = σ ± z·SE'],
@@ -387,7 +387,7 @@ export const formulaCapabilities = [
     label: '二阶分析',
     role: '速度 · 凸性 · 不确定性：均值回归、凸性项和波动率区间',
     stages: ['mean-reversion', 'dynamic-holding-state', 'gamma-pnl', 'vol-confidence'],
-    action: '回答回归速度、动态持仓状态、Gamma 收益和波动率区间——e/π/质数结构在此体现。',
+    action: '展示 AR 样本速度、动态持仓状态、Gamma 情景值和历史波动样本区间。',
   },
 ]
 

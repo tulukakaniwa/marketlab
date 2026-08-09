@@ -30,7 +30,7 @@ const currentValues = computed(() => {
       v.push(['5日斜率', pct(m?.costSlope5)])
       break
     case 'volatility':
-      v.push(['年化波动', pct(m?.annualVol)])
+      v.push(['历史年化波动', pct(m?.annualVol)])
       v.push(['ATR%', pct(m?.atrPercent)])
       v.push(['5日动量', pct(m?.momentum5)])
       break
@@ -95,18 +95,18 @@ const decisionImpact = computed(() => {
     'option-greeks': '研究层风险拆解；模拟挂单不消费期权组合',
     'lp-inventory': 'LP 库存暴露 → 组合 Delta 一部分',
     'lp-pool-coverage': '标注聚合池覆盖质量，不推断历史 tick 流动性',
-    'capital-efficiency': '决定 LP 区间是否值得收窄',
+    'capital-efficiency': '比较区间几何与资金放大倍数；不代表净收益或可执行性',
     funding: '永续持仓的累计成本，影响 net carry',
     portfolio: '统一检查 LP/期权/对冲/费用是否相加正',
     'order-plan': '情景输出：模拟买卖/失效线/目标价；不可直接执行',
-    'deviation-score': '判断当前偏离是否够强，是否触发交易',
+    'deviation-score': '描述样本中的偏离极端度；不是回归概率、胜率或单独交易信号',
     'risk-surface': '展示不同价格上的 Greeks 曲线，挂单前看曲率',
-    'net-lp-efficiency': 'IL × CE 净效率 → LP 是否可行',
-    'net-carry': '判断回归收益能否覆盖资金费',
-    'mean-reversion': '估计回归速度，决定持仓时长',
+    'net-lp-efficiency': '拆解几何倍数、同期限 IL 与路径手续费；缺真实费用时不能判断是否可行',
+    'net-carry': '同口径归因资金成本；缺真实结算数据时保持研究态',
+    'mean-reversion': 'AR(1) 样本路径诊断；仅作节奏坐标，不是未来时点预测',
     'dynamic-holding-state': '把回撤、z、半衰期和结构目标合成观察/等待/剔除',
-    'gamma-pnl': '凸性头寸的实际波动收益估计',
-    'vol-confidence': '当前 IV 估计的置信区间',
+    'gamma-pnl': '单位与名义口径下的凸性情景值；不是已实现人民币收益',
+    'vol-confidence': '历史已实现波动样本区间；不是市场 IV 的置信区间或未来保证',
   }
   return map[id] ?? '该公式参与研究层，不直接进入挂单结论'
 })
