@@ -49,6 +49,8 @@
   },
   "dependencies": {
     "d3-dsv": "^3.0.1",
+    "hqchart": "^1.1.15912",
+    "jquery": "^3.7.1",
     "lightweight-charts": "^5.2.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",

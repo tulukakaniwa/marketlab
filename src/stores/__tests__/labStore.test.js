@@ -51,7 +51,8 @@ describe('useLabStore（v3 重写后契约）', () => {
     expect(lab.input.holdingDays).toBe(30)
     expect(lab.input.deltaSlope).toBe(0.3)
     expect(lab.input.exitTargetReturn).toBe(0)
-    expect(lab.input.targetReturn).toBe(0.3)
+    expect(lab.input.targetReturn).toBeUndefined()
+    expect(lab.input.feeIncomeQuote).toBe(0)
     expect(lab.featureFlags.replayAccount).toBe(false)
     expect(lab.featureFlags.replayAutoProfile).toBe(false)
     // tdpy 已从 input 移到 store 层 effectiveTdpy；首次无 source，走 fallback 365
@@ -61,13 +62,15 @@ describe('useLabStore（v3 重写后契约）', () => {
 
   it('importText 解析 CSV 并触发输入回填', async () => {
     const lab = useLabStore()
-    const csv = ['date,open,high,low,close,volume',
+    const csv = [
+      'date,open,high,low,close,volume',
       ...Array.from({ length: 60 }, (_, i) => {
         const close = 100 + i * 0.5
         return `2024-01-${String(i + 1).padStart(2, '0')},${close},${close + 1},${close - 1},${close},1000`
-      })].join('\n')
+      }),
+    ].join('\n')
     lab.importText(csv, '测试集')
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise((r) => setTimeout(r, 50))
     expect(lab.rows.length).toBeGreaterThan(0)
     expect(lab.input.entryPrice).toBeGreaterThan(0)
     expect(lab.input.iv).toBeGreaterThanOrEqual(0)
@@ -75,14 +78,16 @@ describe('useLabStore（v3 重写后契约）', () => {
 
   it('观察日期限制市场态和回放只使用当日前数据', async () => {
     const lab = useLabStore()
-    const csv = ['date,open,high,low,close,volume',
+    const csv = [
+      'date,open,high,low,close,volume',
       ...Array.from({ length: 90 }, (_, i) => {
         const close = 100 + i
         const date = new Date(Date.UTC(2024, 0, i + 1)).toISOString().slice(0, 10)
         return `${date},${close},${close + 1},${close - 1},${close},1000`
-      })].join('\n')
+      }),
+    ].join('\n')
     lab.importText(csv, '观察日期测试')
-    await new Promise(r => setTimeout(r, 50))
+    await new Promise((r) => setTimeout(r, 50))
     lab.setObservationDate('2024-01-30')
     expect(lab.cursor).toBe(29)
     expect(lab.activeRows).toHaveLength(30)
@@ -96,34 +101,40 @@ describe('useLabStore（v3 重写后契约）', () => {
 
   it('观察日期按数据源隔离，避免不同用户样本串时间', async () => {
     const lab = useLabStore()
-    const csvA = ['date,open,high,low,close,volume',
+    const csvA = [
+      'date,open,high,low,close,volume',
       '2024-01-01,10,11,9,10,100',
       '2024-01-02,11,12,10,11,100',
-      '2024-01-03,12,13,11,12,100'].join('\n')
-    const csvB = ['date,open,high,low,close,volume',
+      '2024-01-03,12,13,11,12,100',
+    ].join('\n')
+    const csvB = [
+      'date,open,high,low,close,volume',
       '2025-02-01,20,21,19,20,100',
       '2025-02-02,21,22,20,21,100',
-      '2025-02-03,22,23,21,22,100'].join('\n')
+      '2025-02-03,22,23,21,22,100',
+    ].join('\n')
     lab.importText(csvA, '用户A样本')
-    await new Promise(r => setTimeout(r, 20))
+    await new Promise((r) => setTimeout(r, 20))
     lab.setObservationDate('2024-01-02')
     expect(lab.observationDate).toBe('2024-01-02')
     lab.importText(csvB, '用户B样本')
-    await new Promise(r => setTimeout(r, 20))
+    await new Promise((r) => setTimeout(r, 20))
     expect(lab.observationDate).toBe('2025-02-03')
     lab.setObservationDate('2025-02-02')
     lab.importText(csvA, '用户A样本')
-    await new Promise(r => setTimeout(r, 20))
+    await new Promise((r) => setTimeout(r, 20))
     expect(lab.observationDate).toBe('2024-01-02')
   })
 
   it('A3 回归：tdpy 切换不污染缓存', () => {
     const lab = useLabStore()
-    const csv = ['date,open,high,low,close,volume',
+    const csv = [
+      'date,open,high,low,close,volume',
       ...Array.from({ length: 80 }, (_, i) => {
         const close = 100 + Math.sin(i / 5) * 3
         return `2024-01-${String((i % 28) + 1).padStart(2, '0')},${close},${close + 0.5},${close - 0.5},${close},1000`
-      })].join('\n')
+      }),
+    ].join('\n')
     lab.importText(csv, '测试集')
     // 'TEST' 走美股 252，覆盖为 365 触发不同结果
     lab.source = { ...lab.source, symbol: 'TEST' }
@@ -187,8 +198,10 @@ describe('useLabStore（v3 重写后契约）', () => {
   it('chartOverlays 单字段切换生效', () => {
     const lab = useLabStore()
     expect(lab.chartOverlays.greeksPane).toBe(false)
-    lab.chartOverlays.greeksPane = true
+    lab.setChartOverlay('greeksPane', true)
     expect(lab.chartOverlays.greeksPane).toBe(true)
+    lab.setChartOverlay('unknown-layer', true)
+    expect(lab.chartOverlays['unknown-layer']).toBeUndefined()
   })
 
   it('setLeftPanelW / setRightPanelW 在合法范围内生效', () => {
@@ -201,14 +214,14 @@ describe('useLabStore（v3 重写后契约）', () => {
 
   it('面板宽度 clamp 上下限', () => {
     const lab = useLabStore()
-    lab.setLeftPanelW(50)       // 下限 200
+    lab.setLeftPanelW(50) // 下限 200
     expect(lab.leftPanelW).toBe(200)
-    lab.setLeftPanelW(999)      // 上限 400
-    expect(lab.leftPanelW).toBe(400)
-    lab.setRightPanelW(50)      // 下限 200
+    lab.setLeftPanelW(999) // 上限 360，给主图保留阅读面积
+    expect(lab.leftPanelW).toBe(360)
+    lab.setRightPanelW(50) // 下限 200
     expect(lab.rightPanelW).toBe(200)
-    lab.setRightPanelW(999)     // 上限 380
-    expect(lab.rightPanelW).toBe(380)
+    lab.setRightPanelW(999) // 上限 300
+    expect(lab.rightPanelW).toBe(300)
     lab.resetLeftPanelW()
     expect(lab.leftPanelW).toBe(280)
     lab.resetRightPanelW()

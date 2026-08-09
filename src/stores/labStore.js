@@ -13,6 +13,7 @@ import { useReplay } from '../composables/useReplay.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
 import { useChartOverlays } from '../composables/useChartOverlays.js'
 import { persistedReactive } from '../composables/usePersisted.js'
+import { buildWorkbenchSummary } from '../domain/workbench/workbenchSummary.js'
 
 /**
  * Lab 工作台 facade store
@@ -92,6 +93,13 @@ export const useLabStore = defineStore('lab', () => {
   }))
 
   const executionBrief = computed(() => buildExecutionBrief(graph.value))
+  const workbenchSummary = computed(() =>
+    buildWorkbenchSummary({
+      source: data.source.value,
+      rows: marketState.activeRows.value,
+      graph: graph.value,
+    }),
+  )
 
   const sourceLabel = computed(() => data.source.value?.label ?? '未载入')
 
@@ -152,6 +160,11 @@ export const useLabStore = defineStore('lab', () => {
 
   // chartOverlays 在 store 顶层初始化一次（同一份在所有组件间共享）
   const chartOverlays = useChartOverlays()
+
+  function setChartOverlay(key, value) {
+    if (!Object.hasOwn(chartOverlays, key)) return
+    chartOverlays[key] = Boolean(value)
+  }
 
   // ── Hover 视图状态（独立于 cursor，仅用于指标面板预览）──
   // cursor 是观察日期（计划锚点），hoverIndex 仅是鼠标当前所在的 bar，hover 不能改写计划。
@@ -239,6 +252,7 @@ export const useLabStore = defineStore('lab', () => {
     effectiveInput,
     graph,
     executionBrief,
+    workbenchSummary,
     activeFormula: planning.activeFormula,
     activeFormulaId: planning.activeFormulaId,
     activeCapability: planning.activeCapability,
@@ -261,6 +275,7 @@ export const useLabStore = defineStore('lab', () => {
     resetLeftPanelW: planning.resetLeftPanelW,
     resetRightPanelW: planning.resetRightPanelW,
     chartOverlays,
+    setChartOverlay,
 
     // 回放层：显式开关默认关闭；关闭时返回空模型。
     profileReplays: replayLayer.profileReplays,
