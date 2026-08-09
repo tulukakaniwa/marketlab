@@ -183,6 +183,39 @@ describe('hover GetDelta query', () => {
     expect(result.long).toBeNull()
   })
 
+  it('观察日 GetDelta 优先使用当前 graph 带，不误用历史 formula row 的成本锚带', () => {
+    const result = resolveDisplayedDeltaBand({
+      currentFormulaRow: {
+        deltaLower: 70,
+        deltaCost: 80,
+        deltaUpper: 90,
+        fieldStates: { deltaUpper: { status: 'implemented', missingInputs: [], blockedReasons: [] } },
+      },
+      graph: { deltaBands: { long: { low: 80, cost: 100, high: 120 } } },
+    })
+
+    expect(result.long).toEqual({ low: 80, cost: 100, high: 120 })
+    expect(result.source).toBe('current-graph')
+  })
+
+  it('没有声明 LP 情景时，库存和资本效率明确保持待输入', () => {
+    const context = completeContext()
+    context.graph.lpV3 = null
+    context.graph.efficiency = null
+    context.graph.researchInputs = {
+      ...context.graph.researchInputs,
+      liquidity: null,
+      lpValuationMissingInputs: ['declared-lp-scenario-or-complete-position'],
+    }
+
+    expect(getFormulaAvailability('lp-inventory', context).missingInputs).toEqual([
+      'declared-lp-scenario-or-complete-position',
+    ])
+    expect(getFormulaAvailability('capital-efficiency', context).missingInputs).toEqual([
+      'declared-lp-scenario-or-complete-position',
+    ])
+  })
+
   it('无方向命题时只返回复核条件，不消费空失效线', () => {
     const result = buildOrderPlanReviewPresentation({
       decision: { timing: { side: null }, reviewConditions: ['成本锚变化后复核'], invalidations: [] },

@@ -48,10 +48,12 @@ describe('carry comparison contracts', () => {
   it('funding proxy 不再伪装成组合 settlement 或按总资本强制扣款', () => {
     const baseInput = {
       optionTenorSessions: 12,
-      rangeWidth: 0.1,
-      skew: 1,
       tradingDaysPerYear: 365,
-      liquidity: 10,
+      lpScenarioEnabled: true,
+      lpScenarioStartPrice: 100,
+      lpScenarioRangeWidth: 0.1,
+      lpScenarioSkew: 1,
+      lpScenarioLiquidity: 10,
       hedgeSize: 1,
       feeIncomeQuote: 0,
       perpTwap: 101,

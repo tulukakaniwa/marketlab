@@ -129,8 +129,8 @@ export const formulaStages = [
     id: 'lp-inventory',
     layer: 'LP',
     label: 'LP 库存曲线',
-    role: '直接计算 LP 持有什么库存，而不是只看无常损失标签',
-    inputs: ['价格', '区间下沿', '区间上沿', '流动性 L'],
+    role: '在已声明研究情景或完整带时间定位的真实仓位下，计算 LP 库存；不把池聚合报价当作用户头寸',
+    inputs: ['价格', '区间下沿', '区间上沿', '流动性 L', '已声明 LP 研究情景或完整真实仓位'],
     outputs: ['x_real', 'y_real', 'LP 价值', '库存 Delta'],
     formulas: [
       'x = L/sqrt(p) - L/sqrt(p_u)',
@@ -431,7 +431,7 @@ export const formulaCapabilities = [
     label: '流动性库存引擎',
     role: '把 LP、AMM 不变量和流动性分布放到同一套库存语言里',
     stages: ['lp-inventory', 'liquidity-fingerprint', 'lp-pool-coverage', 'amm-geometry', 'capital-efficiency'],
-    action: '回答 LP 实际持仓、区间效率和再平衡压力。',
+    action: '回答已声明 LP 情景或完整真实仓位的库存、区间效率和再平衡压力。',
   },
   {
     id: 'portfolio-execution',

@@ -23,6 +23,12 @@ export function resolveDisplayedDeltaBand({
     return unavailableFromRow(hoverFormulaRow, 'hover-formula-row')
   }
 
+  const rowResult = unavailableFromRow(currentFormulaRow, 'current-formula-row', false)
+  if (rowResult) return rowResult
+
+  const long = graph?.deltaBands?.long
+  if (long && [long.low, long.high].every(finite)) return available(long, 'current-graph')
+
   const currentLow = currentFormulaRow?.deltaLower
   const currentHigh = currentFormulaRow?.deltaUpper
   const currentCost = currentFormulaRow?.deltaCost ?? currentFormulaRow?.costAnchor
@@ -32,11 +38,6 @@ export function resolveDisplayedDeltaBand({
       'current-formula-row',
     )
   }
-  const rowResult = unavailableFromRow(currentFormulaRow, 'current-formula-row', false)
-  if (rowResult) return rowResult
-
-  const long = graph?.deltaBands?.long
-  if (long && [long.low, long.high].every(finite)) return available(long, 'current-graph')
   return unavailable({
     state: 'missing-input',
     missingInputs: unique([...(graph?.decision?.missingInputs ?? []), 'getdelta-band']),

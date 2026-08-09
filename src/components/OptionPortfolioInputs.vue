@@ -1,12 +1,13 @@
 <script setup>
 import { computed, onMounted, watch } from 'vue'
+import LpResearchScenarioInput from './LpResearchScenarioInput.vue'
 import PathScenarioProjectionControl from './PathScenarioProjectionControl.vue'
 
 const props = defineProps({
   input: { type: Object, required: true },
 })
 
-const emit = defineEmits(['set-path-scenario'])
+const emit = defineEmits(['set-path-scenario', 'set-lp-scenario-field'])
 
 const strategies = [
   { id: 'single', label: '单腿', hint: '单个 call / put' },
@@ -65,11 +66,6 @@ const feeIncomeInput = computed({
     const next = optionalFinite(v)
     props.input.feeIncomeQuote = next !== null && next >= 0 ? next : null
   },
-})
-
-const rangeWidthValid = computed(() => {
-  const value = Number(props.input.rangeWidth)
-  return Number.isFinite(value) && value > 0 && value < 1
 })
 
 const summary = computed(() => {
@@ -280,11 +276,6 @@ function fmt(value) {
           <input v-model.number="widthP" type="number" min="0.1" step="0.5" />
         </label>
         <label>
-          <span>流动性宽度</span>
-          <input v-model.number="input.rangeWidth" type="number" min="0.001" max="0.95" step="0.01" />
-          <small v-if="!rangeWidthValid" class="opi-error">必须大于 0 且小于 1；无效时 LP/CE 查询停用</small>
-        </label>
-        <label>
           <span>同周期路径手续费（报价币）</span>
           <input v-model="feeIncomeInput" type="number" min="0" step="0.01" placeholder="必填；无费用填 0" />
         </label>
@@ -294,6 +285,8 @@ function fmt(value) {
         <button type="button" @click="setWidth(0.05)">5%</button>
         <button type="button" @click="setWidth(0.1)">10%</button>
       </div>
+
+      <LpResearchScenarioInput :input="input" @change="(field, value) => emit('set-lp-scenario-field', field, value)" />
     </details>
   </div>
 </template>
@@ -332,11 +325,6 @@ function fmt(value) {
   font-size: 0.64rem;
   font-weight: 800;
   text-align: right;
-}
-.opi-error {
-  color: var(--red);
-  font-size: 0.62rem;
-  font-weight: 800;
 }
 .opi-strategies,
 .opi-controls,

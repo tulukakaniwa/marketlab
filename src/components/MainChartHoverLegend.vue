@@ -26,6 +26,9 @@ function formatVolume(v) {
 <template>
   <div v-if="legend && legend.ohlcv" class="mc-legend" :class="`dir-${legend.ohlcv.direction ?? 'flat'}`">
     <div class="mc-legend-head">
+      <span v-if="legend.asOf" class="mc-legend-asof" :class="`asof-${legend.asOf.kind}`">
+        {{ legend.asOf.label }}
+      </span>
       <span class="mc-legend-date">{{ legend.date }}</span>
       <span class="mc-legend-ohlc">
         <em>开</em>{{ formatLegendValue('price', legend.ohlcv.open) }} <em>高</em
@@ -91,6 +94,20 @@ function formatVolume(v) {
   color: var(--green);
   font-weight: 800;
   letter-spacing: 0.02em;
+}
+.mc-legend-asof {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.mc-legend-asof.asof-crosshair {
+  border-color: var(--green);
+  color: var(--green);
 }
 .mc-legend-ohlc em,
 .mc-legend-vol em {

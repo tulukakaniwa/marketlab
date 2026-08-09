@@ -140,7 +140,7 @@ function greekTone(value) {
 
     <!-- LP INVENTORY -->
     <svg v-else-if="formulaId === 'lp-inventory' && lpData" :viewBox="`0 0 ${W} ${220}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">LP 库存曲线 · V3 头寸价值 vs 价格</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">LP 研究情景库存曲线 · V3 模型价值 vs 价格</text>
       <!-- V3 value curve points -->
       <polyline v-if="lpV3Curve" :points="lpV3Curve" fill="none" stroke="var(--green)" stroke-width="2" />
       <!-- HODL line -->
@@ -156,7 +156,7 @@ function greekTone(value) {
       <!-- Range bounds -->
       <line v-if="lpV3Curve" :x1="lpV3Bounds?.loX" :x2="lpV3Bounds?.loX" :y1="syH(1)" :y2="syH(0.1)" stroke="var(--blue)" stroke-width="0.8" stroke-dasharray="3,3" />
       <line v-if="lpV3Curve" :x1="lpV3Bounds?.hiX" :x2="lpV3Bounds?.hiX" :y1="syH(1)" :y2="syH(0.1)" stroke="var(--red)" stroke-width="0.8" stroke-dasharray="3,3" />
-      <text :x="PL" :y="218" class="fc-tick">绿线=模型LP价值 · 棕线=链上池价 · 蓝/红=区间边界</text>
+      <text :x="PL" :y="218" class="fc-tick">绿线=情景 LP 模型价值 · 棕线=当前链上池价 · 蓝/红=情景区间边界</text>
     </svg>
 
     <!-- LIQUIDITY FINGERPRINT -->

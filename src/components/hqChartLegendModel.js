@@ -5,7 +5,8 @@ import { groupIndicators } from './mainChartLegendMeta.js'
  * 这里仅把已查询好的 domain series 映射到当前 K 线，不重新计算指标。
  */
 export function buildHqChartLegend({ rows = [], model = null, index = null } = {}) {
-  const resolvedIndex = Number.isInteger(index) && index >= 0 && index < rows.length ? index : rows.length - 1
+  const isCrosshair = Number.isInteger(index) && index >= 0 && index < rows.length
+  const resolvedIndex = isCrosshair ? index : rows.length - 1
   const row = rows[resolvedIndex]
   if (!row) return null
   const previous = resolvedIndex > 0 ? rows[resolvedIndex - 1] : null
@@ -31,6 +32,10 @@ export function buildHqChartLegend({ rows = [], model = null, index = null } = {
 
   return {
     date: row.date,
+    asOf: {
+      kind: isCrosshair ? 'crosshair' : 'snapshot',
+      label: isCrosshair ? '图表回看' : '观察日快照',
+    },
     ohlcv: {
       open: row.open,
       high: row.high,

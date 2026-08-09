@@ -96,9 +96,11 @@ describe('buildFormulaPath causal horizon contract', () => {
 
   it('v2 全区间与 v3 指定区间 IL 只以 canonical 字段输出', () => {
     const row = buildFormulaPath(makeRows(20), {
-      startPrice: 110,
-      rangeWidth: 0.2,
-      liquidity: 10,
+      lpScenarioEnabled: true,
+      lpScenarioStartPrice: 110,
+      lpScenarioRangeWidth: 0.2,
+      lpScenarioSkew: 1,
+      lpScenarioLiquidity: 10,
       pathUsesScenarioInputs: true,
       formulaHorizonSessions: 8,
       tradingDaysPerYear: 242,
@@ -110,6 +112,55 @@ describe('buildFormulaPath causal horizon contract', () => {
     expect(row.fieldStates).not.toHaveProperty('impermanentLoss')
     expect(row).not.toHaveProperty('lpInventoryDelta')
     expect(row.fieldStates).not.toHaveProperty('lpInventoryDelta')
+  })
+
+  it('不把通用 LP 参数或期权路径情景隐式变成 LP 头寸', () => {
+    const row = buildFormulaPath(makeRows(20), {
+      startPrice: 110,
+      rangeWidth: 0.2,
+      skew: 1,
+      liquidity: 10,
+      pathUsesScenarioInputs: true,
+      formulaHorizonSessions: 8,
+      tradingDaysPerYear: 242,
+    }).at(-1)
+
+    for (const field of [
+      'lpLowerPrice',
+      'lpUpperPrice',
+      'lpValue',
+      'lpInventoryDeltaToken0',
+      'lpNormalizedDelta',
+      'capitalEfficiency',
+      'fullRangeV2IlProxy',
+      'rangeV3Il',
+    ]) {
+      expect(row[field]).toBeNull()
+    }
+    expect(row.fieldStates.lpValue.status).toBe('missing-input')
+    expect(row.fieldStates.lpValue.missingInputs).toEqual(['declared-lp-scenario-or-complete-position'])
+  })
+
+  it('池聚合快照只标在观察日，绝不伪造为历史指标路径', () => {
+    const path = buildFormulaPath(makeRows(20), {
+      lpOnchainSnapshot: {
+        hasPool: true,
+        quotePrice: 101,
+        poolCoverage: { reserveUsd: 1000, volumeUsd24h: 250, topPoolReserveShare: 0.4 },
+      },
+      tradingDaysPerYear: 242,
+    })
+
+    expect(path.slice(0, -1).every((row) => row.lpRealPrice === null)).toBe(true)
+    expect(path.slice(0, -1).every((row) => row.lpRealDivergence === null)).toBe(true)
+    expect(path.slice(0, -1).every((row) => row.lpPoolTurnover24h === null)).toBe(true)
+    expect(path.slice(0, -1).every((row) => row.lpPoolTopReserveShare === null)).toBe(true)
+    expect(path.at(-1)).toMatchObject({
+      lpRealPrice: 101,
+      lpPoolTurnover24h: 0.25,
+      lpPoolTopReserveShare: 0.4,
+    })
+    expect(path.at(-1).fieldStates.lpRealPrice.source).toBe('lp-pool-coverage')
   })
 
   it('期权路径只使用明确的每交易会话 Theta 字段', () => {

@@ -11,13 +11,13 @@ import {
   netCarry,
   numoenSnapshot,
   optionLegsFromTemplate,
-  resolveArithmeticRangeSpec,
   rangeV3ImpermanentLoss,
   uniswapV2Inventory,
   uniswapV3HedgedInventory,
   uniswapV3HedgedPosition,
   uniswapV3Inventory,
 } from '../formulas/core.js'
+import { resolveLpValuationSpec } from '../lp/lpValuationSpec.js'
 import { buildLpDataState } from '../market-data/lpOnchain.js'
 import { buildPortfolioResearch } from './portfolioResearch.js'
 
@@ -25,17 +25,14 @@ export function buildResearchSnapshot({ market, input, executable }) {
   const { entryPrice, iv } = executable.inputs
   const formulaHorizonSessions = positive(executable.inputs.formulaHorizonSessions)
   const optionTenorSessions = positive(input.optionTenorSessions)
-  const rangeSpec = resolveArithmeticRangeSpec({
-    referencePrice: entryPrice,
-    rangeWidth: input.rangeWidth,
-    skew: input.skew,
-    defaultRangeWidth: 0.1,
-  })
-  const rangeWidth = rangeSpec?.rangeWidth ?? null
+  const lpDataState = buildLpDataState(input.lpOnchainSnapshot)
+  const lpValuation = resolveLpValuationSpec({ input, lpDataState })
+  const rangeSpec = lpValuation.rangeSpec
+  const rangeWidth = lpValuation.rangeWidth
   const tdpy = positive(input.tradingDaysPerYear)
   const strikePrice = positive(input.strikePrice) || entryPrice * 1.05
-  const startPrice = positive(input.startPrice) || market.costAnchor
-  const liquidity = Math.max(Number(input.liquidity) || 0, 0)
+  const startPrice = lpValuation.startPrice
+  const liquidity = lpValuation.liquidity
   const hedgeSize = Number(input.hedgeSize) || 0
   const feeIncomeQuote = optionalFinite(input.feeIncomeQuote)
   const fundingCashflowSource = ['observed-settlement', 'explicit-scenario'].includes(input.fundingCashflowSource)
@@ -95,19 +92,25 @@ export function buildResearchSnapshot({ market, input, executable }) {
     type: input.optionType,
     tradingDaysPerYear: tdpy,
   })
-  const lp = uniswapV2Inventory({
-    markPrice: entryPrice,
-    startPrice,
-    liquidity,
-    hedgeSize,
-    feeIncomeQuote,
-  })
-  const lowerPrice = rangeSpec?.lowerPrice ?? null
-  const upperPrice = rangeSpec?.upperPrice ?? null
+  const lp = lpValuation.available
+    ? uniswapV2Inventory({
+        markPrice: entryPrice,
+        startPrice,
+        liquidity,
+        hedgeSize,
+        feeIncomeQuote,
+      })
+    : null
+  const lowerPrice = lpValuation.lowerPrice
+  const upperPrice = lpValuation.upperPrice
   const rangeFactor = rangeSpec ? Math.sqrt(upperPrice / lowerPrice) : null
-  const lpV3Raw = rangeSpec ? uniswapV3Inventory({ markPrice: entryPrice, lowerPrice, upperPrice, liquidity }) : null
-  const lpV3Entry = rangeSpec ? uniswapV3Inventory({ markPrice: startPrice, lowerPrice, upperPrice, liquidity }) : null
-  const lpV3SymmetricApprox = rangeSpec
+  const lpV3Raw = lpValuation.available
+    ? uniswapV3Inventory({ markPrice: entryPrice, lowerPrice, upperPrice, liquidity })
+    : null
+  const lpV3Entry = lpValuation.available
+    ? uniswapV3Inventory({ markPrice: startPrice, lowerPrice, upperPrice, liquidity })
+    : null
+  const lpV3SymmetricApprox = lpValuation.available
     ? uniswapV3HedgedInventory({
         markPrice: entryPrice,
         strikePrice: startPrice,
@@ -117,7 +120,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
         feeIncomeQuote,
       })
     : null
-  const lpV3Hedged = rangeSpec
+  const lpV3Hedged = lpValuation.available
     ? uniswapV3HedgedPosition({
         markPrice: entryPrice,
         startPrice,
@@ -128,8 +131,10 @@ export function buildResearchSnapshot({ market, input, executable }) {
         feeIncomeQuote,
       })
     : null
-  const fullRangeV2Il = fullRangeV2ImpermanentLoss({ markPrice: entryPrice, startPrice, liquidity })
-  const rangeV3Il = rangeSpec
+  const fullRangeV2Il = lpValuation.available
+    ? fullRangeV2ImpermanentLoss({ markPrice: entryPrice, startPrice, liquidity })
+    : null
+  const rangeV3Il = lpValuation.available
     ? rangeV3ImpermanentLoss({ markPrice: entryPrice, startPrice, lowerPrice, upperPrice, liquidity })
     : null
   const hasFundingInputs = positive(input.perpTwap) !== null && positive(input.spotTwap) !== null
@@ -162,7 +167,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
     : null
   const optionBase = option?.price ?? null
   const lpPortfolio =
-    rangeSpec && option && Number.isFinite(feeIncomeQuote) && Number.isFinite(fundingCashflowQuote)
+    lpValuation.available && option && Number.isFinite(feeIncomeQuote) && Number.isFinite(fundingCashflowQuote)
       ? hedgedLpPortfolioCurve({
           startPrice: entryPrice,
           lowerPrice,
@@ -185,27 +190,27 @@ export function buildResearchSnapshot({ market, input, executable }) {
             }),
         })
       : null
-  const fingerprint = rangeSpec
-    ? liquidityFingerprint({
-        entryPrice: startPrice,
-        priceGrid: 120,
-        distribution: 'log-laplace',
-        lambda: Number(input.fingerprintLambda) || 2.6,
-        kappa: Number(input.fingerprintKappa) || 0.77,
-        lowerFactor: Math.max(0.05, lowerPrice / startPrice),
-        upperFactor: Math.min(20, upperPrice / startPrice),
-        segmentCount: 12,
-        volatility: iv,
-        tradingDaysPerYear: positive(input.tradingDaysPerYear),
-      })
-    : null
+  const fingerprint = liquidityFingerprint({
+    entryPrice: market.costAnchor || entryPrice,
+    priceGrid: 120,
+    distribution: 'log-laplace',
+    lambda: Number(input.fingerprintLambda) || 2.6,
+    kappa: Number(input.fingerprintKappa) || 0.77,
+    lowerFactor: Math.max(0.05, (market.costLow || entryPrice * 0.9) / (market.costAnchor || entryPrice)),
+    upperFactor: Math.min(20, (market.costHigh || entryPrice * 1.1) / (market.costAnchor || entryPrice)),
+    segmentCount: 12,
+    activePrice: entryPrice,
+    costAnchor: market.costAnchor,
+    targetRange: { lower: market.costLow, upper: market.costHigh },
+    volatility: iv,
+    tradingDaysPerYear: positive(input.tradingDaysPerYear),
+  })
   const numoen = numoenSnapshot({
     R1: Number(input.numoenR1) || 8.7,
     s: Number(input.numoenShares) || 1.649981319214726,
     u: Number(input.numoenU) || 4,
     dy: Number(input.numoenDy) || 0.1,
   })
-  const lpDataState = buildLpDataState(input.lpOnchainSnapshot)
   const portfolioResearch = buildPortfolioResearch({
     lpMark: lpV3Raw?.value,
     lpEntryValue: lpV3Entry?.value,
@@ -216,11 +221,11 @@ export function buildResearchSnapshot({ market, input, executable }) {
     fundingCashflowQuote,
     fundingCashflowSource,
     feeModelCalibrated: false,
-    lpPositionKnown: Boolean(rangeSpec && lpV3Hedged),
+    lpPositionKnown: Boolean(lpValuation.available && lpV3Hedged),
   })
   const portfolioMissingInputs = [
     ...new Set([
-      ...lpDataState.missingInputs,
+      ...(lpValuation.available ? [] : lpValuation.missingInputs),
       ...(tdpy ? [] : ['trading-days-per-year']),
       ...(optionTenorSessions ? [] : ['option-tenor-sessions']),
       ...(Number.isFinite(feeIncomeQuote) ? [] : ['fee-income-quote']),
@@ -243,8 +248,11 @@ export function buildResearchSnapshot({ market, input, executable }) {
     researchInputs: {
       rangeWidth,
       skew,
-      rangeStatus: rangeSpec ? 'valid' : 'invalid-input',
+      rangeStatus: lpValuation.available ? 'valid' : 'missing-input',
       liquidity,
+      lpValuationMode: lpValuation.mode,
+      lpValuationMissingInputs: lpValuation.missingInputs,
+      lpValuationBasis: lpValuation.valuationBasis,
       hedgeSize,
       feeIncomeQuote,
       fundingCashflowQuote,
@@ -277,7 +285,7 @@ export function buildResearchSnapshot({ market, input, executable }) {
     numoen,
     fullRangeV2Il,
     rangeV3Il,
-    efficiency: rangeSpec ? capitalEfficiency({ rangeWidth, skew }) : null,
+    efficiency: lpValuation.available ? capitalEfficiency({ rangeWidth, skew }) : null,
     funding,
     netCarry: fundingCarry,
     lpOnchain: {

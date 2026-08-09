@@ -127,10 +127,6 @@ const graph = buildDecisionGraph({
     strikePrice: market.markPrice * 1.05,
     riskFreeRate: 0.04,
     optionType: 'put',
-    startPrice: market.costAnchor,
-    rangeWidth: 0.1,
-    skew: 1,
-    liquidity: 1,
     hedgeSize: 0,
     fees: 0,
     tradingDaysPerYear: 365,
@@ -154,7 +150,7 @@ assert.equal(
 )
 if (graph.decision.timing.side === 'sell') assert.equal(graph.plan.primaryOrders.length, 0)
 
-const formulaPath = buildFormulaPath(rows, {
+const formulaPathInput = {
   entryPrice: market.markPrice,
   formulaHorizonSessions: 30,
   optionTenorSessions: 30,
@@ -164,17 +160,31 @@ const formulaPath = buildFormulaPath(rows, {
   strikePrice: market.markPrice * 1.05,
   riskFreeRate: 0.04,
   optionType: 'put',
-  startPrice: market.costAnchor,
-  rangeWidth: 0.1,
-  skew: 1,
-  liquidity: 1,
+  lpScenarioEnabled: true,
+  lpScenarioStartPrice: market.costAnchor,
+  lpScenarioRangeWidth: 0.1,
+  lpScenarioSkew: 1,
+  lpScenarioLiquidity: 1,
   pathUsesScenarioInputs: true,
   tradingDaysPerYear: 365,
-})
+}
+const formulaPath = buildFormulaPath(rows, formulaPathInput)
 assert.equal(formulaPath.length, rows.length)
 assert.ok(formulaPath.some((row) => Number.isFinite(row.deltaUpper)))
 assert.ok(formulaPath.some((row) => Number.isFinite(row.optionDelta)))
 assert.ok(formulaPath.some((row) => Number.isFinite(row.lpNormalizedDelta)))
+const noLpPositionPath = buildFormulaPath(rows.slice(-120), {
+  ...formulaPathInput,
+  lpScenarioEnabled: false,
+})
+assert.equal(
+  noLpPositionPath.some((row) => Number.isFinite(row.lpNormalizedDelta)),
+  false,
+)
+assert.equal(
+  noLpPositionPath.at(-1).fieldStates.lpValue.missingInputs.includes('declared-lp-scenario-or-complete-position'),
+  true,
+)
 assert.equal(
   formulaPath.some((row) => Number.isFinite(row.cumulativeFundingProxy)),
   false,
@@ -187,10 +197,6 @@ const fundingFormulaPath = buildFormulaPath(rows.slice(-120), {
   iv: market.annualVol,
   deltaSlope: 0.3,
   exitTargetReturn: 0,
-  startPrice: market.costAnchor,
-  rangeWidth: 0.1,
-  skew: 1,
-  liquidity: 1,
   perpTwap: 101,
   spotTwap: 100,
   fundingPositionSide: 'short',

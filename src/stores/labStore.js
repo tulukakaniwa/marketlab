@@ -15,6 +15,14 @@ import { useChartOverlays } from '../composables/useChartOverlays.js'
 import { persistedReactive } from '../composables/usePersisted.js'
 import { buildWorkbenchSummary } from '../domain/workbench/workbenchSummary.js'
 
+const LP_SCENARIO_FIELDS = new Set([
+  'lpScenarioEnabled',
+  'lpScenarioStartPrice',
+  'lpScenarioRangeWidth',
+  'lpScenarioSkew',
+  'lpScenarioLiquidity',
+])
+
 /**
  * Lab 工作台 facade store
  *
@@ -139,7 +147,6 @@ export const useLabStore = defineStore('lab', () => {
     input.iv = round(market.annualVol, 4)
     input.ivSource = 'historical-realized-scenario'
     input.strikePrice = round(market.markPrice * 1.05, 2)
-    input.startPrice = round(market.costAnchor, 2)
     if (samePrice(input.perpTwap, market.markPrice) && samePrice(input.spotTwap, market.costAnchor)) {
       input.perpTwap = 0
       input.spotTwap = 0
@@ -181,6 +188,13 @@ export const useLabStore = defineStore('lab', () => {
   function setChartOverlay(key, value) {
     if (!Object.hasOwn(chartOverlays, key)) return
     chartOverlays[key] = Boolean(value)
+  }
+
+  // Explicit command boundary for research-only LP assumptions.  A child
+  // component may not mutate the persisted planning input directly.
+  function setLpScenarioField(field, value) {
+    if (!LP_SCENARIO_FIELDS.has(field)) return
+    input[field] = field === 'lpScenarioEnabled' ? Boolean(value) : value
   }
 
   // ── Hover 视图状态（独立于 cursor，仅用于指标面板预览）──
@@ -256,6 +270,7 @@ export const useLabStore = defineStore('lab', () => {
     setTdpyOverride: planning.setTdpyOverride,
     clearTdpyOverride: planning.clearTdpyOverride,
     setPathUsesScenarioInputs: planning.setPathUsesScenarioInputs,
+    setLpScenarioField,
     tdpyOverride: planning.tdpyOverride,
 
     // 市场态层
