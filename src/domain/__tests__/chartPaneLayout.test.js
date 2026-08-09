@@ -11,6 +11,7 @@ const baseOverlays = {
   costBand: true,
   entryLine: true,
   volBand: true,
+  lpBand: true,
   volume: true,
   replayMarkers: true,
   replayMarkerLabels: true,
@@ -24,7 +25,9 @@ describe('resolveChartOverlayPlan', () => {
   it('缺 funding 数据时隐藏 carry pane，但保留后续 KDJ/RSI', () => {
     const plan = resolveChartOverlayPlan({
       overlays: baseOverlays,
-      formulaPath: [{ optionDelta: 0.1, lpValue: 1, capitalEfficiency: 2, lpNormalizedDelta: 0.2, lpPoolTurnover24h: 0.3 }],
+      formulaPath: [
+        { optionDelta: 0.1, lpValue: 1, capitalEfficiency: 2, lpNormalizedDelta: 0.2, lpPoolTurnover24h: 0.3 },
+      ],
     })
     expect(plan.paneOn.carry).toBe(false)
     expect(plan.paneOn.lpPoolCoverage).toBe(true)
@@ -67,5 +70,16 @@ describe('resolveChartOverlayPlan', () => {
     expect(plan.price.deltaBand).toBe(false)
     expect(plan.price.lpBand).toBe(false)
     expect(plan.price.entryLine).toBe(true)
+  })
+
+  it('LP 价格区间可独立关闭，避免主图标签过载', () => {
+    const plan = resolveChartOverlayPlan({
+      overlays: { ...baseOverlays, lpBand: false },
+      formulaPath: [{ lpRealPrice: 12 }],
+    })
+    expect(plan.price.costBand).toBe(true)
+    expect(plan.price.deltaBand).toBe(true)
+    expect(plan.price.lpBand).toBe(false)
+    expect(plan.price.lpRealPrice).toBe(false)
   })
 })

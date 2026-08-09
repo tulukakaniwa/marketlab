@@ -2,14 +2,27 @@
 import { createChart } from 'lightweight-charts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChartStatusBar from './ChartStatusBar.vue'
+import ChartDisplayTools from './ChartDisplayTools.vue'
+import ChartDrawingToolbar from './ChartDrawingToolbar.vue'
 import MainChartHoverLegend from './MainChartHoverLegend.vue'
 import StockChipProfileOverlay from './StockChipProfileOverlay.vue'
+import WorkbenchSummary from './WorkbenchSummary.vue'
+import { latestFinitePathPoint, resolvePreferredPathValues } from './mainChartLegendMeta.js'
 import { computeKDJ } from '../domain/indicators/kdj.js'
 import { computeRSI } from '../domain/indicators/rsi.js'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
 import { useStockChipViewport } from '../composables/useStockChipViewport.js'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
-import { buildChartOptions, finiteOrNull, regimeColor, themeOptions } from '../composables/mainChartTheme.js'
+import {
+  buildChartOptions,
+  chartInteractionOptions,
+  finiteOrNull,
+  mainPriceScaleOptions,
+  regimeColor,
+  themeOptions,
+} from '../composables/mainChartTheme.js'
+import { ChartDrawingsPrimitive } from '../composables/ChartDrawingsPrimitive.js'
+import { useChartDrawings } from '../composables/useChartDrawings.js'
 import { useMainChartLegend } from '../composables/useMainChartLegend.js'
 import { useMainChartSeries } from '../composables/useMainChartSeries.js'
 
@@ -23,23 +36,47 @@ const props = defineProps({
   replay: { type: Object, required: true },
   market: { type: Object, default: null },
   decision: { type: Object, default: null },
+  position: { type: Object, default: null },
+  summary: { type: Object, default: null },
+  drawingScope: { type: String, default: '' },
   overlays: { type: Object, required: true },
   input: { type: Object, required: true },
 })
 
-const emit = defineEmits(['cursor-change', 'param-change'])
+const emit = defineEmits(['cursor-change', 'param-change', 'set-overlay'])
 
 const el = ref(null)
-const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== false)
+const drawingLayer = ref(null)
+const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== false && !isMobile.value)
 let chart = null
+let drawingsPrimitive = null
 let themeObserver = null
 let resizeObserver = null
+let fittedDataSignature = ''
+let fittedRows = null
+let fittedScope = ''
 
 const chartSeries = useMainChartSeries({
   getChart: () => chart,
   getProps: () => props,
 })
 const { series, seriesMeta, applyOverlays, getPaneLayout, getMarkersApi } = chartSeries
+const drawing = useChartDrawings({
+  getChart: () => chart,
+  getSeries: () => series,
+  getPrimitive: () => drawingsPrimitive,
+  getScope: () => props.drawingScope,
+  getLayer: () => drawingLayer.value,
+})
+const {
+  tool: drawingTool,
+  drawings: chartDrawingItems,
+  canUndo: canUndoDrawing,
+  canRedo: canRedoDrawing,
+  canDelete: canDeleteDrawing,
+  inputActive: drawingInputActive,
+  helpText: drawingHelpText,
+} = drawing
 
 const stockChipViewport = useStockChipViewport({
   getChart: () => chart,
@@ -48,11 +85,7 @@ const stockChipViewport = useStockChipViewport({
   getPaneIndex: () => getPaneLayout().main,
   isEnabled: () => showStockChipProfile.value,
 })
-const {
-  hoverIndex,
-  hoverLegend,
-  handleCrosshair: handleCrosshairBase,
-} = useMainChartLegend({
+const { hoverLegend, handleCrosshair: handleCrosshairBase } = useMainChartLegend({
   getRows: () => props.rows,
   getSeries: () => series,
   getSeriesMeta: () => seriesMeta,
@@ -62,6 +95,9 @@ const {
 onMounted(() => {
   chart = createChart(el.value, chartOptions())
   applyOverlays()
+  drawingsPrimitive = new ChartDrawingsPrimitive()
+  series.candle.attachPrimitive(drawingsPrimitive)
+  drawing.attach()
   syncChart()
   chart.subscribeCrosshairMove(handleCrosshair)
   chart.timeScale().subscribeVisibleLogicalRangeChange(stockChipViewport.queue)
@@ -76,13 +112,24 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   themeObserver?.disconnect()
   stockChipViewport.dispose()
+  drawing.dispose()
+  if (drawingsPrimitive && series.candle) series.candle.detachPrimitive(drawingsPrimitive)
   chart?.timeScale().unsubscribeVisibleLogicalRangeChange(stockChipViewport.queue)
   chart?.unsubscribeCrosshairMove(handleCrosshair)
   chart?.remove()
 })
 
 watch(
-  () => [props.rows, props.costPath, props.formulaPath, props.entryPrice, props.replay, props.decision],
+  () => [
+    props.rows,
+    props.drawingScope,
+    props.costPath,
+    props.formulaPath,
+    props.entryPrice,
+    props.replay,
+    props.decision,
+    props.position,
+  ],
   () => {
     applyOverlays()
     syncChart()
@@ -105,39 +152,26 @@ watch(showStockChipProfile, (on) => {
     stockChipViewport.stopMonitor()
   }
 })
+watch(drawingInputActive, () => applyDrawingInteractionMode())
 
 function syncChart() {
   if (!chart || !series.candle) return
+  const nextDataSignature = chartDataSignature(props.rows)
+  const nextScope = props.drawingScope.trim()
+  const shouldFit = props.rows !== fittedRows || nextDataSignature !== fittedDataSignature || nextScope !== fittedScope
   const dark = document.documentElement.classList.contains('dark')
   // 主题相关的 layout/grid/rightPriceScale/timeScale 配置统一从 themeOptions 取
   chart.applyOptions(themeOptions(dark))
+  series.candle.priceScale().applyOptions(mainPriceScaleOptions())
   series.candle.setData(
     props.rows.map((row) => ({ time: row.date, open: row.open, high: row.high, low: row.low, close: row.close })),
   )
   if (series.cost)
-    setLine(
-      series.cost,
-      pathValues(
-        'costAnchor',
-        props.costPath.map((r) => r.anchor),
-      ),
-    )
+    setLine(series.cost, resolvePreferredPathValues(props.formulaPath, 'costAnchor', props.costPath, 'anchor'))
   if (series.costUpper)
-    setLine(
-      series.costUpper,
-      pathValues(
-        'costUpper',
-        props.costPath.map((r) => r.upper),
-      ),
-    )
+    setLine(series.costUpper, resolvePreferredPathValues(props.formulaPath, 'costUpper', props.costPath, 'upper'))
   if (series.costLower)
-    setLine(
-      series.costLower,
-      pathValues(
-        'costLower',
-        props.costPath.map((r) => r.lower),
-      ),
-    )
+    setLine(series.costLower, resolvePreferredPathValues(props.formulaPath, 'costLower', props.costPath, 'lower'))
   if (series.deltaUpper)
     setLine(
       series.deltaUpper,
@@ -167,6 +201,16 @@ function syncChart() {
     setLine(
       series.entry,
       props.rows.map(() => props.entryPrice),
+    )
+  if (series.target)
+    setLine(
+      series.target,
+      props.rows.map(() => props.position?.targetPrice),
+    )
+  if (series.stop)
+    setLine(
+      series.stop,
+      props.rows.map(() => props.position?.stopPrice),
     )
   if (series.volume) {
     series.volume.setData(
@@ -221,9 +265,8 @@ function syncChart() {
       series.lpRealDiv,
       props.formulaPath.map((r) => r.lpRealDivergence),
     )
-  if (series.lpPoolTurnover) setLatestPoint(series.lpPoolTurnover, props.formulaPath.at(-1)?.lpPoolTurnover24h)
-  if (series.lpPoolConcentration)
-    setLatestPoint(series.lpPoolConcentration, props.formulaPath.at(-1)?.lpPoolTopReserveShare)
+  if (series.lpPoolTurnover) setLatestPoint(series.lpPoolTurnover, props.formulaPath, 'lpPoolTurnover24h')
+  if (series.lpPoolConcentration) setLatestPoint(series.lpPoolConcentration, props.formulaPath, 'lpPoolTopReserveShare')
   if (series.lpCe)
     setLine(
       series.lpCe,
@@ -292,7 +335,13 @@ function syncChart() {
       }),
     )
   }
-  chart.timeScale().fitContent()
+  if (shouldFit) {
+    chart.timeScale().fitContent()
+    fittedRows = props.rows
+    fittedDataSignature = nextDataSignature
+    fittedScope = nextScope
+  }
+  drawing.refresh()
   stockChipViewport.queue()
 }
 
@@ -302,15 +351,9 @@ function setLine(lineSeries, values) {
   )
 }
 
-function setLatestPoint(lineSeries, value) {
-  const last = props.rows.at(-1)
-  const next = finiteOrNull(value)
-  lineSeries.setData(last && next !== null ? [{ time: last.date, value: next }] : [])
-}
-
-function pathValues(field, fallback = []) {
-  const values = props.formulaPath.map((row) => row?.[field])
-  return values.some(Number.isFinite) ? values : fallback
+function setLatestPoint(lineSeries, path, field) {
+  const point = latestFinitePathPoint(props.rows, path, field)
+  lineSeries.setData(point ? [point] : [])
 }
 
 function handleCrosshair(param) {
@@ -321,7 +364,24 @@ function handleCrosshair(param) {
 function resize() {
   if (!chart || !el.value) return
   chart.resize(el.value.clientWidth, el.value.clientHeight)
+  drawing.refresh()
   stockChipViewport.queue()
+}
+
+function resetViewport() {
+  chart?.timeScale().fitContent()
+  drawing.refresh()
+}
+
+function applyDrawingInteractionMode() {
+  chart?.applyOptions(chartInteractionOptions(drawingInputActive.value))
+  if (drawingInputActive.value) stockChipViewport.stopMonitor()
+  else if (showStockChipProfile.value) stockChipViewport.startMonitor()
+}
+
+function confirmClearDrawings() {
+  if (!chartDrawingItems.value.length) return
+  if (window.confirm('清空当前标的的全部手绘标注？清空后仍可撤销。')) drawing.clearDrawings()
 }
 
 function chartOptions() {
@@ -333,52 +393,57 @@ function chartOptions() {
   })
 }
 
-// 移动端点按图表时合成 mousemove，复用桌面端 crosshair 流。
-function onMobileTap(e) {
-  if (!isMobile.value) return
-  const touch = e.touches?.[0]
-  if (!touch) return
-  const evt = new MouseEvent('mousemove', {
-    clientX: touch.clientX,
-    clientY: touch.clientY,
-    bubbles: true,
-  })
-  e.target.dispatchEvent(evt)
+function chartDataSignature(rows) {
+  if (!rows.length) return ''
+  return `${rows[0]?.date ?? ''}|${rows.at(-1)?.date ?? ''}|${rows.length}`
 }
 </script>
 
 <template>
   <div class="main-chart-shell">
-    <div ref="el" class="main-chart-canvas" @touchstart.passive="onMobileTap" />
-
-    <!-- Hover 图例：拆到子组件，本文件只构造 hoverLegend 对象 -->
-    <MainChartHoverLegend :legend="hoverLegend" />
-    <StockChipProfileOverlay v-if="showStockChipProfile" :rows="rows" :viewport="stockChipViewport.viewport.value" />
-
-    <ChartStatusBar :input="input" @change="(field, v) => emit('param-change', field, v)" />
+    <div class="main-chart-chrome">
+      <div class="chart-context-rail">
+        <WorkbenchSummary :model="summary" compact />
+        <slot name="engine-switch" />
+      </div>
+      <div class="chart-control-deck">
+        <ChartDrawingToolbar
+          :tool="drawingTool"
+          :count="chartDrawingItems.length"
+          :can-undo="canUndoDrawing"
+          :can-redo="canRedoDrawing"
+          :can-delete="canDeleteDrawing"
+          :help-text="drawingHelpText"
+          @set-tool="drawing.setTool"
+          @undo="drawing.undo"
+          @redo="drawing.redo"
+          @delete="drawing.deleteSelected"
+          @clear="confirmClearDrawings"
+          @fit="resetViewport"
+        />
+        <ChartDisplayTools
+          :overlays="overlays"
+          :chip-available="!isMobile"
+          @set-overlay="(key, value) => emit('set-overlay', key, value)"
+        />
+        <ChartStatusBar :input="input" @change="(field, v) => emit('param-change', field, v)" />
+      </div>
+    </div>
+    <div class="main-chart-stage">
+      <div ref="el" class="main-chart-canvas" />
+      <div
+        ref="drawingLayer"
+        class="chart-drawing-input"
+        :class="{ active: drawingInputActive }"
+        :data-tool="drawingTool"
+        @pointerdown="drawing.onPointerDown"
+        @pointermove="drawing.onPointerMove"
+        @pointerup="drawing.onPointerUp"
+        @pointercancel="drawing.onPointerCancel"
+        @lostpointercapture="drawing.onLostPointerCapture"
+      />
+      <MainChartHoverLegend :legend="hoverLegend" />
+      <StockChipProfileOverlay v-if="showStockChipProfile" :rows="rows" :viewport="stockChipViewport.viewport.value" />
+    </div>
   </div>
 </template>
-
-<style>
-.main-chart-shell {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-.main-chart-canvas {
-  width: 100%;
-  height: 100%;
-}
-
-/* 移动端：在父容器够高时主图铺满（继承桌面 height: 100%），父容器若意外塌缩，60vh 兜底。 */
-@media (max-width: 768px) {
-  .main-chart-shell {
-    min-height: 60vh;
-  }
-  .main-chart-canvas {
-    min-height: 60vh;
-  }
-}
-</style>

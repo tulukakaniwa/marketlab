@@ -94,12 +94,11 @@ const currentValue = computed(() => (openField.value ? props.input[openField.val
 
 <style>
 .chart-status-bar {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
+  position: relative;
   display: flex;
   gap: 6px;
-  z-index: 18;
+  justify-content: flex-end;
+  z-index: 24;
   flex-wrap: wrap;
 }
 .csb-chip {
@@ -143,7 +142,25 @@ const currentValue = computed(() => (openField.value ? props.input[openField.val
 }
 .csb-popover-wrap {
   position: absolute;
-  bottom: 38px;
-  left: 0;
+  top: calc(100% + 5px);
+  right: 0;
+}
+@media (max-width: 1279px) {
+  .chart-status-bar {
+    justify-content: flex-start;
+  }
+  .csb-popover-wrap {
+    right: auto;
+    left: 0;
+  }
+}
+@media (max-width: 640px) {
+  .chart-status-bar {
+    gap: 4px;
+  }
+  .csb-chip {
+    min-height: 38px;
+    padding: 4px 7px;
+  }
 }
 </style>

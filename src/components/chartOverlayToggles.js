@@ -8,6 +8,7 @@ export const CHART_OVERLAY_TOGGLES = [
   { key: 'costBand', label: '成本锚带' },
   { key: 'entryLine', label: '入场价线' },
   { key: 'volBand', label: '波动带' },
+  { key: 'lpBand', label: 'LP 价格区间' },
   { key: 'volume', label: '成交量' },
   { key: 'stockChipProfile', label: '个股筹码图' },
   { key: 'replayMarkers', label: '回放标记' },

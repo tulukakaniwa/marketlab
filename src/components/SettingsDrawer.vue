@@ -22,8 +22,16 @@ defineProps({
   theme: { type: String, default: 'light' },
 })
 
-// 四个 emit 事件：计算口径覆盖、计算口径重置、主题切换、全量重置
-const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all', 'set-observation-date', 'latest-observation'])
+// 设置页只发命令事件；持久化状态由上层 ViewModel 修改。
+const emit = defineEmits([
+  'override-tdpy',
+  'reset-tdpy',
+  'set-theme',
+  'reset-all',
+  'set-observation-date',
+  'latest-observation',
+  'set-overlay',
+])
 </script>
 
 <template>
@@ -75,7 +83,7 @@ const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all
 
     <section class="sd-section">
       <h3 class="sd-h">主图叠加项</h3>
-      <ChartOverlayToggles :overlays="overlays" />
+      <ChartOverlayToggles :overlays="overlays" @change="(key, value) => emit('set-overlay', key, value)" />
     </section>
 
     <section class="sd-section">
@@ -94,14 +102,66 @@ const emit = defineEmits(['override-tdpy', 'reset-tdpy', 'set-theme', 'reset-all
 </template>
 
 <style>
-.sd-drawer { display: grid; gap: 16px; min-width: 0; }
-.sd-drawer > * { min-width: 0; }
-.sd-section { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); min-width: 0; }
-.sd-section:last-child { border-bottom: none; }
-.sd-h { margin: 0; color: var(--green); font-size: 0.66rem; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
-.sd-theme { display: flex; gap: 6px; flex-wrap: wrap; }
-.sd-theme button { min-height: 30px; padding: 4px 14px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); font-size: 0.78rem; font-weight: 700; cursor: pointer; }
-.sd-theme button.active { border-color: var(--green); background: var(--surface-active); }
-.sd-reset { min-height: 32px; padding: 5px 14px; border: 1px solid #b8860b; border-radius: 5px; background: var(--bg); color: #b8860b; font-size: 0.8rem; font-weight: 700; cursor: pointer; overflow-wrap: anywhere; }
-.sd-reset:hover { background: #b8860b; color: #fff; }
+.sd-drawer {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.sd-drawer > * {
+  min-width: 0;
+}
+.sd-section {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.sd-section:last-child {
+  border-bottom: none;
+}
+.sd-h {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sd-theme {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sd-theme button {
+  min-height: 30px;
+  padding: 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sd-theme button.active {
+  border-color: var(--green);
+  background: var(--surface-active);
+}
+.sd-reset {
+  min-height: 32px;
+  padding: 5px 14px;
+  border: 1px solid #b8860b;
+  border-radius: 5px;
+  background: var(--bg);
+  color: #b8860b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.sd-reset:hover {
+  background: #b8860b;
+  color: #fff;
+}
 </style>

@@ -9,6 +9,7 @@
 import { CandlestickSeries, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers } from 'lightweight-charts'
 import { SERIES_META } from '../components/mainChartLegendMeta.js'
 import { resolveChartOverlayPlan } from '../domain/research-visualization/chartPaneLayout.js'
+import { getMarketLabSeriesStyle } from '../domain/research-visualization/marketLabSeriesStyles.js'
 
 export function useMainChartSeries({ getChart, getProps }) {
   const series = {}
@@ -33,15 +34,19 @@ export function useMainChartSeries({ getChart, getProps }) {
 
     // 蜡烛 + 量始终存在；其它项用 visibility 控制
     ensure('candle', () => chart.addSeries(CandlestickSeries, candleOptions()))
-    toggle('cost', overlayPlan.price.costBand, () => addLine('成本锚', '#0e7558', 2))
-    toggle('costUpper', overlayPlan.price.costBand, () => addLine('成本上沿', '#8b5a16', 1, LineStyle.Dashed))
-    toggle('costLower', overlayPlan.price.costBand, () => addLine('成本下沿', '#274f9f', 1, LineStyle.Dashed))
-    toggle('deltaUpper', overlayPlan.price.deltaBand, () => addLine('GetDelta 上沿', '#9a4f00', 1, LineStyle.Dotted))
-    toggle('deltaLower', overlayPlan.price.deltaBand, () => addLine('GetDelta 下沿', '#1f5fbf', 1, LineStyle.Dotted))
-    toggle('lpLower', overlayPlan.price.lpBand, () => addLine('LP区间下沿', '#7a5cff', 1, LineStyle.Dashed))
-    toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('LP区间上沿', '#7a5cff', 1, LineStyle.Dashed))
-    toggle('lpRealPrice', overlayPlan.price.lpRealPrice, () => addLine('链上池价', '#8b5a16', 2, LineStyle.Dotted))
-    toggle('entry', overlayPlan.price.entryLine, () => addLine('入场', '#b3261e', 1, LineStyle.Dotted))
+    toggle('cost', overlayPlan.price.costBand, () => addLine('cost'))
+    toggle('costUpper', overlayPlan.price.costBand, () => addLine('costUpper'))
+    toggle('costLower', overlayPlan.price.costBand, () => addLine('costLower'))
+    toggle('deltaUpper', overlayPlan.price.deltaBand, () => addLine('deltaUpper'))
+    toggle('deltaLower', overlayPlan.price.deltaBand, () => addLine('deltaLower'))
+    toggle('lpLower', overlayPlan.price.lpBand, () => addLine('lpLower'))
+    toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('lpUpper'))
+    toggle('lpRealPrice', overlayPlan.price.lpRealPrice, () => addLine('lpRealPrice'))
+    toggle('entry', overlayPlan.price.entryLine, () => addLine('entry'))
+    toggle('target', overlayPlan.markers.execution && Number.isFinite(props.position?.targetPrice), () =>
+      addLine('target'),
+    )
+    toggle('stop', overlayPlan.markers.execution && Number.isFinite(props.position?.stopPrice), () => addLine('stop'))
 
     toggle('volume', overlayPlan.paneOn.volume, () =>
       chart.addSeries(HistogramSeries, volumeOptions(), paneLayout.volume),
@@ -51,42 +56,36 @@ export function useMainChartSeries({ getChart, getProps }) {
     )
 
     toggle('bsDelta', overlayPlan.paneOn.greeks, () =>
-      addPaneLine('期权 Delta', '#a93226', paneLayout.greeks, { priceScaleId: 'greeks-delta' }),
+      addPaneLine('bsDelta', paneLayout.greeks, { priceScaleId: 'greeks-delta' }),
     )
     toggle('bsGamma', overlayPlan.paneOn.greeks, () =>
-      addPaneLine('期权 Gamma', '#8b5a16', paneLayout.greeks, { priceScaleId: 'greeks-gamma' }),
+      addPaneLine('bsGamma', paneLayout.greeks, { priceScaleId: 'greeks-gamma' }),
     )
     toggle('bsTheta', overlayPlan.paneOn.greeks, () =>
-      addPaneLine('期权 Theta/日', '#274f9f', paneLayout.greeks, { priceScaleId: 'greeks-theta' }),
+      addPaneLine('bsTheta', paneLayout.greeks, { priceScaleId: 'greeks-theta' }),
     )
     toggle('greeksZero', overlayPlan.paneOn.greeks, () =>
-      addPaneLine('0', '#888', paneLayout.greeks, {
+      addGuideLine('0', '#888', paneLayout.greeks, {
         priceScaleId: 'greeks-delta',
         lineStyle: LineStyle.Dashed,
         lastValueVisible: false,
       }),
     )
 
-    toggle('lpDelta', overlayPlan.paneOn.lp, () =>
-      addPaneLine('LP库存暴露', '#0e7558', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
-    )
-    toggle('lpValue', overlayPlan.paneOn.lp, () =>
-      addPaneLine('LP库存价值', '#7a5cff', paneLayout.lp, { priceScaleId: 'lp-quote' }),
-    )
+    toggle('lpDelta', overlayPlan.paneOn.lp, () => addPaneLine('lpDelta', paneLayout.lp, { priceScaleId: 'lp-ratio' }))
+    toggle('lpValue', overlayPlan.paneOn.lp, () => addPaneLine('lpValue', paneLayout.lp, { priceScaleId: 'lp-quote' }))
     toggle('lpRealDiv', overlayPlan.paneOn.lp, () =>
-      addPaneLine('链上池价偏离', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
+      addPaneLine('lpRealDiv', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
     )
     toggle('lpPoolTurnover', overlayPlan.paneOn.lpPoolCoverage, () =>
-      addPaneLine('聚合池24h换手', '#b3261e', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),
+      addPaneLine('lpPoolTurnover', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
     )
     toggle('lpPoolConcentration', overlayPlan.paneOn.lpPoolCoverage, () =>
-      addPaneLine('主池资金占比', '#274f9f', paneLayout.lp, { priceScaleId: 'lp-ratio', lineStyle: LineStyle.Dotted }),
+      addPaneLine('lpPoolConcentration', paneLayout.lp, { priceScaleId: 'lp-ratio' }),
     )
-    toggle('lpCe', overlayPlan.paneOn.lp, () =>
-      addPaneLine('资本效率', '#8b5a16', paneLayout.lp, { priceScaleId: 'lp-multiple' }),
-    )
+    toggle('lpCe', overlayPlan.paneOn.lp, () => addPaneLine('lpCe', paneLayout.lp, { priceScaleId: 'lp-multiple' }))
     toggle('lpZero', overlayPlan.paneOn.lp, () =>
-      addPaneLine('LP暴露零线', '#888', paneLayout.lp, {
+      addGuideLine('LP暴露零线', '#888', paneLayout.lp, {
         priceScaleId: 'lp-ratio',
         lineStyle: LineStyle.Dashed,
         lastValueVisible: false,
@@ -94,13 +93,13 @@ export function useMainChartSeries({ getChart, getProps }) {
     )
 
     toggle('fundingProxy', overlayPlan.paneOn.carry, () =>
-      addPaneLine('Funding估算', '#a93226', paneLayout.carry, { priceScaleId: 'carry-return' }),
+      addPaneLine('fundingProxy', paneLayout.carry, { priceScaleId: 'carry-return' }),
     )
     toggle('netCarry', overlayPlan.paneOn.carry, () =>
-      addPaneLine('净持有收益', '#0e7558', paneLayout.carry, { priceScaleId: 'carry-return' }),
+      addPaneLine('netCarry', paneLayout.carry, { priceScaleId: 'carry-return' }),
     )
     toggle('carryZero', overlayPlan.paneOn.carry, () =>
-      addPaneLine('持有收益零线', '#888', paneLayout.carry, {
+      addGuideLine('归因零线', '#888', paneLayout.carry, {
         priceScaleId: 'carry-return',
         lineStyle: LineStyle.Dashed,
         lastValueVisible: false,
@@ -177,19 +176,39 @@ export function useMainChartSeries({ getChart, getProps }) {
     }
   }
 
-  function addLine(title, color, width, style = LineStyle.Solid) {
+  function addLine(key) {
+    const style = requiredSeriesStyle(key)
     return getChart().addSeries(LineSeries, {
-      title,
-      color,
-      lineWidth: width,
-      lineStyle: style,
+      title: style.label,
+      color: style.color,
+      lineWidth: style.lineWidth,
+      lineStyle: toLightLineStyle(style.lineStyle),
       priceLineVisible: false,
       lastValueVisible: true,
     })
   }
 
-  function addPaneLine(title, color, paneIndex, options = {}) {
-    const line = getChart().addSeries(LineSeries, deltaLine(title, color, options), paneIndex)
+  function addPaneLine(key, paneIndex, options = {}) {
+    const line = getChart().addSeries(LineSeries, deltaLine(key, options), paneIndex)
+    line.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 }, alignLabels: true })
+    return line
+  }
+
+  function addGuideLine(title, color, paneIndex, options = {}) {
+    const line = getChart().addSeries(
+      LineSeries,
+      {
+        title,
+        color,
+        lineWidth: options.lineWidth ?? 1,
+        lineStyle: options.lineStyle ?? LineStyle.Solid,
+        priceScaleId: options.priceScaleId,
+        priceLineVisible: false,
+        lastValueVisible: options.lastValueVisible ?? false,
+        priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+      },
+      paneIndex,
+    )
     line.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 }, alignLabels: true })
     return line
   }
@@ -271,10 +290,12 @@ function regimeOptions() {
 }
 
 function equityOptions() {
+  const style = requiredSeriesStyle('equity')
   return {
-    title: '回放权益',
-    color: '#1f5fbf',
-    lineWidth: 2,
+    title: style.label,
+    color: style.color,
+    lineWidth: style.lineWidth,
+    lineStyle: toLightLineStyle(style.lineStyle),
     priceLineVisible: false,
     lastValueVisible: true,
     priceFormat: { type: 'price', precision: 0, minMove: 1 },
@@ -293,44 +314,65 @@ function equityZeroOptions() {
 }
 
 function kdjKOptions() {
+  const style = requiredSeriesStyle('kdjK')
   return {
-    title: 'K/D均线',
-    color: 'rgba(255, 165, 0, 0.5)',
-    lineWidth: 1,
+    title: style.label,
+    color: style.color,
+    lineWidth: style.lineWidth,
+    lineStyle: toLightLineStyle(style.lineStyle),
     priceLineVisible: false,
     lastValueVisible: false,
   }
 }
 
 function kdjJOptions() {
+  const style = requiredSeriesStyle('kdjJ')
   return {
-    title: 'J线',
-    color: '#4e4e4e',
-    lineWidth: 2,
+    title: style.label,
+    color: style.color,
+    lineWidth: style.lineWidth,
+    lineStyle: toLightLineStyle(style.lineStyle),
     priceLineVisible: false,
     lastValueVisible: false,
   }
 }
 
 function rsiOptions() {
+  const style = requiredSeriesStyle('rsi')
   return {
-    title: 'RSI相对强弱',
-    color: '#2e2e2e',
-    lineWidth: 3,
+    title: style.label,
+    color: style.color,
+    lineWidth: style.lineWidth,
+    lineStyle: toLightLineStyle(style.lineStyle),
     priceLineVisible: false,
     lastValueVisible: false,
   }
 }
 
-function deltaLine(title, color, options = {}) {
+function deltaLine(key, options = {}) {
+  const style = requiredSeriesStyle(key)
+  const latestOnlyPoint = key === 'lpPoolTurnover' || key === 'lpPoolConcentration'
   return {
-    title,
-    color,
-    lineWidth: options.lineWidth ?? 1,
-    lineStyle: options.lineStyle ?? LineStyle.Solid,
+    title: style.label,
+    color: style.color,
+    lineWidth: style.lineWidth,
+    lineStyle: toLightLineStyle(style.lineStyle),
     priceScaleId: options.priceScaleId,
     priceLineVisible: false,
     lastValueVisible: options.lastValueVisible ?? true,
     priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+    ...(latestOnlyPoint ? { pointMarkersVisible: true, pointMarkersRadius: 3 } : {}),
   }
+}
+
+function requiredSeriesStyle(key) {
+  const style = getMarketLabSeriesStyle(key)
+  if (!style) throw new Error(`未知 Market Lab 图表序列: ${key}`)
+  return style
+}
+
+function toLightLineStyle(value) {
+  if (value === 'dashed') return LineStyle.Dashed
+  if (value === 'dotted') return LineStyle.Dotted
+  return LineStyle.Solid
 }
