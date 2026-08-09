@@ -255,6 +255,7 @@ export const useLabStore = defineStore('lab', () => {
     tdpyOverrideKey,
     setTdpyOverride: planning.setTdpyOverride,
     clearTdpyOverride: planning.clearTdpyOverride,
+    setPathUsesScenarioInputs: planning.setPathUsesScenarioInputs,
     tdpyOverride: planning.tdpyOverride,
 
     // 市场态层

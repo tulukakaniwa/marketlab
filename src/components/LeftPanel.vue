@@ -138,6 +138,7 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           @reset-tdpy="(sym) => emit('reset-tdpy', sym)"
           @set-theme="(t) => emit('set-theme', t)"
           @set-overlay="(key, value) => emit('set-overlay', key, value)"
+          @set-path-scenario="lab.setPathUsesScenarioInputs"
           @reset-all="emit('reset-all')"
           @set-observation-date="(date) => lab.setObservationDate(date)"
           @latest-observation="lab.useLatestObservation"

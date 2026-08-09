@@ -54,10 +54,10 @@ describe('deriveDynamicHoldingState second-order regressions', () => {
   it('目标带有 z-threshold 时不把动态持仓状态升级为观察', () => {
     const state = deriveDynamicHoldingState({
       zScore: -0.57,
-      halfLifeDays: 10.76,
+      halfLifeSessions: 10.76,
       entryPrice: 49.76,
       anchorPrice: 55.63,
-      targetPrices: { costLower: 45.55, anchor: 55.63 },
+      targetPrices: { costLower: 52, anchor: 55.63 },
       costSlopePct: -0.41,
       drawdown: repairDrawdown,
     })
@@ -72,15 +72,15 @@ describe('deriveDynamicHoldingState second-order regressions', () => {
   it('把周期配置的最低收益阻断理由透传到动态持仓状态', () => {
     const state = deriveDynamicHoldingState({
       zScore: -2.2,
-      halfLifeDays: 2,
+      halfLifeSessions: 2,
       entryPrice: 99,
       anchorPrice: 100,
-      targetPrices: { costLower: 98, anchor: 100 },
+      targetPrices: { costLower: 99.5, anchor: 100 },
       drawdown: repairDrawdown,
     })
 
     expect(state.phase).toBe('repair-start')
-    expect(state.status).toBe('等待')
+    expect(state.status).toBe('剔除')
     expect(state.holdingPlan.shortTrade.status).toBe('剔除')
     expect(state.holdingPlan.shortTrade.blockedReasons).toContain('gross-return')
     expect(state.blockedReasons).toContain('gross-return')

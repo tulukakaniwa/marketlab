@@ -77,6 +77,10 @@ export function usePlanning() {
     if (symbol) delete tdpyOverride[symbol]
   }
 
+  function setPathUsesScenarioInputs(value) {
+    input.pathUsesScenarioInputs = value === true
+  }
+
   const activeFormulaId = persistedRef('lab.activeFormulaId.v1', 'delta-band')
   const activeCapabilityId = persistedRef('lab.activeCapabilityId.v1', 'move-derivative')
   const activeCapability = computed(() => getFormulaCapability(activeCapabilityId.value))
@@ -138,6 +142,7 @@ export function usePlanning() {
     tdpyOverride,
     setTdpyOverride,
     clearTdpyOverride,
+    setPathUsesScenarioInputs,
     activeCapabilityId,
     activeFormulaId,
     activeCapability,

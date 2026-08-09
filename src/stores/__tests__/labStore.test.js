@@ -59,6 +59,16 @@ describe('useLabStore（v3 重写后契约）', () => {
     expect(lab.input.tradingDaysPerYear).toBeUndefined()
     expect(lab.effectiveTdpy).toBeNull()
     expect(lab.tdpyMeta).toEqual({ value: null, basis: 'missing-input', label: '待识别' })
+    expect(lab.input.pathUsesScenarioInputs).toBe(false)
+    expect(typeof lab.setPathUsesScenarioInputs).toBe('function')
+  })
+
+  it('只通过显式命令启用历史路径期权情景，并严格归一化布尔值', () => {
+    const lab = useLabStore()
+    lab.setPathUsesScenarioInputs(true)
+    expect(lab.input.pathUsesScenarioInputs).toBe(true)
+    lab.setPathUsesScenarioInputs('true')
+    expect(lab.input.pathUsesScenarioInputs).toBe(false)
   })
 
   it('importText 解析 CSV 并触发输入回填', async () => {

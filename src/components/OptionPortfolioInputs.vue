@@ -1,9 +1,12 @@
 <script setup>
 import { computed, onMounted, watch } from 'vue'
+import PathScenarioProjectionControl from './PathScenarioProjectionControl.vue'
 
 const props = defineProps({
   input: { type: Object, required: true },
 })
+
+const emit = defineEmits(['set-path-scenario'])
 
 const strategies = [
   { id: 'single', label: '单腿', hint: '单个 call / put' },
@@ -255,6 +258,11 @@ function fmt(value) {
         <input v-model.number="input.optionTenorSessions" type="number" min="1" step="1" placeholder="必填" />
       </label>
     </div>
+
+    <PathScenarioProjectionControl
+      :enabled="input.pathUsesScenarioInputs === true"
+      @change="(value) => emit('set-path-scenario', value)"
+    />
 
     <details class="opi-advanced">
       <summary>高级输入</summary>

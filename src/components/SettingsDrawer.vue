@@ -31,6 +31,7 @@ const emit = defineEmits([
   'set-observation-date',
   'latest-observation',
   'set-overlay',
+  'set-path-scenario',
 ])
 </script>
 
@@ -67,7 +68,7 @@ const emit = defineEmits([
 
     <section class="sd-section">
       <h3 class="sd-h">期权组合研究</h3>
-      <OptionPortfolioInputs :input="input" />
+      <OptionPortfolioInputs :input="input" @set-path-scenario="(value) => emit('set-path-scenario', value)" />
     </section>
 
     <section class="sd-section">

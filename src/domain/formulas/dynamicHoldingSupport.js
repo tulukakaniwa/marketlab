@@ -42,10 +42,7 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   if (phase === 'low-compression') {
     if (target) return plan('等待', 'wait-repair-start', target, ['drawdown-repair-insufficient'])
     const pendingTarget = candidates.find(forwardMilestone) ?? null
-    const reasons = unique([
-      'drawdown-repair-insufficient',
-      ...profileMilestoneBlockedReasons(pendingTarget, profile),
-    ])
+    const reasons = unique(['drawdown-repair-insufficient', ...profileMilestoneBlockedReasons(pendingTarget, profile)])
     return plan('等待', 'wait-repair-start', pendingTarget, reasons)
   }
   if (target) {
@@ -62,7 +59,7 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   const reasons = profileMilestoneBlockedReasons(horizonCandidate, profile)
   return plan(
     reasons.includes('holding-window') || reasons.includes('z-threshold') ? '等待' : '剔除',
-    'wait-window',
+    'wait-target',
     horizonCandidate ?? null,
     reasons,
   )
@@ -144,9 +141,7 @@ function usableMilestone(item, profile) {
 function profileMilestoneBlockedReasons(item, profile) {
   if (!item) return ['no-structural-target']
   const reasons = [...(item.blockedReasons ?? [])]
-  if (!Number.isFinite(item.expectedSessions)) reasons.push('holding-window')
-  if (!Number.isFinite(item.grossReturn) || item.grossReturn < profile.minimumGrossReturn)
-    reasons.push('gross-return')
+  if (!Number.isFinite(item.grossReturn) || item.grossReturn < profile.minimumGrossReturn) reasons.push('gross-return')
   return unique(reasons)
 }
 
@@ -181,7 +176,7 @@ function buildProfileExpectation({ kind, profile, structural, milestones }) {
     targetId: target?.id ?? null,
     expectedSessions: roundNullable(target?.expectedSessions),
     expectedReturnPct: Number.isFinite(target?.grossReturn) ? roundNullable(target.grossReturn * 100) : null,
-    blockedReasons: target?.blockedReasons ?? ['no-structural-target'],
+    blockedReasons: target ? profileMilestoneBlockedReasons(target, profile) : ['no-structural-target'],
   }
 }
 
