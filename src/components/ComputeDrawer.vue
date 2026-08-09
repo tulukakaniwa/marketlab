@@ -18,9 +18,7 @@ const props = defineProps({
   activeFormulaId: { type: String, required: true },
   activeFormula: { type: Object, default: null },
   portfolioEnabled: { type: Boolean, default: false },
-  // Hover 视图：指标面板预览鼠标所在 bar 的市场态；为空则回退到观察日期
-  hoverMarket: { type: Object, default: null },
-  hoverFormulaRow: { type: Object, default: null },
+  // 图表 hover 只提供历史 OHLCV 查询；不改写观察日快照或执行门禁。
   hoverRow: { type: Object, default: null },
   hoverPrevRow: { type: Object, default: null },
   hoverDate: { type: String, default: '' },
@@ -30,12 +28,11 @@ const props = defineProps({
 
 const emit = defineEmits(['select-formula'])
 
-// hover 时优先使用 hover 视图，否则回退到 cursor 视图
-const viewMarket = computed(() => props.hoverMarket ?? props.market)
+// 市场快照、门禁与 GetDelta 始终锚定观察日；十字线仅是历史查询。
+const viewMarket = computed(() => props.market)
 const viewDeltaBandState = computed(() =>
   resolveDisplayedDeltaBand({
-    isHovering: props.isHovering,
-    hoverFormulaRow: props.hoverFormulaRow,
+    isHovering: false,
     currentFormulaRow: props.formulaPath.at(-1) ?? null,
     graph: props.graph,
   }),
@@ -111,12 +108,16 @@ function compactVolume(v) {
     <section class="cd-section">
       <h3 class="cd-h">
         市场快照
-        <small v-if="isHovering && hoverDate" class="cd-hover-tag" :title="`鼠标悬停日期：${hoverDate}`">
-          <span class="cd-hover-dot" />{{ hoverDate }}
+        <small v-if="market?.asOfDate" class="cd-snapshot-tag" :title="`观察日：${market.asOfDate}`">
+          <span class="cd-hover-dot" />观察日快照 · {{ market.asOfDate }}
+        </small>
+        <small v-if="isHovering && hoverDate" class="cd-hover-tag" :title="`图表回看日期：${hoverDate}`">
+          <span class="cd-hover-dot" />图表回看 · {{ hoverDate }}
         </small>
       </h3>
       <WorkbenchSummary :model="summary" default-open />
       <div v-if="hoverOhlcv" class="cd-hover-ohlcv" :class="`dir-${hoverOhlcv.direction}`">
+        <span class="cd-hover-label">图表回看</span>
         <span class="cd-ohlcv-cell"><em>开</em>{{ money(hoverOhlcv.open) }}</span>
         <span class="cd-ohlcv-cell"><em>高</em>{{ money(hoverOhlcv.high) }}</span>
         <span class="cd-ohlcv-cell"><em>低</em>{{ money(hoverOhlcv.low) }}</span>
@@ -224,6 +225,19 @@ function compactVolume(v) {
   text-transform: none;
   font-variant-numeric: tabular-nums;
 }
+.cd-snapshot-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
 .cd-hover-dot {
   width: 6px;
   height: 6px;
@@ -251,6 +265,13 @@ function compactVolume(v) {
   background: rgba(14, 117, 88, 0.04);
   font-variant-numeric: tabular-nums;
   font-size: 0.74rem;
+}
+.cd-hover-label {
+  grid-column: 1 / -1;
+  color: var(--green);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
 }
 .cd-hover-ohlcv.dir-up {
   border-color: rgba(14, 117, 88, 0.45);

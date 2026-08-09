@@ -23,10 +23,10 @@ const INTERNAL_REASONS = new Set([
 ])
 
 const MISSING_HINTS = Object.freeze({
-  lpBand: '需要 LP 区间或链上池价输入',
+  lpBand: '需要完整 LP 情景区间，或可估值的链上真实仓位',
   executionMarkers: '需要持仓目标价或失效价',
   greeksPane: '需要期权 Delta、Gamma 或 Theta 情景输入',
-  lpPane: '需要 LP 库存、池价或资金池输入',
+  lpPane: '需要完整 LP 情景，或可估值的链上真实仓位；池聚合报价本身不能估值',
   carryPane: '需要 Funding 或持仓归因输入',
   equityPane: '需要先完成回放并生成权益曲线',
 })
@@ -35,12 +35,12 @@ const labToggles = Object.freeze([
   { key: 'priceBands', label: '研究价格层', group: 'price', parent: true },
   { key: 'costBand', label: '成本锚带', group: 'price', child: true },
   { key: 'volBand', label: 'GetDelta 价格带', group: 'price', child: true },
-  { key: 'lpBand', label: 'LP 价格区间', group: 'price', child: true },
+  { key: 'lpBand', label: 'LP 情景价格区间', group: 'price', child: true },
   { key: 'entryLine', label: '入场价线', group: 'price' },
   { key: 'executionMarkers', label: '目标 / 失效价格线', group: 'price' },
   { key: 'volume', label: '成交量', group: 'volume' },
   { key: 'greeksPane', label: '期权 Greeks', group: 'greeks' },
-  { key: 'lpPane', label: 'LP 库存与池状态', group: 'lp' },
+  { key: 'lpPane', label: 'LP 情景与池状态', group: 'lp' },
   { key: 'carryPane', label: 'Funding / 持仓归因', group: 'carry' },
   { key: 'equityPane', label: '回放权益', group: 'equity' },
   { key: 'kdjPane', label: 'Lab KDJ', group: 'kdj' },

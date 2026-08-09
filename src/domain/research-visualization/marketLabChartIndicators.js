@@ -7,7 +7,7 @@ import { getMarketLabSeriesStyle } from './marketLabSeriesStyles.js'
 export const MARKET_LAB_CHART_INDICATOR_GROUPS = Object.freeze([
   group('price', '价格层', 'main', 'priceBands'),
   group('greeks', 'Greeks', 'greeks', 'greeksPane'),
-  group('lp', 'LP / 链上', 'lp', 'lpPane'),
+  group('lp', 'LP 情景 / 链上', 'lp', 'lpPane'),
   group('carry', 'Funding / Carry', 'carry', 'carryPane'),
   group('equity', '回放权益', 'equity', 'equityPane'),
   group('kdj', 'Lab KDJ', 'kdj', 'kdjPane'),
@@ -33,10 +33,10 @@ const DEFINITIONS = Object.freeze([
   pathIndicator('deltaLower', 'GetDelta 下沿', 'price', 'price', '#1f5fbf', 'main', 'price.deltaBand', 'deltaLower', {
     controls: ['priceBands', 'volBand'],
   }),
-  pathIndicator('lpLower', 'LP 区间下沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpLowerPrice', {
+  pathIndicator('lpLower', 'LP 情景区间下沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpLowerPrice', {
     controls: ['priceBands', 'lpBand'],
   }),
-  pathIndicator('lpUpper', 'LP 区间上沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpUpperPrice', {
+  pathIndicator('lpUpper', 'LP 情景区间上沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpUpperPrice', {
     controls: ['priceBands', 'lpBand'],
   }),
   pathIndicator('lpRealPrice', '链上池价', 'price', 'price', '#8b5a16', 'main', 'price.lpRealPrice', 'lpRealPrice', {
@@ -89,10 +89,10 @@ const DEFINITIONS = Object.freeze([
     { controls: ['greeksPane'] },
   ),
 
-  pathIndicator('lpDelta', 'LP 库存暴露', 'ratio', 'lp', '#0e7558', 'lp', 'paneOn.lp', 'lpNormalizedDelta', {
+  pathIndicator('lpDelta', 'LP 情景库存暴露', 'ratio', 'lp', '#0e7558', 'lp', 'paneOn.lp', 'lpNormalizedDelta', {
     controls: ['lpPane'],
   }),
-  pathIndicator('lpValue', 'LP 库存价值', 'price', 'lp', '#7a5cff', 'lp', 'paneOn.lp', 'lpValue', {
+  pathIndicator('lpValue', 'LP 情景库存价值', 'price', 'lp', '#7a5cff', 'lp', 'paneOn.lp', 'lpValue', {
     controls: ['lpPane'],
   }),
   pathIndicator('lpRealDiv', '链上池价偏离', 'pct', 'lp', '#8b5a16', 'lp', 'paneOn.lp', 'lpRealDivergence', {
@@ -123,7 +123,7 @@ const DEFINITIONS = Object.freeze([
     'lpPoolTopReserveShare',
     { controls: ['lpPane'], pointMode: 'latest' },
   ),
-  pathIndicator('lpCe', '资本效率', 'num', 'lp', '#8b5a16', 'lp', 'paneOn.lp', 'capitalEfficiency', {
+  pathIndicator('lpCe', 'CK 几何资本效率（情景）', 'num', 'lp', '#8b5a16', 'lp', 'paneOn.lp', 'capitalEfficiency', {
     controls: ['lpPane'],
   }),
 

@@ -3,35 +3,39 @@ import { describe, expect, it } from 'vitest'
 import ComputeDrawer from '../ComputeDrawer.vue'
 
 describe('ComputeDrawer GetDelta metric', () => {
-  it('悬停会话没有 Delta 带时显示该会话原因，不回退当前带', () => {
+  it('悬停只显示历史 OHLCV，不改写观察日 GetDelta 快照', () => {
     const wrapper = mountDrawer({
       isHovering: true,
-      hoverFormulaRow: {
-        fieldStates: {
-          deltaUpper: {
-            status: 'not-applicable',
-            missingInputs: [],
-            blockedReasons: ['cycle-start-at-or-beyond-anchor'],
-          },
-        },
+      hoverDate: '2026-01-01',
+      hoverRow: {
+        date: '2026-01-01',
+        open: 68,
+        high: 72,
+        low: 67,
+        close: 70,
+        volume: 1000,
       },
+      hoverPrevRow: { close: 65 },
     })
 
     const metric = getDeltaMetric(wrapper)
-    expect(metric.text()).toContain('当前结构不适用')
-    expect(metric.text()).toContain('没有前向修复区间')
-    expect(metric.text()).not.toContain('80 — 120')
+    expect(metric.text()).toContain('80 — 120')
+    expect(wrapper.text()).toContain('图表回看')
+    expect(wrapper.findAll('.metric-strip article')[0].text()).toContain('100')
   })
 
-  it('悬停会话有 Delta 带时只展示该会话数值', () => {
+  it('历史十字线数据不能覆盖成本锚和观察价', () => {
     const wrapper = mountDrawer({
       isHovering: true,
-      hoverFormulaRow: { deltaLower: 70, deltaCost: 80, deltaUpper: 90 },
+      hoverDate: '2026-01-01',
+      hoverRow: { date: '2026-01-01', open: 68, high: 72, low: 67, close: 70, volume: 1000 },
+      hoverPrevRow: { close: 65 },
     })
 
-    const metric = getDeltaMetric(wrapper)
-    expect(metric.text()).toContain('70 — 90')
-    expect(metric.text()).not.toContain('80 — 120')
+    const metricCards = wrapper.findAll('.metric-strip article').map((item) => item.text())
+    expect(metricCards[0]).toContain('100')
+    expect(metricCards[1]).toContain('98')
+    expect(metricCards.join(' ')).not.toContain('70 — 90')
   })
 
   it('非悬停时使用当前公式行状态，不把不适用误写成待输入', () => {

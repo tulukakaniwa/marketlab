@@ -1,16 +1,13 @@
 export function buildLpV3Curve({ market, graph, researchInputs, layout }) {
   const { PL, PT, PB, pw } = layout
   const mp = market?.markPrice || graph.inputs?.entryPrice
-  if (!mp || researchInputs.rangeStatus === 'invalid-input') return ''
+  const position = lpScenarioPosition({ graph, researchInputs })
+  if (!mp || !position) return ''
   try {
     const lo = mp * 0.5
     const hi = mp * 2
     const n = 50
-    const rangeW = Number(researchInputs.rangeWidth) || 0.1
-    const skew = Math.max(Number(researchInputs.skew) || 1, 0.01)
-    const lowerP = graph.lpV3Hedged?.lowerPrice || mp * Math.max(1 - rangeW, 0.001)
-    const upperP = graph.lpV3Hedged?.upperPrice || mp * (1 + rangeW * skew)
-    const liquidity = Math.max(Number(researchInputs.liquidity) || 1, 0.001)
+    const { lowerPrice: lowerP, upperPrice: upperP, liquidity } = position
     const points = []
     const svgHeight = 200 - PT - PB
     for (let index = 0; index <= n; index++) {
@@ -79,22 +76,30 @@ export function buildLpRealMarker({ market, graph, layout }) {
 export function buildLpV3Bounds({ market, graph, researchInputs, layout }) {
   const { PL, pw } = layout
   try {
-    if (researchInputs.rangeStatus === 'invalid-input') return { loX: PL, hiX: PL + pw }
     const mp = market?.markPrice
-    if (!mp) return { loX: PL, hiX: PL + pw }
+    const position = lpScenarioPosition({ graph, researchInputs })
+    if (!mp || !position) return null
     const lo = mp * 0.5
     const hi = mp * 2
-    const rangeW = Number(researchInputs.rangeWidth) || 0.1
-    const skew = Math.max(Number(researchInputs.skew) || 1, 0.01)
-    const lowerPrice = graph.lpV3Hedged?.lowerPrice || mp * Math.max(1 - rangeW, 0.001)
-    const upperPrice = graph.lpV3Hedged?.upperPrice || mp * (1 + rangeW * skew)
+    const { lowerPrice, upperPrice } = position
     return {
       loX: PL + ((lowerPrice - lo) / (hi - lo)) * pw,
       hiX: PL + ((upperPrice - lo) / (hi - lo)) * pw,
     }
   } catch {
-    return { loX: PL, hiX: PL + pw }
+    return null
   }
+}
+
+function lpScenarioPosition({ graph, researchInputs }) {
+  if (researchInputs?.lpValuationMode !== 'explicit-scenario') return null
+  const source = graph?.rangeV3Il ?? graph?.lpV3Hedged
+  const lowerPrice = Number(source?.lowerPrice)
+  const upperPrice = Number(source?.upperPrice)
+  const liquidity = Number(researchInputs?.liquidity)
+  if (![lowerPrice, upperPrice, liquidity].every(Number.isFinite)) return null
+  if (lowerPrice <= 0 || upperPrice <= lowerPrice || liquidity <= 0) return null
+  return { lowerPrice, upperPrice, liquidity }
 }
 
 export function buildWaterfallBars(portfolio, layout) {

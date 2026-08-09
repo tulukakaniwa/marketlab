@@ -102,14 +102,7 @@ const AVAILABILITY_RULES = Object.freeze({
         ]),
   'lp-pool-coverage': lpPoolCoverageMissing,
   'amm-geometry': (ctx) => (positive(ctx.market?.markPrice ?? ctx.graph?.inputs?.entryPrice) ? [] : ['mark-price']),
-  'capital-efficiency': (ctx) =>
-    finite(ctx.graph?.efficiency?.efficiency)
-      ? []
-      : compact([
-          positive(ctx.graph?.researchInputs?.rangeWidth) ? null : 'range-width',
-          finite(ctx.graph?.researchInputs?.skew) ? null : 'skew',
-          'valuation-price-basis',
-        ]),
+  'capital-efficiency': lpCapitalEfficiencyMissing,
   funding: fundingMissing,
   portfolio: portfolioMissing,
   'order-plan': orderPlanMissing,
@@ -268,11 +261,18 @@ function commonOptionMissing(ctx) {
 
 function lpInventoryMissing(ctx) {
   if (finite(ctx.graph?.lpV3?.value) && positive(ctx.graph?.researchInputs?.liquidity)) return []
-  return compact([
-    positive(ctx.market?.markPrice ?? ctx.graph?.inputs?.entryPrice) ? null : 'mark-price',
-    positive(ctx.graph?.researchInputs?.liquidity) ? null : 'lp-liquidity',
-    ctx.graph?.researchInputs?.rangeStatus === 'valid' ? null : 'valid-lp-position-range',
-  ])
+  return lpValuationMissing(ctx)
+}
+
+function lpCapitalEfficiencyMissing(ctx) {
+  if (finite(ctx.graph?.efficiency?.efficiency)) return []
+  return lpValuationMissing(ctx)
+}
+
+function lpValuationMissing(ctx) {
+  const declared = ctx.graph?.researchInputs?.lpValuationMissingInputs
+  if (Array.isArray(declared) && declared.length) return unique(declared)
+  return ['declared-lp-scenario-or-complete-position']
 }
 
 function lpPoolCoverageMissing(ctx) {
@@ -328,7 +328,7 @@ function netLpMissing(ctx) {
   const horizonGate = dependentHorizonGate(ctx)
   if (horizonGate) return horizonGate
   return compact([
-    finite(ctx.graph?.efficiency?.efficiency) ? null : 'range-width',
+    finite(ctx.graph?.efficiency?.efficiency) ? null : lpValuationMissing(ctx)[0],
     finite(ctx.graph?.rangeV3Il?.rangeV3Il) ? null : 'same-horizon-impermanent-loss',
     'realized-or-path-fee-return',
     'path-fee-source',

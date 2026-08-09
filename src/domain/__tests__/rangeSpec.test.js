@@ -21,34 +21,35 @@ const input = {
   iv: 0.3,
   deltaSlope: 0.2,
   strikePrice: 100,
-  startPrice: 100,
-  rangeWidth: 1.2,
-  skew: 1,
-  liquidity: 1,
+  lpScenarioEnabled: true,
+  lpScenarioStartPrice: 100,
+  lpScenarioRangeWidth: 1.2,
+  lpScenarioSkew: 1,
+  lpScenarioLiquidity: 1,
   capital: 10000,
   optionType: 'put',
   tradingDaysPerYear: 252,
 }
 
 describe('arithmetic LP range validation', () => {
-  it('formula path does not silently clamp an invalid width', () => {
+  it('formula path does not silently clamp an invalid declared LP width', () => {
     const path = buildFormulaPath(rows, input)
     expect(path.at(-1).lpLowerPrice).toBeNull()
     expect(path.at(-1).lpUpperPrice).toBeNull()
     expect(path.at(-1).capitalEfficiency).toBeNull()
-    expect(path.at(-1).fieldStates.lpLowerPrice.missingInputs).toContain('valid-arithmetic-range-width')
+    expect(path.at(-1).fieldStates.lpLowerPrice.missingInputs).toContain('lp-scenario-range-width')
   })
 
-  it('research snapshot blocks the same invalid width', () => {
+  it('research snapshot blocks the same invalid declared LP width', () => {
     const snapshot = buildResearchSnapshot({
       market: { costAnchor: 100 },
       input,
       executable: { inputs: { entryPrice: 100, formulaHorizonSessions: 30, iv: 0.3, capital: 10000 } },
     })
-    expect(snapshot.researchInputs.rangeStatus).toBe('invalid-input')
+    expect(snapshot.researchInputs.rangeStatus).toBe('missing-input')
     expect(snapshot.lpV3).toBeNull()
     expect(snapshot.efficiency).toBeNull()
-    expect(snapshot.portfolioResearch.missingInputs).toContain('valid-lp-position-range')
+    expect(snapshot.portfolioResearch.missingInputs).toContain('lp-scenario-range-width')
     expect(snapshot.portfolioResearch.pnl.missingInputs).toEqual(snapshot.portfolioResearch.missingInputs)
     expect(snapshot.portfolioResearch.pnl.total).toBeNull()
     expect(snapshot.portfolioResearch.status).toBe('calibration-required')
@@ -59,7 +60,7 @@ describe('arithmetic LP range validation', () => {
       market: { costAnchor: 100 },
       input: {
         ...input,
-        rangeWidth: 0.1,
+        lpScenarioRangeWidth: 0.1,
         optionPremium: 1,
         ivSource: 'market-option-quote-implied',
         ivSourceVerified: false,

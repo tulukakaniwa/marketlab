@@ -59,6 +59,7 @@ export async function createHqChartAdapter({
   let readyTimer = null
   let releaseSmoothWheel = () => {}
   let releaseDialogTracker = () => {}
+  let releaseCursorBoundary = () => {}
   let resolveReady
   let rejectReady
   const ready = new Promise((resolve, reject) => {
@@ -123,6 +124,7 @@ export async function createHqChartAdapter({
     assertNotAborted(signal)
     window.clearTimeout(readyTimer)
     readyTimer = null
+    releaseCursorBoundary = installCursorBoundary(element, chart, onCursor)
     // Type=2 走 HQChart 的 ShowAllKLine，避免精确首屏数量又被
     // OnSize(Type=1) 按内置柱宽改回较少的可见数量。
     chart.OnSize({ Type: 2 })
@@ -130,6 +132,7 @@ export async function createHqChartAdapter({
     releaseSmoothWheel = installSmoothWheelBridge(element, chart)
   } catch (error) {
     window.clearTimeout(readyTimer)
+    releaseCursorBoundary()
     destroyHqChartSafely(chart, element, { releaseDialogTracker })
     throw error
   } finally {
@@ -180,6 +183,7 @@ export async function createHqChartAdapter({
       if (destroyed) return
       destroyed = true
       window.clearTimeout(readyTimer)
+      releaseCursorBoundary()
       destroyHqChartSafely(chart, element, { releaseDialogTracker, releaseWheel: releaseSmoothWheel })
     },
     raw: chart,
@@ -383,11 +387,29 @@ function applyHqTheme(ChartApi, dark) {
   ChartApi.JSChart.SetCSSStyle(styleId)
 }
 
-function emitCursor(data, period, indexByDate, onCursor) {
+export function emitCursor(data, period, indexByDate, onCursor) {
   if (typeof onCursor !== 'function') return
-  const date = Number(data?.Draw?.Date)
+  const date = dateNumber(data?.Draw?.Date ?? data?.Date)
   if (indexByDate.has(date)) return onCursor(indexByDate.get(date))
-  if (period === 0 && Number.isFinite(data?.DataIndex)) onCursor(data.DataIndex)
+  const index = Number(data?.DataIndex)
+  if (period === 0 && Number.isInteger(index) && [...indexByDate.values()].includes(index)) return onCursor(index)
+  onCursor(null)
+}
+
+function installCursorBoundary(element, chart, onCursor) {
+  if (!element?.addEventListener) return () => {}
+  const onEnter = () => chart?.EnableShowCorssCursorLine?.(true)
+  const onLeave = () => {
+    chart?.EnableShowCorssCursorLine?.(false)
+    chart?.Draw?.()
+    onCursor?.(null)
+  }
+  element.addEventListener('mouseenter', onEnter)
+  element.addEventListener('mouseleave', onLeave)
+  return () => {
+    element.removeEventListener('mouseenter', onEnter)
+    element.removeEventListener('mouseleave', onLeave)
+  }
 }
 
 function hqDrawingStorageKey(scope) {

@@ -46,10 +46,13 @@ describe('HQ shared hover legend model', () => {
       expect.objectContaining({ key: 'cost', value: 10.5, unit: 'price' }),
       expect.objectContaining({ key: 'netCarry', value: 0.0123, unit: 'pct' }),
     ])
+    expect(legend.asOf).toEqual({ kind: 'crosshair', label: '图表回看' })
   })
 
   it('没有有效游标时回退到最后一根 K 线', () => {
     const rows = [{ date: '2026-08-07', open: 10, high: 11, low: 9, close: 10, volume: 1 }]
-    expect(buildHqChartLegend({ rows, model: { groups: [] } }).date).toBe('2026-08-07')
+    const legend = buildHqChartLegend({ rows, model: { groups: [] } })
+    expect(legend.date).toBe('2026-08-07')
+    expect(legend.asOf).toEqual({ kind: 'snapshot', label: '观察日快照' })
   })
 })

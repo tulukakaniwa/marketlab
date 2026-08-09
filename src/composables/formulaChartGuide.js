@@ -48,7 +48,7 @@ export function buildFormulaChartGuide({
     },
     'lp-inventory': {
       title: '研究层：LP 库存',
-      body: `当前 V3 LP 头寸价值 ${fmt(g.lpV3?.value)}，同区间、同入场库存对照的 V3 IL 为 ${pctFmt(rangeV3Il?.rangeV3Il)}。全范围 v2 IL 另列，不能冒充 v3 结果；这些值来自研究层输入，不等于真实链上 LP 仓位。`,
+      body: `已声明 LP 情景的 V3 模型价值 ${fmt(g.lpV3?.value)}，同情景入场库存对照的 V3 IL 为 ${pctFmt(rangeV3Il?.rangeV3Il)}。全范围 v2 IL 另列，不能冒充 v3 结果；聚合池报价不能替代仓位区间或流动性 L，结果不等于真实链上 LP 仓位。`,
     },
     'liquidity-fingerprint': {
       title: '研究层：流动性指纹',
