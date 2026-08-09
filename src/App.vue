@@ -281,7 +281,7 @@ const rootStyle = computed(() => ({
         @set-tab="(name) => (lab.activeLeftTab = name)"
         @set-profile="onSetProfile"
         @set-auto-profile="onSetAutoProfile"
-        @select-formula="(id) => (lab.activeFormulaId = id)"
+        @select-formula="lab.selectFormula"
         @override-tdpy="(sym, val) => lab.setTdpyOverride(sym, val)"
         @reset-tdpy="(sym) => lab.clearTdpyOverride(sym)"
         @set-theme="

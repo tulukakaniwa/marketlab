@@ -154,9 +154,9 @@ export function deriveStructuralHoldWindow({
 
 /**
  * Exact recovery-horizon identity conditional on an estimated half-life and a
- * target strictly between the cycle start and the frozen anchor.  The identity
- * is exact; a result that consumes an estimated half-life remains a
- * sample-conditioned scenario coordinate, not a forecast.
+ * target strictly between the cycle start and the frozen anchor. The identity
+ * is exact, while an estimated half-life leaves the result sample-conditioned.
+ * `resultClaimClass` is null when no result exists due to an inapplicable structure or failed model gate.
  */
 export function deriveRecoveryHorizon({
   cycleStartPrice,
@@ -362,7 +362,6 @@ function buildTargetCandidate({
   zScore,
   halfLifeSessions,
   entryPrice,
-  anchorPrice,
   anchorGap,
   minAbsZ,
   minExecutableSessions,
@@ -481,12 +480,20 @@ function log2(value) {
 }
 
 function unavailableRecovery(reason, extra = {}) {
+  const status = recoveryAvailabilityStatus(reason)
   return {
-    status: 'waiting',
+    status,
     eligible: false,
     reason,
     identityClaimClass: 'exact-identity',
-    resultClaimClass: 'missing-input',
+    resultClaimClass: status === 'missing-input' ? 'missing-input' : null,
     ...extra,
   }
+}
+
+function recoveryAvailabilityStatus(reason) {
+  if (reason === 'invalid-recovery-input') return 'missing-input'
+  if (['cycle-start-at-or-beyond-anchor', 'target-already-crossed-at-cycle-start'].includes(reason))
+    return 'not-applicable'
+  return 'model-gate-failed'
 }

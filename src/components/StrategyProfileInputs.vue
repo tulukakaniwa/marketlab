@@ -21,9 +21,11 @@ const executionLinks = computed(() => {
   const pos = graph?.position ?? {}
   const formulaRows = graph?.formulaStrategy?.executionParams ?? []
   const formulaHorizonSessions = Number(graph?.inputs?.formulaHorizonSessions)
-  const horizonLabel = Number.isFinite(formulaHorizonSessions)
-    ? `${formulaHorizonSessions} 个交易会话（公式推导）`
-    : '待公式推导'
+  const horizonLabel =
+    graph?.decision?.holdingWindow ??
+    (Number.isFinite(formulaHorizonSessions)
+      ? `${formulaHorizonSessions} 个交易会话（公式推导）`
+      : '当前未形成方向周期')
   const deltaSlope = Number(graph?.inputs?.deltaSlope ?? props.input.deltaSlope)
   return [
     ...formulaRows,
@@ -61,6 +63,17 @@ const lifecycleSteps = computed(() => {
 
 const moduleLinks = computed(() => props.graph?.formulaStrategy?.researchOnly ?? [])
 const formulaBasis = computed(() => props.graph?.formulaStrategy?.formulaBasis ?? null)
+
+function implementationStatusLabel(status) {
+  return (
+    {
+      implemented: '公式已实现',
+      'research-only': '仅研究',
+      'proxy-only': '代理模型',
+      'protocol-unverified': '协议未验证',
+    }[status] ?? '状态未标注'
+  )
+}
 </script>
 
 <template>
@@ -91,7 +104,7 @@ const formulaBasis = computed(() => props.graph?.formulaStrategy?.formulaBasis ?
 
     <div v-if="formulaBasis" class="spi-calibration">
       <span>公式口径</span>
-      <strong>{{ formulaBasis.sourceId }} · {{ formulaBasis.status }}</strong>
+      <strong>{{ formulaBasis.sourceId }} · {{ implementationStatusLabel(formulaBasis.status) }}</strong>
       <small>{{ formulaBasis.note }}</small>
       <dl>
         <template v-for="row in formulaBasis.variables" :key="row[0]">

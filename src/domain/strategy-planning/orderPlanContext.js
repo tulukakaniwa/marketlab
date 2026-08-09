@@ -14,6 +14,7 @@ export function buildExecutableContext({ market, input }) {
   const horizonContext = input.formulaHorizonState?.context ?? null
   const horizonMode = horizonContext?.mode ?? input.horizonMode ?? 'formula-derived'
   const formulaHorizonSide = horizonContext?.side ?? (horizonMode === 'explicit-scenario' ? 'scenario-neutral' : null)
+  const horizonReason = horizonContext?.reason ?? input.formulaHorizonState?.missingInputs?.[0] ?? null
   const deltaBands =
     formulaHorizonSessions && tdpy
       ? getDeltaBands({ entryPrice, formulaHorizonSessions, iv, deltaSlope, tradingDaysPerYear: tdpy })
@@ -34,6 +35,8 @@ export function buildExecutableContext({ market, input }) {
       horizonTargetSource: horizonContext?.targetSource ?? null,
       horizonAvailableAt: horizonContext?.availableAt ?? null,
       horizonExecutionAuthority: horizonContext?.executionAuthority ?? 'none',
+      horizonStatus: horizonContext?.status ?? input.formulaHorizonState?.status ?? null,
+      horizonReason,
       iv,
       deltaSlope,
       exitTargetReturn,
@@ -46,7 +49,8 @@ export function buildExecutableContext({ market, input }) {
 }
 
 export function buildDecision({ market, timing, position, formulaHorizonSessions }) {
-  const invalidations = timing?.side
+  const hasDirectionalThesis = Boolean(timing?.side)
+  const invalidations = hasDirectionalThesis
     ? [
         `收盘价越过失效线 ${formatPrice(position.stopPrice)}`,
         `目标价 ${formatPrice(position.targetPrice)}`,
@@ -54,9 +58,13 @@ export function buildDecision({ market, timing, position, formulaHorizonSessions
           ? `${formulaHorizonSessions} 个交易会话后未触发则到期`
           : '等待公式推导有限周期',
       ]
+    : []
+  const reviewConditions = hasDirectionalThesis
+    ? []
     : [
-        `价格低于成本下沿 ${formatPrice(market.costLow)}`,
-        `价格高于成本上沿 ${formatPrice(market.costHigh)}`,
+        `收盘价跌破成本下沿 ${formatPrice(market.costLow)}`,
+        `收盘价突破成本上沿 ${formatPrice(market.costHigh)}`,
+        `成本锚、结构目标或 AR 门禁发生变化`,
         `偏离阈值参考 ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))}`,
       ]
   return {
@@ -67,10 +75,13 @@ export function buildDecision({ market, timing, position, formulaHorizonSessions
     signalStrength: timing?.signalStrength ?? 0,
     signalSemantics: timing?.signalSemantics ?? 'normal-reference-extremeness-not-confidence-or-win-probability',
     executionStatus: position?.executionStatus ?? 'blocked',
-    holdingWindow: Number.isFinite(formulaHorizonSessions)
-      ? `${formulaHorizonSessions} 个交易会话（方向/目标绑定）`
-      : '待公式推导',
+    holdingWindow: !hasDirectionalThesis
+      ? '当前无方向周期'
+      : Number.isFinite(formulaHorizonSessions)
+        ? `${formulaHorizonSessions} 个交易会话（方向/目标绑定）`
+        : '方向周期待公式推导',
     invalidations,
+    reviewConditions,
     regime: timing?.regime ?? null,
     triggeredConditions: timing?.triggeredConditions ?? [],
     blockedReasons: timing?.blockedReasons ?? [],

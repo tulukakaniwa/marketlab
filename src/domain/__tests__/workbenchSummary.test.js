@@ -19,6 +19,7 @@ describe('buildWorkbenchSummary data state', () => {
         rows: 0,
         source: '本地数据源未标注',
         claimClass: 'missing-input',
+        claimLabel: '缺少输入',
       },
       gate: {
         state: '等待载入',
@@ -26,8 +27,12 @@ describe('buildWorkbenchSummary data state', () => {
         label: '不可执行',
       },
       reason: '等待市场样本形成明确条件。',
-      invalidation: '缺失输入：尚未形成可复核的失效条件。',
-      nextCheck: '下一根 K 线后复核成本锚、阶段和失效条件。',
+      review: {
+        kind: 'review',
+        label: '何时复核',
+        value: '尚未形成策略失效线；下一交易会话复核结构。',
+      },
+      nextCheck: '下一交易会话更新成本锚、上下沿与结构门禁；没有方向信号时不生成周期或订单。',
       disclosure: '本地日线样本只用于研究；偏离度不是胜率，手绘标注不进入公式或模拟挂单。',
     })
   })
@@ -45,6 +50,7 @@ describe('buildWorkbenchSummary data state', () => {
       rows: 3,
       source: 'BaoStock',
       claimClass: 'sample-estimate',
+      claimLabel: '样本估计',
     })
   })
 
@@ -70,7 +76,7 @@ describe('buildWorkbenchSummary data state', () => {
 })
 
 describe('buildWorkbenchSummary decision gate', () => {
-  it('保留决策门禁、模拟状态、首个阻断原因和失效条件', () => {
+  it('保留决策门禁、模拟状态、时序原因、首个阻断原因和失效条件', () => {
     const summary = buildWorkbenchSummary({
       source: { source: 'local-csv', interval: '日线' },
       rows: rows(),
@@ -79,14 +85,15 @@ describe('buildWorkbenchSummary decision gate', () => {
           state: '等待',
           executionStatus: 'simulation-only',
           blockedReasons: ['成本仍在下移', '动量尚未修复'],
-          timing: { reason: '次级原因' },
+          timing: { side: 'buy', reason: '次级原因' },
           invalidations: ['收盘跌破结构低点'],
         },
       },
     })
     expect(summary.gate).toEqual({ state: '等待', executionStatus: 'simulation-only', label: '仅模拟' })
-    expect(summary.reason).toBe('成本仍在下移')
-    expect(summary.invalidation).toBe('收盘跌破结构低点')
+    expect(summary.reason).toBe('次级原因')
+    expect(summary).not.toHaveProperty('invalidation')
+    expect(summary.review).toEqual({ kind: 'invalidation', label: '何时失效', value: '收盘跌破结构低点' })
     expect(summary.nextCheck).toBe('下一根 K 线后复核：成本仍在下移。')
   })
 
@@ -97,7 +104,7 @@ describe('buildWorkbenchSummary decision gate', () => {
     })
     expect(summary.gate).toEqual({ state: '观察', executionStatus: 'blocked', label: '不可执行' })
     expect(summary.reason).toBe('成本修复已开始')
-    expect(summary.nextCheck).toBe('下一根 K 线后复核成本锚、阶段和失效条件。')
+    expect(summary.nextCheck).toBe('下一交易会话更新成本锚、上下沿与结构门禁；没有方向信号时不生成周期或订单。')
   })
 
   it.each([
@@ -111,13 +118,14 @@ describe('buildWorkbenchSummary decision gate', () => {
       graph: {
         decision: {
           state: '等待',
-          missingInputs: [missingInput],
+          timing: { side: 'buy', missingInputs: [] },
+          position: { missingInputs: [missingInput] },
           blockedReasons: ['研究门禁未满足'],
         },
       },
     })
-    expect(summary.reason).toBe('研究门禁未满足')
-    expect(summary.nextCheck).toBe(`如需运行模拟，先补充${label}。`)
+    expect(summary.reason).toBe(`缺少${label}，模拟挂单未生成。`)
+    expect(summary.nextCheck).toBe(`如需生成模拟订单，先补充${label}。`)
   })
 
   it('未知 missing input 使用可读分隔符且优先于 blockedReason 的下一步', () => {
@@ -125,21 +133,23 @@ describe('buildWorkbenchSummary decision gate', () => {
       rows: rows(),
       graph: {
         decision: {
-          missingInputs: ['account.risk.limit'],
+          timing: { side: 'buy', missingInputs: [] },
+          position: { missingInputs: ['account.risk.limit'] },
           blockedReasons: ['价格条件未满足'],
         },
       },
     })
-    expect(summary.reason).toBe('价格条件未满足')
-    expect(summary.nextCheck).toBe('如需运行模拟，先补充account / risk / limit。')
+    expect(summary.reason).toBe('缺少账户 · 风险 · 上限，模拟挂单未生成。')
+    expect(summary.nextCheck).toBe('如需生成模拟订单，先补充账户 · 风险 · 上限。')
   })
 
-  it('空 invalidations 回退为明确缺失输入，而不是伪造失效线', () => {
+  it('空 invalidations 回退为复核条件，而不是伪造失效线', () => {
     const summary = buildWorkbenchSummary({
       rows: rows(),
       graph: { decision: { state: '观察', invalidations: [] } },
     })
-    expect(summary.invalidation).toBe('缺失输入：尚未形成可复核的失效条件。')
+    expect(summary).not.toHaveProperty('invalidation')
+    expect(summary.review.kind).toBe('review')
     expect(summary.disclosure).toContain('偏离度不是胜率')
     expect(summary.disclosure).toContain('手绘标注不进入公式或模拟挂单')
   })

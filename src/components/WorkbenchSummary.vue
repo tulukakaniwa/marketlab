@@ -24,15 +24,15 @@ defineProps({
       <article>
         <span>2 · 当前门禁</span>
         <strong>{{ model.gate.state }} · {{ model.gate.label }}</strong>
-        <small>{{ model.gate.executionStatus }}</small>
+        <small>执行门禁：{{ model.gate.label }}</small>
       </article>
       <article>
         <span>3 · 为什么</span>
         <strong>{{ model.reason }}</strong>
       </article>
       <article>
-        <span>4 · 何时失效 / 复核</span>
-        <strong>{{ model.invalidation }}</strong>
+        <span>4 · {{ model.review?.label || '何时复核' }}</span>
+        <strong>{{ model.review?.value || '下一交易会话复核结构' }}</strong>
       </article>
       <article>
         <span>5 · 下一步</span>
@@ -40,7 +40,7 @@ defineProps({
       </article>
     </div>
     <p>
-      {{ model.disclosure }} <b>{{ model.data.claimClass }}</b>
+      {{ model.disclosure }} <b>{{ model.data.claimLabel || '口径待核验' }}</b>
     </p>
   </details>
 </template>

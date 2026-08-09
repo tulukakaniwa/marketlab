@@ -6,6 +6,7 @@ import FormulaDrawerContent from './FormulaDrawerContent.vue'
 import FormulaChart from './FormulaChart.vue'
 import FormulaNav from './FormulaNav.vue'
 import WorkbenchSummary from './WorkbenchSummary.vue'
+import { resolveDisplayedDeltaBand } from '../domain/formula-research/formulaAvailability.js'
 
 const props = defineProps({
   graph: { type: Object, required: true },
@@ -31,26 +32,32 @@ const emit = defineEmits(['select-formula'])
 
 // hover 时优先使用 hover 视图，否则回退到 cursor 视图
 const viewMarket = computed(() => props.hoverMarket ?? props.market)
-const viewDeltaBands = computed(() => {
-  const fr = props.hoverFormulaRow
-  // hover 时若 formulaPath 中有该行，构造一个临时 long 带；否则用 graph 当前的 deltaBands
-  if (props.isHovering && fr && (Number.isFinite(fr.deltaLower) || Number.isFinite(fr.deltaUpper))) {
-    return { long: { low: fr.deltaLower, high: fr.deltaUpper, cost: fr.costAnchor ?? null } }
-  }
-  return props.graph?.deltaBands ?? null
-})
+const viewDeltaBandState = computed(() =>
+  resolveDisplayedDeltaBand({
+    isHovering: props.isHovering,
+    hoverFormulaRow: props.hoverFormulaRow,
+    currentFormulaRow: props.formulaPath.at(-1) ?? null,
+    graph: props.graph,
+  }),
+)
+const viewDeltaBands = computed(() => (viewDeltaBandState.value.long ? { long: viewDeltaBandState.value.long } : null))
 
 const metrics = computed(() => {
   const m = viewMarket.value
   const bands = viewDeltaBands.value
+  const deltaState = viewDeltaBandState.value
   return [
     { label: '观察价', value: money(m?.markPrice), unit: props.sourceLabel },
     { label: '成本锚', value: money(m?.costAnchor), unit: pct(m?.costDistance) },
     { label: '历史波动', value: pct(m?.annualVol), unit: `样本估计 · ATR ${pct(m?.atrPercent)}` },
     {
       label: 'GetDelta 区间',
-      value: `${money(bands?.long?.low)} — ${money(bands?.long?.high)}`,
-      unit: '低 / 高 · 条件情景',
+      value: bands?.long ? `${money(bands.long.low)} — ${money(bands.long.high)}` : deltaState.label,
+      unit: bands?.long
+        ? '低 / 高 · 条件情景'
+        : deltaState.blockedReasons.length
+          ? deltaState.reasonText
+          : `缺少：${deltaState.missingText}`,
     },
   ]
 })
@@ -146,13 +153,28 @@ function compactVolume(v) {
       />
       <details v-if="activeFormulaId" class="cd-detail">
         <summary>公式、输入输出和研究边界</summary>
-        <FormulaDrawerContent :formula-id="activeFormulaId" :graph="graph" :market="market" />
+        <FormulaDrawerContent
+          :formula-id="activeFormulaId"
+          :graph="graph"
+          :market="market"
+          :rows="rows"
+          :cost-path="costPath"
+          :formula-path="formulaPath"
+        />
       </details>
     </section>
 
     <details class="cd-section cd-disclosure">
       <summary>更多研究模型 <small>默认不参与模拟挂单</small></summary>
-      <FormulaNav :active-id="activeFormulaId" @select="emit('select-formula', $event)" />
+      <FormulaNav
+        :active-id="activeFormulaId"
+        :graph="graph"
+        :market="market"
+        :rows="rows"
+        :cost-path="costPath"
+        :formula-path="formulaPath"
+        @select="emit('select-formula', $event)"
+      />
     </details>
   </div>
 </template>

@@ -1,4 +1,8 @@
 import { computed } from 'vue'
+import {
+  buildOrderPlanReviewPresentation,
+  getFormulaAvailability,
+} from '../domain/formula-research/formulaAvailability.js'
 import { formulaStages } from '../domain/formulas/registry.js'
 import {
   ammCurve,
@@ -30,6 +34,16 @@ import { FORMULA_CHART_LAYOUT, f4, fmt, pctFmt } from './formulaChartPrimitives.
 
 export function useFormulaChartModel(props) {
   const stage = computed(() => formulaStages.find((s) => s.id === props.formulaId))
+  const availability = computed(() =>
+    getFormulaAvailability(props.formulaId, {
+      graph: props.graph,
+      market: props.market,
+      rows: props.rows,
+      costPath: props.costPath,
+      formulaPath: props.formulaPath,
+    }),
+  )
+  const orderReview = computed(() => buildOrderPlanReviewPresentation(props.graph))
   const researchInputs = computed(() => props.graph.researchInputs ?? {})
   const activeIndex = computed(() => {
     if (!props.rows.length) return 0
@@ -114,6 +128,7 @@ export function useFormulaChartModel(props) {
   const lpData = computed(() => {
     const v3 = props.graph.lpV3
     const v2 = props.graph.lp
+    if (!v3 && !v2 && !props.graph.rangeV3Il && !props.graph.fullRangeV2Il) return null
     return {
       v3,
       v2,
@@ -301,6 +316,7 @@ export function useFormulaChartModel(props) {
   const lpPoolData = computed(() => {
     const row = activeFormulaRow.value
     if (!row) return null
+    if (![row.lpPoolTurnover24h, row.lpPoolTopReserveShare].some(Number.isFinite)) return null
     const state = row.fieldStates?.lpPoolTurnover24h
     return {
       turnover24h: row.lpPoolTurnover24h,
@@ -354,6 +370,8 @@ export function useFormulaChartModel(props) {
 
   return {
     stage,
+    availability,
+    orderReview,
     activeIndex,
     fmt,
     f4,

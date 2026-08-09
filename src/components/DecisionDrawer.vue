@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { summarizeReason } from '../domain/decision/narrative.js'
+import { formatFormulaBlockReason } from '../domain/formula-research/formulaInputLabels.js'
+import { buildOrderPlanReviewPresentation } from '../domain/formula-research/formulaPresentation.js'
 import { buildTraderChecklist } from '../domain/workbench/traderChecklist.js'
 import { persistedRef } from '../composables/usePersisted.js'
 import DisclosureSection from './DisclosureSection.vue'
@@ -56,6 +58,7 @@ const ordersTitle = computed(() => (props.graph?.decision?.timing?.side === 'sel
 
 const checklist = computed(() => buildTraderChecklist({ graph: props.graph, market: props.market }))
 const primaryOrders = computed(() => props.graph?.plan?.primaryOrders ?? [])
+const orderReview = computed(() => buildOrderPlanReviewPresentation(props.graph))
 const extremenessText = computed(() => `偏离极端度 ${Math.round((props.graph?.decision?.signalStrength ?? 0) * 100)}%`)
 const factMeta = computed(() => props.graph?.decision?.state || '等待数据')
 const hasPositionFacts = computed(() =>
@@ -249,17 +252,17 @@ function moveSection(id, delta) {
       @move-up="moveSection('triggers', -1)"
       @move-down="moveSection('triggers', 1)"
     >
-      <div class="dd-risk-row">
-        <span>失效线</span>
-        <strong>{{ money(graph?.plan?.invalidation?.lower) }} / {{ money(graph?.plan?.invalidation?.upper) }}</strong>
+      <div v-for="item in orderReview.conditions" :key="`${orderReview.mode}-${item}`" class="dd-risk-row">
+        <span>{{ orderReview.label }}</span>
+        <strong>{{ item }}</strong>
       </div>
       <div v-for="item in graph?.decision?.triggeredConditions ?? []" :key="item" class="dd-risk-row">
         <span>已触发</span>
-        <strong>{{ item }}</strong>
+        <strong>{{ formatFormulaBlockReason(item) }}</strong>
       </div>
       <div v-for="item in graph?.decision?.blockedReasons ?? []" :key="item" class="dd-risk-row">
         <span>未触发</span>
-        <strong>{{ item }}</strong>
+        <strong>{{ formatFormulaBlockReason(item) }}</strong>
       </div>
     </DisclosureSection>
 

@@ -83,13 +83,22 @@ export function usePlanning() {
 
   const activeFormulaId = persistedRef('lab.activeFormulaId.v1', 'delta-band')
   const activeCapabilityId = persistedRef('lab.activeCapabilityId.v1', 'move-derivative')
+  activeFormulaId.value = normalizeFormulaId(activeFormulaId.value)
+  activeCapabilityId.value = capabilityForFormula(activeFormulaId.value)?.id ?? 'move-derivative'
   const activeCapability = computed(() => getFormulaCapability(activeCapabilityId.value))
   const activeCapabilityStages = computed(() => getCapabilityStages(activeCapabilityId.value))
   const activeFormula = computed(() => getFormulaStage(activeFormulaId.value))
 
   function selectCapability(id) {
-    activeCapabilityId.value = id
-    activeFormulaId.value = getCapabilityStages(id)[0]?.id ?? activeFormulaId.value
+    const capability = formulaCapabilities.find((item) => item.id === id) ?? formulaCapabilities[0]
+    activeCapabilityId.value = capability.id
+    activeFormulaId.value = capability.stages[0] ?? activeFormulaId.value
+  }
+
+  function selectFormula(id) {
+    const nextId = normalizeFormulaId(id)
+    activeFormulaId.value = nextId
+    activeCapabilityId.value = capabilityForFormula(nextId)?.id ?? activeCapabilityId.value
   }
 
   // 三栏面板状态：左/右面板开闭 + 左面板当前 tab
@@ -151,6 +160,7 @@ export function usePlanning() {
     formulaCapabilities,
     strategyProfileList,
     selectCapability,
+    selectFormula,
     leftPanelOpen,
     rightPanelOpen,
     activeLeftTab,
@@ -163,6 +173,14 @@ export function usePlanning() {
     resetLeftPanelW,
     resetRightPanelW,
   }
+}
+
+function normalizeFormulaId(id) {
+  return capabilityForFormula(id) ? id : 'delta-band'
+}
+
+function capabilityForFormula(id) {
+  return formulaCapabilities.find((capability) => capability.stages.includes(id)) ?? null
 }
 
 export function buildExecutionBrief(graph) {

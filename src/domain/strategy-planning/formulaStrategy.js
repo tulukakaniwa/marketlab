@@ -20,16 +20,16 @@ export function buildFormulaStrategyComposition({ market, executable, timing, po
         id: 'delta-band',
         label: 'GetDelta',
         formula: 'P,T,s,d → r_T → K → L/H',
-        status: '已接入',
-        value: longBand ? `${fmt(longBand.low)} / ${fmt(longBand.cost)} / ${fmt(longBand.high)}` : '等待输入',
+        status: longBand ? '已计算' : '周期/价格带未成立',
+        value: longBand ? `${fmt(longBand.low)} / ${fmt(longBand.cost)} / ${fmt(longBand.high)}` : '未生成',
         role: `P=${fmt(inputs.entryPrice)}，T=${inputs.formulaHorizonSessions ?? '—'} 个交易会话，s=${pct(inputs.iv)}，d=${pct(inputs.deltaSlope)}。`,
       },
       {
         id: 'deviation-score',
         label: '偏离强度',
         formula: 'costDistance / periodVol',
-        status: '已接入',
-        value: Number.isFinite(timing?.zScore) ? `${timing.zScore.toFixed(2)}σ · ${timing.zStrength}` : '等待市场态',
+        status: Number.isFinite(timing?.zScore) ? '已计算' : '同周期偏离未成立',
+        value: Number.isFinite(timing?.zScore) ? `${timing.zScore.toFixed(2)}σ · ${timing.zStrength}` : '未生成',
         role: '把成本偏离换算成持仓窗口内的波动尺度。',
       },
       {
@@ -62,7 +62,7 @@ export const formulaSource = {
   title: '永久uni期权计算',
   status: 'implemented',
   equation: 'a=s√(T/(N·2π)); r_T=((1+a)/(1-a))²; K=P(1+d(r_T-1))²/r_T',
-  note: 'T 是本次情景持有/到期时间；BTC 历史统计只能辅助模拟档位，不能改写 P/T/s/d。',
+  note: 'T 是方向与结构目标绑定的公式周期；期权到期会话是独立输入，历史统计只能辅助研究，不能改写 P/T/s/d。',
 }
 
 export function buildFormulaBasis(bands, inputs = {}) {

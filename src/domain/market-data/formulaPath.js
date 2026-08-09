@@ -15,6 +15,7 @@ import {
 import { buildCostPath, deriveWindows } from './cost.js'
 import { buildLpDataState } from './lpOnchain.js'
 import { lpPoolCoverageMetrics } from './lpPoolMetrics.js'
+import { resolveExplicitScenarioHorizonSessions } from './formulaPathScenarioInput.js'
 export { FORMULA_PATH_CURVES, FORMULA_PATH_FIELDS } from './formulaPathFields.js'
 
 export function buildFormulaPath(rows, input = {}) {
@@ -32,11 +33,13 @@ export function buildFormulaPath(rows, input = {}) {
     const bandAnchor = costPath[index]?.anchor || row.close
     const horizon = resolveFormulaHorizon({ rows, index, costPath, costDistancePath, input, tdpy })
     const formulaHorizonSessions = horizon?.eligible ? horizon.modelHorizonSessions : null
+    const horizonAvailability = classifyHorizonAvailability(horizon)
     const horizonState = fieldState({
       source: 'dynamic-holding-state',
-      status: horizon?.eligible ? 'research-only' : 'missing-input',
+      status: horizonAvailability.status,
       inputMode: horizon?.mode ?? 'formula-derived',
-      missingInputs: horizon?.eligible ? [] : [horizon?.reason ?? 'formula-derived-horizon'],
+      missingInputs: horizonAvailability.missingInputs,
+      blockedReasons: horizonAvailability.blockedReasons,
       isSynthetic: true,
       context: horizon ?? null,
     })
@@ -50,15 +53,19 @@ export function buildFormulaPath(rows, input = {}) {
           tradingDaysPerYear: tdpy,
         })
       : null
+    const deltaAvailability = classifyDeltaAvailability({
+      deltaBands,
+      horizonAvailability,
+      iv,
+      tdpy,
+      deltaSlope,
+    })
     const deltaState = fieldState({
       source: 'delta-band',
-      status: deltaBands ? 'implemented' : 'missing-input',
+      status: deltaAvailability.status,
       inputMode: horizon?.mode ?? 'formula-derived',
-      missingInputs: [
-        formulaHorizonSessions ? null : 'formula-derived-horizon',
-        iv ? null : 'realized-volatility',
-        tdpy ? null : 'trading-days-per-year',
-      ].filter(Boolean),
+      missingInputs: deltaAvailability.missingInputs,
+      blockedReasons: deltaAvailability.blockedReasons,
       isSynthetic: true,
       context: { horizon: horizon ?? null },
     })
@@ -241,7 +248,6 @@ export function buildFormulaPath(rows, input = {}) {
       costLower: finite(costPath[index]?.lower),
       iv: finite(iv),
       formulaHorizonSessions: finite(formulaHorizonSessions),
-      formulaHorizonDays: finite(formulaHorizonSessions),
       recoveryFraction: finite(horizon?.recoveryFraction),
       deltaLower: finite(deltaBands?.long.low),
       deltaCost: finite(deltaBands?.long.cost),
@@ -249,14 +255,10 @@ export function buildFormulaPath(rows, input = {}) {
       optionDelta: finite(option?.optionDelta),
       optionGamma: finite(option?.optionGamma),
       optionThetaPerSession: finite(option?.optionThetaPerSession),
-      // Deprecated compatibility alias; a session is not a calendar day.
-      optionThetaDaily: finite(option?.optionThetaPerSession),
       lpLowerPrice: finite(lowerPrice),
       lpUpperPrice: finite(upperPrice),
       lpValue: finite(lp?.value),
       lpInventoryDeltaToken0: finite(lp?.inventoryDeltaToken0),
-      // Deprecated compatibility alias; canonical LP sensitivity is explicitly denominated in token0.
-      lpInventoryDelta: finite(lp?.inventoryDeltaToken0),
       lpNormalizedDelta: finite(normalizeInventory(lp, row.close)),
       lpRealPrice: finite(lpRealPrice),
       lpRealDivergence: finite(lpRealPrice ? (row.close - lpRealPrice) / lpRealPrice : null),
@@ -265,12 +267,9 @@ export function buildFormulaPath(rows, input = {}) {
       capitalEfficiency: finite(ce?.efficiency),
       fullRangeV2IlProxy: finite(fullRangeV2Il?.fullRangeV2IlProxy),
       rangeV3Il: finite(rangeV3Il?.rangeV3Il),
-      // Deprecated compatibility alias. This is v2 full-range IL, never v3 range IL.
-      impermanentLoss: finite(fullRangeV2Il?.fullRangeV2IlProxy),
       netLpEfficiency: null,
       fundingBasis: finite(funding?.basisFraction),
       cumulativeFundingProxy: finite(funding?.cumulativeFundingProxy),
-      fundingProxy: finite(funding?.cumulativeFundingProxy),
       netCarry: finite(carry?.netReturn),
       breakEvenFundingNetCostReturn: finite(carry?.breakEvenFundingNetCostReturn),
       status: buildFormulaPathStatus({ horizonState, deltaState, optionState, fundingState, lpState, lpPoolState }),
@@ -300,29 +299,26 @@ function normalizeInventory(lp, markPrice) {
 }
 
 function resolveFormulaHorizon({ rows, index, costPath, costDistancePath, input, tdpy }) {
-  if (input.pathUsesScenarioInputs) {
-    const scenarioSessions =
-      positive(input.formulaHorizonSessions) ?? positive(input.formulaHorizonDays) ?? positive(input.holdingDays)
-    if (scenarioSessions) {
-      const scenarioSide = ['long', 'short'].includes(input.formulaHorizonSide) ? input.formulaHorizonSide : null
-      return {
-        status: 'eligible',
-        eligible: true,
-        mode: 'explicit-scenario',
-        cycleStartPrice: rows[index]?.close,
-        targetPrice: positive(input.horizonTargetPrice),
-        targetSource: nonEmptyString(input.horizonTargetSource),
-        side: scenarioSide,
-        availableAt: nonEmptyString(input.horizonAvailableAt),
-        modelHorizonRaw: scenarioSessions,
-        modelHorizonSessions: scenarioSessions,
-        recoveryFraction: null,
-        halfLifeSessions: null,
-        identityClaimClass: 'missing-input',
-        resultClaimClass: 'scenario-proxy',
-        executionAuthority: 'none',
-        reason: 'explicit-scenario-horizon-not-formula-derived',
-      }
+  const scenarioSessions = resolveExplicitScenarioHorizonSessions(input)
+  if (scenarioSessions) {
+    const scenarioSide = ['long', 'short'].includes(input.formulaHorizonSide) ? input.formulaHorizonSide : null
+    return {
+      status: 'eligible',
+      eligible: true,
+      mode: 'explicit-scenario',
+      cycleStartPrice: rows[index]?.close,
+      targetPrice: positive(input.horizonTargetPrice),
+      targetSource: nonEmptyString(input.horizonTargetSource),
+      side: scenarioSide,
+      availableAt: nonEmptyString(input.horizonAvailableAt),
+      modelHorizonRaw: scenarioSessions,
+      modelHorizonSessions: scenarioSessions,
+      recoveryFraction: null,
+      halfLifeSessions: null,
+      identityClaimClass: 'missing-input',
+      resultClaimClass: 'scenario-proxy',
+      executionAuthority: 'none',
+      reason: 'explicit-scenario-horizon-not-formula-derived',
     }
   }
 
@@ -338,10 +334,11 @@ function resolveFormulaHorizon({ rows, index, costPath, costDistancePath, input,
     meanReversion?.halfLifeSessions > 0
   if (!monotonic) {
     return {
-      status: 'waiting',
+      status: 'model-gate-failed',
       eligible: false,
       mode: 'formula-derived',
       reason: 'non-monotonic-or-insufficient-ar-prefix',
+      resultClaimClass: null,
       meanReversion,
       executionAuthority: 'none',
     }
@@ -389,6 +386,7 @@ function fieldState({
   status,
   inputMode,
   missingInputs = [],
+  blockedReasons = [],
   context = null,
   isSynthetic = inputMode !== 'real',
 }) {
@@ -397,6 +395,7 @@ function fieldState({
     status,
     inputMode,
     missingInputs,
+    blockedReasons,
     isSynthetic,
     ...(context ? { context } : {}),
   }
@@ -410,28 +409,12 @@ function buildFieldStates({ horizonState, deltaState, optionState, lpState, lpPo
     costLower: fieldState({ source: 'cost', status: 'implemented', inputMode: 'real' }),
     iv: fieldState({ source: 'volatility', status: 'implemented', inputMode: 'real' }),
     formulaHorizonSessions: horizonState,
-    formulaHorizonDays: fieldState({
-      source: 'dynamic-holding-state',
-      status: 'deprecated',
-      inputMode: horizonState.inputMode,
-      missingInputs: horizonState.missingInputs,
-      isSynthetic: horizonState.isSynthetic,
-      context: { ...(horizonState.context ?? {}), deprecated: true, legacyAliasOf: 'formulaHorizonSessions' },
-    }),
     recoveryFraction: horizonState,
     deltaLower: deltaState,
     deltaCost: deltaState,
     deltaUpper: deltaState,
   }
   for (const field of ['optionDelta', 'optionGamma', 'optionThetaPerSession']) base[field] = optionState
-  base.optionThetaDaily = fieldState({
-    source: 'option-greeks',
-    status: 'deprecated',
-    inputMode: optionState.inputMode,
-    missingInputs: optionState.missingInputs,
-    isSynthetic: optionState.isSynthetic,
-    context: { ...(optionState.context ?? {}), deprecated: true, legacyAliasOf: 'optionThetaPerSession' },
-  })
   for (const field of [
     'lpLowerPrice',
     'lpUpperPrice',
@@ -446,34 +429,56 @@ function buildFieldStates({ horizonState, deltaState, optionState, lpState, lpPo
     'netLpEfficiency',
   ])
     base[field] = lpState
-  base.lpInventoryDelta = fieldState({
-    source: 'lp-inventory',
-    status: 'deprecated',
-    inputMode: lpState.inputMode,
-    missingInputs: lpState.missingInputs,
-    isSynthetic: lpState.isSynthetic,
-    context: { ...(lpState.context ?? {}), deprecated: true, legacyAliasOf: 'lpInventoryDeltaToken0' },
-  })
-  base.impermanentLoss = fieldState({
-    source: 'lp-inventory',
-    status: 'deprecated',
-    inputMode: lpState.inputMode,
-    missingInputs: lpState.missingInputs,
-    isSynthetic: lpState.isSynthetic,
-    context: { ...(lpState.context ?? {}), deprecated: true, legacyAliasOf: 'fullRangeV2IlProxy' },
-  })
   for (const field of ['lpPoolTurnover24h', 'lpPoolTopReserveShare']) base[field] = lpPoolState
   for (const field of ['fundingBasis', 'cumulativeFundingProxy']) base[field] = fundingState
   for (const field of ['netCarry', 'breakEvenFundingNetCostReturn']) base[field] = carryState
-  base.fundingProxy = fieldState({
-    source: 'funding',
-    status: 'deprecated',
-    inputMode: fundingState.inputMode,
-    missingInputs: fundingState.missingInputs,
-    isSynthetic: fundingState.isSynthetic,
-    context: { ...(fundingState.context ?? {}), deprecated: true, legacyAliasOf: 'cumulativeFundingProxy' },
-  })
   return base
+}
+
+function classifyHorizonAvailability(horizon) {
+  if (horizon?.eligible) return { status: 'research-only', missingInputs: [], blockedReasons: [] }
+  const reason = horizon?.reason ?? 'formula-derived-horizon'
+  const status = ['missing-input', 'not-applicable', 'model-gate-failed'].includes(horizon?.status)
+    ? horizon.status
+    : classifyLegacyHorizonReason(reason)
+  if (status === 'missing-input') {
+    return { status: 'missing-input', missingInputs: ['formula-horizon-inputs'], blockedReasons: [reason] }
+  }
+  return { status, missingInputs: [], blockedReasons: [reason] }
+}
+
+function classifyLegacyHorizonReason(reason) {
+  if (reason === 'invalid-recovery-input') return 'missing-input'
+  if (['cycle-start-at-or-beyond-anchor', 'target-already-crossed-at-cycle-start'].includes(reason)) {
+    return 'not-applicable'
+  }
+  return 'model-gate-failed'
+}
+
+function classifyDeltaAvailability({ deltaBands, horizonAvailability, iv, tdpy, deltaSlope }) {
+  if (deltaBands) return { status: 'implemented', missingInputs: [], blockedReasons: [] }
+
+  const missingInputs = [
+    ...(horizonAvailability.status === 'missing-input' ? horizonAvailability.missingInputs : []),
+    iv ? null : 'realized-volatility',
+    tdpy ? null : 'trading-days-per-year',
+    Number.isFinite(deltaSlope) ? null : 'delta-slope',
+  ].filter(Boolean)
+  if (['not-applicable', 'model-gate-failed'].includes(horizonAvailability.status)) {
+    return {
+      status: horizonAvailability.status,
+      missingInputs,
+      blockedReasons: horizonAvailability.blockedReasons,
+    }
+  }
+  if (missingInputs.length) {
+    return {
+      status: 'missing-input',
+      missingInputs,
+      blockedReasons: horizonAvailability.blockedReasons,
+    }
+  }
+  return { status: 'model-gate-failed', missingInputs: [], blockedReasons: ['delta-band-model-domain'] }
 }
 
 function buildFormulaPathStatus({ horizonState, deltaState, optionState, fundingState, lpState, lpPoolState }) {

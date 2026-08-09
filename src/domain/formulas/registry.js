@@ -422,7 +422,7 @@ export const formulaCapabilities = [
   {
     id: 'move-derivative',
     label: '波动定价引擎',
-    role: '把任意入场价和持仓时间翻成价格带、期权敏感度和均价结构',
+    role: '把任意入场价和方向/结构目标绑定的公式周期翻成价格带；期权敏感度另用独立到期期限',
     stages: ['delta-band', 'option-greeks', 'asian-option'],
     action: '回答应该给价格留多宽、风险曲率来自哪里。',
   },

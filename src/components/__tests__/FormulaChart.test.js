@@ -23,7 +23,7 @@ describe('FormulaChart', () => {
     expect(wrapper.text()).toContain('CK 端点比资本效率')
     expect(wrapper.text()).toContain('±84.13%')
     expect(wrapper.text()).toContain('几何中点')
-    expect(wrapper.text()).toContain('非当前价执行最优')
+    expect(wrapper.text()).toContain('不是标的交易最优区间')
   })
 
   it('偏离图只展示极端度和双尾质量，不展示回归概率', () => {
@@ -105,6 +105,78 @@ describe('FormulaChart', () => {
     expect(wrapper.text()).toContain('2.00%')
     expect(wrapper.text()).toContain('净 carry')
     expect(wrapper.text()).not.toContain('Funding 净成本 -2.00%')
+  })
+
+  it('当前期权输出为空时，fallback 显示中文缺失输入和下一步', () => {
+    const graph = {
+      ...makeGraph(),
+      option: null,
+      optionPortfolio: null,
+      researchInputs: { rangeWidth: 0.08, skew: 1, liquidity: 1, optionTenorSessions: null },
+    }
+    const wrapper = mount(FormulaChart, { props: makeProps('option-greeks', { graph }) })
+
+    expect(wrapper.text()).toContain('待输入')
+    expect(wrapper.text()).toContain('独立期权到期交易会话')
+    expect(wrapper.text()).toContain('下一步')
+    expect(wrapper.text()).not.toContain('option-tenor-sessions')
+  })
+
+  it('结构起点越过成本锚时展示不适用，不诱导用户填固定周期', () => {
+    const graph = {
+      ...makeGraph(),
+      inputs: { ...makeGraph().inputs, formulaHorizonSessions: null },
+    }
+    const formulaPath = makeFormulaPath(makeRows(10))
+    formulaPath.at(-1).fieldStates = {
+      ...formulaPath.at(-1).fieldStates,
+      deltaUpper: {
+        status: 'not-applicable',
+        missingInputs: [],
+        blockedReasons: ['cycle-start-at-or-beyond-anchor'],
+      },
+      formulaHorizonSessions: {
+        status: 'not-applicable',
+        missingInputs: [],
+        blockedReasons: ['cycle-start-at-or-beyond-anchor'],
+      },
+    }
+    const wrapper = mount(FormulaChart, {
+      props: makeProps('delta-band', { graph, rows: makeRows(10), formulaPath }),
+    })
+
+    expect(wrapper.text()).toContain('当前结构不适用')
+    expect(wrapper.text()).toContain('没有前向修复区间')
+    expect(wrapper.text()).toContain('不手工填固定周期')
+    expect(wrapper.text()).not.toContain('价格带 · 多空成本结构')
+    expect(wrapper.text()).not.toContain('缺少输入')
+  })
+
+  it('AMM 和模拟挂单不在可见 HTML 暴露内部状态 token', () => {
+    const amm = mount(FormulaChart, { props: makeProps('amm-geometry') })
+    expect(amm.text()).toContain('Numoen 未验证')
+    expect(amm.text()).not.toContain('protocol-unverified')
+
+    const graph = {
+      ...makeGraph(),
+      inputs: { ...makeGraph().inputs, formulaHorizonSessions: null },
+      deltaBands: null,
+      decision: {
+        state: '周期门禁未通过',
+        missingInputs: ['formula-derived-horizon'],
+        timing: { reason: '当前结构没有有限公式周期' },
+        reviewConditions: ['成本锚、结构目标或 AR 门禁变化后复核'],
+        invalidations: [],
+      },
+      plan: { primaryOrders: [], invalidation: { lower: null, upper: null } },
+    }
+    const plan = mount(FormulaChart, { props: makeProps('order-plan', { graph }) })
+    expect(plan.text()).toContain('公式推导周期')
+    expect(plan.text()).toContain('复核条件')
+    expect(plan.text()).toContain('成本锚、结构目标或 AR 门禁变化后复核')
+    expect(plan.text()).not.toContain('失效下沿')
+    expect(plan.text()).not.toContain('失效上沿')
+    expect(plan.text()).not.toContain('formula-derived-horizon')
   })
 })
 

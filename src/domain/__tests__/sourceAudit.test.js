@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { formulaEvidenceCatalog } from '../formulas/evidence.js'
 import { formulaStages, getFormulaStage } from '../formulas/registry.js'
 import { formulaSourceAudit } from '../formulas/sourceAudit.js'
-import { FORMULA_PATH_CURVES } from '../market-data/formulaPath.js'
+import { FORMULA_PATH_CURVES, FORMULA_PATH_FIELDS } from '../market-data/formulaPath.js'
 
 describe('formula source audit', () => {
   it('keeps blog/desmos research formulas out of the executable chain by default', () => {
@@ -124,6 +124,19 @@ describe('formula source audit', () => {
       ).toBe(true)
       expect(['priceBands', 'greeksPane', 'lpPane', 'carryPane'].includes(meta.pane)).toBe(true)
       expect(['implemented', 'research-only', 'proxy-only'].includes(meta.status)).toBe(true)
+    }
+  })
+
+  it('keeps deprecated aliases out of the canonical formula path registry', () => {
+    for (const alias of [
+      'formulaHorizonDays',
+      'optionThetaDaily',
+      'lpInventoryDelta',
+      'impermanentLoss',
+      'fundingProxy',
+    ]) {
+      expect(FORMULA_PATH_FIELDS).not.toHaveProperty(alias)
+      expect(FORMULA_PATH_CURVES).not.toHaveProperty(alias)
     }
   })
 })

@@ -78,7 +78,7 @@ function tierTitle(kind) {
       </section>
 
       <section class="pool-dims">
-        <span>research-only · 非执行建议</span>
+        <span>仅研究 · 非执行建议</span>
         <span v-for="dim in dimensions" :key="dim.id">{{ dim.label }} {{ dim.weight }}</span>
       </section>
 

@@ -7,6 +7,7 @@ const LADDER_WEIGHTS = [0.2, 0.3, 0.5]
 
 export function buildPositionPlan(timing, bands, account, profile, market, executableInputs = {}) {
   const executableProfile = ensureExecutableProfile(profile, market)
+  if (!timing?.side) return emptyPosition(timing, account)
   if (!account.isConfigured) {
     return {
       ...emptyPosition(timing, account),
@@ -15,7 +16,6 @@ export function buildPositionPlan(timing, bands, account, profile, market, execu
       rule: '缺少账户资金输入，模拟挂单不生成名义金额。',
     }
   }
-  if (!timing?.side) return emptyPosition(timing, account)
   if (timing.side === 'buy' && account.cash <= 0) {
     return {
       ...emptyPosition(timing, account),

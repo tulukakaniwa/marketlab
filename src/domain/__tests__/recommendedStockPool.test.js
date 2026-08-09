@@ -4,6 +4,7 @@ import {
   DIMENSION_LIBRARY,
   buildScoreConfig,
   computeBuyScore,
+  deriveRecommendedStockDecisionMetrics,
   generateRecommendedStockPool,
   deviationPercentileFromZ,
 } from '../strategy-planning/recommendedStockPool.js'
@@ -201,6 +202,59 @@ describe('computeBuyScore', () => {
     const r2 = computeBuyScore(STRONG, { dimensions: cfg2 })
     expect(r2.maxScore).toBeCloseTo(r1.maxScore - 30, 1)
     expect(r2.score).toBeLessThanOrEqual(r1.score)
+  })
+})
+
+describe('deriveRecommendedStockDecisionMetrics', () => {
+  const costDistanceSeries = Array.from({ length: 20 }, (_, index) => -0.2 * 0.8 ** index)
+
+  it.each([
+    {
+      label: '结构不适用',
+      input: { price: 90.04, costAnchor: 88.44, costLow: 83.53 },
+      status: 'not-applicable',
+      claimClass: null,
+      reason: 'cycle-start-at-or-beyond-anchor',
+    },
+    {
+      label: '结构目标越过锚点',
+      input: { price: 80, costAnchor: 100, costLow: 105 },
+      status: 'model-gate-failed',
+      claimClass: null,
+      reason: 'target-not-strictly-between-cycle-start-and-anchor',
+    },
+    {
+      label: '确实缺输入',
+      input: { price: null, costAnchor: 100, costLow: 90 },
+      status: 'missing-input',
+      claimClass: 'missing-input',
+      reason: 'invalid-recovery-input',
+    },
+  ])('$label 时周期状态与结果声明不混用', ({ input, status, claimClass, reason }) => {
+    const result = deriveRecommendedStockDecisionMetrics({
+      ...input,
+      costDistanceSeries,
+      tradingDaysPerYear: 242,
+    })
+
+    expect(result.formulaHorizonSessions).toBeNull()
+    expect(result.holdingProjectionStatus).toBe(status)
+    expect(result.holdingProjectionClaimClass).toBe(claimClass)
+    expect(result.holdingProjectionReason).toBe(reason)
+  })
+
+  it('可用周期仍保留 scenario-proxy 结果声明', () => {
+    const result = deriveRecommendedStockDecisionMetrics({
+      price: 80,
+      costAnchor: 100,
+      costLow: 90,
+      costDistanceSeries,
+      tradingDaysPerYear: 242,
+    })
+
+    expect(result.holdingProjectionStatus).toBe('eligible')
+    expect(result.holdingProjectionClaimClass).toBe('scenario-proxy')
+    expect(result.formulaHorizonSessions).toBeGreaterThan(0)
   })
 })
 

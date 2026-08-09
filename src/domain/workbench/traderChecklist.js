@@ -1,3 +1,5 @@
+import { formatFormulaInputToken } from '../formula-research/formulaAvailability.js'
+
 const STATUS_RANK = { ok: 0, wait: 1, missing: 2, research: 3, off: 4 }
 
 export function buildTraderChecklist({ graph, market } = {}) {
@@ -107,7 +109,7 @@ function optionItem(graph) {
     '期权组合',
     'research',
     `${combo.legs?.length ?? 0} legs`,
-    `Delta ${f4(combo.optionDelta)}，Gamma ${f4(combo.optionGamma)}，research-only。`,
+    `Delta ${f4(combo.optionDelta)}，Gamma ${f4(combo.optionGamma)}；仅用于研究风险暴露。`,
   )
 }
 
@@ -156,7 +158,7 @@ function mapMissing(id) {
     'account.capital': '需要在启动配置里填写账户资金。',
     'account.basePosition': '需要填写底仓名义，才能计算减仓候选。',
   }
-  return labels[id] ?? `缺少 ${id}。`
+  return labels[id] ?? `缺少${formatFormulaInputToken(id)}。`
 }
 
 function fmt(v) {

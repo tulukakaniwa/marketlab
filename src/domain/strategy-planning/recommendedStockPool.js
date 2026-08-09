@@ -281,7 +281,7 @@ export function deriveRecommendedStockDecisionMetrics(metrics) {
       out.meanReversionCalibrationStatus = 'sample-only'
       out.meanReversionCalibrationId = null
       // 周期只能由当时结构目标隐含的恢复比例推导；不再把 2×HL/3×HL
-      // 当成全局持仓周期。若目标不严格位于现价与锚之间，则保持缺失。
+      // 当成全局持仓周期。若目标不适用或模型门禁失败，数值保持为空并分别标状态，不伪装成缺输入。
       if (out.meanReversionMonotonicGate && Number.isFinite(out.halfLifeSessions) && out.halfLifeSessions > 0) {
         const recovery = deriveRecoveryHorizon({
           cycleStartPrice: metrics.price,
@@ -292,7 +292,8 @@ export function deriveRecommendedStockDecisionMetrics(metrics) {
         out.formulaHorizonSessions = recovery.eligible ? recovery.modelHorizonSessions : null
         out.holdingProjectionRaw = recovery.eligible ? round2(recovery.modelHorizonRaw) : null
         out.recoveryFraction = recovery.eligible ? round2(recovery.recoveryFraction) : null
-        out.holdingProjectionStatus = recovery.eligible ? 'scenario-proxy' : 'missing-input'
+        out.holdingProjectionStatus = recovery.status
+        out.holdingProjectionClaimClass = recovery.resultClaimClass
         out.holdingProjectionReason = recovery.eligible ? null : recovery.reason
       }
     }

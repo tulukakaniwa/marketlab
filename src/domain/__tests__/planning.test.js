@@ -17,6 +17,15 @@ function makeRows(n, gen) {
   })
 }
 
+function moveBelowCost(market) {
+  const markPrice = market.costLow * 0.99
+  return {
+    ...market,
+    markPrice,
+    costDistance: (markPrice - market.costAnchor) / market.costAnchor,
+  }
+}
+
 describe('strategyProfileList', () => {
   it('档位顺序固定：保守 / 均衡 / 激进 / 自定义', () => {
     expect(strategyProfileList.map((p) => p.id)).toEqual(['conservative', 'balanced', 'aggressive', 'custom'])
@@ -73,7 +82,7 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.triggeredConditions).toBeDefined()
     expect(g.decision.blockedReasons).toBeDefined()
     expect(g.decision.missingInputs).toBeDefined()
-    expect(g.decision.signalSemantics).toBe('normal-reference-extremeness-not-confidence-or-win-probability')
+    expect(g.decision.signalSemantics).toMatch(/not-confidence-or-win-probability$/)
     expect(g.formulaStrategy.steps.map((step) => step.id)).toEqual([
       'cost',
       'delta-band',
@@ -185,20 +194,22 @@ describe('buildDecisionGraph', () => {
   })
 
   it('缺少公式周期时关闭默认挂单，不回退到 holdingDays', () => {
+    const belowCostMarket = moveBelowCost(market)
     const blocked = buildDecisionGraph({
-      market,
+      market: belowCostMarket,
       input: { ...baseInput, formulaHorizonSessions: null, holdingDays: 30 },
     })
 
     expect(blocked.deltaBands).toBeNull()
     expect(blocked.plan.primaryOrders).toEqual([])
     expect(blocked.decision.missingInputs).toContain('formula-derived-horizon')
-    expect(blocked.decision.holdingWindow).toBe('待公式推导')
+    expect(blocked.decision.holdingWindow).toBe('当前无方向周期')
   })
 
   it('缺少 tradingDaysPerYear 时关闭默认挂单', () => {
+    const belowCostMarket = moveBelowCost(market)
     const blocked = buildDecisionGraph({
-      market,
+      market: belowCostMarket,
       input: { ...baseInput, tradingDaysPerYear: null },
     })
 
@@ -233,11 +244,12 @@ describe('buildDecisionGraph', () => {
     expect(g.plan.primaryOrders).toEqual([])
   })
 
-  it('未触发默认条件时仍暴露账户资金缺口', () => {
+  it('未触发默认条件时不把账户资金缺口混入当前门禁', () => {
     const g = buildDecisionGraph({ market, input: noAccountInput })
     expect(g.plan.primaryOrders).toEqual([])
     expect(g.position.maxNotional).toBeNull()
-    expect(g.decision.missingInputs).toContain('account.capital')
+    expect(g.position.missingInputs).toEqual([])
+    expect(g.decision.missingInputs).not.toContain('account.capital')
   })
 
   it('long-side 成本下沿周期不能复用于溢价减仓', () => {

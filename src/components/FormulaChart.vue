@@ -14,7 +14,7 @@ const props = defineProps({
 })
 
 const {
-  stage, activeIndex, fmt, f4, pctFmt, pathData, costData, volData, bandData,
+  stage, availability, orderReview, activeIndex, fmt, f4, pctFmt, pathData, costData, volData, bandData,
   greeksData, lpData, syH, lpV3Curve, lpV3Marker, lpRealMarker, lpV3Bounds, ceData,
   ceCurve, ceDot, ceFrontierDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
   bachelierData, ammData, fingerprintData, devScoreData, normalCurve, zMarker,
@@ -31,6 +31,12 @@ function greekTone(value) {
 
 <template>
   <div class="fc-shell">
+
+    <div v-if="!availability.canRender" class="fc-availability" :class="`state-${availability.tone}`">
+      <strong>{{ availability.label }}</strong>
+      <span v-if="availability.missingInputs.length">缺少：{{ availability.missingText }}</span>
+      <span v-if="availability.blockedReasons.length">原因：{{ availability.reasonText }}</span>
+    </div>
 
     <!-- PATH -->
     <div v-if="formulaId === 'path' && pathData" class="fc-card">
@@ -95,7 +101,11 @@ function greekTone(value) {
     </div>
 
     <!-- DELTA BANDS -->
-    <svg v-else-if="formulaId === 'delta-band' && bandData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
+    <svg
+      v-else-if="formulaId === 'delta-band' && availability.canRender && bandData"
+      :viewBox="`0 0 ${W} ${H}`"
+      class="fc-svg"
+    >
       <defs><marker id="arrow-red" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="4" markerHeight="4"><path d="M0,6 L3,0 L6,6 Z" fill="var(--red)" /></marker></defs>
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">价格带 · 多空成本结构</text>
       <rect :x="sx(0.0)" :y="sy(bandData.longHigh)" :width="pw*0.42" :height="Math.max(2, ph*(bandData.longHigh - bandData.longLow))" fill="var(--blue-dim)" rx="4" />
@@ -196,7 +206,7 @@ function greekTone(value) {
       <text :x="W-PR" :y="sy(0.05)" text-anchor="end" class="fc-tick">x (Token0)</text>
       <text :x="PL+4" :y="sy(0.95)" class="fc-tick">y (Token1)</text>
 
-      <text :x="W-PR" :y="H-18" text-anchor="end" class="fc-tick">绿 xy=k · 蓝 Lambert W 研究曲线 · Numoen {{ ammData.numoen.status }}</text>
+      <text :x="W-PR" :y="H-18" text-anchor="end" class="fc-tick">绿 xy=k · 蓝 Lambert W 研究曲线 · Numoen {{ availability.label }}</text>
       <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">L = {{ f4(ammData.curve.L) }} · k = {{ fmt(ammData.curve.invariant) }} · slip {{ f4(ammData.numoen.slippageY) }}</text>
     </svg>
 
@@ -212,7 +222,7 @@ function greekTone(value) {
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0%</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">100%</text>
-      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">CK ±84.13% 是几何中点口径的精确边际拐点；非当前价执行最优</text>
+      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">CK ±84.13% 仅是几何中点/端点比目标下的精确拐点；不是标的交易最优区间</text>
     </svg>
 
     <!-- FUNDING -->
@@ -262,12 +272,17 @@ function greekTone(value) {
         <div class="fc-meta">{{ props.graph.decision?.timing?.reason || '价格未触发入场条件' }}</div>
         <div class="fc-kv">
           <div><b>状态</b><span>{{ props.graph.decision?.state || '—' }}</span></div>
-          <div><b>失效下沿</b><span>{{ fmt(props.graph.plan?.invalidation?.lower) }}</span></div>
-          <div><b>失效上沿</b><span>{{ fmt(props.graph.plan?.invalidation?.upper) }}</span></div>
-          <div><b>缺失输入</b><span>{{ props.graph.decision?.missingInputs?.join(' / ') || '无' }}</span></div>
+          <template v-if="orderReview.mode === 'invalidation'">
+            <div><b>失效下沿</b><span>{{ fmt(orderReview.lower) }}</span></div>
+            <div><b>失效上沿</b><span>{{ fmt(orderReview.upper) }}</span></div>
+          </template>
+          <div v-else>
+            <b>复核条件</b><span>{{ orderReview.conditions[0] || '当前没有可展示的复核条件' }}</span>
+          </div>
+          <div><b>缺失输入</b><span>{{ availability.missingText }}</span></div>
         </div>
-        <div v-if="props.graph.decision?.invalidations?.length" class="fc-meta">
-          <div v-for="(inv, idx) in props.graph.decision.invalidations" :key="idx">• {{ inv }}</div>
+        <div v-if="orderReview.conditions.length" class="fc-meta">
+          <div v-for="(condition, idx) in orderReview.conditions" :key="idx">• {{ condition }}</div>
         </div>
       </div>
     </div>
@@ -328,7 +343,11 @@ function greekTone(value) {
 
     <!-- FUSION CARDS -->
     <FormulaFusionViews
-      v-else-if="formulaId === 'net-lp-efficiency' || formulaId === 'dynamic-holding-state' || formulaId === 'lp-pool-coverage'"
+      v-else-if="
+        (formulaId === 'net-lp-efficiency' && netLpData) ||
+        (formulaId === 'dynamic-holding-state' && dynamicHoldingData) ||
+        (formulaId === 'lp-pool-coverage' && lpPoolData)
+      "
       :formula-id="formulaId"
       :net-lp-data="netLpData"
       :lp-pool-data="lpPoolData"
@@ -398,7 +417,15 @@ function greekTone(value) {
     <!-- FALLBACK -->
     <div v-else class="fc-card">
       <span class="fc-ttl">{{ stage?.label || formulaId }}</span>
-      <div class="fc-meta">{{ stage?.role || '等待数据载入' }}</div>
+      <strong class="fc-fallback-state" :class="`state-${availability.tone}`">{{ availability.label }}</strong>
+      <div v-if="availability.missingInputs.length" class="fc-fallback-row">
+        <b>缺少输入</b><span>{{ availability.missingText }}</span>
+      </div>
+      <div v-if="availability.blockedReasons.length" class="fc-fallback-row">
+        <b>当前原因</b><span>{{ availability.reasonText }}</span>
+      </div>
+      <div class="fc-fallback-row"><b>下一步</b><span>{{ availability.nextStep }}</span></div>
+      <div class="fc-meta">{{ availability.boundary }}</div>
     </div>
 
     <!-- 小白指南 -->
@@ -416,6 +443,18 @@ function greekTone(value) {
 .fc-ttl { font-size: 0.7rem; font-weight: 900; fill: var(--green); letter-spacing: 0.04em; color: var(--green); }
 .fc-tick { font-size: 9px; fill: var(--muted); }
 .fc-card { display: grid; gap: 8px; padding: 12px; }
+.fc-availability { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: baseline; padding: 7px 10px; border-bottom: 1px solid currentColor; background: var(--surface-alt); font-size: 0.68rem; }
+.fc-availability strong { font-size: 0.72rem; }
+.fc-availability.state-missing, .fc-availability.state-gate-failed { color: var(--red); }
+.fc-availability.state-not-applicable { color: var(--muted); }
+.fc-fallback-state { width: max-content; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 0.72rem; }
+.fc-fallback-state.state-missing, .fc-fallback-state.state-gate-failed { color: var(--red); }
+.fc-fallback-state.state-not-applicable { color: var(--muted); }
+.fc-fallback-state.state-research { color: var(--blue); }
+.fc-fallback-state.state-proxy { color: #8b5a16; }
+.fc-fallback-state.state-unverified { color: var(--muted); }
+.fc-fallback-row { display: grid; grid-template-columns: 68px 1fr; gap: 8px; font-size: 0.74rem; line-height: 1.45; }
+.fc-fallback-row b { color: var(--muted); }
 .fc-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .fc-kv div { display: grid; gap: 1px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
 .fc-kv b { font-size: 0.6rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }

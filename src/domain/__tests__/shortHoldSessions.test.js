@@ -28,9 +28,50 @@ describe('deriveShortHoldWindow session contract', () => {
     expect(finite).not.toHaveProperty('modelHorizonDays')
     expect(finite).not.toHaveProperty('halfLifeDays')
     expect(finite.identityClaimClass).toBe('exact-identity')
+    expect(finite.resultClaimClass).toBe('scenario-proxy')
     expect(anchor.eligible).toBe(false)
+    expect(anchor.status).toBe('model-gate-failed')
+    expect(anchor.resultClaimClass).toBeNull()
     expect(anchor.recoveryFraction).toBe(1)
     expect(anchor.reason).toBe('target-not-strictly-between-cycle-start-and-anchor')
+  })
+
+  it('区分真实缺输入、结构不适用和模型门禁失败，不把三者都标成 missing-input', () => {
+    const missing = deriveRecoveryHorizon({ cycleStartPrice: null, anchorPrice: 100, targetPrice: 90 })
+    const notApplicable = deriveRecoveryHorizon({
+      cycleStartPrice: 110,
+      anchorPrice: 100,
+      targetPrice: 95,
+      halfLifeSessions: 4,
+    })
+    const modelGateFailed = deriveRecoveryHorizon({
+      cycleStartPrice: 80,
+      anchorPrice: 100,
+      targetPrice: 105,
+      halfLifeSessions: 4,
+    })
+
+    expect(missing).toMatchObject({
+      eligible: false,
+      status: 'missing-input',
+      reason: 'invalid-recovery-input',
+      resultClaimClass: 'missing-input',
+    })
+    expect(notApplicable).toMatchObject({
+      eligible: false,
+      status: 'not-applicable',
+      reason: 'cycle-start-at-or-beyond-anchor',
+      resultClaimClass: null,
+    })
+    expect(modelGateFailed).toMatchObject({
+      eligible: false,
+      status: 'model-gate-failed',
+      reason: 'target-not-strictly-between-cycle-start-and-anchor',
+      resultClaimClass: null,
+    })
+    expect(
+      [missing, notApplicable, modelGateFailed].every((result) => result.identityClaimClass === 'exact-identity'),
+    ).toBe(true)
   })
 
   it('用 z 与半衰期推导按交易会话计量的短线窗口', () => {

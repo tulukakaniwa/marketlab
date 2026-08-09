@@ -280,6 +280,7 @@ export const useLabStore = defineStore('lab', () => {
     formulaCapabilities: planning.formulaCapabilities,
     strategyProfileList: planning.strategyProfileList,
     selectCapability: planning.selectCapability,
+    selectFormula: planning.selectFormula,
 
     // 三栏面板态 + 主图叠加（v3.1）+ 面板宽度（v3.2）
     leftPanelOpen: planning.leftPanelOpen,

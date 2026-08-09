@@ -25,5 +25,7 @@ export function positive(value) {
 }
 
 export function formatPrice(value) {
-  return Number.isFinite(value) ? Math.round(value).toLocaleString('zh-CN') : '未知'
+  return Number.isFinite(value)
+    ? new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
+    : '未知'
 }

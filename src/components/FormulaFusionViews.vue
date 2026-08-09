@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatFormulaBlockReason, formatFormulaInputList } from '../domain/formula-research/formulaAvailability.js'
 
 const props = defineProps({
   formulaId: { type: String, required: true },
@@ -62,12 +63,13 @@ function statusClass(status) {
   return ''
 }
 function targetName(id) {
-  return { firstRepair: '成本下沿', baseAnchor: '成本锚', stretch: 'LP 上沿' }[id] ?? id ?? '—'
+  if (!id) return '—'
+  return { firstRepair: '成本下沿', baseAnchor: '成本锚', stretch: 'LP 上沿' }[id] ?? '未标注目标'
 }
 function actionName(action) {
   return (
     {
-      execute: '执行',
+      execute: '形成模拟候选',
       review: '复核',
       'wait-window': '等窗口',
       'wait-target': '等目标',
@@ -75,24 +77,35 @@ function actionName(action) {
       'wait-drawdown-stabilize': '等止跌',
       'review-extension': '锚后复核',
       'refresh-data': '刷新数据',
-    }[action] ??
-    action ??
-    '—'
+    }[action] ?? (action ? '未标注动作' : '—')
   )
 }
 function reasonText(reasons = []) {
-  const map = {
-    'drawdown-expanding': '回撤扩张',
-    'gross-return': '收益不足',
-    'holding-window': '周期外',
-    'insufficient-history': '数据不足',
-    'no-structural-target': '无目标',
-    'non-finite-target-horizon': '目标周期不可解',
-    'post-anchor-extension': '锚后扩展',
-    'target-behind-entry': '目标反向',
-    'z-threshold': 'z不足',
-  }
-  return reasons.length ? reasons.map((reason) => map[reason] ?? reason).join('/') : '通过'
+  return reasons.length ? reasons.map(formatFormulaBlockReason).join('/') : '通过'
+}
+function researchStatus(status) {
+  return (
+    {
+      implemented: '可查看',
+      'research-only': '仅研究',
+      'proxy-only': '代理模型',
+      'protocol-unverified': '协议未验证',
+      'missing-input': '待输入',
+      'calibration-required': '待路径校准',
+    }[status] ?? '研究状态'
+  )
+}
+function inputModeLabel(mode, isSynthetic = false) {
+  if (isSynthetic) return '回退样本'
+  return (
+    {
+      real: '真实输入',
+      'pool-real': '聚合池快照',
+      scenario: '情景输入',
+      inferred: '推导输入',
+      fallback: '回退输入',
+    }[mode] ?? '输入未标注'
+  )
 }
 </script>
 
@@ -104,7 +117,7 @@ function reasonText(reasons = []) {
         <strong :class="netLpData.returns?.netReturn >= 0 ? 'green' : 'red'">{{
           Number.isFinite(netLpData.returns?.netReturn) ? `净 ${pctFmt(netLpData.returns.netReturn)}` : '待路径校准'
         }}</strong>
-        <em>{{ netLpData.status }}</em>
+        <em>{{ researchStatus(netLpData.status) }}</em>
       </header>
       <div class="ff-metrics">
         <div>
@@ -131,7 +144,7 @@ function reasonText(reasons = []) {
         </div>
       </div>
       <div class="ff-note">
-        CE 与收益分列。待补：{{ netLpData.missingInputs.join(' / ') || '无' }}；fee≈theta
+        CE 与收益分列。待补：{{ formatFormulaInputList(netLpData.missingInputs) }}；fee≈theta
         仅为统一币种/期限/名义后的类比。
       </div>
     </template>
@@ -142,8 +155,8 @@ function reasonText(reasons = []) {
     <template v-if="lpPoolData">
       <header class="ff-head">
         <span class="fc-ttl">LP 池覆盖</span>
-        <strong>{{ lpPoolData.inputMode || '—' }}</strong>
-        <em>{{ lpPoolData.isSynthetic ? 'fallback' : 'real-snapshot' }}</em>
+        <strong>{{ inputModeLabel(lpPoolData.inputMode, lpPoolData.isSynthetic) }}</strong>
+        <em>{{ lpPoolData.isSynthetic ? '回退数据' : '真实快照' }}</em>
       </header>
       <div class="ff-metrics">
         <div>
@@ -171,7 +184,7 @@ function reasonText(reasons = []) {
           <strong>{{ pctFmt(lpPoolData.topReserveShare) }}</strong>
         </div>
       </div>
-      <div class="ff-note">待补：{{ lpPoolData.missingInputs.join(' / ') || '无' }}</div>
+      <div class="ff-note">待补：{{ formatFormulaInputList(lpPoolData.missingInputs) }}</div>
     </template>
     <div v-else class="ff-empty">等待聚合池覆盖数据</div>
   </div>
