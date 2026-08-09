@@ -255,6 +255,8 @@ describe('buildHqChartOption', () => {
     }
     const singleLine = { Name: '单点线', DrawType: 1 }
     const pointSeries = { Name: '最新权益', DrawType: 1 }
+    const undeclaredSeries = { Name: '未声明图形', DrawType: 1 }
+    const nativeSeries = { Name: 'MACD', DrawType: 1 }
     const model = {
       groups: [
         {
@@ -278,6 +280,7 @@ describe('buildHqChartOption', () => {
                 { time: '2026-08-08', value: 101 },
               ],
             },
+            { label: '未声明图形', color: '#333', points: [{ value: 1 }, { value: 2 }] },
           ],
         },
       ],
@@ -289,6 +292,10 @@ describe('buildHqChartOption', () => {
     expect(singleLine.DrawType).toBe(1)
     expect(applyHqResearchSeriesStyle({ Chart: pointSeries }, model)).toBe(true)
     expect(pointSeries.DrawType).toBe(1)
+    expect(applyHqResearchSeriesStyle({ Chart: undeclaredSeries }, model)).toBe(true)
+    expect(undeclaredSeries.DrawType).toBe(1)
+    expect(applyHqResearchSeriesStyle({ Chart: nativeSeries }, model)).toBe(false)
+    expect(nativeSeries.DrawType).toBe(1)
   })
 
   it('没有事件 ID 时不注册无效回调，空 scope 使用 global', () => {

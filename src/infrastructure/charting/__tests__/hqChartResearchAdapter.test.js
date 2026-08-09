@@ -250,6 +250,39 @@ describe('HQChart Market Lab research adapter', () => {
     expect(chart).toMatchObject({ Color: 'rgb(14,117,88)', LineWidth: 2, IsDotLine: false, LineDash: [5, 4] })
   })
 
+  it('保留指标内部空值，只在绘制层跨空值连接有限点', () => {
+    const sparseModel = {
+      dates: ['2026-08-01', '2026-08-02', '2026-08-03'],
+      groups: [
+        {
+          id: 'greeks',
+          label: 'Greeks',
+          active: true,
+          state: 'estimated',
+          series: [
+            {
+              id: 'bsDelta',
+              label: '期权 Delta',
+              render: 'line',
+              color: '#a93226',
+              points: [
+                { time: '2026-08-01', value: 0.4 },
+                { time: '2026-08-03', value: 0.42 },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const response = toHqResearchIndexResponse(sparseModel, hqResearchApiId('greeks'), {})
+    const chart = { Name: '期权 Delta', DrawType: 1 }
+
+    expect(response.outdata.outvar[0].data).toEqual([0.4, null, 0.42])
+    expect(applyHqOverlaySeriesStyle({ Chart: chart }, sparseModel)).toBe(true)
+    expect(chart.DrawType).toBe(0)
+    expect(response.outdata.outvar[0].data).toEqual([0.4, null, 0.42])
+  })
+
   it('研究日期先排序去重，再按日期对齐每条序列', () => {
     const unsorted = {
       dates: ['2026-08-07', '2026-08-06', '2026-08-07'],

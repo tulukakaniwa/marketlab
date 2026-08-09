@@ -201,7 +201,7 @@ export function applyHqResearchSeriesStyle(data, model) {
   // HQChart 为 API 指标线默认使用 DrawType=1，遇到 null 会断开；
   // Lightweight Charts 则只接收有限点并跨过缺失日期连线。这里只调整
   // 多点线的绘制方式，不改原始 null、不插值，也不影响单点/点图指标。
-  if (series.render !== 'point' && finiteSeriesPointCount(series) >= 2) chart.DrawType = 0
+  if (series.render === 'line' && finiteSeriesPointCount(series) >= 2) chart.DrawType = 0
   return true
 }
 
