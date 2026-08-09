@@ -24,7 +24,7 @@ const ivP = computed({
   },
 })
 const deltaSlopeP = computed({
-  get: () => pctOut(props.input.deltaSlope ?? props.input.targetReturn),
+  get: () => pctOut(props.input.deltaSlope),
   set: (v) => {
     props.input.deltaSlope = pctIn(v)
   },
@@ -41,6 +41,10 @@ const bandText = computed(() => {
   if (!band) return '等待市场样本'
   return `${fmt(band.low)} / ${fmt(band.cost)} / ${fmt(band.high)}`
 })
+const horizonText = computed(() => {
+  const days = props.graph?.inputs?.formulaHorizonSessions
+  return Number.isFinite(days) ? `${days} 个交易会话` : '等待结构目标'
+})
 
 function fmt(value) {
   if (!Number.isFinite(value)) return '—'
@@ -52,12 +56,14 @@ function fmt(value) {
   <div class="si-card">
     <div class="si-card-head">
       <strong>GetDelta 价格带</strong>
-      <small>P + T + s + d</small>
+      <small>P + H(q) + s + d</small>
     </div>
 
     <div class="si-form">
       <label><span>入场价</span><input v-model.number="input.entryPrice" type="number" step="0.01" /></label>
-      <label><span>窗口</span><input v-model.number="input.holdingDays" type="number" min="1" step="1" /></label>
+      <label
+        ><span>公式周期</span><output>{{ horizonText }}</output></label
+      >
       <label><span>情景 σ%</span><input v-model.number="ivP" type="number" step="0.5" /></label>
       <label><span>目标增量 d%</span><input v-model.number="deltaSlopeP" type="number" step="0.5" /></label>
       <label><span>退出目标%</span><input v-model.number="exitTargetP" type="number" step="0.5" /></label>
@@ -106,6 +112,7 @@ function fmt(value) {
   text-transform: uppercase;
 }
 .si-form input,
+.si-form output,
 .si-form select {
   min-height: 28px;
   padding: 3px 7px;
@@ -115,6 +122,10 @@ function fmt(value) {
   color: var(--ink);
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+}
+.si-form output {
+  display: flex;
+  align-items: center;
 }
 .si-form select {
   font-weight: 600;

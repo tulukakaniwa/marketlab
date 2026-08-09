@@ -3,13 +3,13 @@ const TDPY = {
   us: { value: 252, basis: 'us', label: '美股 252' },
   hk: { value: 242, basis: 'hk', label: '港股 242' },
   cn: { value: 242, basis: 'cn', label: 'A 股 242' },
-  fallback: { value: 365, basis: 'fallback', label: '默认 365' },
+  missing: { value: null, basis: 'missing-input', label: '待识别' },
 }
 
 const CRYPTO_TOKENS = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB', 'SOL']
 
 export function inferTdpy(sample) {
-  if (!sample || typeof sample !== 'object') return { ...TDPY.fallback }
+  if (!sample || typeof sample !== 'object') return { ...TDPY.missing }
 
   const market = sample.market
   const symbol = String(sample.symbol || '').toUpperCase()
@@ -26,5 +26,5 @@ export function inferTdpy(sample) {
   if (market === '美股') return { ...TDPY.us }
   if (/^[A-Z]{1,5}$/.test(symbol)) return { ...TDPY.us }
 
-  return { ...TDPY.fallback }
+  return { ...TDPY.missing }
 }

@@ -490,18 +490,21 @@ function browserScript() {
     zScore:            function (m) { return inverseLinear(m.zScore, -3.0, 0); },
     lpZone:            function (m) { return zoneScore(m.lpZone); },
     costSlope: function (m, ctx) {
-      var linear = forwardLinear(m.costSlope5, -0.025, 0.005);
+      var linear = forwardLinear(m.costSlopeRecent, -0.025, 0.005);
       if (ctx.allowCatchKnife && isFinite(m.zScore) && m.zScore <= -1.5
         && m.meanReversionMonotonicGate === true
         && m.meanReversionCalibrationStatus === 'holdout-validated'
         && typeof m.meanReversionCalibrationId === 'string' && m.meanReversionCalibrationId.trim()
-        && isFinite(m.halfLifeRho) && m.halfLifeRho > 0 && m.halfLifeRho < 1) {
+        && isFinite(m.arCoefficient) && m.arCoefficient > 0 && m.arCoefficient < 1) {
         return Math.max(linear, 0.5);
       }
       return linear;
     },
     lpRatio3y: function (m) { return forwardLinear(m.lpValueRatio3y, 1.2, 2.5); },
-    halfLife:  function (m) { return m.meanReversionMonotonicGate === true && isFinite(m.halfLifeDays) && m.halfLifeDays > 0 ? inverseLinear(m.halfLifeDays, 30, 120) : 0; },
+    halfLife: function (m) {
+      if (m.meanReversionMonotonicGate !== true || !isFinite(m.formulaHorizonSessions) || m.formulaHorizonSessions <= 0 || !isFinite(m.tradingDays) || m.tradingDays <= 0) return 0;
+      return 1 / (1 + m.formulaHorizonSessions / Math.sqrt(m.tradingDays));
+    },
     volConfidence: function (m) { return clamp01(m.volSampleQualityScore); },
     socialSecurityWhitelist: function (m) { return m.socialSecurityWhitelisted ? 1 : null; },
   };
@@ -509,9 +512,9 @@ function browserScript() {
     lpValuePercentile: ['lpValuePercentile'],
     zScore: ['zScore'],
     lpZone: ['lpZone'],
-    costSlope: ['costSlope5'],
+    costSlope: ['costSlopeRecent'],
     lpRatio3y: ['lpValueRatio3y'],
-    halfLife: ['halfLifeDays', 'meanReversionMonotonicGate'],
+    halfLife: ['halfLifeSessions', 'meanReversionMonotonicGate'],
     volConfidence: ['volSampleQualityScore'],
     socialSecurityWhitelist: ['socialSecurityWhitelisted'],
   };
@@ -548,7 +551,7 @@ function browserScript() {
       && m.meanReversionMonotonicGate === true
       && m.meanReversionCalibrationStatus === 'holdout-validated'
       && typeof m.meanReversionCalibrationId === 'string' && m.meanReversionCalibrationId.trim()
-      && isFinite(m.halfLifeRho) && m.halfLifeRho > 0 && m.halfLifeRho < 1;
+      && isFinite(m.arCoefficient) && m.arCoefficient > 0 && m.arCoefficient < 1;
     var finalScore = Math.round(totalScore * 10) / 10;
     var maxScore = Math.round(activeWeight * 10) / 10;
     Object.keys(dimsResult).forEach(function (id) {
@@ -567,7 +570,7 @@ function browserScript() {
       case 'lpZone':            return '合成区间下侧';
       case 'costSlope':         return '成本锚↑';
       case 'lpRatio3y':         return '几何代理 3 年 ' + m.lpValueRatio3y.toFixed(2) + '×';
-      case 'halfLife':          return 'HL=' + Math.round(m.halfLifeDays) + '天';
+      case 'halfLife':          return 'HL=' + Math.round(m.halfLifeSessions) + '会话';
       case 'volConfidence':     return '波动样本质量';
       case 'socialSecurityWhitelist': return '社保 Q1 白名单';
       default: return id;
@@ -616,17 +619,17 @@ function browserScript() {
     else if (m.lpZone === 'token1') lines.push('当前价格位于合成 CK 区间上侧（token1 proxy）。');
     else if (m.lpZone === 'range') lines.push('当前价格位于合成 CK 区间内；未建模路径手续费。');
 
-    if (isFinite(m.costSlope5)) {
+    if (isFinite(m.costSlopeRecent)) {
       var dir = m.anchorDirection;
-      if (dir === 'up') lines.push('成本锚 ' + fmtPct(m.costSlope5) + '（↑），趋势已掉头。');
-      else if (dir === 'flat') lines.push('成本锚 ' + fmtPct(m.costSlope5) + '（→），底部已焊住。');
+      if (dir === 'up') lines.push('成本锚自适应近期斜率 ' + fmtPct(m.costSlopeRecent) + '（↑），趋势已掉头。');
+      else if (dir === 'flat') lines.push('成本锚自适应近期斜率 ' + fmtPct(m.costSlopeRecent) + '（→），底部已焊住。');
       else if (dir === 'down') {
-        if (item.catchKnife) lines.push('成本锚 ' + fmtPct(m.costSlope5) + '（↓）；已人工开启且具备独立留出校准标识，仍需复核。');
-        else lines.push('成本锚 ' + fmtPct(m.costSlope5) + '（↓），趋势延续风险未解除。');
+        if (item.catchKnife) lines.push('成本锚自适应近期斜率 ' + fmtPct(m.costSlopeRecent) + '（↓）；已人工开启且具备独立留出校准标识，仍需复核。');
+        else lines.push('成本锚自适应近期斜率 ' + fmtPct(m.costSlopeRecent) + '（↓），趋势延续风险未解除。');
       }
     }
-    if (isFinite(m.halfLifeDays)) {
-      lines.push('历史 AR 半衰期 ' + Math.round(m.halfLifeDays) + ' 天（' + (m.halfLifeSpeed || '—') + '）；' + (m.meanReversionMonotonicGate ? '样本内单调衰减门禁成立，尚未校准' : '未通过单调回归门禁') + '。');
+    if (isFinite(m.halfLifeSessions)) {
+      lines.push('历史 AR 半衰期 ' + Math.round(m.halfLifeSessions) + ' 个交易会话（' + (m.arDecayLabel || '—') + '）；' + (m.meanReversionMonotonicGate ? '样本内单调衰减门禁成立，尚未校准' : '未通过单调回归门禁') + '。');
     }
     if (isFinite(m.deltaReferencePrice) || isFinite(m.costBandReferencePrice)) {
       var buy = isFinite(m.deltaReferencePrice) ? 'Delta 参考边界 ' + m.deltaReferencePrice : '';

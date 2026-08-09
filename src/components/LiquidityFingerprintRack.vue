@@ -21,11 +21,10 @@ const zoom = ref(1)
 const viewMode = ref('compare')
 const gapMode = ref('shortfall')
 
-const compactModel = computed(() => rackModel({ binCount: 36, visibleWindow: 120 }))
+const compactModel = computed(() => rackModel({ binCount: 36 }))
 const expandedModel = computed(() =>
   rackModel({
     binCount: 48 + zoom.value * 24,
-    visibleWindow: 120 + zoom.value * 40,
   }),
 )
 const precision = computed(() => {

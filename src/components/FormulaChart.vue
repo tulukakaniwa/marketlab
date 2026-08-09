@@ -18,10 +18,15 @@ const {
   greeksData, lpData, syH, lpV3Curve, lpV3Marker, lpRealMarker, lpV3Bounds, ceData,
   ceCurve, ceDot, ceFrontierDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
   bachelierData, ammData, fingerprintData, devScoreData, normalCurve, zMarker,
-  riskSurfaceData, lpPoolData, netLpData, netCarryData, guide, mrData, dynamicHoldingData,
+  riskSurfaceData, lpPoolData, netLpData, netCarryData, netCarryDisplay, guide, mrData, dynamicHoldingData,
   decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, orderData,
   W, H, PL, PR, pw, ph, sx, sy,
 } = useFormulaChartModel(props)
+
+function greekTone(value) {
+  if (!Number.isFinite(value)) return ''
+  return value > 0 ? 'green' : value < 0 ? 'red' : ''
+}
 </script>
 
 <template>
@@ -62,7 +67,7 @@ const {
         <div><b>成本下沿</b><span>{{ fmt(costData.low) }}</span></div>
         <div><b>成本上沿</b><span>{{ fmt(costData.high) }}</span></div>
         <div><b>偏离度</b><span :class="costData.distance < 0 ? 'green' : 'red'">{{ pctFmt(costData.distance) }}</span></div>
-        <div><b>斜率5d</b><span>{{ pctFmt(costData.slope) }}</span></div>
+        <div><b>近期斜率</b><span>{{ pctFmt(costData.slope) }}</span></div>
       </div>
     </div>
 
@@ -82,8 +87,8 @@ const {
       <div class="fc-kv">
         <div><b>历史年化波动</b><span>{{ pctFmt(volData.annualVol) }}</span></div>
         <div><b>ATR%</b><span>{{ pctFmt(volData.atr) }}</span></div>
-        <div><b>动量5日</b><span :class="volData.momentum5 >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentum5) }}</span></div>
-        <div><b>动量20日</b><span :class="volData.momentum20 >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentum20) }}</span></div>
+        <div><b>快动量</b><span :class="volData.momentumFast >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentumFast) }}</span></div>
+        <div><b>慢动量</b><span :class="volData.momentumSlow >= 0 ? 'green' : 'red'">{{ pctFmt(volData.momentumSlow) }}</span></div>
         <div><b>情景 σ</b><span>{{ pctFmt(volData.iv) }}</span></div>
       </div>
       <div class="fc-meta">来源 {{ volData.ivSource }} · 非期权报价反推时不标记为市场 IV</div>
@@ -111,16 +116,16 @@ const {
       <span class="fc-ttl">{{ greeksData.isPortfolio ? '期权组合 Greeks' : '期权 Greeks' }}</span>
       <div class="fc-gr4">
         <div class="fc-gi"><b>{{ greeksData.isPortfolio ? '组合价值' : '价格' }}</b><span>{{ fmt(greeksData.price) }}</span></div>
-        <div class="fc-gi"><b>Δ</b><span :class="greeksData.delta > 0 ? 'green' : 'red'">{{ f4(greeksData.delta) }}</span></div>
-        <div class="fc-gi"><b>Γ</b><span>{{ f4(greeksData.gamma) }}</span></div>
-        <div class="fc-gi"><b>Θ/日</b><span>{{ f4(greeksData.thetaDaily ?? greeksData.theta) }}</span></div>
-        <div class="fc-gi"><b>ν</b><span>{{ f4(greeksData.vega) }}</span></div>
-        <div class="fc-gi"><b>ρ</b><span>{{ f4(greeksData.rho) }}</span></div>
+        <div class="fc-gi"><b>Δ</b><span :class="greekTone(greeksData.optionDelta)">{{ f4(greeksData.optionDelta) }}</span></div>
+        <div class="fc-gi"><b>Γ</b><span>{{ f4(greeksData.optionGamma) }}</span></div>
+        <div class="fc-gi"><b>Θ/交易会话</b><span>{{ f4(greeksData.optionThetaPerSession) }}</span></div>
+        <div class="fc-gi"><b>ν/1%波动</b><span>{{ f4(greeksData.optionVegaPerPct) }}</span></div>
+        <div class="fc-gi"><b>ρ/1%利率</b><span>{{ f4(greeksData.optionRhoPerPct) }}</span></div>
       </div>
       <div v-if="greeksData.isPortfolio" class="fc-meta">
-        {{ greeksData.legs }} legs · {{ greeksData.strategyClass }} · Θ/年 {{ f4(greeksData.thetaAnnual) }} · σ来源 {{ greeksData.volatilitySource }}
+        {{ greeksData.legs }} legs · {{ greeksData.strategyClass }} · Θ/年 {{ f4(greeksData.optionThetaAnnual) }} · σ来源 {{ greeksData.volatilitySource }}
       </div>
-      <div v-else class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }} · Θ/年 {{ f4(greeksData.thetaAnnual) }}</div>
+      <div v-else class="fc-meta">d₁ = {{ greeksData.d1?.toFixed(4) }} · d₂ = {{ greeksData.d2?.toFixed(4) }} · Θ/年 {{ f4(greeksData.optionThetaAnnual) }}</div>
     </div>
 
     <!-- LP INVENTORY -->
@@ -216,9 +221,9 @@ const {
       <line :x1="PL" :x2="W-PR" :y1="60" :y2="60" stroke="var(--line)" stroke-width="1" />
       <text :x="PL-4" :y="64" text-anchor="end" class="fc-tick">0</text>
       <!-- Bar showing ratio -->
-      <rect :x="W/2 - 40" :y="fundData.ratio > 0 ? 60 - Math.abs(fundData.ratio) * 600 : 60" width="80" :height="Math.max(4, Math.abs(fundData.ratio) * 600)" :fill="fundData.ratio > 0 ? 'var(--red)' : 'var(--green)'" rx="3" opacity="0.7" />
-      <text :x="W/2" :y="fundData.ratio > 0 ? 50 : 80" text-anchor="middle" class="fc-tick" :fill="fundData.ratio > 0 ? 'var(--red)' : 'var(--green)'">{{ pctFmt(fundData.ratio) }}</text>
-      <text :x="W/2" :y="108" text-anchor="middle" class="fc-tick">{{ fundData.ratio > 0 ? '多头付费 (偏多)' : '空头付费 (偏空)' }} · 累计 {{ pctFmt(fundData.funding) }}</text>
+      <rect :x="W/2 - 40" :y="fundData.basisFraction > 0 ? 60 - Math.abs(fundData.basisFraction) * 600 : 60" width="80" :height="Math.max(4, Math.abs(fundData.basisFraction) * 600)" :fill="fundData.basisFraction > 0 ? 'var(--red)' : 'var(--green)'" rx="3" opacity="0.7" />
+      <text :x="W/2" :y="fundData.basisFraction > 0 ? 50 : 80" text-anchor="middle" class="fc-tick" :fill="fundData.basisFraction > 0 ? 'var(--red)' : 'var(--green)'">{{ pctFmt(fundData.basisFraction) }}</text>
+      <text :x="W/2" :y="108" text-anchor="middle" class="fc-tick">{{ fundData.basisFraction > 0 ? '多头付费 (偏多)' : '空头付费 (偏空)' }} · 累计 {{ pctFmt(fundData.cumulativeFundingProxy) }}</text>
     </svg>
 
     <!-- PORTFOLIO -->
@@ -280,11 +285,11 @@ const {
       </div>
       <div class="fc-gr4">
         <div class="fc-gi"><b>Asian 价格</b><span>{{ fmt(asianData.price) }}</span></div>
-        <div class="fc-gi"><b>Δ</b><span :class="asianData.delta > 0 ? 'green' : 'red'">{{ f4(asianData.delta) }}</span></div>
-        <div class="fc-gi"><b>Γ</b><span>{{ f4(asianData.gamma) }}</span></div>
+        <div class="fc-gi"><b>Δ</b><span :class="greekTone(asianData.optionDelta)">{{ f4(asianData.optionDelta) }}</span></div>
+        <div class="fc-gi"><b>Γ</b><span>{{ f4(asianData.optionGamma) }}</span></div>
         <div class="fc-gi"><b>Bachelier</b><span>{{ fmt(bachelierData?.price) }}</span></div>
-        <div class="fc-gi"><b>B-Δ</b><span :class="(bachelierData?.delta ?? 0) > 0 ? 'green' : 'red'">{{ f4(bachelierData?.delta) }}</span></div>
-        <div class="fc-gi"><b>B-Γ</b><span>{{ f4(bachelierData?.gamma) }}</span></div>
+        <div class="fc-gi"><b>B-Δ</b><span :class="greekTone(bachelierData?.optionDelta)">{{ f4(bachelierData?.optionDelta) }}</span></div>
+        <div class="fc-gi"><b>B-Γ</b><span>{{ f4(bachelierData?.optionGamma) }}</span></div>
       </div>
       <div class="fc-meta">Bachelier 使用 normal vol = S·σ；Asian/Bachelier 只用于 LP payoff fit 研究，不进入挂单。</div>
     </div>
@@ -309,11 +314,11 @@ const {
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">风险曲面 · Greeks × 价格带</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Delta curve -->
-      <polyline :points="riskSurfaceData.points.map((p, i) => `${sx(i / riskSurfaceData.points.length)},${sy(p.delta)}`).join(' ')" fill="none" stroke="var(--green)" stroke-width="1.5" />
-      <text :x="W-PR" :y="sy(riskSurfaceData.points[riskSurfaceData.points.length-1].delta)+4" text-anchor="end" class="fc-tick green">Δ</text>
+      <polyline :points="riskSurfaceData.points.map((p, i) => `${sx(i / riskSurfaceData.points.length)},${sy(p.optionDelta)}`).join(' ')" fill="none" stroke="var(--green)" stroke-width="1.5" />
+      <text :x="W-PR" :y="sy(riskSurfaceData.points[riskSurfaceData.points.length-1].optionDelta)+4" text-anchor="end" class="fc-tick green">Δ</text>
       <!-- Gamma curve (scaled up 100x) -->
-      <polyline :points="riskSurfaceData.points.map((p, i) => `${sx(i / riskSurfaceData.points.length)},${sy(Math.min(1, p.gamma * 100))}`).join(' ')" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="3,2" />
-      <text :x="W-PR" :y="sy(Math.min(1, riskSurfaceData.points[riskSurfaceData.points.length-1].gamma * 100))-6" text-anchor="end" class="fc-tick blue">Γ×100</text>
+      <polyline :points="riskSurfaceData.points.map((p, i) => `${sx(i / riskSurfaceData.points.length)},${sy(Math.min(1, p.optionGamma * 100))}`).join(' ')" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="3,2" />
+      <text :x="W-PR" :y="sy(Math.min(1, riskSurfaceData.points[riskSurfaceData.points.length-1].optionGamma * 100))-6" text-anchor="end" class="fc-tick blue">Γ×100</text>
       <!-- Entry price line -->
       <line :x1="sx((riskSurfaceData.entryPrice - riskSurfaceData.bandLow) / (riskSurfaceData.bandHigh - riskSurfaceData.bandLow))" :x2="sx((riskSurfaceData.entryPrice - riskSurfaceData.bandLow) / (riskSurfaceData.bandHigh - riskSurfaceData.bandLow))" :y1="sy(0)" :y2="sy(1)" stroke="var(--ink)" stroke-width="1" stroke-dasharray="4,3" />
       <text :x="sx((riskSurfaceData.entryPrice - riskSurfaceData.bandLow) / (riskSurfaceData.bandHigh - riskSurfaceData.bandLow))" :y="sy(0.05)" text-anchor="middle" class="fc-tick">入场</text>
@@ -333,34 +338,30 @@ const {
     />
 
     <!-- NET CARRY -->
-    <svg v-else-if="formulaId === 'net-carry' && netCarryData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
+    <svg v-else-if="formulaId === 'net-carry' && netCarryDisplay" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">持仓归因情景 · 未接真实结算</text>
-      <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
-      <!-- Cost distance bar (potential gain) -->
-      <rect x="80" :y="sy(Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" width="60" :height="Math.max(2, (Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) * ph)" fill="var(--green)" rx="2" opacity="0.6" />
-      <text x="110" :y="sy(Math.abs(netCarryData.costDistance) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 4" text-anchor="middle" class="fc-tick" fill="var(--green)">偏离 {{ pctFmt(Math.abs(netCarryData.costDistance)) }}</text>
-      <!-- Funding cost bar -->
-      <rect x="180" :y="sy(netCarryData.fundingCost / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" width="60" :height="Math.max(2, (netCarryData.fundingCost / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) * ph)" fill="var(--red)" rx="2" opacity="0.6" />
-      <text x="210" :y="sy(netCarryData.fundingCost / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 4" text-anchor="middle" class="fc-tick" fill="var(--red)">成本 {{ pctFmt(netCarryData.fundingCost) }}</text>
-      <!-- Net result -->
-      <line :x1="PL" :x2="W-PR" :y1="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" :y2="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01))" stroke="var(--ink)" stroke-width="2" />
-      <text :x="W-PR" :y="sy(Math.abs(netCarryData.netReturn) / Math.max(Math.abs(netCarryData.costDistance), netCarryData.fundingCost, 0.01)) - 3" text-anchor="end" class="fc-tick">代理 {{ pctFmt(netCarryData.netReturn) }}</text>
-      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">盈亏平衡估计 @ {{ pctFmt(netCarryData.breakEven) }} · 未接真实资金费率</text>
+      <line :x1="PL" :x2="W-PR" :y1="netCarryDisplay.zeroY" :y2="netCarryDisplay.zeroY" stroke="var(--line)" stroke-width="1" />
+      <g v-for="bar in netCarryDisplay.bars" :key="bar.label">
+        <rect :x="bar.x" :y="bar.y" width="58" :height="bar.height" :fill="bar.tone" rx="2" opacity="0.62" />
+        <text :x="bar.x + 29" :y="bar.value >= 0 ? bar.y - 4 : bar.y + bar.height + 11" text-anchor="middle" class="fc-tick" :fill="bar.tone">{{ pctFmt(bar.value) }}</text>
+        <text :x="bar.x + 29" :y="H - 18" text-anchor="middle" class="fc-tick">{{ bar.label }}</text>
+      </g>
+      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">同名义净成本盈亏平衡 @ {{ pctFmt(netCarryData.breakEvenFundingNetCostReturn) }} · 未接真实资金费率</text>
     </svg>
 
     <!-- MEAN REVERSION -->
     <svg v-else-if="formulaId === 'mean-reversion' && mrData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
-      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">AR(1) 样本诊断 · 半衰期 {{ mrData.halfLifeDays !== null ? Math.round(mrData.halfLifeDays) + '天' : '不可定义' }}</text>
+      <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">AR(1) 样本诊断 · 半衰期 {{ mrData.halfLifeSessions !== null ? Math.round(mrData.halfLifeSessions) + '会话' : '不可定义' }}</text>
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <!-- Decay curve: e^(-θ×t) -->
       <polyline :points="decayCurve" fill="none" stroke="var(--green)" stroke-width="2" />
       <!-- Half-life marker -->
-      <line v-if="mrData.halfLifeDays !== null" :x1="hlMarker?.x ?? PL" :x2="hlMarker?.x ?? PL" :y1="sy(0)" :y2="sy(0.55)" stroke="var(--red)" stroke-width="1" stroke-dasharray="4,3" />
-      <circle v-if="mrData.halfLifeDays !== null" :cx="hlMarker?.x ?? PL" :cy="hlMarker?.y ?? sy(0)" r="4" fill="var(--red)" />
-      <text v-if="mrData.halfLifeDays !== null" :x="(hlMarker?.x ?? PL) + 6" :y="(hlMarker?.y ?? sy(0)) - 4" class="fc-tick" fill="var(--red)">t½={{ Math.round(mrData.halfLifeDays) }}天</text>
+      <line v-if="mrData.halfLifeSessions !== null" :x1="hlMarker?.x ?? PL" :x2="hlMarker?.x ?? PL" :y1="sy(0)" :y2="sy(0.55)" stroke="var(--red)" stroke-width="1" stroke-dasharray="4,3" />
+      <circle v-if="mrData.halfLifeSessions !== null" :cx="hlMarker?.x ?? PL" :cy="hlMarker?.y ?? sy(0)" r="4" fill="var(--red)" />
+      <text v-if="mrData.halfLifeSessions !== null" :x="(hlMarker?.x ?? PL) + 6" :y="(hlMarker?.y ?? sy(0)) - 4" class="fc-tick" fill="var(--red)">t½={{ Math.round(mrData.halfLifeSessions) }}会话</text>
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0</text>
-      <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">{{ Math.round(mrData.halfLifeDays * 3) || 90 }}天</text>
-      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">ρ={{ mrData.rho.toFixed(3) }} · θ={{ Number.isFinite(mrData.theta) ? mrData.theta.toFixed(4) : '—' }} · {{ mrData.speed }}</text>
+      <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">{{ Number.isFinite(mrData.plotHorizonSessions) ? Math.round(mrData.plotHorizonSessions) + '会话（样本分辨率绘图区）' : '—' }}</text>
+      <text :x="W/2" :y="H-2" text-anchor="middle" class="fc-tick">AR={{ mrData.arCoefficient.toFixed(3) }} · decay={{ Number.isFinite(mrData.arDecayRatePerStep) ? mrData.arDecayRatePerStep.toFixed(4) : '—' }} · {{ mrData.speed }}</text>
     </svg>
 
     <!-- GAMMA PNL -->

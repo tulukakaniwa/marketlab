@@ -19,7 +19,6 @@ import { buildRealPoolProfile } from './liquidityRackModel/realPool.js'
 import { buildShelves } from './liquidityRackModel/shelves.js'
 import { buildMeta } from './liquidityRackModel/meta.js'
 
-const DEFAULT_VISIBLE_WINDOW = 120
 const DEFAULT_BINS = 32
 
 export function buildLiquidityRackModel({
@@ -28,7 +27,7 @@ export function buildLiquidityRackModel({
   formulaPath,
   graph,
   activeIndex,
-  visibleWindow = DEFAULT_VISIBLE_WINDOW,
+  visibleWindow = null,
   binCount = DEFAULT_BINS,
   viewMode = 'compare',
   gapMode = 'shortfall',
@@ -43,21 +42,31 @@ export function buildLiquidityRackModel({
   const activeCost = safeCosts[index] ?? safeCosts.at(-1) ?? null
   const activeFormula = safeFormulas[index] ?? safeFormulas.at(-1) ?? null
   const orders = graph?.plan?.primaryOrders ?? []
+  const visibleRows = resolveVisibleRows(safeRows, index, visibleWindow)
   const range = buildPriceRange({
-    rows: safeRows,
-    activeIndex: index,
-    visibleWindow,
+    rows: visibleRows.rows,
     activeRow,
     activeCost,
     activeFormula,
     orders,
   })
   const basis = activeCost?.anchor || activeRow?.close || graph?.inputs?.entryPrice
-  if (!Number.isFinite(basis) || basis <= 0 || range.upper <= range.lower) return emptyRack(range)
+  if (!Number.isFinite(basis) || basis <= 0 || range.upper <= range.lower) {
+    return emptyRack(range, visibleRows.windowSpec)
+  }
 
   const count = normalizeBinCount(binCount)
   const mode = normalizeViewMode(viewMode)
   const normalizedGapMode = normalizeGapMode(gapMode)
+  const volatility = graph?.inputs?.iv ?? graph?.market?.annualVol
+  const tradingDaysPerYear = graph?.inputs?.tradingDaysPerYear ?? graph?.market?.tradingDaysPerYear
+  const missingFingerprintInputs = [
+    Number.isFinite(volatility) && volatility > 0 ? null : 'volatility',
+    Number.isFinite(tradingDaysPerYear) && tradingDaysPerYear > 0 ? null : 'tradingDaysPerYear',
+  ].filter(Boolean)
+  if (missingFingerprintInputs.length) {
+    return blockedRack(range, visibleRows.windowSpec, basis, missingFingerprintInputs)
+  }
   const fingerprint = liquidityFingerprint({
     entryPrice: basis,
     priceGrid: Math.max(240, count * 8),
@@ -71,14 +80,19 @@ export function buildLiquidityRackModel({
       upper: activeFormula?.deltaUpper ?? activeCost?.upper,
     },
     orderLevels: orders,
-    volatility: graph?.inputs?.iv ?? graph?.market?.annualVol,
+    volatility,
+    tradingDaysPerYear,
     lambda: 2,
     kappa: 1,
   })
+  if (!fingerprint) {
+    return blockedRack(range, visibleRows.windowSpec, basis, ['liquidityFingerprint'])
+  }
   const realProfile = buildRealPoolProfile({ range, lpOnchain: graph?.lpOnchain, binCount: count })
   const effectiveViewMode = realProfile.hasSignal ? mode : 'simulate'
   const shelves = buildShelves({
     range,
+    windowSpec: visibleRows.windowSpec,
     fingerprint,
     realProfile,
     orders,
@@ -126,6 +140,7 @@ export function buildLiquidityRackModel({
     viewLabel: viewModeLabel(mode, realProfile.hasSignal),
     shareLabel: shareLabel(mode, realProfile.hasSignal, normalizedGapMode),
     range,
+    windowSpec: visibleRows.windowSpec,
     basis,
     binCount: count,
     priceStep: (range.upper - range.lower) / count,
@@ -142,13 +157,12 @@ export function buildLiquidityRackModel({
     hasCalibrationSignal: realProfile.hasCalibrationSignal,
     status: fingerprint?.status ?? 'research-only',
     inputMode: fingerprint?.inputMode ?? 'model-only',
+    missingInputs: fingerprint?.missingInputs ?? [],
   }
 }
 
-function buildPriceRange({ rows, activeIndex, visibleWindow, activeRow, activeCost, activeFormula, orders }) {
-  const end = Math.max(0, activeIndex) + 1
-  const windowRows = rows.slice(Math.max(0, end - visibleWindow), end)
-  const prices = windowRows.flatMap((row) => [row.high, row.low, row.close])
+function buildPriceRange({ rows, activeRow, activeCost, activeFormula, orders }) {
+  const prices = rows.flatMap((row) => [row.high, row.low, row.close])
   prices.push(activeCost?.lower, activeCost?.upper, activeCost?.anchor)
   prices.push(activeFormula?.deltaLower, activeFormula?.deltaUpper)
   for (const order of orders) prices.push(order.price)
@@ -160,6 +174,29 @@ function buildPriceRange({ rows, activeIndex, visibleWindow, activeRow, activeCo
   const max = Math.max(...finite)
   const pad = Math.max((max - min) * 0.1, fallback * 0.018)
   return { lower: Math.max(0.0001, min - pad), upper: max + pad }
+}
+
+function resolveVisibleRows(rows, activeIndex, visibleWindow) {
+  const end = Math.max(0, activeIndex) + 1
+  const requested = positiveSessionCount(visibleWindow)
+  const start = requested === null ? 0 : Math.max(0, end - requested)
+  const visible = rows.slice(start, end)
+  return {
+    rows: visible,
+    windowSpec: {
+      mode: requested === null ? 'visible-prefix' : 'viewport-explicit',
+      visiblePrefixRows: end,
+      requestedWindowSessions: requested,
+      appliedRows: visible.length,
+      futureRowsUsed: false,
+    },
+  }
+}
+
+function positiveSessionCount(value) {
+  if (value === null || value === undefined || value === '') return null
+  const next = Number(value)
+  return Number.isFinite(next) && next > 0 ? Math.max(1, Math.ceil(next)) : null
 }
 
 function buildMarker(label, price, tone, range) {
@@ -192,7 +229,7 @@ function buildPriceTicks(range) {
   })
 }
 
-function emptyRack(range = { lower: null, upper: null }) {
+function emptyRack(range = { lower: null, upper: null }, windowSpec = null) {
   return {
     meta: buildMeta({ orders: [], lpOnchain: null, viewMode: 'compare' }),
     viewMode: 'compare',
@@ -202,6 +239,7 @@ function emptyRack(range = { lower: null, upper: null }) {
     viewLabel: viewModeLabel('compare', false),
     shareLabel: shareLabel('compare', false),
     range,
+    windowSpec,
     basis: null,
     binCount: 0,
     priceStep: null,
@@ -225,5 +263,24 @@ function emptyRack(range = { lower: null, upper: null }) {
     hasCalibrationSignal: false,
     status: 'research-only',
     inputMode: 'model-only',
+    missingInputs: [],
+  }
+}
+
+function blockedRack(range, windowSpec, basis, missingInputs) {
+  const rack = emptyRack(range, windowSpec)
+  return {
+    ...rack,
+    basis,
+    status: 'blocked',
+    executionStatus: 'blocked',
+    inputMode: 'missing-input',
+    missingInputs,
+    meta: {
+      ...rack.meta,
+      title: '流动性指纹输入缺失',
+      sourceLabel: `缺少 ${missingInputs.join(' / ')}，未生成模型目标仓`,
+      compositionLabel: '补齐波动率和交易日年化基准后再计算',
+    },
   }
 }

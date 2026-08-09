@@ -48,16 +48,17 @@ describe('useLabStore（v3 重写后契约）', () => {
 
   it('初始 input 默认值正确', () => {
     const lab = useLabStore()
-    expect(lab.input.holdingDays).toBe(30)
+    expect(lab.input.holdingDays).toBeUndefined()
     expect(lab.input.deltaSlope).toBe(0.3)
     expect(lab.input.exitTargetReturn).toBe(0)
+    expect(lab.input.replayFeeRate).toBeNull()
     expect(lab.input.targetReturn).toBeUndefined()
-    expect(lab.input.feeIncomeQuote).toBe(0)
+    expect(lab.input.feeIncomeQuote).toBeNull()
     expect(lab.featureFlags.replayAccount).toBe(false)
     expect(lab.featureFlags.replayAutoProfile).toBe(false)
-    // tdpy 已从 input 移到 store 层 effectiveTdpy；首次无 source，走 fallback 365
-    expect(lab.effectiveTdpy).toBe(365)
-    expect(lab.tdpyMeta.basis).toBe('fallback')
+    expect(lab.input.tradingDaysPerYear).toBeUndefined()
+    expect(lab.effectiveTdpy).toBeNull()
+    expect(lab.tdpyMeta).toEqual({ value: null, basis: 'missing-input', label: '待识别' })
   })
 
   it('importText 解析 CSV 并触发输入回填', async () => {
@@ -72,6 +73,13 @@ describe('useLabStore（v3 重写后契约）', () => {
     lab.importText(csv, '测试集')
     await new Promise((r) => setTimeout(r, 50))
     expect(lab.rows.length).toBeGreaterThan(0)
+    expect(lab.market).toBeNull()
+    expect(lab.tdpyMeta.basis).toBe('missing-input')
+    lab.setTdpyOverride('测试集', 252)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(lab.tdpyMeta.basis).toBe('explicit-override')
+    expect(lab.tdpyMeta.inferredBasis).toBe('missing-input')
+    lab.setCursorIndex(lab.cursor)
     expect(lab.input.entryPrice).toBeGreaterThan(0)
     expect(lab.input.iv).toBeGreaterThanOrEqual(0)
   })
@@ -88,6 +96,7 @@ describe('useLabStore（v3 重写后契约）', () => {
     ].join('\n')
     lab.importText(csv, '观察日期测试')
     await new Promise((r) => setTimeout(r, 50))
+    lab.setTdpyOverride('观察日期测试', 252)
     lab.setObservationDate('2024-01-30')
     expect(lab.cursor).toBe(29)
     expect(lab.activeRows).toHaveLength(30)
@@ -160,6 +169,8 @@ describe('useLabStore（v3 重写后契约）', () => {
     lab.source = { id: 'a', symbol: 'AAPL', market: '美股', label: 'AAPL', url: '' }
     lab.setTdpyOverride('AAPL', 365)
     expect(lab.effectiveTdpy).toBe(365)
+    expect(lab.tdpyMeta.basis).toBe('explicit-override')
+    expect(lab.tdpyMeta.inferredBasis).toBe('us')
 
     lab.source = { id: 'b', symbol: 'BTCUSDT', label: 'BTC', url: '' }
     expect(lab.effectiveTdpy).toBe(365)

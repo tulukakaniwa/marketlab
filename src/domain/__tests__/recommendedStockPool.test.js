@@ -14,7 +14,7 @@ const STRONG = {
   costLow: 90,
   costHigh: 110,
   costDistance: -0.3,
-  costSlope5: 0.01,
+  costSlopeRecent: 0.01,
   j: -5,
   rsi: 12,
   lpZone: 'token0',
@@ -24,8 +24,10 @@ const STRONG = {
   zScore: -3.0,
   deviationPercentile: deviationPercentileFromZ(-3.0),
   anchorDirection: 'up',
-  halfLifeDays: 25,
-  halfLifeRho: 0.8,
+  halfLifeSessions: 25,
+  formulaHorizonSessions: 18,
+  tradingDays: 242,
+  arCoefficient: 0.8,
   meanReversionMonotonicGate: true,
   meanReversionCalibrationStatus: 'sample-only',
   meanReversionCalibrationId: null,
@@ -150,7 +152,7 @@ describe('computeBuyScore', () => {
   })
 
   it('样本内单调 AR 不能豁免成本锚下行，必须有独立留出校准标识', () => {
-    const m = { ...STRONG, costSlope5: -0.025, anchorDirection: 'down' }
+    const m = { ...STRONG, costSlopeRecent: -0.025, anchorDirection: 'down' }
     const r = computeBuyScore(m, { allowCatchKnife: true })
     expect(r.catchKnife).toBe(false)
     expect(r.dimensions.costSlope.ratio).toBe(0)
@@ -205,14 +207,14 @@ describe('computeBuyScore', () => {
 describe('generateRecommendedStockPool', () => {
   const candidates = [
     { symbol: 'A1', label: '高分', metrics: STRONG },
-    { symbol: 'A2', label: '锚向下同型', metrics: { ...STRONG, costSlope5: -0.02, anchorDirection: 'down' } },
+    { symbol: 'A2', label: '锚向下同型', metrics: { ...STRONG, costSlopeRecent: -0.02, anchorDirection: 'down' } },
     {
       symbol: 'A3',
       label: '中等',
       metrics: {
         ...STRONG,
         lpValuePercentile: 0.3,
-        costSlope5: -0.005,
+        costSlopeRecent: -0.005,
         anchorDirection: 'down',
         j: 30,
         lpValueRatio3y: 1.5,
@@ -229,7 +231,7 @@ describe('generateRecommendedStockPool', () => {
         costDistance: 0.1,
         lpZone: 'token1',
         lpValuePercentile: 0.85,
-        costSlope5: -0.02,
+        costSlopeRecent: -0.02,
         anchorDirection: 'down',
         j: 80,
         lpValueRatio3y: 1.1,

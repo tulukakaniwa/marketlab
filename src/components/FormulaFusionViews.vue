@@ -17,8 +17,8 @@ const lpParts = computed(() => {
     {
       id: 'il',
       label: '同期限 IL',
-      value: d.returns?.impermanentLoss,
-      display: props.pctFmt(d.returns?.impermanentLoss),
+      value: d.returns?.lpIlFraction,
+      display: props.pctFmt(d.returns?.lpIlFraction),
     },
     { id: 'fee', label: '路径手续费', value: d.returns?.feeReturn, display: props.pctFmt(d.returns?.feeReturn) },
     {
@@ -47,8 +47,8 @@ function barWidth(value) {
 function fixed(value, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '—'
 }
-function day(value) {
-  return Number.isFinite(value) ? `${Math.round(value)}天` : '—'
+function session(value) {
+  return Number.isFinite(value) ? `${Math.ceil(value)}个交易会话` : '—'
 }
 function ratio(value) {
   return Number.isFinite(value) ? `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%` : '—'
@@ -111,8 +111,8 @@ function reasonText(reasons = []) {
         <div><b>可与收益相加</b><span>否</span></div>
         <div>
           <b>同期限 IL</b
-          ><span :class="netLpData.returns?.impermanentLoss < 0 ? 'red' : 'green'">{{
-            pctFmt(netLpData.returns?.impermanentLoss)
+          ><span :class="netLpData.returns?.lpIlFraction < 0 ? 'red' : 'green'">{{
+            pctFmt(netLpData.returns?.lpIlFraction)
           }}</span>
         </div>
         <div>
@@ -186,7 +186,7 @@ function reasonText(reasons = []) {
           <b>Z</b><span>{{ fixed(dynamicHoldingData.state?.zScore, 2) }}</span>
         </div>
         <div>
-          <b>HL</b><span>{{ day(dynamicHoldingData.state?.halfLifeDays) }}</span>
+          <b>HL</b><span>{{ session(dynamicHoldingData.state?.halfLifeSessions) }}</span>
         </div>
         <div>
           <b>回撤</b><span>{{ pctFmt(dynamicHoldingData.state?.drawdown?.drawdownDepth) }}</span>
@@ -204,7 +204,7 @@ function reasonText(reasons = []) {
           <strong :class="statusClass(item.plan.status)">{{ item.plan.status }}</strong>
           <span>{{ actionName(item.plan.action) }} · {{ targetName(item.plan.targetId) }}</span>
           <small
-            >条件 {{ day(item.plan.expectedDays) }} ·
+            >条件 {{ session(item.plan.expectedSessions) }} ·
             {{
               Number.isFinite(item.plan.expectedReturnPct)
                 ? item.plan.expectedReturnPct + '%'
@@ -220,7 +220,7 @@ function reasonText(reasons = []) {
         <div v-for="milestone in dynamicHoldingData.milestones" :key="milestone.id" class="ff-row">
           <span>{{ targetName(milestone.id) }}</span>
           <span>{{ fmt(milestone.effectiveTargetPrice) }}</span>
-          <span>{{ day(milestone.expectedDays) }}</span>
+          <span>{{ session(milestone.expectedSessions) }}</span>
           <span>{{ Number.isFinite(milestone.grossReturn) ? pctFmt(milestone.grossReturn) : '—' }}</span>
           <span>{{ reasonText(milestone.blockedReasons) }}</span>
         </div>

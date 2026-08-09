@@ -78,7 +78,7 @@ const dailyChange = computed(() => {
 const narrativeText = computed(() => {
   const m = props.market
   if (!m) return '载入 K 线后判断'
-  const window = props.rows.length ? deriveWindows(props.rows.length).cost : 60
+  const window = props.rows.length ? deriveWindows(props.rows.length).cost : null
   return summarizeRegime({
     markPrice: m.markPrice,
     costAnchor: m.costAnchor,

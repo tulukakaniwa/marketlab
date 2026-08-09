@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 import { parseCsvText } from '../src/domain/market-data/ohlcv.js'
 import { buildMarketStatePath } from '../src/domain/market-data/cost.js'
+import { inferTdpy } from '../src/domain/market-data/tdpy.js'
 import { uniswapV3Inventory } from '../src/domain/formulas/lp.js'
 import {
   buildScoreConfig,
@@ -26,8 +27,7 @@ const WHITELIST_PATH = join(ROOT, 'src', 'data', 'social-security-q1-whitelist.j
 const TOP_N = numberArg('--top', 10)
 const RANGE_WIDTH = numberArg('--range-width', 0.1)
 const LIQUIDITY = numberArg('--liquidity', 1)
-const HISTORY_DAYS_1Y = numberArg('--history-days', 252)
-const HISTORY_DAYS_3Y = HISTORY_DAYS_1Y * 3
+const HISTORY_SESSIONS_OVERRIDE = optionalNumberArg('--history-sessions')
 
 main().catch((err) => {
   console.error(err)
@@ -54,11 +54,6 @@ async function main() {
     try {
       const text = await readFile(join(DATA_DIR, file), 'utf8')
       const rows = parseCsvText(text)
-      if (rows.length < 60) {
-        skipCount += 1
-        continue
-      }
-
       const metrics = computeMetricsForRows(rows, entry, whitelist)
       if (!metrics) {
         skipCount += 1
@@ -95,8 +90,8 @@ async function main() {
       topN: TOP_N,
       rangeWidth: RANGE_WIDTH,
       liquidity: LIQUIDITY,
-      historyDays1y: HISTORY_DAYS_1Y,
-      historyDays3y: HISTORY_DAYS_3Y,
+      historyWindowMode: HISTORY_SESSIONS_OVERRIDE ? 'explicit-scenario' : 'market-tdpy-derived',
+      historySessionsOverride: HISTORY_SESSIONS_OVERRIDE,
     },
     counts: {
       indexEntries: index.length,
@@ -137,7 +132,10 @@ async function loadWhitelist() {
 
 function computeMetricsForRows(rows, entry, whitelist) {
   const market = entry.market
-  const tdpy = inferTdpy(market)
+  const tdpy = inferTdpy({ symbol: entry.symbol, market }).value
+  const historySessions1y = HISTORY_SESSIONS_OVERRIDE ?? tdpy
+  const historySessions3y = historySessions1y * 3
+  const minimumEvidenceSamples = Math.max(3, Math.ceil(Math.sqrt(tdpy)))
   const last = rows.at(-1)
   if (!last) return null
 
@@ -146,16 +144,20 @@ function computeMetricsForRows(rows, entry, whitelist) {
   if (!lastMarket) return null
 
   // 1 年 lpValue 序列 → 当前百分位
-  const lpValues1y = collectLpValues(rows, marketStatePath, HISTORY_DAYS_1Y)
+  const lpValues1y = collectLpValues(rows, marketStatePath, historySessions1y)
   // 3 年 lpValue 序列 → max/min 比值
-  const lpValues3y = collectLpValues(rows, marketStatePath, HISTORY_DAYS_3Y)
+  const lpValues3y = collectLpValues(rows, marketStatePath, historySessions3y)
 
   const currentLp = computeLpAt({ price: last.close, anchor: lastMarket.costAnchor })
   if (!currentLp) return null
 
-  const lpValuePercentile = lpValues1y.length >= 30 ? percentileOf(lpValues1y, currentLp.value) : null
+  const lpValuePercentile =
+    lpValues1y.length >= minimumEvidenceSamples ? percentileOf(lpValues1y, currentLp.value) : null
 
-  const lpRatio3y = lpValues3y.length >= 60 ? Math.max(...lpValues3y) / Math.max(Math.min(...lpValues3y), 1e-12) : null
+  const lpRatio3y =
+    lpValues3y.length >= minimumEvidenceSamples
+      ? Math.max(...lpValues3y) / Math.max(Math.min(...lpValues3y), 1e-12)
+      : null
 
   // z 值
   const halfWidth =
@@ -169,7 +171,7 @@ function computeMetricsForRows(rows, entry, whitelist) {
 
   // costDistance 序列（用于半衰期）
   const distSeries = []
-  const distStart = Math.max(0, marketStatePath.length - HISTORY_DAYS_1Y)
+  const distStart = Math.max(0, marketStatePath.length - historySessions1y)
   for (let i = distStart; i < marketStatePath.length; i += 1) {
     const ms = marketStatePath[i]
     if (Number.isFinite(ms?.costDistance)) distSeries.push(ms.costDistance)
@@ -181,7 +183,7 @@ function computeMetricsForRows(rows, entry, whitelist) {
     costLow: lastMarket.costLow,
     costHigh: lastMarket.costHigh,
     costDistance: lastMarket.costDistance,
-    costSlope5: lastMarket.costSlope5,
+    costSlopeRecent: lastMarket.costSlopeRecent,
     annualVol: lastMarket.annualVol,
     lpZone: currentLp.zone,
     lpValue: currentLp.value,
@@ -195,10 +197,13 @@ function computeMetricsForRows(rows, entry, whitelist) {
     deviationSemantics: deviationReference?.semantics ?? null,
     annualVolSource: 'historical-realized-scenario-sigma',
     lpProxySemantics: 'dynamic-range-synthetic-price-geometry-not-fixed-position',
-    anchorDirection: directionOfSlope(lastMarket.costSlope5),
+    anchorDirection: directionOfSlope(lastMarket.costSlopeRecent),
     costDistanceSeries: distSeries,
     tradingDays: distSeries.length,
     tradingDaysPerYear: tdpy,
+    historySessions1y,
+    historySessions3y,
+    minimumEvidenceSamples,
     socialSecurityWhitelisted: whitelist.has(entry.symbol),
     observationDate: last.date,
   }
@@ -241,14 +246,16 @@ function directionOfSlope(slope) {
   return 'flat'
 }
 
-function inferTdpy(market) {
-  if (market === '加密') return 365
-  return 252
-}
-
 function numberArg(name, fallback) {
   const idx = process.argv.indexOf(name)
   if (idx < 0) return fallback
   const value = Number(process.argv[idx + 1])
   return Number.isFinite(value) && value > 0 ? value : fallback
+}
+
+function optionalNumberArg(name) {
+  const idx = process.argv.indexOf(name)
+  if (idx < 0) return null
+  const value = Number(process.argv[idx + 1])
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : null
 }

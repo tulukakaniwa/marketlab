@@ -243,7 +243,7 @@ function syncChart() {
   if (series.bsTheta)
     setLine(
       series.bsTheta,
-      props.formulaPath.map((r) => r.optionThetaDaily),
+      props.formulaPath.map((r) => r.optionThetaPerSession),
     )
   if (series.greeksZero)
     setLine(
@@ -277,10 +277,10 @@ function syncChart() {
       series.lpZero,
       props.rows.map(() => 0),
     )
-  if (series.fundingProxy)
+  if (series.cumulativeFundingProxy)
     setLine(
-      series.fundingProxy,
-      props.formulaPath.map((r) => r.fundingProxy),
+      series.cumulativeFundingProxy,
+      props.formulaPath.map((r) => r.cumulativeFundingProxy),
     )
   if (series.netCarry)
     setLine(

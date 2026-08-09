@@ -62,4 +62,18 @@ describe('ReplayPanel', () => {
     expect(wrapper.text()).toContain('成本路径')
     expect(wrapper.text()).toContain('LP 区间库存')
   })
+
+  it('缺少显式费率时展示费率输入，不把空值当 0%', () => {
+    const input = { capital: 10000, baseNotional: 0, replayFeeRate: null }
+    const wrapper = mount(ReplayPanel, {
+      props: {
+        replay: replay({ status: 'missing-replay-fee-input' }),
+        input,
+      },
+    })
+
+    expect(wrapper.text()).toContain('系统不注入隐藏默认值')
+    expect(wrapper.text()).toContain('回放总费率 %')
+    expect(wrapper.find('.replay-grid').exists()).toBe(false)
+  })
 })

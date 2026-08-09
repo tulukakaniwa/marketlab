@@ -29,9 +29,10 @@ describe('inferTdpy', () => {
     expect(inferTdpy({ symbol: '300750' }).basis).toBe('cn')
   })
 
-  it('falls back safely for unknown input', () => {
-    expect(inferTdpy(null)).toEqual({ value: 365, basis: 'fallback', label: '默认 365' })
-    expect(inferTdpy({}).basis).toBe('fallback')
-    expect(inferTdpy({ symbol: '???' }).basis).toBe('fallback')
+  it('keeps unknown input missing instead of guessing a 365-session market', () => {
+    const missing = { value: null, basis: 'missing-input', label: '待识别' }
+    expect(inferTdpy(null)).toEqual(missing)
+    expect(inferTdpy({})).toEqual(missing)
+    expect(inferTdpy({ symbol: '???' })).toEqual(missing)
   })
 })

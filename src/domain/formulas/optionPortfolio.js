@@ -1,14 +1,22 @@
 import { bachelierOption, blackScholes } from './options.js'
+import { defineLegacyAliasContract } from './legacyAliases.js'
 
 const DEFAULT_STEPS = 80
+const PORTFOLIO_GREEK_LEGACY_CONTRACT = defineLegacyAliasContract({
+  delta: 'optionDelta',
+  gamma: 'optionGamma',
+  thetaDaily: 'optionThetaPerSession',
+  vega: 'optionVegaPerPct',
+  rho: 'optionRhoPerPct',
+})
 
 export function buildOptionPortfolio({
   entryPrice,
-  holdingDays,
+  timeToExpirySessions,
   iv,
   riskFreeRate = 0,
   dividendYield = 0,
-  tradingDaysPerYear = 365,
+  tradingDaysPerYear,
   legs = [],
   contractMultiplier = 1,
   steps = DEFAULT_STEPS,
@@ -18,12 +26,13 @@ export function buildOptionPortfolio({
   volatilitySourceVerified = false,
 }) {
   if (
-    ![entryPrice, holdingDays, iv, riskFreeRate, dividendYield, tradingDaysPerYear, contractMultiplier].every(
+    ![entryPrice, timeToExpirySessions, iv, riskFreeRate, dividendYield, tradingDaysPerYear, contractMultiplier].every(
       Number.isFinite,
     )
   )
     return null
-  if (entryPrice <= 0 || holdingDays <= 0 || iv <= 0 || tradingDaysPerYear <= 0 || contractMultiplier <= 0) return null
+  if (entryPrice <= 0 || timeToExpirySessions <= 0 || iv <= 0 || tradingDaysPerYear <= 0 || contractMultiplier <= 0)
+    return null
 
   const normalized = normalizeOptionLegs(legs)
   if (!normalized.length) return null
@@ -34,7 +43,7 @@ export function buildOptionPortfolio({
         leg,
         price: entryPrice,
         entryPrice,
-        holdingDays,
+        timeToExpirySessions,
         iv,
         riskFreeRate,
         dividendYield,
@@ -46,6 +55,14 @@ export function buildOptionPortfolio({
   if (!pricedLegs.length) return null
 
   const totals = aggregateLegs(pricedLegs)
+  const missingGreeks = [
+    Number.isFinite(totals.optionDelta) ? null : 'option-delta',
+    Number.isFinite(totals.optionGamma) ? null : 'option-gamma',
+    Number.isFinite(totals.optionThetaPerSession) ? null : 'option-theta-per-session',
+    Number.isFinite(totals.optionThetaAnnual) ? null : 'option-theta-annual',
+    Number.isFinite(totals.optionVegaPerPct) ? null : 'option-vega-per-pct',
+    Number.isFinite(totals.optionRhoPerPct) ? null : 'option-rho-per-pct',
+  ].filter(Boolean)
   const marketIvClaimed = volatilitySource === 'market-option-quote-implied'
   const isMarketIv = marketIvClaimed && volatilitySourceVerified === true
   const min = Math.max(0.0001, entryPrice * minFactor)
@@ -59,7 +76,7 @@ export function buildOptionPortfolio({
         scenarioLegPnl({
           leg,
           price,
-          holdingDays,
+          timeToExpirySessions,
           iv,
           riskFreeRate,
           dividendYield,
@@ -81,6 +98,7 @@ export function buildOptionPortfolio({
     points,
     ...totals,
     strategyClass: classifyOptionPortfolio(totals),
+    missingGreeks,
     missingInputs: [
       pricedLegs.some((leg) => leg.premiumSource === 'model') ? 'option-leg-premium' : null,
       marketIvClaimed && !isMarketIv ? 'verified-market-iv-source' : null,
@@ -164,7 +182,7 @@ function leg({ type, side, strikePrice, quantity, premium, model = 'black-schole
 function priceLeg({
   leg,
   price,
-  holdingDays,
+  timeToExpirySessions,
   iv,
   riskFreeRate,
   dividendYield,
@@ -176,7 +194,7 @@ function priceLeg({
       ? bachelierOption({
           entryPrice: price,
           strikePrice: leg.strikePrice,
-          holdingDays,
+          timeToExpirySessions,
           normalVol: positive(leg.normalVol) ?? iv * price,
           riskFreeRate,
           type: leg.type,
@@ -185,7 +203,7 @@ function priceLeg({
       : blackScholes({
           entryPrice: price,
           strikePrice: leg.strikePrice,
-          holdingDays,
+          timeToExpirySessions,
           iv,
           riskFreeRate,
           dividendYield,
@@ -196,6 +214,12 @@ function priceLeg({
   const direction = leg.side === 'short' ? -1 : 1
   const signedQuantity = direction * leg.quantity * contractMultiplier
   const premium = Number.isFinite(leg.premium) ? leg.premium : quote.price
+  const optionDelta = scaleGreek(quote.optionDelta, signedQuantity)
+  const optionGamma = scaleGreek(quote.optionGamma, signedQuantity)
+  const optionThetaPerSession = scaleGreek(quote.optionThetaPerSession, signedQuantity)
+  const optionThetaAnnual = scaleGreek(quote.optionThetaAnnual, signedQuantity)
+  const optionVegaPerPct = scaleGreek(quote.optionVegaPerPct, signedQuantity)
+  const optionRhoPerPct = scaleGreek(quote.optionRhoPerPct, signedQuantity)
   return {
     ...leg,
     quote,
@@ -206,34 +230,59 @@ function priceLeg({
     value: signedQuantity * quote.price,
     entryCost: signedQuantity * premium,
     pnl: signedQuantity * (quote.price - premium),
-    delta: signedQuantity * (quote.delta ?? 0),
-    gamma: signedQuantity * (quote.gamma ?? 0),
-    thetaDaily: signedQuantity * (quote.thetaDaily ?? quote.theta ?? 0),
-    vega: signedQuantity * (quote.vega ?? quote.vegaNormal ?? 0),
-    rho: signedQuantity * (quote.rho ?? 0),
+    optionDelta,
+    optionGamma,
+    optionThetaPerSession,
+    optionThetaAnnual,
+    optionVegaPerPct,
+    optionRhoPerPct,
+    // Deprecated compatibility aliases. Missing model Greeks remain null.
+    delta: optionDelta,
+    gamma: optionGamma,
+    thetaDaily: optionThetaPerSession,
+    vega: optionVegaPerPct,
+    rho: optionRhoPerPct,
+    ...PORTFOLIO_GREEK_LEGACY_CONTRACT,
   }
 }
 
 function aggregateLegs(legs) {
-  return legs.reduce(
+  const cash = legs.reduce(
     (acc, item) => ({
       value: acc.value + item.value,
       entryCost: acc.entryCost + item.entryCost,
       pnl: acc.pnl + item.pnl,
-      delta: acc.delta + item.delta,
-      gamma: acc.gamma + item.gamma,
-      thetaDaily: acc.thetaDaily + item.thetaDaily,
-      vega: acc.vega + item.vega,
-      rho: acc.rho + item.rho,
     }),
-    { value: 0, entryCost: 0, pnl: 0, delta: 0, gamma: 0, thetaDaily: 0, vega: 0, rho: 0 },
+    { value: 0, entryCost: 0, pnl: 0 },
   )
+  const optionDelta = aggregateGreek(legs, 'optionDelta')
+  const optionGamma = aggregateGreek(legs, 'optionGamma')
+  const optionThetaPerSession = aggregateGreek(legs, 'optionThetaPerSession')
+  const optionThetaAnnual = aggregateGreek(legs, 'optionThetaAnnual')
+  const optionVegaPerPct = aggregateGreek(legs, 'optionVegaPerPct')
+  const optionRhoPerPct = aggregateGreek(legs, 'optionRhoPerPct')
+  return {
+    ...cash,
+    optionDelta,
+    optionGamma,
+    optionThetaPerSession,
+    optionThetaAnnual,
+    optionVegaPerPct,
+    optionRhoPerPct,
+    // Deprecated compatibility aliases. Missingness is propagated, never coerced to zero.
+    delta: optionDelta,
+    gamma: optionGamma,
+    thetaDaily: optionThetaPerSession,
+    vega: optionVegaPerPct,
+    rho: optionRhoPerPct,
+    ...PORTFOLIO_GREEK_LEGACY_CONTRACT,
+  }
 }
 
 function scenarioLegPnl({
   leg,
   price,
-  holdingDays,
+  timeToExpirySessions,
   iv,
   riskFreeRate,
   dividendYield,
@@ -243,7 +292,7 @@ function scenarioLegPnl({
   const priced = priceLeg({
     leg,
     price,
-    holdingDays,
+    timeToExpirySessions,
     iv,
     riskFreeRate,
     dividendYield,
@@ -259,9 +308,23 @@ function expiryLegPnl(leg, price, contractMultiplier) {
 }
 
 function classifyOptionPortfolio(totals) {
-  const delta = Math.abs(totals.delta) < 1e-6 ? 'delta-neutral' : totals.delta > 0 ? 'positive-delta' : 'negative-delta'
-  const gamma = Math.abs(totals.gamma) < 1e-8 ? 'flat-gamma' : totals.gamma > 0 ? 'long-convexity' : 'short-convexity'
+  if (!Number.isFinite(totals.optionDelta) || !Number.isFinite(totals.optionGamma)) {
+    return 'unclassified-missing-greeks'
+  }
+  const delta =
+    Math.abs(totals.optionDelta) < 1e-6 ? 'delta-neutral' : totals.optionDelta > 0 ? 'positive-delta' : 'negative-delta'
+  const gamma =
+    Math.abs(totals.optionGamma) < 1e-8 ? 'flat-gamma' : totals.optionGamma > 0 ? 'long-convexity' : 'short-convexity'
   return `${delta}/${gamma}`
+}
+
+function scaleGreek(value, signedQuantity) {
+  return Number.isFinite(value) ? signedQuantity * value : null
+}
+
+function aggregateGreek(legs, field) {
+  const values = legs.map((item) => item[field])
+  return values.length > 0 && values.every(Number.isFinite) ? values.reduce((sum, value) => sum + value, 0) : null
 }
 
 function positive(value) {

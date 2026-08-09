@@ -7,7 +7,13 @@
 //   - 数据缺失（requires 字段缺失）自动跳过该维度，剩余维度按比例归一
 //   - 趋势下行豁免默认关闭；样本内 AR 不够，必须有独立留出验证标识
 
-import { meanReversionHalfLife, volConfidence, deviationScore, getDeltaBands } from '../formulas/core.js'
+import {
+  deriveRecoveryHorizon,
+  deviationScore,
+  getDeltaBands,
+  meanReversionHalfLife,
+  volConfidence,
+} from '../formulas/core.js'
 
 import {
   DEFAULT_OPTIONS,
@@ -254,33 +260,56 @@ export function generateRecommendedStockPool(candidates, options = {}) {
 
 export function deriveRecommendedStockDecisionMetrics(metrics) {
   const out = {}
+  const tradingDaysPerYear = Number(metrics.tradingDaysPerYear)
+  const hasTdpy = Number.isFinite(tradingDaysPerYear) && tradingDaysPerYear > 0
+  const arSampleSize = Array.isArray(metrics.costDistanceSeries) ? metrics.costDistanceSeries.length : 0
+  const minimumArSamples = hasTdpy ? Math.max(3, Math.ceil(Math.sqrt(tradingDaysPerYear))) : null
   // 半衰期 + 速度
-  if (Array.isArray(metrics.costDistanceSeries) && metrics.costDistanceSeries.length >= 30) {
+  if (minimumArSamples && arSampleSize >= minimumArSamples) {
     const hl = meanReversionHalfLife({
       costDistanceSeries: metrics.costDistanceSeries,
-      tradingDaysPerYear: metrics.tradingDaysPerYear || 252,
+      tradingDaysPerYear,
     })
     if (hl) {
-      out.halfLifeDays = Number.isFinite(hl.halfLifeDays) ? round1(hl.halfLifeDays) : null
-      out.halfLifeSpeed = hl.speed
-      out.halfLifeRho = round2(hl.rho)
+      out.halfLifeSessions = Number.isFinite(hl.halfLifeSessions) ? round1(hl.halfLifeSessions) : null
+      out.arDecayLabel = hl.speed
+      out.arCoefficient = round2(hl.arCoefficient)
+      out.arSampleSize = hl.sampleSize
+      out.minimumArSamples = minimumArSamples
       out.meanReversionMonotonicGate =
-        hl.isMeanReverting && hl.decayMode === 'monotonic-decay' && hl.rho > 0 && hl.rho < 1
+        hl.isMeanReverting && hl.decayMode === 'monotonic-decay' && hl.arCoefficient > 0 && hl.arCoefficient < 1
       out.meanReversionCalibrationStatus = 'sample-only'
       out.meanReversionCalibrationId = null
-      // 条件零冲击投影：2×HL / 3×HL；不是持仓期或回归日期预测。
-      if (out.meanReversionMonotonicGate && Number.isFinite(out.halfLifeDays) && out.halfLifeDays > 0) {
-        out.holdingProjectionDays = Math.round(out.halfLifeDays * 2)
-        out.recoveryProjectionDays = Math.round(out.halfLifeDays * 3)
+      // 周期只能由当时结构目标隐含的恢复比例推导；不再把 2×HL/3×HL
+      // 当成全局持仓周期。若目标不严格位于现价与锚之间，则保持缺失。
+      if (out.meanReversionMonotonicGate && Number.isFinite(out.halfLifeSessions) && out.halfLifeSessions > 0) {
+        const recovery = deriveRecoveryHorizon({
+          cycleStartPrice: metrics.price,
+          anchorPrice: metrics.costAnchor,
+          targetPrice: metrics.costLow,
+          halfLifeSessions: out.halfLifeSessions,
+        })
+        out.formulaHorizonSessions = recovery.eligible ? recovery.modelHorizonSessions : null
+        out.holdingProjectionRaw = recovery.eligible ? round2(recovery.modelHorizonRaw) : null
+        out.recoveryFraction = recovery.eligible ? round2(recovery.recoveryFraction) : null
+        out.holdingProjectionStatus = recovery.eligible ? 'scenario-proxy' : 'missing-input'
+        out.holdingProjectionReason = recovery.eligible ? null : recovery.reason
       }
     }
   }
-  // 波动样本质量启发式（quality + |z|），不是置信度或胜率。
+  // IID 正态近似下的相对标准误差启发式（relativeUncertainty + |z|），
+  // 不是稳健统计精度、置信度或胜率。
   if (Number.isFinite(metrics.annualVol) && Number.isFinite(metrics.tradingDays)) {
     const vc = volConfidence({ annualVol: metrics.annualVol, sampleSize: metrics.tradingDays })
     if (vc) {
       const qualityScore =
-        vc.quality === '高精度' ? 1 : vc.quality === '中精度' ? 0.7 : vc.quality === '低精度' ? 0.4 : 0.1
+        vc.relativeUncertainty <= 0.1
+          ? 1
+          : vc.relativeUncertainty <= 0.2
+            ? 0.7
+            : vc.relativeUncertainty <= 0.3
+              ? 0.4
+              : 0.1
       // 与 |z| 极端度合成：|z|≥3 上调 +0.2
       const zBoost = Number.isFinite(metrics.zScore)
         ? Math.min(0.3, Math.max(0, (Math.abs(metrics.zScore) - 1) * 0.1))
@@ -290,13 +319,18 @@ export function deriveRecommendedStockDecisionMetrics(metrics) {
     }
   }
   // 研究坐标：Delta 上沿 / 成本带下沿；不是买卖点。
-  if (Number.isFinite(metrics.costAnchor) && Number.isFinite(metrics.annualVol) && metrics.annualVol > 0) {
+  if (
+    Number.isFinite(metrics.costAnchor) &&
+    Number.isFinite(metrics.annualVol) &&
+    metrics.annualVol > 0 &&
+    Number.isFinite(out.formulaHorizonSessions)
+  ) {
     const deltaBands = getDeltaBands({
       entryPrice: metrics.costAnchor,
-      holdingDays: out.holdingProjectionDays || 30,
+      formulaHorizonSessions: out.formulaHorizonSessions,
       iv: metrics.annualVol,
       deltaSlope: 0.3,
-      tradingDaysPerYear: metrics.tradingDaysPerYear || 252,
+      tradingDaysPerYear,
     })
     if (deltaBands?.long?.high) out.deltaReferencePrice = round2(deltaBands.long.high)
   }

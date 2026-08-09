@@ -81,7 +81,7 @@ const multiScaleModel = {
       series: [
         line('bsDelta', '期权 Delta', '#a93226', [0.4, 0.42]),
         line('bsGamma', '期权 Gamma', '#8b5a16', [0.03, 0.031], { lineWidth: 3 }),
-        line('bsTheta', '期权 Theta/日', '#274f9f', [-0.02, -0.021]),
+        line('bsTheta', '期权 Theta/交易会话', '#274f9f', [-0.02, -0.021]),
       ],
     },
     {

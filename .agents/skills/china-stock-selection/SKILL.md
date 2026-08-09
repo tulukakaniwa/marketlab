@@ -89,8 +89,9 @@ Useful variants:
 ```bash
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --top 30
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market 港股 --top 15 --format json --option-tenor-sessions 30 # explicit option-expiry scenario
 node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --require-shebao false
-node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --min-rows 240
+node .agents/skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股 --min-rows 240 # explicit sample-gate scenario
 ```
 
 Optional exclusions can be disabled individually:
@@ -115,7 +116,7 @@ Do not add `regressionProb` or `netLpEfficiency` to this score. Neither is a val
 
 The score is diagnostic only. It cannot upgrade a candidate when the domain dynamic-holding state is not `观察` or the order-plan query remains blocked; expose the raw score state separately from the gated candidate state.
 
-Any Black-Scholes/Asian/Bachelier fields in the screen use historical realized volatility as scenario sigma. Label `volatilitySource=historical-realized-scenario` and `isMarketIv=false`. Without option-chain quotes, bid/ask, contract multiplier and settlement rules, they are not executable option or market-making outputs.
+Any Black-Scholes/Asian/Bachelier fields in the screen use historical realized volatility as scenario sigma. Label `volatilitySource=historical-realized-scenario` and `isMarketIv=false`. Their `timeToExpirySessions` is independent of the stock-repair `formulaHorizonSessions`: it exists only when the caller explicitly supplies `--option-tenor-sessions`. Without that flag, the option layer is `missing-input`, all Greeks and Gamma scenario values remain `null`, and the stock-repair horizon must never be substituted. Without option-chain quotes, bid/ask, contract multiplier and settlement rules, an explicitly tenored result is still not an executable option or market-making output.
 
 ### Screen Output Contract
 
@@ -176,6 +177,12 @@ It is only a geometry diagnostic. It is not:
 
 Capital-efficiency and relative-IL fields are shape diagnostics under the synthetic inputs. Pass them through `lpResearchAttribution()` so dimensional semantics remain explicit. With no path-calibrated fees and common horizon, its status must remain `calibration-required` and `returns.netReturn` must remain `null`. Do not call these fields realized or expected returns. The geometry may contribute to screening diagnostics, but it must not be turned into a fabricated LP upper-price target.
 
+The screen's constant-product proxy must call `fullRangeV2ImpermanentLoss()` and pass
+`lpIlFraction`, `ilModel`, `capitalBasis`, and `horizonSessions` into
+`lpResearchAttribution()`. It must not call the deprecated generic IL wrapper. Because
+path fees and a common horizon are absent, attribution remains `calibration-required`,
+`researchBoundary=research-only`, and non-executable.
+
 CK's exact symmetric capital-efficiency frontier and its valuation-basis caveat are specified in `references/formula-risk-contract.md`. The exact `±84.13%` result may be explained as a theorem under its own objective, but never installed as a default stock range, probability band, fee optimum, or PnL optimum. Do not combine its geometric-midpoint efficiency with the screen's current-versus-anchor normalized synthetic value; they use different valuation bases.
 
 ### Dynamic Holding Targets
@@ -187,13 +194,47 @@ Dynamic target generation consumes cost-band structure only:
 
 The output must state `targetInputMode=cost-band-and-anchor-only` and `syntheticCkGeometryUsedAsTarget=false`. Synthetic CK range bounds are never target prices.
 
-Any `expectedDays`, `expectedReturn*`, or `monthlyEfficiency*` field is a conditional zero-shock AR-path projection under the frozen sample state. It is not a forecast, expected realized return, promised holding period, or position-sizing input.
+Holding time is not a `5/10/30/60/90` bucket. For a valid structural target strictly
+between the event start and its frozen cost anchor, derive its location and horizon:
+
+```text
+q = (targetPrice - cycleStartPrice) / (costAnchor - cycleStartPrice)
+H = halfLifeSessions * log2(1 / (1 - q))
+q(H) = 1 - 2^(-H / halfLifeSessions)
+modelHorizonSessions = ceil(H)
+```
+
+For the replay's default structure mode, `targetPrice=costLower`. At signal close this is
+only a provisional coordinate. After the next-session open is observed, recompute `q`
+and `H` from that actual entry; the recomputed horizon controls the exit boundary,
+required trailing sample, and per-instrument non-overlap. Never substitute `q=0.875`.
+An explicitly chosen `H=3*halfLifeSessions` does imply the exact identity
+`q=1-2^-3=0.875`; this is a conditional time coordinate, not an instrument-calibrated
+target and not the CK skew frontier's `alpha=0` solution.
+The anchor has `q=1` and an asymptotic horizon, so it is not silently converted into a
+finite target.
+
+Sample length is dynamic too. Without `--min-rows`, each instrument emits an adaptive
+window specification derived only from `tradingDaysPerYear` and the rows visible at
+that observation. CK geometry rank, empirical deviation, mean-reversion fitting, and
+the first replay-eligible prefix consume that specification; they do not use global
+`180/242/260/360/726` row windows. An explicit `--min-rows` is a user-declared sample
+gate scenario and is labeled `mode=explicit-scenario`, `source=cli:--min-rows`.
+
+Any `expectedSessions` or `expectedReturn*` field is a conditional zero-shock AR-path
+projection under the frozen sample state. It is not a forecast, expected realized
+return, promised holding period, or position-sizing input. New skill output uses
+`arCoefficient`, `halfLifeSessions`, `*HorizonSessions`, and `actualHoldSessions`;
+legacy `*Days` formula aliases are not serialized.
 
 ### Options, LP, and Market-making Escalation
 
 The stock screen exposes some option/LP fields to teach and compare risk geometry. They do not make this skill an executable option or AMM trader.
 
 - Historical realized volatility is a scenario sigma, not market IV.
+- Option expiry is an independent contract/scenario input. Never reuse the stock
+  repair horizon or AR half-life as `timeToExpirySessions`; omit
+  `--option-tenor-sessions` to preserve an honest `missing-input` result.
 - A blank premium remains missing; explicit zero is a distinct input.
 - Capital efficiency is a leverage/geometry multiple, not a return.
 - Liquidity fingerprint mass is a model allocation weight, not a price probability.
@@ -209,14 +250,30 @@ If a user requests an executable option, LP, hedge, or market-making plan, apply
 Run replay or a latest-observation scan:
 
 ```bash
-node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs
-node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile swing
-node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo
-node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo --mode latest
-node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --market 港股 --mode latest
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --fee 0
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile swing --fee 0.0011
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo --fee 0.0011
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo --mode latest --fee 0
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --market 港股 --mode latest --fee 0
 ```
 
-Profiles are `strict`, `swing`, and `combo`. `--target-mode structure` is the default; `--target-mode fixed` is an explicit alternate price-target assumption, not a bypass around dynamic-holding or phase gates. `low-compression` remains `等待` in both modes.
+Profiles are `strict`, `swing`, and `combo`, but these names select threshold sets rather
+than fixed holding buckets. Resolved profile names are `strict-structure` and
+`swing-structure`; fixed mode uses `strict-fixed-scenario` or `swing-fixed-scenario`.
+`--target-mode structure` is the default and has no `max-hold`
+fallback. `--target-mode fixed` is an explicit paired target/horizon scenario; it requires
+both explicit `--target` and `--max-hold`, emits `fixedHorizonApplied=true` and
+`executionAuthority=none`, and cannot bypass dynamic-holding or phase gates.
+`low-compression` remains `等待` in both modes.
+
+`--fee` has no hidden default and is required in replay and latest mode. Pass
+`--fee 0` explicitly when the intended scenario has no aggregate fee drag. Explicit
+zero and missing input are different states.
+
+Profile return fields are deliberately disjoint. Structure mode exposes and consumes
+only `minimumGrossReturn`; fixed mode exposes and consumes only the explicitly supplied
+`fixedTargetReturn`. The absent field is `null`, so a structural threshold cannot be
+mistaken for a fixed target and a fixed scenario cannot leak into structural mode.
 
 All defaults, units, profile precedence, output fields, and fill limitations live in `references/cli-contract.md`; do not infer them from flag names.
 
@@ -230,8 +287,13 @@ Relevant overrides include:
 --max-distance 16
 --min-slope -1
 --max-slope 1
---max-hold 5
 --fee 0.0011
+```
+
+An explicit fixed scenario must say so in the command:
+
+```bash
+node .agents/skills/china-stock-selection/scripts/replay-short-hold.mjs --target-mode fixed --target 0.03 --max-hold 10 --fee 0.0011
 ```
 
 `--lp-max` remains a compatibility alias for `--ck-geometry-max`; new calls and reports must use the CK-geometry name.
@@ -249,8 +311,11 @@ Replay signal output includes:
 
 Replay safety rules:
 
-- only positive `rho` with `decayMode=monotonic-decay` may use the half-life target model; negative-rho oscillation and non-stationary estimates are ineligible
+- only positive `arCoefficient` with `decayMode=monotonic-decay` may use the half-life target model; negative-coefficient oscillation and non-stationary estimates are ineligible
 - the signal is observed at close and entry occurs at the next session open; use the signal-day frozen cost structure and statistical state to rebase target return and eligibility at that open
+- in structure mode, recompute actual-entry `q` and `modelHorizonSessions`; use that same event horizon for tail sufficiency, no-hit exit, and non-overlap
+- historical row state is reconstructed from `rows[0..signalIndex]`: `dataThrough`, row count, freshness, and `candidateStatus` cannot consume the dataset's later rows
+- A-share `settlementLagSessions=1` is a T+1 market rule, not a modeled minimum holding period
 - if both stop and target lie inside the same OHLC bar, resolve the ambiguous path as stop-first and disclose `intrabarPolicy=stop-first-conservative-when-both-hit`
 - `--require-shebao true` uses the current static whitelist and therefore has point-in-time lookahead in historical replay; keep it off by default and disclose the limitation when enabled
 

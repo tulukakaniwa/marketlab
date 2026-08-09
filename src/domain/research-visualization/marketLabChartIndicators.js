@@ -77,9 +77,17 @@ const DEFINITIONS = Object.freeze([
   pathIndicator('bsGamma', '期权 Gamma', 'num', 'greeks', '#8b5a16', 'greeks', 'paneOn.greeks', 'optionGamma', {
     controls: ['greeksPane'],
   }),
-  pathIndicator('bsTheta', '期权 Theta/日', 'num', 'greeks', '#274f9f', 'greeks', 'paneOn.greeks', 'optionThetaDaily', {
-    controls: ['greeksPane'],
-  }),
+  pathIndicator(
+    'bsTheta',
+    '期权 Theta/交易会话',
+    'num',
+    'greeks',
+    '#274f9f',
+    'greeks',
+    'paneOn.greeks',
+    'optionThetaPerSession',
+    { controls: ['greeksPane'] },
+  ),
 
   pathIndicator('lpDelta', 'LP 库存暴露', 'ratio', 'lp', '#0e7558', 'lp', 'paneOn.lp', 'lpNormalizedDelta', {
     controls: ['lpPane'],
@@ -119,9 +127,17 @@ const DEFINITIONS = Object.freeze([
     controls: ['lpPane'],
   }),
 
-  pathIndicator('fundingProxy', 'Funding 估算', 'pct', 'carry', '#a93226', 'carry', 'paneOn.carry', 'fundingProxy', {
-    controls: ['carryPane'],
-  }),
+  pathIndicator(
+    'cumulativeFundingProxy',
+    '累计 Funding 代理',
+    'pct',
+    'carry',
+    '#a93226',
+    'carry',
+    'paneOn.carry',
+    'cumulativeFundingProxy',
+    { controls: ['carryPane'] },
+  ),
   pathIndicator('netCarry', '持仓归因代理', 'pct', 'carry', '#0e7558', 'carry', 'paneOn.carry', 'netCarry', {
     controls: ['carryPane'],
   }),
@@ -478,7 +494,6 @@ function safeCompute(compute) {
 function validTime(value) {
   return value !== null && value !== undefined && value !== ''
 }
-
 function group(id, label, pane, overlayKey) {
   return Object.freeze({ id, label, pane, overlayKey })
 }

@@ -25,9 +25,9 @@ export function hasValidatedMeanReversion(metrics) {
     metrics?.meanReversionCalibrationStatus === 'holdout-validated' &&
     typeof metrics?.meanReversionCalibrationId === 'string' &&
     metrics.meanReversionCalibrationId.trim().length > 0 &&
-    Number.isFinite(metrics?.halfLifeRho) &&
-    metrics.halfLifeRho > 0 &&
-    metrics.halfLifeRho < 1
+    Number.isFinite(metrics?.arCoefficient) &&
+    metrics.arCoefficient > 0 &&
+    metrics.arCoefficient < 1
   )
 }
 
@@ -64,14 +64,14 @@ export const DIMENSION_LIBRARY = [
     requires: ['lpZone'],
     score: (m) => zoneScore(m.lpZone),
   }),
-  // 4. 成本锚 5 日斜率（15） — 只有独立留出校准证明才可人工豁免
+  // 4. 成本锚自适应近期斜率（15） — 只有独立留出校准证明才可人工豁免
   dim({
     id: 'costSlope',
-    label: '成本锚 5 日斜率',
+    label: '成本锚自适应近期斜率',
     weight: 15,
-    requires: ['costSlope5'],
+    requires: ['costSlopeRecent'],
     score: (m, ctx) => {
-      const linear = forwardLinear(m.costSlope5, -0.025, 0.005)
+      const linear = forwardLinear(m.costSlopeRecent, -0.025, 0.005)
       // 样本内单调 AR 不够；必须有独立留出校准标识，z 极端度本身不等于回归概率。
       if (
         ctx?.options?.allowCatchKnife &&
@@ -92,19 +92,19 @@ export const DIMENSION_LIBRARY = [
     requires: ['lpValueRatio3y'],
     score: (m) => forwardLinear(m.lpValueRatio3y, 1.2, 2.5),
   }),
-  // 6. 半衰期（HL 越短越好；HL>90 几乎无回归）
+  // 6. 结构周期相对证据深度：连续比例，不使用 30/60/90 日历阈值。
   dim({
     id: 'halfLife',
-    label: '均值回归半衰期',
+    label: '结构周期 / 证据深度',
     weight: 10,
     enabled: false,
-    requires: ['halfLifeDays', 'meanReversionMonotonicGate'],
+    requires: ['formulaHorizonSessions', 'tradingDays', 'meanReversionMonotonicGate'],
     score: (m) => {
       if (m.meanReversionMonotonicGate !== true) return 0
-      const hl = m.halfLifeDays
-      if (!Number.isFinite(hl) || hl <= 0) return 0
-      // ≤30 天满分，≥120 天零分
-      return inverseLinear(hl, 30, 120)
+      const horizon = m.formulaHorizonSessions
+      const evidenceScale = Math.sqrt(m.tradingDays)
+      if (!Number.isFinite(horizon) || horizon <= 0 || !Number.isFinite(evidenceScale) || evidenceScale <= 0) return 0
+      return 1 / (1 + horizon / evidenceScale)
     },
   }),
   // 7. 波动样本质量启发式（抽样区间 quality + |z| 极端度；非置信度）

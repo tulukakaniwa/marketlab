@@ -19,7 +19,8 @@ export function useMarketState(rows, cursor, input) {
 
   function getMarketStatePath(r) {
     const currentInput = isRef(input) ? input.value : input
-    const tdpy = Number(currentInput.tradingDaysPerYear) || 365
+    const tdpy = Number(currentInput?.tradingDaysPerYear)
+    if (!Number.isFinite(tdpy) || tdpy <= 0) return []
     let bucket = marketStatePathCache.get(r)
     if (!bucket) {
       bucket = new Map()

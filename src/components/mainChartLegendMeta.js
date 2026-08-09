@@ -28,7 +28,7 @@ const GROUPS = {
   lpPoolTurnover: 'lp',
   lpPoolConcentration: 'lp',
   lpCe: 'lp',
-  fundingProxy: 'carry',
+  cumulativeFundingProxy: 'carry',
   netCarry: 'carry',
   equity: 'equity',
   kdjK: 'kdj',
@@ -103,7 +103,7 @@ export function fallbackValue(key, idx, ctx = {}) {
     case 'bsGamma':
       return fp?.optionGamma
     case 'bsTheta':
-      return fp?.optionThetaDaily
+      return fp?.optionThetaPerSession
     case 'lpDelta':
       return fp?.lpNormalizedDelta
     case 'lpValue':
@@ -116,8 +116,8 @@ export function fallbackValue(key, idx, ctx = {}) {
       return idx === ctx.formulaPath?.length - 1 ? fp?.lpPoolTopReserveShare : null
     case 'lpCe':
       return fp?.capitalEfficiency
-    case 'fundingProxy':
-      return fp?.fundingProxy
+    case 'cumulativeFundingProxy':
+      return fp?.cumulativeFundingProxy
     case 'netCarry':
       return fp?.netCarry
     default:

@@ -53,24 +53,30 @@ export function capitalEfficiencyAtPrice({ markPrice, lowerPrice, upperPrice } =
 /**
  * CK's arithmetic-price capital-efficiency curve.
  *
- * lower = P0(1-x), upper = P0(1+alpha*x).  The symmetric CK theorem is the
- * alpha=1 case; alpha!=1 is a project extension and must not be labelled ±84%.
+ * lower = P0(1-x), upper = P0(1+alpha*x).  CK Part 1 publishes the symmetric
+ * alpha=1 reference and CK Part 2 publishes the directional alpha frontier.
+ * Only alpha=1 may be labelled the symmetric ±84% reference.
  */
 export function capitalEfficiency({ rangeWidth, skew }) {
   const spec = resolveArithmeticRangeSpec({ rangeWidth, skew })
   if (!spec) return null
   const lower = spec.lowerPrice
   const upper = spec.upperPrice
-  const q = Math.pow(lower / upper, FOURTH_ROOT)
+  const endpointFourthRoot = Math.pow(lower / upper, FOURTH_ROOT)
   const signedSlope = capitalEfficiencySlope({ rangeWidth, skew })
+  const efficiencyAtGeometricMidpoint = 1 / (1 - endpointFourthRoot)
+  const efficiencyAtReferencePrice = capitalEfficiencyAtPrice({ markPrice: 1, lowerPrice: lower, upperPrice: upper })
   return {
     lower,
     upper,
     downMove: -rangeWidth,
     upMove: skew * rangeWidth,
     rangeRatio: lower / upper,
-    efficiency: 1 / (1 - q),
-    efficiencyAtArithmeticCenter: capitalEfficiencyAtPrice({ markPrice: 1, lowerPrice: lower, upperPrice: upper }),
+    efficiency: efficiencyAtGeometricMidpoint,
+    efficiencyAtGeometricMidpoint,
+    efficiencyAtReferencePrice,
+    efficiencyAtArithmeticCenter: efficiencyAtReferencePrice,
+    efficiencyAtArithmeticCenterLegacyAlias: true,
     geometricMidpointRatio: spec.geometricMidpointPrice,
     signedSlope,
     frontierSlope: Math.abs(signedSlope),
@@ -78,7 +84,7 @@ export function capitalEfficiency({ rangeWidth, skew }) {
     widthCoordinate: 'linear-arithmetic-price-offset',
     efficiencyValuationBasis: 'range-geometric-midpoint',
     arithmeticReferenceIsValuationPrice: spec.geometricMidpointPrice === 1,
-    variant: skew === 1 ? 'ck-arithmetic-symmetric' : 'asymmetric-extension',
+    variant: skew === 1 ? 'ck-arithmetic-symmetric' : 'ck-arithmetic-directional',
     claimClass: 'exact-identity',
     claimDetail: 'geometric-midpoint-capital-efficiency-curve',
   }
@@ -88,22 +94,25 @@ export function capitalEfficiencySlope({ rangeWidth, skew }) {
   if (![rangeWidth, skew].every(Number.isFinite) || rangeWidth <= 0 || rangeWidth >= 1 || skew < 0) return null
   const lower = 1 - rangeWidth
   const upper = 1 + skew * rangeWidth
-  const q = Math.pow(lower / upper, FOURTH_ROOT)
-  const qPrime = (-q * (1 + skew)) / (4 * lower * upper)
-  return qPrime / Math.pow(1 - q, 2)
+  const endpointFourthRoot = Math.pow(lower / upper, FOURTH_ROOT)
+  const endpointFourthRootPrime = (-endpointFourthRoot * (1 + skew)) / (4 * lower * upper)
+  return endpointFourthRootPrime / Math.pow(1 - endpointFourthRoot, 2)
 }
 
 export function capitalEfficiencySecondDerivative({ rangeWidth, skew }) {
   if (![rangeWidth, skew].every(Number.isFinite) || rangeWidth <= 0 || rangeWidth >= 1 || skew < 0) return null
   const lower = 1 - rangeWidth
   const upper = 1 + skew * rangeWidth
-  const q = Math.pow(lower / upper, FOURTH_ROOT)
+  const endpointFourthRoot = Math.pow(lower / upper, FOURTH_ROOT)
   const c = (1 + skew) / 4
-  const logQPrime = -c / (lower * upper)
-  const logQSecond = (-c * (upper - skew * lower)) / (lower * lower * upper * upper)
-  const qPrime = q * logQPrime
-  const qSecond = q * (logQPrime * logQPrime + logQSecond)
-  return (qSecond * (1 - q) + 2 * qPrime * qPrime) / Math.pow(1 - q, 3)
+  const logRootPrime = -c / (lower * upper)
+  const logRootSecond = (-c * (upper - skew * lower)) / (lower * lower * upper * upper)
+  const endpointFourthRootPrime = endpointFourthRoot * logRootPrime
+  const endpointFourthRootSecond = endpointFourthRoot * (logRootPrime * logRootPrime + logRootSecond)
+  return (
+    (endpointFourthRootSecond * (1 - endpointFourthRoot) + 2 * endpointFourthRootPrime * endpointFourthRootPrime) /
+    Math.pow(1 - endpointFourthRoot, 3)
+  )
 }
 
 /** Exact CK symmetric reference point. */
@@ -118,10 +127,14 @@ export function ckCapitalEfficiencyReference() {
     objective: 'maximize-local-range-gained-per-unit-capital-efficiency-lost',
     marginalRangePerEfficiencyLoss: 1 / curve.frontierSlope,
     theorem: 'ck-arithmetic-symmetric-capital-efficiency-inflection',
-    arithmeticCenterEfficiency: curve.efficiencyAtArithmeticCenter,
+    arithmeticCenterEfficiency: curve.efficiencyAtReferencePrice,
     arithmeticCenterIsGeometricMidpoint: false,
     sourceId: 'ysv2j74j6k',
     exact: true,
+    lawExact: true,
+    closedForm: true,
+    numericalSolution: false,
+    solutionMethod: 'closed-form-reference',
     isProbabilityCoverage: false,
     isFeeOptimal: false,
     isPnlOptimal: false,
@@ -129,8 +142,9 @@ export function ckCapitalEfficiencyReference() {
 }
 
 /**
- * Inflection of the asymmetric extension.  CK's closed form is returned for
- * skew=1; other skews solve 3a*q^5-5a*q^4-5q+3=0 on q in (0,1).
+ * CK Part 2 directional inflection.  CK's closed form is returned for skew=1;
+ * other skews numerically solve the exact condition
+ * 3a*u^5-5a*u^4-5u+3=0 on u in (0,1).
  */
 export function capitalEfficiencyFrontier({ skew = 1 } = {}) {
   if (!Number.isFinite(skew) || skew < 0) return null
@@ -143,9 +157,9 @@ export function capitalEfficiencyFrontier({ skew = 1 } = {}) {
     if (value > 0) low = mid
     else high = mid
   }
-  const q = (low + high) / 2
-  const q4 = q ** 4
-  const rangeWidth = (1 - q4) / (1 + skew * q4)
+  const endpointFourthRoot = (low + high) / 2
+  const endpointRatio = endpointFourthRoot ** 4
+  const rangeWidth = (1 - endpointRatio) / (1 + skew * endpointRatio)
   const curve = capitalEfficiency({ rangeWidth, skew })
   return {
     ...curve,
@@ -153,9 +167,14 @@ export function capitalEfficiencyFrontier({ skew = 1 } = {}) {
     criterion: 'minimum-marginal-efficiency-loss',
     objective: 'maximize-local-range-gained-per-unit-capital-efficiency-lost',
     marginalRangePerEfficiencyLoss: 1 / curve.frontierSlope,
-    theorem: 'ck-asymmetric-extension-inflection',
-    sourceId: '5ab9c1e3a1',
-    exact: false,
+    theorem: 'ck-arithmetic-directional-capital-efficiency-inflection',
+    sourceId: '0l7i8kmukx',
+    exact: true,
+    lawExact: true,
+    closedForm: false,
+    numericalSolution: true,
+    numericalRootTolerance: ROOT_EPSILON,
+    solutionMethod: 'numerical-root-of-exact-condition',
     isProbabilityCoverage: false,
     isFeeOptimal: false,
     isPnlOptimal: false,
@@ -175,8 +194,8 @@ export function sampleCapitalEfficiencyCurve({ skew = 1, steps = 80, maxEfficien
   return points
 }
 
-function frontierPolynomial(q, skew) {
-  return 3 * skew * q ** 5 - 5 * skew * q ** 4 - 5 * q + 3
+function frontierPolynomial(endpointFourthRoot, skew) {
+  return 3 * skew * endpointFourthRoot ** 5 - 5 * skew * endpointFourthRoot ** 4 - 5 * endpointFourthRoot + 3
 }
 
 function missing(value) {

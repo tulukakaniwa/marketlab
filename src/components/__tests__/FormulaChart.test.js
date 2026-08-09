@@ -43,6 +43,7 @@ describe('FormulaChart', () => {
     expect(wrapper.text()).toContain('短线')
     expect(wrapper.text()).toContain('基金周期')
     expect(wrapper.text()).toContain('成本下沿')
+    expect(wrapper.text()).toContain('交易会话')
   })
 
   it('LP 池覆盖展示聚合池快照指标', () => {
@@ -63,6 +64,47 @@ describe('FormulaChart', () => {
     })
 
     expect(wrapper.find('.fc-kv div:first-child span').text()).toBe('40')
+  })
+
+  it('期权 Greeks 使用明确字段并按交易会话展示 Theta', () => {
+    const graph = {
+      ...makeGraph(),
+      option: {
+        price: 4,
+        optionDelta: 0.45,
+        optionGamma: 0.02,
+        optionThetaPerSession: -0.03,
+        optionThetaAnnual: -7.26,
+        optionVegaPerPct: 0.12,
+        optionRhoPerPct: 0.05,
+        d1: 0.2,
+        d2: 0.1,
+      },
+    }
+    const wrapper = mount(FormulaChart, { props: makeProps('option-greeks', { graph }) })
+
+    expect(wrapper.text()).toContain('Θ/交易会话')
+    expect(wrapper.text()).not.toContain('Θ/日')
+    expect(wrapper.text()).toContain('-0.0300')
+  })
+
+  it('net carry 保留 funding 收付方向，不用绝对值伪装成成本', () => {
+    const graph = {
+      ...makeGraph(),
+      netCarry: {
+        grossRecoveryReturn: 0.25,
+        fundingCashflowReturn: 0.02,
+        fundingNetCostReturn: -0.02,
+        netReturn: 0.27,
+        breakEvenFundingNetCostReturn: 0.25,
+      },
+    }
+    const wrapper = mount(FormulaChart, { props: makeProps('net-carry', { graph }) })
+
+    expect(wrapper.text()).toContain('Funding 现金流')
+    expect(wrapper.text()).toContain('2.00%')
+    expect(wrapper.text()).toContain('净 carry')
+    expect(wrapper.text()).not.toContain('Funding 净成本 -2.00%')
   })
 })
 
@@ -130,22 +172,22 @@ function makeMarket() {
     costLow: 94,
     costHigh: 106,
     costDistance: -0.25,
-    costSlope5: 0,
+    costSlopeRecent: 0,
     annualVol: 0.35,
     atrPercent: 0.025,
-    momentum5: 0.01,
-    momentum20: -0.02,
+    momentumFast: 0.01,
+    momentumSlow: -0.02,
   }
 }
 
 function makeGraph() {
   return {
-    inputs: { entryPrice: 90, holdingDays: 30, iv: 0.35, tradingDaysPerYear: 365 },
+    inputs: { entryPrice: 90, formulaHorizonSessions: 30, iv: 0.35, tradingDaysPerYear: 365 },
     researchInputs: { rangeWidth: 0.08, skew: 1.8, liquidity: 1 },
     efficiency: { efficiency: 19.5, lower: 0.92, upper: 1.14 },
     impermanentLoss: { impermanentLoss: -0.015 },
     lpV3Hedged: { upperPrice: 103, lowerPrice: 82.8 },
     deltaBands: { long: { low: 78, cost: 90, high: 108 }, short: { low: 72, cost: 90, high: 112 } },
-    option: { gamma: 0.0015 },
+    option: { optionGamma: 0.0015 },
   }
 }

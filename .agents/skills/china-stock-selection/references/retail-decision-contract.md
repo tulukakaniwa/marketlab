@@ -57,7 +57,7 @@ Formula details, sensitivity curves, source evidence, and alternative assumption
 - A cost-anchor or structural-repair thesis must include the adverse case where the anchor continues to fall.
 - A high synthetic CK geometry score is supporting shape evidence only. It cannot supply a price target or a fee thesis.
 - `orderPlan.signalStrength` is normal-reference extremeness. It is not confidence, win probability, or calibrated edge and cannot justify live position size.
-- `expectedDays`, `expectedReturn*`, and `monthlyEfficiency*` are conditional zero-shock AR-path projections. Treat them as sensitivity coordinates, not expected realized outcomes.
+- `expectedSessions` and `expectedReturn*` are conditional zero-shock AR-path projections. Treat them as sensitivity coordinates, not expected realized outcomes; no fixed 21-session monthly conversion is emitted.
 - Missing fundamentals, corporate actions, sector context, news, and calendar effects are counter-evidence gaps, not neutral facts.
 
 ## Risk and Position Sizing

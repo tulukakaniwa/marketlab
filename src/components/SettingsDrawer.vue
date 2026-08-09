@@ -16,7 +16,7 @@ defineProps({
   profileList: { type: Array, required: true },
   graph: { type: Object, default: null },
   tdpyMeta: { type: Object, required: true },
-  effectiveTdpy: { type: Number, required: true },
+  effectiveTdpy: { type: Number, default: null },
   symbol: { type: String, default: '' },
   overlays: { type: Object, required: true },
   theme: { type: String, default: 'light' },

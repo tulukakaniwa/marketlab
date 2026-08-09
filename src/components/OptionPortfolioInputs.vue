@@ -56,6 +56,14 @@ const premiumInput = computed({
   },
 })
 
+const feeIncomeInput = computed({
+  get: () => optionalFinite(props.input.feeIncomeQuote) ?? '',
+  set: (v) => {
+    const next = optionalFinite(v)
+    props.input.feeIncomeQuote = next !== null && next >= 0 ? next : null
+  },
+})
+
 const rangeWidthValid = computed(() => {
   const value = Number(props.input.rangeWidth)
   return Number.isFinite(value) && value > 0 && value < 1
@@ -196,7 +204,7 @@ function fmt(value) {
 
     <div class="opi-summary">
       <b>{{ summary }}</b>
-      <span>仅用于组合敏感度、到期损益和 LP payoff 对照。</span>
+      <span>仅用于组合敏感度、到期损益和 LP payoff 对照；期限必须独立输入，不能复用持仓恢复周期。</span>
     </div>
 
     <div class="opi-controls">
@@ -242,6 +250,10 @@ function fmt(value) {
         <span>乘数</span>
         <input v-model.number="input.optionMultiplier" type="number" min="0.0001" step="1" />
       </label>
+      <label>
+        <span>距到期交易会话</span>
+        <input v-model.number="input.optionTenorSessions" type="number" min="1" step="1" placeholder="必填" />
+      </label>
     </div>
 
     <details class="opi-advanced">
@@ -263,6 +275,10 @@ function fmt(value) {
           <span>流动性宽度</span>
           <input v-model.number="input.rangeWidth" type="number" min="0.001" max="0.95" step="0.01" />
           <small v-if="!rangeWidthValid" class="opi-error">必须大于 0 且小于 1；无效时 LP/CE 查询停用</small>
+        </label>
+        <label>
+          <span>同周期路径手续费（报价币）</span>
+          <input v-model="feeIncomeInput" type="number" min="0" step="0.01" placeholder="必填；无费用填 0" />
         </label>
       </div>
       <div class="opi-widths">

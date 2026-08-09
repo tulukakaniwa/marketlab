@@ -8,7 +8,7 @@ const props = defineProps({
 
 const emit = defineEmits(['change'])
 
-const openField = ref(null) // 'entryPrice' | 'iv' | 'holdingDays' | 'deltaSlope' | 'exitTargetReturn' | null
+const openField = ref(null) // 'entryPrice' | 'iv' | 'deltaSlope' | 'exitTargetReturn' | null
 const popoverWrapper = ref(null)
 
 const FIELDS = [
@@ -23,12 +23,6 @@ const FIELDS = [
     label: 'IV',
     title: 'GetDelta 输入：年化波动率',
     format: (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'),
-  },
-  {
-    id: 'holdingDays',
-    label: '窗口',
-    title: 'GetDelta 输入：持仓窗口',
-    format: (v) => (Number.isFinite(v) ? `${v} 天` : '—'),
   },
   {
     id: 'deltaSlope',

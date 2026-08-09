@@ -21,7 +21,7 @@ describe('buildLiquidityRackModel', () => {
       { side: 'buy', role: '试仓', price: 94, notional: 1000 },
       { side: 'sell', role: '减压', price: 109, notional: 500 },
     ]
-    const graph = { inputs: { entryPrice: 100 }, plan: { primaryOrders } }
+    const graph = { inputs: { entryPrice: 100, iv: 0.35, tradingDaysPerYear: 252 }, plan: { primaryOrders } }
 
     const model = buildLiquidityRackModel({ rows, costPath, formulaPath, graph, activeIndex: 79, binCount: 72 })
 
@@ -35,6 +35,13 @@ describe('buildLiquidityRackModel', () => {
     expect(model.orderTicks).toHaveLength(2)
     expect(model.status).toBe('research-only')
     expect(model.inputMode).toBe('hybrid-model')
+    expect(model.windowSpec).toEqual({
+      mode: 'visible-prefix',
+      visiblePrefixRows: 80,
+      requestedWindowSessions: null,
+      appliedRows: 80,
+      futureRowsUsed: false,
+    })
     expect(model.viewMode).toBe('compare')
     expect(model.effectiveViewMode).toBe('simulate')
     expect(model.shareLabel).toBe('目标分配权重')
@@ -46,6 +53,38 @@ describe('buildLiquidityRackModel', () => {
     expect(model.fingerprintStats.orderShare).toBeGreaterThan(0)
     expect(model.shelves.some((shelf) => shelf.componentShare.orders > 0)).toBe(true)
     expect(graph.plan.primaryOrders).toBe(primaryOrders)
+
+    const viewportModel = buildLiquidityRackModel({
+      rows,
+      costPath,
+      formulaPath,
+      graph,
+      activeIndex: 79,
+      visibleWindow: 12,
+    })
+    expect(viewportModel.windowSpec).toMatchObject({
+      mode: 'viewport-explicit',
+      requestedWindowSessions: 12,
+      appliedRows: 12,
+      futureRowsUsed: false,
+    })
+  })
+
+  it('缺少波动率或交易日基准时阻断模型目标仓，不制造默认形状', () => {
+    const rows = [{ date: '2024-01-01', open: 100, high: 105, low: 95, close: 100, volume: 1000 }]
+    const model = buildLiquidityRackModel({
+      rows,
+      costPath: [{ date: rows[0].date, anchor: 100, lower: 95, upper: 105 }],
+      formulaPath: [{ date: rows[0].date, deltaLower: 90, deltaUpper: 110 }],
+      graph: { inputs: { entryPrice: 100 }, plan: { primaryOrders: [] } },
+      activeIndex: 0,
+    })
+
+    expect(model.status).toBe('blocked')
+    expect(model.executionStatus).toBe('blocked')
+    expect(model.inputMode).toBe('missing-input')
+    expect(model.missingInputs).toEqual(['volatility', 'tradingDaysPerYear'])
+    expect(model.shelves).toEqual([])
   })
 
   it('标注池级链上数据与目标仓模型比例的边界', () => {
@@ -62,7 +101,7 @@ describe('buildLiquidityRackModel', () => {
       formulaPath,
       activeIndex: 1,
       graph: {
-        inputs: { entryPrice: 100 },
+        inputs: { entryPrice: 100, iv: 0.35, tradingDaysPerYear: 252 },
         plan: { primaryOrders: [] },
         lpOnchain: {
           inputMode: 'pool-real',
@@ -113,7 +152,7 @@ describe('buildLiquidityRackModel', () => {
     const costPath = rows.map((row) => ({ date: row.date, anchor: 100, lower: 90, upper: 110 }))
     const formulaPath = rows.map((row) => ({ date: row.date, deltaLower: 88, deltaUpper: 115 }))
     const graph = {
-      inputs: { entryPrice: 100 },
+      inputs: { entryPrice: 100, iv: 0.35, tradingDaysPerYear: 252 },
       plan: { primaryOrders: [] },
       lpOnchain: {
         inputMode: 'pool-real',
@@ -181,7 +220,7 @@ describe('buildLiquidityRackModel', () => {
     const costPath = rows.map((row) => ({ date: row.date, anchor: 100, lower: 90, upper: 110 }))
     const formulaPath = rows.map((row) => ({ date: row.date, deltaLower: 88, deltaUpper: 115 }))
     const graph = {
-      inputs: { entryPrice: 100 },
+      inputs: { entryPrice: 100, iv: 0.35, tradingDaysPerYear: 252 },
       plan: { primaryOrders: [] },
       lpOnchain: {
         inputMode: 'pool-real',
@@ -253,7 +292,11 @@ describe('buildLiquidityRackModel', () => {
     ]
     const costPath = rows.map((row) => ({ date: row.date, anchor: 100, lower: 90, upper: 110 }))
     const formulaPath = rows.map((row) => ({ date: row.date, deltaLower: 88, deltaUpper: 115 }))
-    const graph = { inputs: { entryPrice: 100 }, plan: { primaryOrders: [] }, lpOnchain: { inputMode: 'fallback' } }
+    const graph = {
+      inputs: { entryPrice: 100, iv: 0.35, tradingDaysPerYear: 252 },
+      plan: { primaryOrders: [] },
+      lpOnchain: { inputMode: 'fallback' },
+    }
 
     const model = buildLiquidityRackModel({ rows, costPath, formulaPath, graph, activeIndex: 1, viewMode: 'real' })
 
@@ -274,7 +317,11 @@ describe('buildLiquidityRackModel', () => {
     ]
     const costPath = rows.map((row) => ({ date: row.date, anchor: 100, lower: 90, upper: 110 }))
     const formulaPath = rows.map((row) => ({ date: row.date, deltaLower: 88, deltaUpper: 115 }))
-    const graph = { inputs: { entryPrice: 100 }, plan: { primaryOrders: [] }, lpOnchain: { inputMode: 'fallback' } }
+    const graph = {
+      inputs: { entryPrice: 100, iv: 0.35, tradingDaysPerYear: 252 },
+      plan: { primaryOrders: [] },
+      lpOnchain: { inputMode: 'fallback' },
+    }
 
     const model = buildLiquidityRackModel({ rows, costPath, formulaPath, graph, activeIndex: 1, viewMode: 'gap' })
 

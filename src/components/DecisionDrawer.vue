@@ -77,7 +77,7 @@ const triggerMeta = computed(() => {
 })
 const replayMeta = computed(() => {
   if (!props.replayEnabled) return '未启用'
-  if (props.replay?.status === 'missing-account-input') return '缺输入'
+  if (['missing-account-input', 'missing-replay-fee-input'].includes(props.replay?.status)) return '缺输入'
   return `${props.replay?.tradeCount ?? 0} 次`
 })
 const hasRunnableProfileReplay = computed(

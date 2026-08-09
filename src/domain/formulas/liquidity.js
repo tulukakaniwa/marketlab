@@ -1,6 +1,12 @@
 import { integrateTrapezoid, normalCdf, inverseNormalCdf } from './probability.js'
 
 const MIN_SIGMA = 1e-6
+const MIN_ANNUALIZED_VOLATILITY = 0.02
+const MAX_ANNUALIZED_VOLATILITY = 2
+const DEFAULT_BUMP_BANDWIDTH_MINIMUM = 0.015
+const DEFAULT_BUMP_BANDWIDTH_SCALE = 4
+const DEFAULT_RANGE_SUPPORT_MINIMUM = 0.015
+const DEFAULT_RANGE_SUPPORT_DIVISOR = 4
 
 export function normalDensity(x, { mu = 0, sigma = 1 } = {}) {
   if (![x, mu, sigma].every(Number.isFinite) || sigma <= 0) return null
@@ -45,6 +51,11 @@ export function liquidityFingerprint({
   upperPrice,
   orderLevels = [],
   volatility,
+  tradingDaysPerYear,
+  declaredMinimum = DEFAULT_BUMP_BANDWIDTH_MINIMUM,
+  declaredScale = DEFAULT_BUMP_BANDWIDTH_SCALE,
+  rangeSupportMinimum = DEFAULT_RANGE_SUPPORT_MINIMUM,
+  rangeSupportDivisor = DEFAULT_RANGE_SUPPORT_DIVISOR,
   baseWeight = 1,
   activeWeight = 0.35,
   costWeight = 0.28,
@@ -56,6 +67,12 @@ export function liquidityFingerprint({
   integrationSteps = 256,
 }) {
   if (!Number.isFinite(entryPrice) || entryPrice <= 0) return null
+  if (!Number.isFinite(volatility) || volatility <= 0) return null
+  if (!Number.isFinite(tradingDaysPerYear) || tradingDaysPerYear <= 0) return null
+  const bandwidth = resolveBandwidthModel({ volatility, tradingDaysPerYear, declaredMinimum, declaredScale })
+  if (!bandwidth) return null
+  if (!Number.isFinite(rangeSupportMinimum) || rangeSupportMinimum <= 0) return null
+  if (!Number.isFinite(rangeSupportDivisor) || rangeSupportDivisor <= 0) return null
   const lower = entryPrice * lowerFactor
   const upper = entryPrice * upperFactor
   if (!Number.isFinite(lower) || !Number.isFinite(upper) || upper <= lower) return null
@@ -80,8 +97,14 @@ export function liquidityFingerprint({
     upperPrice,
     orderLevels,
     volatility,
+    tradingDaysPerYear,
+    declaredMinimum: bandwidth.declaredMinimum,
+    declaredScale: bandwidth.declaredScale,
+    rangeSupportMinimum,
+    rangeSupportDivisor,
     weights: { baseWeight, activeWeight, costWeight, orderWeight, rangeWeight },
   })
+  if (!rawComponents) return null
   const components = normalizeComponents(rawComponents, lower, upper, integrationSteps)
   const density = (price) => components.reduce((sum, component) => sum + componentDensity(component, price), 0)
 
@@ -147,7 +170,25 @@ export function liquidityFingerprint({
     },
     inputMode: components.length > 1 ? 'hybrid-model' : 'model-only',
     missingInputs: ['real-ticks', 'lp-nft-weights', 'order-book-depth'],
-    params: { distribution, mu: logMu, lambda: lam, kappa: kap, segmentCount: count },
+    params: {
+      distribution,
+      mu: logMu,
+      lambda: lam,
+      kappa: kap,
+      priceGrid: n,
+      segmentCount: count,
+      volatility,
+      appliedVolatility: bandwidth.appliedVolatility,
+      volatilityUnit: 'annualized-fraction',
+      tradingDaysPerYear,
+      timeBasis: 'trading-session',
+      declaredMinimum: bandwidth.declaredMinimum,
+      declaredScale: bandwidth.declaredScale,
+      sessionVolatility: bandwidth.sessionVolatility,
+      bumpBandwidthLogSigma: bandwidth.logSigma,
+      rangeSupportMinimum,
+      rangeSupportDivisor,
+    },
     note: 'research-only: target allocation density normalized over the displayed range; not a forecast probability',
   }
 }
@@ -167,10 +208,18 @@ export function buildDensityComponents({
   upperPrice,
   orderLevels,
   volatility,
+  tradingDaysPerYear,
+  declaredMinimum,
+  declaredScale,
+  rangeSupportMinimum,
+  rangeSupportDivisor,
   weights,
 }) {
-  const vol = Math.max(0.02, Math.min(2, Number(volatility) || 0.35))
-  const logSigma = Math.max(0.015, (vol / Math.sqrt(365)) * 4)
+  const bandwidth = resolveBandwidthModel({ volatility, tradingDaysPerYear, declaredMinimum, declaredScale })
+  if (!bandwidth) return null
+  if (!Number.isFinite(rangeSupportMinimum) || rangeSupportMinimum <= 0) return null
+  if (!Number.isFinite(rangeSupportDivisor) || rangeSupportDivisor <= 0) return null
+  const logSigma = bandwidth.logSigma
   const components = [
     {
       id: 'base',
@@ -245,7 +294,7 @@ export function buildDensityComponents({
 
   const range = normalizeRange(targetRange ?? { lower: lowerPrice, upper: upperPrice })
   if (range) {
-    const width = Math.max(0.015, Math.log(range.upper / range.lower) / 4)
+    const width = Math.max(rangeSupportMinimum, Math.log(range.upper / range.lower) / rangeSupportDivisor)
     const center = Math.log(Math.sqrt(range.lower * range.upper))
     components.push({
       id: 'range',
@@ -264,6 +313,26 @@ export function buildDensityComponents({
   }
 
   return components.filter((component) => Number.isFinite(component.weight) && component.weight > 0)
+}
+
+function clampVolatility(volatility) {
+  return Math.max(MIN_ANNUALIZED_VOLATILITY, Math.min(MAX_ANNUALIZED_VOLATILITY, volatility))
+}
+
+function resolveBandwidthModel({ volatility, tradingDaysPerYear, declaredMinimum, declaredScale }) {
+  if (!Number.isFinite(volatility) || volatility <= 0) return null
+  if (!Number.isFinite(tradingDaysPerYear) || tradingDaysPerYear <= 0) return null
+  if (!Number.isFinite(declaredMinimum) || declaredMinimum <= 0) return null
+  if (!Number.isFinite(declaredScale) || declaredScale <= 0) return null
+  const appliedVolatility = clampVolatility(volatility)
+  const sessionVolatility = appliedVolatility / Math.sqrt(tradingDaysPerYear)
+  return {
+    declaredMinimum,
+    declaredScale,
+    appliedVolatility,
+    sessionVolatility,
+    logSigma: Math.max(declaredMinimum, declaredScale * sessionVolatility),
+  }
 }
 
 export function normalizeComponents(rawComponents, lower, upper, integrationSteps = 256) {

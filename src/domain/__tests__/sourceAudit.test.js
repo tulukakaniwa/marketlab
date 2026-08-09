@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formulaEvidenceCatalog } from '../formulas/evidence.js'
-import { formulaStages } from '../formulas/registry.js'
+import { formulaStages, getFormulaStage } from '../formulas/registry.js'
 import { formulaSourceAudit } from '../formulas/sourceAudit.js'
 import { FORMULA_PATH_CURVES } from '../market-data/formulaPath.js'
 
@@ -8,12 +8,31 @@ describe('formula source audit', () => {
   it('keeps blog/desmos research formulas out of the executable chain by default', () => {
     expect(formulaSourceAudit.length).toBeGreaterThanOrEqual(8)
     const executable = formulaSourceAudit.filter((entry) => entry.executable)
-    expect(executable.map((entry) => entry.id)).toEqual(['path', 'cost', 'volatility', 'delta-band', 'order-plan', 'deviation-score'])
-    expect(formulaSourceAudit.filter((entry) => entry.executionDecision).map((entry) => entry.id)).toEqual(['order-plan'])
-    expect(formulaSourceAudit.filter((entry) => entry.executionInput).map((entry) => entry.id)).toEqual(['path', 'cost', 'volatility', 'delta-band', 'deviation-score'])
+    expect(executable.map((entry) => entry.id)).toEqual([
+      'path',
+      'cost',
+      'volatility',
+      'delta-band',
+      'order-plan',
+      'deviation-score',
+    ])
+    expect(formulaSourceAudit.filter((entry) => entry.executionDecision).map((entry) => entry.id)).toEqual([
+      'order-plan',
+    ])
+    expect(formulaSourceAudit.filter((entry) => entry.executionInput).map((entry) => entry.id)).toEqual([
+      'path',
+      'cost',
+      'volatility',
+      'delta-band',
+      'deviation-score',
+    ])
 
     const research = formulaSourceAudit.filter((entry) => !entry.executable)
-    expect(research.every((entry) => ['research-only', 'protocol-unverified', 'implemented', 'proxy-only'].includes(entry.status))).toBe(true)
+    expect(
+      research.every((entry) =>
+        ['research-only', 'protocol-unverified', 'implemented', 'proxy-only'].includes(entry.status),
+      ),
+    ).toBe(true)
     expect(research.find((entry) => entry.id === 'portfolio')?.status).toBe('research-only')
     expect(research.find((entry) => entry.id === 'amm-geometry')?.status).toBe('protocol-unverified')
   })
@@ -37,13 +56,72 @@ describe('formula source audit', () => {
     }
   })
 
+  it('keeps drawer registry semantics causal, session-based, and unit-explicit', () => {
+    const path = getFormulaStage('path')
+    const cost = getFormulaStage('cost')
+    const volatility = getFormulaStage('volatility')
+    const deltaBand = getFormulaStage('delta-band')
+    const optionGreeks = getFormulaStage('option-greeks')
+    const asianOption = getFormulaStage('asian-option')
+    const riskSurface = getFormulaStage('risk-surface')
+    const meanReversion = getFormulaStage('mean-reversion')
+    const dynamicHolding = getFormulaStage('dynamic-holding-state')
+    const registryText = JSON.stringify(formulaStages)
+
+    expect(path.formulas.join(' ')).toContain('OHLCV_{0:t}')
+    expect(path.formulas.join(' ')).toContain('禁止读取 t 之后的样本')
+    expect(path.formulas.join(' ')).not.toMatch(/质数\s*179|e\s*\/\s*π/)
+
+    expect(cost.formulas.join(' ')).toContain('typical_i = (high_i + low_i + close_i) / 3')
+    expect(cost.formulas.join(' ')).toContain('sum(typical_i * volume_i) / sum(volume_i)')
+    expect(cost.formulas.join(' ')).toContain('equal-weight typical mean')
+    expect(cost.formulas.join(' ')).not.toContain('sum(close * volume)')
+
+    expect(volatility.formulas.join(' ')).toContain('sqrt(tradingDaysPerYear)')
+    expect(volatility.formulas.join(' ')).not.toContain('sqrt(365)')
+    expect(deltaBand.inputs.join(' ')).toContain('formulaHorizonSessions')
+    expect(deltaBand.formulas.join(' ')).toContain('tradingDaysPerYear')
+    expect(deltaBand.formulas.join(' ')).not.toMatch(/365|持仓 T|到期时间/)
+
+    expect(meanReversion.outputs.join(' ')).toContain('arCoefficient')
+    expect(meanReversion.outputs.join(' ')).toContain('arDecayRatePerStep')
+    expect(meanReversion.outputs.join(' ')).toContain('halfLifeSessions')
+    expect(meanReversion.formulas.join(' ')).not.toMatch(/[ρθ]|半衰期天数/)
+
+    expect(dynamicHolding.formulas.join(' ')).toContain('expanding-prefix')
+    expect(dynamicHolding.formulas.join(' ')).toContain('仅显式情景')
+    expect(dynamicHolding.formulas.join(' ')).not.toContain('high120')
+
+    expect(optionGreeks.outputs).toContain('portfolio.optionDelta（标的单位；含数量与 contractMultiplier）')
+    expect(optionGreeks.outputs).toContain(
+      'portfolio.optionGamma（标的单位/标的价格单位；含数量与 contractMultiplier）',
+    )
+    expect(optionGreeks.outputs).toContain(
+      'portfolio.optionThetaPerSession（报价币/交易会话；含数量与 contractMultiplier）',
+    )
+    expect(optionGreeks.outputs).toContain('portfolio.optionThetaAnnual（报价币/年；含数量与 contractMultiplier）')
+    expect(optionGreeks.outputs).toContain('portfolio.optionVegaPerPct（报价币/IV 上升 1 个百分点）')
+    expect(optionGreeks.outputs).toContain('portfolio.optionRhoPerPct（报价币/年化利率上升 1 个百分点）')
+    expect(optionGreeks.outputs.join(' ')).not.toMatch(/portfolio\.(?:delta|gamma|thetaDaily|vega|rho)\b/)
+    expect(asianOption.outputs.join(' ')).toContain('optionNormalVegaPerUnit')
+    expect(asianOption.outputs.join(' ')).not.toMatch(/Asian delta|Asian gamma|Bachelier price\/delta\/gamma/)
+    expect(riskSurface.outputs.join(' ')).toContain('optionThetaPerSession')
+    expect(riskSurface.outputs.join(' ')).not.toContain('thetaDaily')
+
+    expect(registryText).not.toContain('半衰期天数')
+  })
+
   it('keeps chart curve metadata wired to evidence sources', () => {
     const evidenceIds = new Set(formulaEvidenceCatalog.map((entry) => entry.id))
     expect(Object.keys(FORMULA_PATH_CURVES).length).toBeGreaterThanOrEqual(15)
     for (const [field, meta] of Object.entries(FORMULA_PATH_CURVES)) {
       expect(field.length).toBeGreaterThan(2)
       expect(evidenceIds.has(meta.source)).toBe(true)
-      expect(['price', 'delta', 'gamma', 'theta/day', 'ratio', 'quote', 'multiple', 'return'].includes(meta.unit)).toBe(true)
+      expect(
+        ['price', 'delta', 'gamma', 'theta/trading-session', 'ratio', 'quote', 'multiple', 'return'].includes(
+          meta.unit,
+        ),
+      ).toBe(true)
       expect(['priceBands', 'greeksPane', 'lpPane', 'carryPane'].includes(meta.pane)).toBe(true)
       expect(['implemented', 'research-only', 'proxy-only'].includes(meta.status)).toBe(true)
     }

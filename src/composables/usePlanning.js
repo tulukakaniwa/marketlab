@@ -16,14 +16,13 @@ import { persistedReactive, persistedRef } from './usePersisted.js'
 export function usePlanning() {
   const input = persistedReactive('lab.input.v5', {
     entryPrice: 0,
-    holdingDays: 30,
     iv: 0,
     ivSource: 'unset',
     deltaSlope: 0.3,
     exitTargetReturn: 0,
-    targetReturn: 0.3,
     capital: 0,
     baseNotional: 0,
+    replayFeeRate: null,
     accountStartDate: '',
     strategyProfile: 'balanced',
     strategyEdgeSigma: 1.0,
@@ -42,6 +41,7 @@ export function usePlanning() {
     optionQuantity: 1,
     optionMultiplier: 1,
     optionPremium: null,
+    optionTenorSessions: null,
     optionWidthPct: 0.05,
     strikePrice2: 0,
     startPrice: 0,
@@ -49,11 +49,10 @@ export function usePlanning() {
     skew: 1,
     liquidity: 1,
     hedgeSize: 0,
-    fees: 0,
+    feeIncomeQuote: null,
     perpTwap: 0,
     spotTwap: 0,
     pathUsesScenarioInputs: false,
-    tradingDaysPerYear: 365,
   })
 
   const featureFlags = persistedReactive('lab.featureFlags.v1', {

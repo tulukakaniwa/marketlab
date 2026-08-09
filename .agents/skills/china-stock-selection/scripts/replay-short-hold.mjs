@@ -5,11 +5,19 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { inferTdpy } from '../../../../src/domain/market-data/tdpy.js'
 import { buildMarketStatePath } from '../../../../src/domain/market-data/cost.js'
-import { deriveDrawdownFeatures, deriveDynamicHoldingState, deriveShortHoldWindow, deviationScore, meanReversionHalfLife } from '../../../../src/domain/formulas/core.js'
+import {
+  deriveDrawdownFeatures,
+  deriveDynamicHoldingState,
+  deriveRecoveryHorizon,
+  deviationScore,
+  meanReversionHalfLife,
+} from '../../../../src/domain/formulas/core.js'
 import {
   CLAIM_CLASS_CONTRACT,
   SYNTHETIC_CK_GEOMETRY_DISCLOSURE,
   buildSyntheticCkGeometryState,
+  canonicalizeFormulaSessionFields,
+  deriveAdaptiveWindowSpec,
   empiricalDeviationStats,
   isPositiveMonotonicMeanReversion,
   loadNameMap,
@@ -17,7 +25,7 @@ import {
   resolveInstrumentName,
 } from './selection-helpers.mjs'
 
-const SCHEMA_VERSION = 'china-stock-selection.replay.v1'
+const SCHEMA_VERSION = 'china-stock-selection.replay.v4'
 const SUPPORTED_MARKETS = new Set(['A股', '港股'])
 const SUPPORTED_FORMATS = new Set(['markdown', 'json'])
 const SUPPORTED_MODES = new Set(['replay', 'latest'])
@@ -44,44 +52,38 @@ const SUPPORTED_FLAGS = new Set([
   'index', 'data-dir', 'name-map', 'target', 'stop', 'min-z',
   'ck-geometry-max', 'lp-max', 'max-hl', 'min-slope', 'max-slope',
   'min-distance', 'max-distance', 'max-entry-gap', 'min-entry-gap',
-  'max-hold', 'min-sell-days', 'target-mode', 'anchor-recovery',
+  'max-hold', 'target-mode',
 ])
 const BOOLEAN_FLAGS = new Set(['require-shebao'])
 const ROOT = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 const args = parseArgs(process.argv.slice(2), SUPPORTED_FLAGS, BOOLEAN_FLAGS)
 const STRICT_DEFAULTS = {
-  targetReturn: 0.03,
+  minimumGrossReturn: 0.03,
   stopLoss: 0.015,
   minZ: 2,
   maxCkGeometryPercentile: 3,
-  maxHalfLifeDays: 12,
+  maxHalfLifeSessions: 12,
   minCostSlopePct: -1,
   maxCostSlopePct: 1,
   minCostDistancePct: 10,
   maxCostDistancePct: 16,
   maxEntryGapPct: 0.5,
   minEntryGapPct: -3,
-  maxHoldingDays: 5,
-  minSellDays: 1,
   targetMode: 'structure',
-  anchorRecoveryFraction: 0.875,
 }
 const SWING_DEFAULTS = {
-  targetReturn: 0.04,
+  minimumGrossReturn: 0.04,
   stopLoss: 0.015,
   minZ: 2.5,
   maxCkGeometryPercentile: 5,
-  maxHalfLifeDays: 20,
+  maxHalfLifeSessions: 20,
   minCostSlopePct: -1,
   maxCostSlopePct: 0.5,
   minCostDistancePct: 12,
   maxCostDistancePct: 22,
   maxEntryGapPct: 0.5,
   minEntryGapPct: -3,
-  maxHoldingDays: 10,
-  minSellDays: 1,
   targetMode: 'structure',
-  anchorRecoveryFraction: 0.875,
 }
 
 const EXCLUDED_SYMBOLS = new Set([
@@ -107,12 +109,13 @@ const SHEBAO_WHITELIST = new Set([
 
 const profileMode = String(args.profile ?? 'strict')
 const profiles = buildProfiles(profileMode)
-const maxProfileHoldingDays = Math.max(...profiles.map((profile) => profile.maxHoldingDays))
 const marketValues = parseMarkets(args.market ?? 'A股')
 const mode = enumArg(args.mode ?? 'replay', SUPPORTED_MODES, 'mode')
 const format = enumArg(args.format ?? 'markdown', SUPPORTED_FORMATS, 'format')
 const requireShebao = booleanArg(args['require-shebao'], false, 'require-shebao')
-const requestedFeeRate = finiteArg(args.fee, 0.0011, 'fee', { min: 0, max: 1, maxExclusive: true })
+if (args.fee === undefined) fail('--fee is required; pass --fee 0 explicitly when no fee drag is intended')
+const requestedFeeRate = finiteArg(args.fee, null, 'fee', { min: 0, max: 1, maxExclusive: true })
+const explicitMinRows = optionalPositiveIntArg(args['min-rows'], 'min-rows')
 const indexInput = String(args.index ?? 'src/data/stock-index.json')
 const dataDirInput = String(args['data-dir'] ?? 'public/data')
 const nameMapInput = String(args['name-map'] ?? defaultNameMapPath())
@@ -131,17 +134,29 @@ const config = {
     calculation: mode === 'replay' ? 'netReturn=grossReturn-feeRate-once' : 'not-applied-in-latest-observation-mode',
   },
   requireShebao,
-  minRows: positiveIntArg(args['min-rows'], 360, 'min-rows'),
+  rowGate: {
+    mode: explicitMinRows === null ? 'adaptive' : 'explicit-scenario',
+    source: explicitMinRows === null
+      ? 'per-instrument adaptive window spec from tradingDaysPerYear and visible prefix'
+      : 'cli:--min-rows',
+    explicitMinimumRows: explicitMinRows,
+    adaptiveFormula: 'ceil(sqrt(tradingDaysPerYear))',
+  },
   format,
   intrabarPolicy: 'stop-first-conservative-when-both-hit',
   targetTiming: 'signal-context-frozen-target-recomputed-with-next-session-open',
-  targetContextPolicy: 'cost-band-deviation-half-life-and-drawdown-frozen-at-signal-close',
+  targetContextPolicy: 'cost-band-half-life-and-drawdown-frozen-at-signal-close; deviation-rescaled-to-entry-derived-horizon',
+  horizonPolicy: 'entry-to-cost-lower-recovery-horizon-recomputed-at-next-session-open',
+  fixedHorizonApplied: profiles.some((profile) => profile.fixedHorizonApplied),
+  executionAuthority: 'none',
+  settlementPolicy: 'A-share-T+1; Hong-Kong-entry-session-daily-bar-check-with-stop-first-ambiguity-policy',
   shebaoEvidence: requireShebao ? 'current-static-list-not-point-in-time' : 'disabled',
   profiles,
 }
 const researchBoundary = {
   status: config.mode === 'replay' ? 'historical-replay-only' : 'latest-observation-only',
   executionStatus: config.mode === 'replay' ? 'simulation-only' : 'blocked',
+  executionAuthority: 'none',
   reasons: config.mode === 'replay'
     ? ['historical-daily-ohlcv-fill-model', 'not-live-tradability-or-future-expectancy']
     : ['no-return-or-fill-simulation', 'account-risk-budget-and-live-execution-inputs-unavailable'],
@@ -172,10 +187,28 @@ for (const entry of index) {
     continue
   }
   const rows = parseCsv(readFileSync(file, 'utf8'))
-  const dataset = datasetProvenance(entry, rows)
+  const tdpy = inferTdpy(entry).value
+  const adaptiveWindowSpec = deriveAdaptiveWindowSpec({
+    tradingDaysPerYear: tdpy,
+    visibleRows: rows.length,
+  })
+  const requiredRows = explicitMinRows ?? adaptiveWindowSpec.minimumRequiredRows
+  const rowGate = {
+    mode: explicitMinRows === null ? 'adaptive' : 'explicit-scenario',
+    source: explicitMinRows === null ? adaptiveWindowSpec.source : 'cli:--min-rows',
+    requiredRows,
+    explicitMinimumRows: explicitMinRows,
+    adaptiveMinimumRows: adaptiveWindowSpec.minimumRequiredRows,
+  }
+  const dataset = datasetProvenance(entry, rows, { adaptiveWindowSpec, rowGate })
   coverage.push(dataset)
-  if (rows.length < config.minRows) {
-    skipped.push(skipRecord(entry, 'insufficient-rows', { rows: rows.length, minRows: config.minRows }))
+  if (rows.length < requiredRows) {
+    skipped.push(skipRecord(entry, 'insufficient-rows', {
+      rows: rows.length,
+      requiredRows,
+      rowGate,
+      adaptiveWindowSpec,
+    }))
     continue
   }
   const instrumentRows = config.mode === 'latest'
@@ -209,7 +242,7 @@ const provenance = {
 const freshness = summarizeFreshness(coverage)
 const audit = {
   considered,
-  dataReady: coverage.filter((item) => item.rows >= config.minRows).length,
+  dataReady: coverage.filter((item) => item.rowGate.passed).length,
   emitted: rowsOut.length,
   skipped: skipped.length,
   skipReasons: countReasons(skipped),
@@ -247,7 +280,16 @@ function scanLatestInstrument(entry, rows, dataset) {
   const marketPath = buildMarketStatePath(rows, tdpy)
   const ckGeometryStates = rows.map((row, index) => buildSyntheticCkGeometryState(marketPath[index], row))
   const ckGeometryValues = ckGeometryStates.map((state) => state?.normalizedValue)
-  const signal = buildSignal({ entry, rows, marketPath, ckGeometryValues, tdpy, index: rows.length - 1, dataset })
+  const signal = buildSignal({
+    entry,
+    rows,
+    marketPath,
+    ckGeometryValues,
+    tdpy,
+    index: rows.length - 1,
+    dataset,
+    adaptiveWindowSpec: dataset.adaptiveWindowSpec,
+  })
   if (!signal?.eligible) return []
   const { profileConfig: _profileConfig, replayContext: _replayContext, ...signalRow } = signal
   return [signalRow]
@@ -261,98 +303,169 @@ function replayInstrument(entry, rows, dataset) {
   const out = []
   let nextAllowedIndex = 0
 
-  for (let i = 260; i < rows.length - maxProfileHoldingDays - 2; i += 1) {
+  for (let i = 0; i < rows.length - 1; i += 1) {
+    const adaptiveWindowSpec = deriveAdaptiveWindowSpec({
+      tradingDaysPerYear: tdpy,
+      visibleRows: i + 1,
+    })
+    const requiredPrefixRows = explicitMinRows ?? adaptiveWindowSpec.minimumRequiredRows
+    if (i + 1 < requiredPrefixRows) continue
     if (i < nextAllowedIndex) continue
-    const signal = buildSignal({ entry, rows, marketPath, ckGeometryValues, tdpy, index: i, dataset })
+    const signal = buildSignal({
+      entry,
+      rows,
+      marketPath,
+      ckGeometryValues,
+      tdpy,
+      index: i,
+      dataset,
+      adaptiveWindowSpec,
+    })
     if (!signal?.eligible) continue
     const { profileConfig, replayContext: _replayContext, ...signalRow } = signal
-    const trade = simulateTrade(rows, i, profileConfig, signal)
+    const trade = simulateTrade(rows, i, profileConfig, signal, entry.market)
     if (!trade) continue
     out.push({ ...signalRow, ...trade })
-    nextAllowedIndex = i + profileConfig.maxHoldingDays + 1
+    nextAllowedIndex = i + trade.appliedHorizonSessions + 1
   }
   return out
 }
 
-function buildSignal({ entry, rows, marketPath, ckGeometryValues, tdpy, index, dataset }) {
+function buildSignal({
+  entry,
+  rows,
+  marketPath,
+  ckGeometryValues,
+  tdpy,
+  index,
+  dataset,
+  adaptiveWindowSpec,
+}) {
   const row = rows[index]
   const market = marketPath[index]
   if (!market || !Number.isFinite(market.costDistance) || market.costDistance >= 0) return null
-
-  const costDistancePct = Math.abs(market.costDistance * 100)
-  const costSlopePct = (market.costSlope5 ?? 0) * 100
-  const deviation = deviationScore({
-    costDistance: market.costDistance,
-    annualVol: Math.max(market.annualVol ?? 0, 0.01),
-    holdingDays: 5,
-    tradingDaysPerYear: tdpy,
+  const observationDataset = datasetAtObservation({
+    dataset,
+    row,
+    visibleRows: index + 1,
+    adaptiveWindowSpec,
+    historical: config.mode === 'replay',
   })
 
+  const costDistancePct = Math.abs(market.costDistance * 100)
+  const costSlopePct = (market.costSlopeRecent ?? market.costSlope5 ?? 0) * 100
+
   const ckGeometryPercentile = percentile(
-    ckGeometryValues.slice(Math.max(0, index - 241), index + 1),
+    ckGeometryValues.slice(
+      Math.max(0, index - adaptiveWindowSpec.ckGeometryRankWindowRows + 1),
+      index + 1,
+    ),
     ckGeometryValues[index],
   )
   const deviationStats = empiricalDeviationStats(
     marketPath
-      .slice(Math.max(0, index - 725), index + 1)
+      .slice(Math.max(0, index - adaptiveWindowSpec.empiricalDeviationWindowRows + 1), index + 1)
       .map((item) => item?.costDistance),
     market.costDistance,
   )
 
   const meanReversion = meanReversionHalfLife({
-    costDistanceSeries: marketPath.slice(Math.max(0, index - 179), index + 1).map((item) => item?.costDistance).filter(Number.isFinite),
+    costDistanceSeries: marketPath
+      .slice(Math.max(0, index - adaptiveWindowSpec.meanReversionWindowRows + 1), index + 1)
+      .map((item) => item?.costDistance)
+      .filter(Number.isFinite),
     tradingDaysPerYear: tdpy,
   })
-  const halfLife = isPositiveMonotonicMeanReversion(meanReversion) ? meanReversion.halfLifeDays : null
+  const halfLifeSessions = isPositiveMonotonicMeanReversion(meanReversion)
+    ? meanReversion.halfLifeSessions
+    : null
+  const signalRecovery = deriveRecoveryHorizon({
+    cycleStartPrice: row.close,
+    anchorPrice: market.costAnchor,
+    targetPrice: market.costLow,
+    halfLifeSessions,
+    availableAt: `${row.date}:close`,
+  })
+  if (!signalRecovery?.eligible) return null
+  const deviation = deviationScore({
+    costDistance: market.costDistance,
+    annualVol: Math.max(market.annualVol ?? 0, 0.01),
+    formulaHorizonSessions: signalRecovery.modelHorizonSessions,
+    tradingDaysPerYear: tdpy,
+  })
+  if (!deviation) return null
 
   for (const profile of profiles) {
     if (costDistancePct < profile.minCostDistancePct || costDistancePct > profile.maxCostDistancePct) continue
     if (costSlopePct < profile.minCostSlopePct || costSlopePct > profile.maxCostSlopePct) continue
     if (!deviation || deviation.z > -profile.minZ) continue
     if (!Number.isFinite(ckGeometryPercentile) || ckGeometryPercentile > profile.maxCkGeometryPercentile) continue
-    if (!Number.isFinite(halfLife) || halfLife > profile.maxHalfLifeDays) continue
+    if (!Number.isFinite(halfLifeSessions) || halfLifeSessions > profile.maxHalfLifeSessions) continue
 
-    const target = buildTargetPlan({ row, rows, index, market, profile, deviation, halfLife, costSlopePct })
+    const target = buildTargetPlan({
+      row,
+      rows,
+      index,
+      market,
+      profile,
+      deviation,
+      halfLifeSessions,
+      costSlopePct,
+      availableAt: `${row.date}:close`,
+    })
     if (!target?.eligible) continue
-    const dataState = dataStateRecord(dataset.freshness)
+    const dataState = dataStateRecord(observationDataset.freshness)
     const signalDecision = resolveSignalStatus({ dataState: dataState.status, dynamicHolding: target.dynamicHolding, targetMode: profile.targetMode })
 
     return {
       profile: profile.name,
-      profileTargetPct: Number.isFinite(target.grossReturn) ? round(target.grossReturn * 100, 2) : null,
+      profileMinimumGrossReturnPct: Number.isFinite(profile.minimumGrossReturn)
+        ? round(profile.minimumGrossReturn * 100, 2)
+        : null,
+      profileFixedTargetReturnPct: Number.isFinite(profile.fixedTargetReturn)
+        ? round(profile.fixedTargetReturn * 100, 2)
+        : null,
+      signalTargetGrossReturnPct: Number.isFinite(target.grossReturn)
+        ? round(target.grossReturn * 100, 2)
+        : null,
       profileStopPct: round(profile.stopLoss * 100, 2),
       targetMode: profile.targetMode,
       targetId: target.id,
       targetPrice: Number.isFinite(target.targetPrice) ? round(target.targetPrice, 3) : null,
       symbol: entry.symbol,
-      name: dataset.name,
-      nameSource: dataset.nameSource,
+      name: observationDataset.name,
+      nameSource: observationDataset.nameSource,
       market: entry.market,
-      source: dataset.source,
-      dataThrough: dataset.dataThrough,
-      rows: dataset.rows,
-      staleDays: dataset.staleDays,
-      freshness: dataset.freshness,
+      source: observationDataset.source,
+      dataThrough: observationDataset.dataThrough,
+      rows: observationDataset.rows,
+      staleDays: observationDataset.staleDays,
+      freshness: observationDataset.freshness,
       dataState: dataState.status,
       dataStateReasons: dataState.reasons,
       scoreStatus: 'not-applicable',
       provenance: {
-        marketSource: dataset.source,
-        nameSource: dataset.nameSource,
-        dataThrough: dataset.dataThrough,
-        rows: dataset.rows,
+        marketSource: observationDataset.source,
+        nameSource: observationDataset.nameSource,
+        dataThrough: observationDataset.dataThrough,
+        rows: observationDataset.rows,
+        rowGate: observationDataset.rowGate,
+        adaptiveWindowSpec,
       },
+      adaptiveWindowSpec,
       candidateStatus: signalDecision.status,
       // Compatibility alias. New consumers must use candidateStatus.
       status: signalDecision.status,
       statusReasons: signalDecision.reasons,
       executionStatus: researchBoundary.executionStatus,
       executionReasons: researchBoundary.reasons,
+      executionAuthority: 'none',
       claimClasses: REPLAY_CLAIM_CLASSES,
       signalDate: row.date,
-      z5: round(deviation.z, 2),
-      halfLifeDays: round(halfLife, 1),
-      meanReversionRho: round(meanReversion.rho, 6),
+      deviationZ: round(deviation.z, 2),
+      deviationHorizonSessions: signalRecovery.modelHorizonSessions,
+      halfLifeSessions: round(halfLifeSessions, 1),
+      arCoefficient: round(meanReversion.arCoefficient, 6),
       meanReversionDecayMode: meanReversion.decayMode,
       deviationPercentilePct: round(deviation.deviationPercentile * 100, 1),
       deviationTwoSidedTailProbabilityPct: round(deviation.twoSidedTailProbability * 100, 1),
@@ -368,21 +481,29 @@ function buildSignal({ entry, rows, marketPath, ckGeometryValues, tdpy, index, d
       ckGeometryInterpretation: SYNTHETIC_CK_GEOMETRY_DISCLOSURE.interpretation,
       costDistancePct: round(market.costDistance * 100, 2),
       costSlopePct: round(costSlopePct, 2),
-      expectedHoldDays: Number.isFinite(target.partialRecoveryDays) ? round(target.partialRecoveryDays, 2) : null,
+      signalTargetRecoveryFraction: nullableRound(target.targetRecoveryFraction, 6),
+      signalStructuralRecoveryFraction: nullableRound(target.structuralRecoveryFraction, 6),
+      signalModelHorizonSessions: target.modelHorizonSessions,
+      modelHorizonSessions: config.mode === 'latest' ? null : target.modelHorizonSessions,
+      modelHorizonStatus: config.mode === 'latest'
+        ? 'awaiting-next-session-open'
+        : 'signal-context-only-awaiting-entry-recompute',
+      horizonMode: target.horizonMode,
+      fixedHorizonApplied: target.fixedHorizonApplied,
+      appliedHorizonSessions: target.fixedHorizonApplied ? target.fixedHorizonSessions : null,
       dynamicHolding: target.dynamicHolding ?? null,
       ...dynamicColumns(target.dynamicHolding),
       eligible: true,
       profileConfig: profile,
-      replayContext: { market, deviation, halfLife, costSlopePct, index },
+      replayContext: { market, deviation, halfLifeSessions, costSlopePct, index, tdpy },
     }
   }
 
   return null
 }
 
-function simulateTrade(rows, signalIndex, profile, signalPlan) {
+function simulateTrade(rows, signalIndex, profile, signalPlan, market) {
   const entryIndex = signalIndex + 1
-  if (entryIndex + profile.minSellDays >= rows.length) return null
   const signal = rows[signalIndex]
   const entry = rows[entryIndex]
   const entryGap = entry.open / signal.close - 1
@@ -391,14 +512,19 @@ function simulateTrade(rows, signalIndex, profile, signalPlan) {
   const entryPrice = entry.open
   const entryTarget = recomputeTargetAtEntry({ rows, signalIndex, entry, profile, signalPlan })
   if (!entryTarget?.eligible) return null
-  const targetPrice = Number.isFinite(entryTarget.targetPrice)
-    ? entryTarget.targetPrice
-    : entryPrice * (1 + profile.targetReturn)
+  const targetPrice = entryTarget.targetPrice
   if (targetPrice <= entryPrice) return null
   const stopPrice = entryPrice * (1 - profile.stopLoss)
-  const lastExitIndex = Math.min(entryIndex + profile.maxHoldingDays, rows.length - 1)
+  const modelHorizonSessions = entryTarget.modelHorizonSessions
+  const appliedHorizonSessions = entryTarget.fixedHorizonApplied
+    ? entryTarget.fixedHorizonSessions
+    : modelHorizonSessions
+  if (!Number.isInteger(appliedHorizonSessions) || appliedHorizonSessions <= 0) return null
+  const settlementLagSessions = market === 'A股' ? 1 : 0
+  const lastExitIndex = entryIndex + appliedHorizonSessions
+  if (lastExitIndex >= rows.length || entryIndex + settlementLagSessions > lastExitIndex) return null
 
-  for (let i = entryIndex + profile.minSellDays; i <= lastExitIndex; i += 1) {
+  for (let i = entryIndex + settlementLagSessions; i <= lastExitIndex; i += 1) {
     const row = rows[i]
     const stopHit = row.low <= stopPrice
     const targetHit = row.high >= targetPrice
@@ -409,11 +535,14 @@ function simulateTrade(rows, signalIndex, profile, signalPlan) {
       entryPrice,
       exitPrice: stopPrice,
       reason: 'stop',
-      holdDays: i - entryIndex,
+      actualHoldSessions: i - entryIndex,
       targetPrice,
       entryTarget,
       signalPlan,
       intrabarBothHit: targetHit,
+      modelHorizonSessions,
+      appliedHorizonSessions,
+      settlementLagSessions,
     })
     if (targetHit) return tradeResult({
       entry,
@@ -422,28 +551,61 @@ function simulateTrade(rows, signalIndex, profile, signalPlan) {
       entryPrice,
       exitPrice: targetPrice,
       reason: 'target',
-      holdDays: i - entryIndex,
+      actualHoldSessions: i - entryIndex,
       targetPrice,
       entryTarget,
       signalPlan,
+      modelHorizonSessions,
+      appliedHorizonSessions,
+      settlementLagSessions,
     })
   }
   const exit = rows[lastExitIndex]
-  return tradeResult({ entry, exit, entryGap, entryPrice, exitPrice: exit.close, reason: 'maxHold', holdDays: lastExitIndex - entryIndex, targetPrice, entryTarget, signalPlan })
+  return tradeResult({
+    entry,
+    exit,
+    entryGap,
+    entryPrice,
+    exitPrice: exit.close,
+    reason: entryTarget.fixedHorizonApplied ? 'fixedHorizonScenario' : 'modelHorizon',
+    actualHoldSessions: lastExitIndex - entryIndex,
+    targetPrice,
+    entryTarget,
+    signalPlan,
+    modelHorizonSessions,
+    appliedHorizonSessions,
+    settlementLagSessions,
+  })
 }
 
 function recomputeTargetAtEntry({ rows, signalIndex, entry, profile, signalPlan }) {
   const context = signalPlan?.replayContext
   if (!context) return null
+  const entryRecovery = deriveRecoveryHorizon({
+    cycleStartPrice: entry.open,
+    anchorPrice: context.market.costAnchor,
+    targetPrice: context.market.costLow,
+    halfLifeSessions: context.halfLifeSessions,
+    availableAt: `${entry.date}:open`,
+  })
+  if (!entryRecovery?.eligible) return null
+  const entryDeviation = deviationScore({
+    costDistance: context.market.costDistance,
+    annualVol: Math.max(context.market.annualVol ?? 0, 0.01),
+    formulaHorizonSessions: entryRecovery.modelHorizonSessions,
+    tradingDaysPerYear: context.tdpy,
+  })
+  if (!entryDeviation) return null
   return buildTargetPlan({
     row: { ...entry, close: entry.open },
     rows,
     index: signalIndex,
     market: context.market,
     profile,
-    deviation: context.deviation,
-    halfLife: context.halfLife,
+    deviation: entryDeviation,
+    halfLifeSessions: context.halfLifeSessions,
     costSlopePct: context.costSlopePct,
+    availableAt: `${entry.date}:open`,
   })
 }
 
@@ -454,14 +616,18 @@ function tradeResult({
   entryPrice,
   exitPrice,
   reason,
-  holdDays,
+  actualHoldSessions,
   targetPrice = null,
   entryTarget = null,
   signalPlan = null,
   intrabarBothHit = false,
+  modelHorizonSessions,
+  appliedHorizonSessions,
+  settlementLagSessions,
 }) {
   const grossReturn = exitPrice / entryPrice - 1
   const netReturn = grossReturn - config.feeRate
+  const actualTargetGrossReturn = targetPrice / entryPrice - 1
   return {
     entryDate: entry.date,
     exitDate: exit.date,
@@ -474,82 +640,134 @@ function tradeResult({
     targetRecomputedAtEntry: true,
     targetTiming: config.targetTiming,
     targetContextPolicy: config.targetContextPolicy,
+    entryDeviationZ: nullableRound(entryTarget?.deviationZ, 6),
+    entryDeviationHorizonSessions: modelHorizonSessions,
+    actualTargetGrossReturnPct: round(actualTargetGrossReturn * 100, 6),
+    targetRecoveryFraction: nullableRound(entryTarget?.targetRecoveryFraction, 6),
+    structuralRecoveryFraction: nullableRound(entryTarget?.structuralRecoveryFraction, 6),
+    horizonCycleStartPrice: nullableRound(entryTarget?.horizonCycleStartPrice, 6),
+    horizonCostLowerPrice: nullableRound(entryTarget?.horizonCostLowerPrice, 6),
+    horizonAnchorPrice: nullableRound(entryTarget?.horizonAnchorPrice, 6),
+    modelHorizonSessions,
+    modelHorizonRaw: nullableRound(entryTarget?.modelHorizonRaw, 6),
+    modelHorizonStatus: 'recomputed-from-actual-entry-open',
+    horizonMode: entryTarget?.horizonMode ?? null,
+    appliedHorizonSessions,
+    fixedHorizonApplied: entryTarget?.fixedHorizonApplied === true,
+    executionAuthority: 'none',
+    settlementLagSessions,
+    dynamicHolding: entryTarget?.dynamicHolding ?? null,
+    ...dynamicColumns(entryTarget?.dynamicHolding),
     reason,
     intrabarBothHit,
     intrabarPolicy: config.intrabarPolicy,
-    holdDays,
+    actualHoldSessions,
     grossReturnPct: round(grossReturn * 100, 2),
     netReturnPct: round(netReturn * 100, 2),
   }
 }
 
-function buildTargetPlan({ row, rows, index, market, profile, deviation, halfLife, costSlopePct }) {
-  const dynamicHolding = deriveDynamicHoldingState({
+function buildTargetPlan({
+  row,
+  rows,
+  index,
+  market,
+  profile,
+  deviation,
+  halfLifeSessions,
+  costSlopePct,
+  availableAt,
+}) {
+  const structuralRecovery = deriveRecoveryHorizon({
+    cycleStartPrice: row.close,
+    anchorPrice: market.costAnchor,
+    targetPrice: market.costLow,
+    halfLifeSessions,
+    availableAt,
+  })
+  if (!structuralRecovery?.eligible) return null
+  const activeGrossReturnThreshold = profile.targetMode === 'fixed'
+    ? profile.fixedTargetReturn
+    : profile.minimumGrossReturn
+  const rawDynamicHolding = deriveDynamicHoldingState({
     zScore: deviation.z,
-    halfLifeDays: halfLife,
+    halfLifeSessions,
     entryPrice: row.close,
     anchorPrice: market.costAnchor,
     targetPrices: {
       costLower: market.costLow,
       anchor: market.costAnchor,
     },
-    anchorRecoveryFraction: profile.anchorRecoveryFraction,
     minAbsZ: profile.minZ,
     costSlopePct,
     drawdown: deriveDrawdownFeatures({ rows, index }),
     profiles: {
-      shortTrade: { minDays: 2, maxDays: profile.maxHoldingDays, minGrossReturn: profile.targetReturn },
-      fundCycle: { minDays: 20, maxDays: 120, minGrossReturn: profile.targetReturn },
+      shortTrade: { targetOrder: ['firstRepair'], minGrossReturn: activeGrossReturnThreshold },
+      fundCycle: { targetOrder: ['firstRepair'], minGrossReturn: activeGrossReturnThreshold },
     },
   })
+  const dynamicHolding = canonicalizeFormulaSessionFields(rawDynamicHolding)
   if (config.mode === 'replay' && dynamicHolding.holdingPlan.shortTrade.action !== 'execute') return null
   if (config.mode === 'latest' && dynamicHolding.status === '剔除') return null
 
   if (profile.targetMode === 'fixed') {
-    const recoveryFraction = profile.targetReturn / Math.abs(market.costDistance)
-    const window = deriveShortHoldWindow({
-      zScore: deviation.z,
-      halfLifeDays: halfLife,
-      costDistance: market.costDistance,
-      recoveryFraction,
-      minGrossReturn: profile.targetReturn,
-      maxHoldingDays: profile.maxHoldingDays,
-      minExecutableDays: profile.minSellDays,
-      minAbsZ: profile.minZ,
-    })
-    if (!window?.eligible) return null
+    const targetPrice = row.close * (1 + profile.fixedTargetReturn)
+    const targetRecoveryFraction = (targetPrice - row.close) / (market.costAnchor - row.close)
     return {
       eligible: true,
       id: 'fixed',
-      targetPrice: null,
-      grossReturn: profile.targetReturn,
-      partialRecoveryDays: window.partialRecoveryDays,
+      targetPrice,
+      grossReturn: profile.fixedTargetReturn,
+      targetRecoveryFraction,
+      structuralRecoveryFraction: structuralRecovery.recoveryFraction,
+      horizonCycleStartPrice: row.close,
+      horizonCostLowerPrice: market.costLow,
+      horizonAnchorPrice: market.costAnchor,
+      modelHorizonRaw: structuralRecovery.modelHorizonRaw,
+      modelHorizonSessions: structuralRecovery.modelHorizonSessions,
+      horizonMode: 'explicit-fixed-target-and-horizon-scenario',
+      fixedHorizonApplied: true,
+      fixedHorizonSessions: profile.fixedHorizonSessions,
+      executionAuthority: 'none',
+      deviationZ: deviation.z,
       dynamicHolding: {
         ...dynamicHolding,
-        targetInputMode: 'fixed-return-replay-assumption-with-structural-gates',
+        targetInputMode: 'explicit-fixed-return-and-horizon-scenario-with-structural-gates',
         syntheticCkGeometryUsedAsTarget: false,
+        fixedHorizonApplied: true,
+        executionAuthority: 'none',
       },
     }
   }
-  const selected = dynamicHolding.holdingPlan.shortTrade.target ??
-    dynamicHolding.holdingPlan.fundCycle.target ??
-    dynamicHolding.milestones.find((item) =>
-      ['firstRepair', 'baseAnchor'].includes(item.id) &&
-      Number.isFinite(item.grossReturn) && item.grossReturn >= profile.targetReturn &&
-      Number.isFinite(item.effectiveTargetPrice) && item.effectiveTargetPrice > row.close &&
-      !item.blockedReasons?.includes('target-behind-entry'),
-    )
-  if (!selected || selected.grossReturn < profile.targetReturn || selected.effectiveTargetPrice <= row.close) return null
+  const selected = dynamicHolding.milestones.find((item) => item.sourceId === 'costLower')
+  if (
+    !selected
+    || selected.grossReturn < profile.minimumGrossReturn
+    || selected.effectiveTargetPrice <= row.close
+  ) return null
   return {
     eligible: true,
-    id: selected.id,
+    id: selected.sourceId,
     targetPrice: selected.effectiveTargetPrice,
     grossReturn: selected.grossReturn,
-    partialRecoveryDays: selected.expectedDays,
+    targetRecoveryFraction: structuralRecovery.recoveryFraction,
+    structuralRecoveryFraction: structuralRecovery.recoveryFraction,
+    horizonCycleStartPrice: row.close,
+    horizonCostLowerPrice: market.costLow,
+    horizonAnchorPrice: market.costAnchor,
+    modelHorizonRaw: structuralRecovery.modelHorizonRaw,
+    modelHorizonSessions: structuralRecovery.modelHorizonSessions,
+    horizonMode: 'formula-derived-from-entry-to-cost-lower-target',
+    fixedHorizonApplied: false,
+    fixedHorizonSessions: null,
+    executionAuthority: 'none',
+    deviationZ: deviation.z,
     dynamicHolding: {
       ...dynamicHolding,
       targetInputMode: 'cost-band-and-anchor-only',
       syntheticCkGeometryUsedAsTarget: false,
+      fixedHorizonApplied: false,
+      executionAuthority: 'none',
     },
   }
 }
@@ -602,20 +820,26 @@ function printMarkdown({ config, summary, trades }) {
   console.log(`Source: ${provenance.index} + ${provenance.dataDir} | freshness: ${freshnessText(freshness)}`)
   console.log(`Filters: static-excluded-symbols=${filters.staticExcludedSymbolCount}, A-share shebao=${onOff(filters.requireShebaoForAshareOnly)} | skipped: ${reasonSummary(audit.skipReasons)}`)
   for (const profile of config.profiles) {
-    console.log(`- ${profile.name}: ${profile.targetMode} target >=${pct(profile.targetReturn)}, stop ${pct(profile.stopLoss)}, maxHold ${profile.maxHoldingDays}d, z5<=-${profile.minZ}, synthetic CK geometry P<=${profile.maxCkGeometryPercentile}, HL<=${profile.maxHalfLifeDays}d, costDistance ${profile.minCostDistancePct}-${profile.maxCostDistancePct}%`)
+    const horizon = profile.fixedHorizonApplied
+      ? `explicit fixed horizon ${profile.fixedHorizonSessions} sessions (scenario only)`
+      : 'per-event H from actual entry -> costLower recovery'
+    const returnRule = profile.targetMode === 'fixed'
+      ? `fixed target ${pct(profile.fixedTargetReturn)}`
+      : `minimum structural gross return ${pct(profile.minimumGrossReturn)}`
+    console.log(`- ${profile.name}: ${returnRule}, stop ${pct(profile.stopLoss)}, ${horizon}, z(H)<=-${profile.minZ}, synthetic CK geometry P<=${profile.maxCkGeometryPercentile}, HL<=${profile.maxHalfLifeSessions} sessions, costDistance ${profile.minCostDistancePct}-${profile.maxCostDistancePct}%`)
   }
   console.log(``)
   console.log(`Trades: ${summary.trades ?? 0} | win ${summary.winRatePct ?? 0}% | target ${summary.targetHitPct ?? 0}% | stop ${summary.stopPct ?? 0}% | avg ${summary.avgNetPct ?? 0}% | median ${summary.medianNetPct ?? 0}%`)
   console.log(`Profile mix: ${formatProfileMix(summary.byProfile)}`)
   console.log(`Risk: p10 ${summary.p10NetPct ?? 0}% | p90 ${summary.p90NetPct ?? 0}% | worst ${summary.worstNetPct ?? 0}% | best ${summary.bestNetPct ?? 0}%`)
   console.log(``)
-  console.log(`| profile | status / phase | status reason | target | symbol | name | source | through / rows / age | signal | exit | exit reason | hold | net | z5 | HL | normal P | normal tail | empirical P | CK geom P | costDist | gap |`)
-  console.log(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`)
+  console.log(`| profile | status / phase | status reason | target | q | model H / applied H | symbol | name | source | through / rows / age | signal | exit | exit reason | hold | net | z(H) | HL | normal P | normal tail | empirical P | CK geom P | costDist | gap |`)
+  console.log(`| --- | --- | --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |`)
   for (const row of trades.slice(0, 20)) {
-    console.log(`| ${row.profile} | ${row.status} / ${row.dynamicPhase ?? '-'} | ${row.statusReasons.join(',')} | ${targetLabel(row)} | ${row.symbol} | ${row.name} | ${row.source} | ${row.dataThrough} / ${row.rows} / ${row.staleDays ?? '?'}d | ${row.signalDate} | ${row.exitDate} | ${row.reason} | ${row.holdDays} | ${row.netReturnPct}% | ${row.z5} | ${row.halfLifeDays} | ${nullablePct(row.deviationPercentilePct)} | ${nullablePct(row.deviationTwoSidedTailProbabilityPct)} | ${nullablePct(row.empiricalDeviationPercentilePct)} | ${nullablePct(row.ckGeometryPercentile)} | ${row.costDistancePct}% | ${row.entryGapPct}% |`)
+    console.log(`| ${row.profile} | ${row.status} / ${row.dynamicPhase ?? '-'} | ${row.statusReasons.join(',')} | ${targetLabel(row)} | ${row.targetRecoveryFraction ?? '-'} | ${row.modelHorizonSessions ?? '-'} / ${row.appliedHorizonSessions ?? '-'} | ${row.symbol} | ${row.name} | ${row.source} | ${row.dataThrough} / ${row.rows} / ${row.staleDays ?? '?'}d | ${row.signalDate} | ${row.exitDate} | ${row.reason} | ${row.actualHoldSessions} | ${row.netReturnPct}% | ${row.deviationZ} | ${row.halfLifeSessions} | ${nullablePct(row.deviationPercentilePct)} | ${nullablePct(row.deviationTwoSidedTailProbabilityPct)} | ${nullablePct(row.empiricalDeviationPercentilePct)} | ${nullablePct(row.ckGeometryPercentile)} | ${row.costDistancePct}% | ${row.entryGapPct}% |`)
   }
   console.log(``)
-  console.log(`Replay assumptions: signal-day cost band, deviation, half-life and drawdown stay frozen; target return/executability is recomputed with the next-session open. When stop and target are both inside one OHLC bar, stop wins conservatively. Only positive monotonic AR decay is eligible. A requested social-security whitelist is a current static list, not point-in-time history.`)
+  console.log(`Replay assumptions: signal-day cost band, half-life and drawdown stay frozen; q=(costLower-entry)/(costAnchor-entry) and H=HL*log2(1/(1-q)) are recomputed with the actual next-session open. In structure mode the same H controls tail sufficiency, horizon exit, and non-overlap. When stop and target are both inside one OHLC bar, stop wins conservatively. Only positive monotonic AR decay is eligible. A requested social-security whitelist is a current static list, not point-in-time history.`)
   console.log(`Research replay only. Normal-reference deviation P/tail and empirical ranks describe extremeness, not mean-reversion probability. Synthetic CK geometry is a normalized shape diagnostic, not a real LP position, token holding, fee income, or investment return; it is not used as a target price. No RSI/KDJ/EMA/MA or external factors are used.`)
 }
 
@@ -626,22 +850,30 @@ function printLatestMarkdown({ config, summary, signals }) {
   console.log(`Source: ${provenance.index} + ${provenance.dataDir} | freshness: ${freshnessText(freshness)}`)
   console.log(`Filters: static-excluded-symbols=${filters.staticExcludedSymbolCount}, A-share shebao=${onOff(filters.requireShebaoForAshareOnly)} | skipped: ${reasonSummary(audit.skipReasons)}`)
   for (const profile of config.profiles) {
-    console.log(`- ${profile.name}: ${profile.targetMode} target >=${pct(profile.targetReturn)}, stop ${pct(profile.stopLoss)}, maxHold ${profile.maxHoldingDays}d, z5<=-${profile.minZ}, synthetic CK geometry P<=${profile.maxCkGeometryPercentile}, HL<=${profile.maxHalfLifeDays}d, costDistance ${profile.minCostDistancePct}-${profile.maxCostDistancePct}%`)
+    const horizon = profile.fixedHorizonApplied
+      ? `explicit fixed horizon ${profile.fixedHorizonSessions} sessions (scenario only)`
+      : 'actual-entry model horizon pending next open'
+    const returnRule = profile.targetMode === 'fixed'
+      ? `fixed target ${pct(profile.fixedTargetReturn)}`
+      : `minimum structural gross return ${pct(profile.minimumGrossReturn)}`
+    console.log(`- ${profile.name}: ${returnRule}, stop ${pct(profile.stopLoss)}, ${horizon}, z(H)<=-${profile.minZ}, synthetic CK geometry P<=${profile.maxCkGeometryPercentile}, HL<=${profile.maxHalfLifeSessions} sessions, costDistance ${profile.minCostDistancePct}-${profile.maxCostDistancePct}%`)
   }
   console.log(``)
   console.log(`Signals: ${summary.signals ?? 0} | Profile mix: ${formatSignalProfileMix(summary.byProfile)}`)
   console.log(``)
-  console.log(`| profile | status / phase | status reason | target | symbol | name | source | through / rows / age | signal | normal P | normal tail | empirical P | CK geom P | shortReturn | fundReturn | firstReview | base | stretch | short | fund | dynamic reasons |`)
-  console.log(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | --- | --- | --- |`)
+  console.log(`| profile | status / phase | status reason | target | structural q / H | actual-entry H | symbol | name | source | through / rows / age | signal | normal P | normal tail | empirical P | CK geom P | shortReturn | fundReturn | firstReview | base | stretch | short | fund | dynamic reasons |`)
+  console.log(`| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | --- | --- | --- |`)
   for (const row of signals.slice(0, 30)) {
-    console.log(`| ${row.profile} | ${row.status} / ${row.dynamicPhase ?? '-'} | ${row.statusReasons.join(',')} | ${targetLabel(row)} | ${row.symbol} | ${row.name} | ${row.source} | ${row.dataThrough} / ${row.rows} / ${row.staleDays ?? '?'}d | ${row.signalDate} | ${nullablePct(row.deviationPercentilePct)} | ${nullablePct(row.deviationTwoSidedTailProbabilityPct)} | ${nullablePct(row.empiricalDeviationPercentilePct)} | ${nullablePct(row.ckGeometryPercentile)} | ${row.shortReturnRange ?? '-'} | ${row.fundReturnRange ?? '-'} | ${row.firstReviewDays ?? '-'} | ${row.baseAnchorDays ?? '-'} | ${row.stretchDays ?? '-'} | ${row.shortPlan ?? '-'} | ${row.fundPlan ?? '-'} | ${row.waitingReasons || '-'} |`)
+    console.log(`| ${row.profile} | ${row.status} / ${row.dynamicPhase ?? '-'} | ${row.statusReasons.join(',')} | ${targetLabel(row)} | ${row.signalStructuralRecoveryFraction ?? '-'} / ${row.signalModelHorizonSessions ?? '-'} | ${row.modelHorizonStatus} | ${row.symbol} | ${row.name} | ${row.source} | ${row.dataThrough} / ${row.rows} / ${row.staleDays ?? '?'}d | ${row.signalDate} | ${nullablePct(row.deviationPercentilePct)} | ${nullablePct(row.deviationTwoSidedTailProbabilityPct)} | ${nullablePct(row.empiricalDeviationPercentilePct)} | ${nullablePct(row.ckGeometryPercentile)} | ${row.shortExpectedReturnPct ?? '-'} | ${row.fundExpectedReturnPct ?? '-'} | ${row.firstReviewSessions ?? '-'} | ${row.baseAnchorSessions ?? '-'} | ${row.stretchSessions ?? '-'} | ${row.shortPlan ?? '-'} | ${row.fundPlan ?? '-'} | ${row.waitingReasons || '-'} |`)
   }
   console.log(``)
   console.log(`Observation scan only. Normal-reference deviation P/tail and empirical ranks describe extremeness, not mean-reversion probability. Synthetic CK geometry is a normalized shape diagnostic, not a real LP position, token holding, fee income, or investment return; it is not used as a target price. No RSI/KDJ/EMA/MA or external factors are used.`)
 }
 
 function targetLabel(row) {
-  return row.targetPrice === null ? `${row.targetId}@${nullablePct(row.profileTargetPct)}` : `${row.targetId}@${row.targetPrice}`
+  return row.targetPrice === null
+    ? `${row.targetId}@${nullablePct(row.signalTargetGrossReturnPct)}`
+    : `${row.targetId}@${row.targetPrice}`
 }
 
 function dynamicColumns(dynamicHolding) {
@@ -656,12 +888,12 @@ function dynamicColumns(dynamicHolding) {
     dynamicPhase: dynamicHolding.phaseLabel,
     shortPlan: short ? `${short.status}/${short.action}` : null,
     fundPlan: fund ? `${fund.status}/${fund.action}` : null,
-    firstReviewDays: fund?.firstReviewDays ?? expectation.firstRepairDays ?? null,
-    baseAnchorDays: expectation.baseAnchorDays ?? null,
-    stretchDays: expectation.stretchDays ?? null,
+    firstReviewSessions: fund?.firstReviewSessions ?? expectation.firstRepairSessions ?? null,
+    baseAnchorSessions: expectation.baseAnchorSessions ?? null,
+    stretchSessions: expectation.stretchSessions ?? null,
     expectedReturnRange: expectation.baseReturnPct ?? null,
-    shortReturnRange: shortExpectation?.expectedReturnRangePct ?? null,
-    fundReturnRange: fundExpectation?.expectedReturnRangePct ?? null,
+    shortExpectedReturnPct: shortExpectation?.expectedReturnPct ?? null,
+    fundExpectedReturnPct: fundExpectation?.expectedReturnPct ?? null,
     waitingReasons: dynamicHolding.blockedReasons?.join(',') ?? '',
   }
 }
@@ -701,7 +933,41 @@ function resolveSignalStatus({ dataState, dynamicHolding, targetMode }) {
   }
 }
 
-function datasetProvenance(entry, rows) {
+function datasetAtObservation({ dataset, row, visibleRows, adaptiveWindowSpec, historical }) {
+  const requiredRows = explicitMinRows ?? adaptiveWindowSpec.minimumRequiredRows
+  const freshness = historical
+    ? {
+        status: 'historical-as-of-observation',
+        dataThrough: row.date,
+        rows: visibleRows,
+        staleDays: 0,
+        asOf: row.date,
+        basis: 'historical-visible-prefix-as-of-signal-close',
+        staleThresholdDays: null,
+        futureRowsUsed: false,
+      }
+    : freshnessRecord(row.date, visibleRows)
+  return {
+    ...dataset,
+    dataThrough: row.date,
+    rows: visibleRows,
+    staleDays: freshness.staleDays,
+    freshness,
+    adaptiveWindowSpec,
+    rowGate: {
+      mode: explicitMinRows === null ? 'adaptive' : 'explicit-scenario',
+      source: explicitMinRows === null ? adaptiveWindowSpec.source : 'cli:--min-rows',
+      requiredRows,
+      explicitMinimumRows: explicitMinRows,
+      adaptiveMinimumRows: adaptiveWindowSpec.minimumRequiredRows,
+      passed: visibleRows >= requiredRows,
+      evaluatedAt: `${row.date}:close`,
+      futureRowsUsed: false,
+    },
+  }
+}
+
+function datasetProvenance(entry, rows, sampleContext) {
   const latest = rows.at(-1)
   const nameInfo = resolveInstrumentName(entry, nameMap)
   const freshness = freshnessRecord(latest?.date, rows.length)
@@ -715,6 +981,11 @@ function datasetProvenance(entry, rows) {
     rows: rows.length,
     staleDays: freshness.staleDays,
     freshness,
+    adaptiveWindowSpec: sampleContext.adaptiveWindowSpec,
+    rowGate: {
+      ...sampleContext.rowGate,
+      passed: rows.length >= sampleContext.rowGate.requiredRows,
+    },
   }
 }
 
@@ -746,6 +1017,14 @@ function dataStateRecord(freshness) {
   }
   if (freshness.status === 'stale') {
     return { status: 'stale', reasons: ['data-stale-over-10-calendar-days'] }
+  }
+  if (freshness.status === 'historical-as-of-observation') {
+    return {
+      status: 'provisional',
+      reasons: [
+        'historical-visible-prefix-only; later-rows-corporate-actions-and-live-execution-state-not-consumed',
+      ],
+    }
   }
   return {
     status: 'provisional',
@@ -839,21 +1118,48 @@ function parseArgs(values, supported, booleanFlags) {
 }
 
 function buildProfiles(mode) {
-  if (mode === 'strict') return [profileFromArgs('strict-5d', STRICT_DEFAULTS)]
-  if (mode === 'swing') return [profileFromArgs('swing-10d', SWING_DEFAULTS)]
+  if (mode === 'strict') return [profileFromArgs('strict', STRICT_DEFAULTS)]
+  if (mode === 'swing') return [profileFromArgs('swing', SWING_DEFAULTS)]
   if (mode === 'combo') {
     return [
-      profileFromArgs('fast-5d', STRICT_DEFAULTS),
-      profileFromArgs('swing-10d', SWING_DEFAULTS),
+      profileFromArgs('strict', STRICT_DEFAULTS),
+      profileFromArgs('swing', SWING_DEFAULTS),
     ]
   }
   fail(`unknown profile "${mode}", expected strict, swing, or combo`)
 }
 
-function profileFromArgs(name, defaults) {
+function profileFromArgs(profileId, defaults) {
+  const targetMode = enumArg(args['target-mode'] ?? defaults.targetMode, SUPPORTED_TARGET_MODES, 'target-mode')
+  if (targetMode === 'structure' && args['max-hold'] !== undefined) {
+    fail('--max-hold is allowed only with explicit --target-mode fixed')
+  }
+  if (targetMode === 'fixed' && args['max-hold'] === undefined) {
+    fail('--target-mode fixed requires explicit --max-hold')
+  }
+  if (targetMode === 'fixed' && args.target === undefined) {
+    fail('--target-mode fixed requires explicit --target')
+  }
+  const minimumGrossReturn = targetMode === 'structure'
+    ? finiteArg(args.target, defaults.minimumGrossReturn, 'target', {
+      min: 0,
+      max: 1,
+      minExclusive: true,
+      maxExclusive: true,
+    })
+    : null
+  const fixedTargetReturn = targetMode === 'fixed'
+    ? finiteArg(args.target, null, 'target', {
+      min: 0,
+      max: 1,
+      minExclusive: true,
+      maxExclusive: true,
+    })
+    : null
   const profile = {
-    name,
-    targetReturn: finiteArg(args.target, defaults.targetReturn, 'target', { min: 0, max: 1, minExclusive: true, maxExclusive: true }),
+    name: targetMode === 'fixed' ? `${profileId}-fixed-scenario` : `${profileId}-structure`,
+    minimumGrossReturn,
+    fixedTargetReturn,
     stopLoss: finiteArg(args.stop, defaults.stopLoss, 'stop', { min: 0, max: 1, minExclusive: true, maxExclusive: true }),
     minZ: finiteArg(args['min-z'], defaults.minZ, 'min-z', { min: 0 }),
     maxCkGeometryPercentile: finiteArg(
@@ -862,22 +1168,26 @@ function profileFromArgs(name, defaults) {
       args['ck-geometry-max'] === undefined && args['lp-max'] !== undefined ? 'lp-max' : 'ck-geometry-max',
       { min: 0, max: 100 },
     ),
-    maxHalfLifeDays: finiteArg(args['max-hl'], defaults.maxHalfLifeDays, 'max-hl', { min: 0, minExclusive: true }),
+    maxHalfLifeSessions: finiteArg(args['max-hl'], defaults.maxHalfLifeSessions, 'max-hl', {
+      min: 0,
+      minExclusive: true,
+    }),
     minCostSlopePct: finiteArg(args['min-slope'], defaults.minCostSlopePct, 'min-slope'),
     maxCostSlopePct: finiteArg(args['max-slope'], defaults.maxCostSlopePct, 'max-slope'),
     minCostDistancePct: finiteArg(args['min-distance'], defaults.minCostDistancePct, 'min-distance', { min: 0 }),
     maxCostDistancePct: finiteArg(args['max-distance'], defaults.maxCostDistancePct, 'max-distance', { min: 0 }),
     maxEntryGapPct: finiteArg(args['max-entry-gap'], defaults.maxEntryGapPct, 'max-entry-gap'),
     minEntryGapPct: finiteArg(args['min-entry-gap'], defaults.minEntryGapPct, 'min-entry-gap'),
-    maxHoldingDays: positiveIntArg(args['max-hold'], defaults.maxHoldingDays, 'max-hold'),
-    minSellDays: positiveIntArg(args['min-sell-days'], defaults.minSellDays, 'min-sell-days'),
-    targetMode: enumArg(args['target-mode'] ?? defaults.targetMode, SUPPORTED_TARGET_MODES, 'target-mode'),
-    anchorRecoveryFraction: finiteArg(args['anchor-recovery'], defaults.anchorRecoveryFraction, 'anchor-recovery', { min: 0, max: 1, minExclusive: true }),
+    targetMode,
+    fixedHorizonApplied: targetMode === 'fixed',
+    fixedHorizonSessions: targetMode === 'fixed'
+      ? positiveIntArg(args['max-hold'], null, 'max-hold')
+      : null,
+    executionAuthority: 'none',
   }
   if (profile.minCostSlopePct > profile.maxCostSlopePct) fail('invalid slope bounds: --min-slope must be <= --max-slope')
   if (profile.minCostDistancePct > profile.maxCostDistancePct) fail('invalid distance bounds: --min-distance must be <= --max-distance')
   if (profile.minEntryGapPct > profile.maxEntryGapPct) fail('invalid entry-gap bounds: --min-entry-gap must be <= --max-entry-gap')
-  if (profile.minSellDays > profile.maxHoldingDays) fail('invalid holding bounds: --min-sell-days must be <= --max-hold')
   return profile
 }
 
@@ -917,6 +1227,10 @@ function positiveIntArg(value, fallback, name) {
   const parsed = Number(value)
   if (!Number.isInteger(parsed) || parsed <= 0) fail(`invalid --${name} value "${value}", expected a positive integer`)
   return parsed
+}
+
+function optionalPositiveIntArg(value, name) {
+  return value === undefined ? null : positiveIntArg(value, null, name)
 }
 
 function parseMarkets(value) {

@@ -8,6 +8,7 @@ import {
   empiricalDeviationStats,
   isPositiveMonotonicMeanReversion,
   passesAshareShebaoFilter,
+  scoreFreshnessEvidence,
 } from '../../../.agents/skills/china-stock-selection/scripts/selection-helpers.mjs'
 
 test('claim-class machine contract exposes the complete closed enum', () => {
@@ -71,14 +72,18 @@ test('dynamic holding accepts only positive monotonic mean reversion', () => {
   const valid = {
     isMeanReverting: true,
     decayMode: 'monotonic-decay',
-    rho: 0.8,
-    halfLifeDays: 3.1,
+    arCoefficient: 0.8,
+    halfLifeSessions: 3.1,
   }
 
   assert.equal(isPositiveMonotonicMeanReversion(valid), true)
-  assert.equal(isPositiveMonotonicMeanReversion({ ...valid, rho: -0.8, decayMode: 'oscillating-decay' }), false)
-  assert.equal(isPositiveMonotonicMeanReversion({ ...valid, rho: 1 }), false)
-  assert.equal(isPositiveMonotonicMeanReversion({ ...valid, halfLifeDays: null }), false)
+  assert.equal(
+    isPositiveMonotonicMeanReversion({ ...valid, arCoefficient: -0.8, decayMode: 'oscillating-decay' }),
+    false,
+  )
+  assert.equal(isPositiveMonotonicMeanReversion({ ...valid, arCoefficient: 1 }), false)
+  assert.equal(isPositiveMonotonicMeanReversion({ ...valid, halfLifeSessions: null }), false)
+  assert.equal(isPositiveMonotonicMeanReversion({ rho: 0.8, halfLifeDays: 3.1 }), false)
   assert.equal(isPositiveMonotonicMeanReversion(null), false)
 })
 
@@ -99,4 +104,41 @@ test('synthetic CK geometry normalizes against the same range at the rolling anc
   assert.ok(Number.isFinite(belowAnchor.normalizedValue))
   assert.ok(Number.isFinite(belowAnchor.unitLiquidityValue))
   assert.ok(Number.isFinite(belowAnchor.anchorReferenceValue))
+})
+
+test('freshness evidence score has one effective stale threshold and observable components', () => {
+  const current = scoreFreshnessEvidence({
+    staleDays: 10,
+    totalRows: 484,
+    tradingDaysPerYear: 242,
+    minimumRequiredRows: 121,
+  })
+  const stale = scoreFreshnessEvidence({
+    staleDays: 11,
+    totalRows: 484,
+    tradingDaysPerYear: 242,
+    minimumRequiredRows: 121,
+  })
+  const muchOlder = scoreFreshnessEvidence({
+    staleDays: 31,
+    totalRows: 484,
+    tradingDaysPerYear: 242,
+    minimumRequiredRows: 121,
+  })
+
+  assert.deepEqual(
+    {
+      score: current.score,
+      freshness: current.freshnessScore,
+      depth: current.evidenceDepthScore,
+      annual: current.annualCoverageScore,
+    },
+    { score: 8, freshness: 5, depth: 2, annual: 1 },
+  )
+  assert.equal(stale.score, 3)
+  assert.equal(muchOlder.score, stale.score)
+  assert.equal(
+    scoreFreshnessEvidence({ staleDays: -1, totalRows: 10, tradingDaysPerYear: 242, minimumRequiredRows: 10 }),
+    null,
+  )
 })

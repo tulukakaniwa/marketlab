@@ -7,7 +7,6 @@ import {
   formatStrategyPct as pct,
   setStrategyFieldValue as setValue,
   strategyFieldValue as valueOf,
-  strategyHoldingDays as holdingDays,
 } from './strategyProfileInputsModel.js'
 
 const props = defineProps({
@@ -21,20 +20,25 @@ const executionLinks = computed(() => {
   const p = graph?.profile ?? {}
   const pos = graph?.position ?? {}
   const formulaRows = graph?.formulaStrategy?.executionParams ?? []
+  const formulaHorizonSessions = Number(graph?.inputs?.formulaHorizonSessions)
+  const horizonLabel = Number.isFinite(formulaHorizonSessions)
+    ? `${formulaHorizonSessions} 个交易会话（公式推导）`
+    : '待公式推导'
+  const deltaSlope = Number(graph?.inputs?.deltaSlope ?? props.input.deltaSlope)
   return [
     ...formulaRows,
     ['入场阈值', `max(ATR × ${f2(p.edgeAtr)}, 0.5%) = ${pct(p.minEdge)}`],
-    ['动量确认', `5日动量 > ${pct(p.momentumMin)}`],
+    ['动量确认', `自适应快动量 > ${pct(p.momentumMin)}`],
     ['成本止跌', `成本斜率 ≥ -${pct(p.costSlopeMin)}`],
     ['模拟风险预算', `权益 × ${pct(p.riskMax)} = ${fmt(pos.riskBudget)}`],
     ['模拟仓位上限', `权益 × ${pct(p.exposureMax)} → 最大名义 ${fmt(pos.maxNotional)}`],
     ['模拟首笔挂单', `最大名义 × ${pct(p.firstWeight)} = ${fmt(pos.firstNotional)}`],
     [
       '退出计划',
-      `退出 ${pct(Number(props.input.exitTargetReturn) || 0)}；d=${pct(Number(props.input.deltaSlope ?? props.input.targetReturn) || 0)}；T=${holdingDays(props.input)} 天；失效 ${fmt(pos.stopPrice)}`,
+      `退出 ${pct(Number(props.input.exitTargetReturn) || 0)}；deltaSlope=${pct(deltaSlope)}；周期=${horizonLabel}；失效 ${fmt(pos.stopPrice)}`,
     ],
     ['风控确认', `动量破坏 < -${pct(p.cutMomentumMin)}`],
-    ['冷却', `买 ${p.buyCooldown ?? '—'} 天；卖 ${p.sellCooldown ?? '—'} 天`],
+    ['冷却', `买 ${p.buyCooldown ?? '—'} 个会话；卖 ${p.sellCooldown ?? '—'} 个会话`],
   ]
 })
 

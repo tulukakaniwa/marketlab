@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 
 const props = defineProps({
   tdpyMeta: { type: Object, required: true },
-  effectiveTdpy: { type: Number, required: true },
+  effectiveTdpy: { type: Number, default: null },
   symbol: { type: String, default: '' },
 })
 
@@ -18,7 +18,7 @@ const PRESETS = [
 
 const customInput = ref('')
 
-const isOverridden = computed(() => props.effectiveTdpy !== props.tdpyMeta.value)
+const isOverridden = computed(() => props.tdpyMeta.basis === 'explicit-override')
 
 function applyPreset(value) {
   if (!props.symbol) return
@@ -45,7 +45,7 @@ function resetToAuto() {
 <template>
   <div class="adv-content">
     <div class="adv-current-line">
-      年时间基 <strong>{{ effectiveTdpy }}</strong>
+      年时间基 <strong>{{ effectiveTdpy ?? '待识别' }}</strong>
       <em :class="['adv-source', { overridden: isOverridden }]">
         {{ isOverridden ? '已手动覆盖' : `按品种自动 · ${tdpyMeta.label}` }}
       </em>

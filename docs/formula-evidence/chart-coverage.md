@@ -34,9 +34,9 @@
 
 | Pane       | Series                                                                            | Source                            |
 | ---------- | --------------------------------------------------------------------------------- | --------------------------------- |
-| Greeks     | `optionDelta`, `optionGamma`, `optionThetaDaily`                                  | `formulaPath`                     |
-| LP         | `lpInventoryDelta`, `lpValue`, `lpNormalizedDelta`                                | `formulaPath`                     |
-| Carry      | `fundingProxy`, `netCarry`, `breakEvenFunding`                                    | `formulaPath`                     |
+| Greeks     | `optionDelta`, `optionGamma`, `optionThetaPerSession`                             | `formulaPath`                     |
+| LP         | `lpInventoryDeltaToken0`, `lpValue`, `lpNormalizedDelta`                          | `formulaPath`                     |
+| Carry      | `cumulativeFundingProxy`, `netCarry`, `breakEvenFundingNetCostReturn`             | `formulaPath`                     |
 | Efficiency | `capitalEfficiency`; CK exact frontier marker; commensurate LP return attribution | `formulaPath` + research snapshot |
 | Equity     | replay equity                                                                     | `replay.equityCurve`              |
 

@@ -128,7 +128,7 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           :observation-date="lab.observationDate"
           :tdpy-meta="lab.tdpyMeta"
           :effective-tdpy="lab.effectiveTdpy"
-          :symbol="lab.source?.symbol ?? ''"
+          :symbol="lab.tdpyOverrideKey"
           :overlays="lab.chartOverlays"
           :feature-flags="lab.featureFlags"
           :profile-list="lab.strategyProfileList"

@@ -3,7 +3,7 @@ export const STRATEGY_FIELD_GROUPS = [
     title: '入场过滤',
     fields: [
       { key: 'strategyEdgeSigma', label: '入场偏离σ', min: 0.1, max: 3, step: 0.05, hint: '成本偏离 / ATR' },
-      { key: 'strategyMomentumSigma', label: '动量阈值σ', min: -2, max: 2, step: 0.05, hint: '5日动量 / 日波动' },
+      { key: 'strategyMomentumSigma', label: '动量阈值σ', min: -2, max: 2, step: 0.05, hint: '自适应快动量 / 日波动' },
       { key: 'strategyCostSlopeSigma', label: '成本止跌σ', min: 0, max: 3, step: 0.05, hint: '成本斜率 / ATR' },
     ],
   },
@@ -76,8 +76,4 @@ export function formatStrategyPct(value) {
 
 export function formatStrategyFactor(value) {
   return Number.isFinite(value) ? Number(value.toFixed(2)) : '—'
-}
-
-export function strategyHoldingDays(input) {
-  return Math.max(Math.round(Number(input?.holdingDays) || 1), 1)
 }

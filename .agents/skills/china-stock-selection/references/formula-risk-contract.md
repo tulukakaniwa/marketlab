@@ -62,7 +62,28 @@ The theorem is not:
 - a PnL optimum
 - valid unchanged for a skewed range
 
-Skewed ranges must solve their own frontier and disclose that it is a project extension.
+CK Part 2 publishes the directional/skewed geometry
+([article](https://medium.com/@med456789d/uniswap-insights-part-2-of-6-568632aa4d8),
+[calculator](https://www.desmos.com/calculator/0l7i8kmukx)). For
+`Pa=P0(1-x)`, `Pb=P0(1+alpha*x)` and
+`u=((1-x)/(1+alpha*x))^(1/4)`, its frontier condition is:
+
+```text
+3*alpha*u^5 - 5*alpha*u^4 - 5*u + 3 = 0
+x = (1-u^4) / (1+alpha*u^4)
+```
+
+For a declared `alpha`, the equation is an `exact-identity`; numerical root solving does
+not turn it into an empirical fit. `alpha=0` gives `u=3/5` and `x=0.8704` exactly, so
+`87.5%` is not this theorem's exact constant. What belongs to this project is the bridge
+that estimates an `alpha` from historical up/down move scales. That `alpha` remains a
+`sample-estimate`, and substituting it into the exact CK geometry produces only a
+`scenario-proxy`. It does not reveal a market maker's intent or authorize a range.
+
+There is a separate exact half-life identity:
+`q(H)=1-2^(-H/halfLifeSessions)`, hence an explicitly selected
+`H=3*halfLifeSessions` gives `q=7/8=0.875`. Do not attribute that conditional time
+coordinate to the CK skew optimum, and do not use it as an instrument-wide default q.
 
 ## Deviation and Mean Reversion
 
@@ -70,13 +91,18 @@ Skewed ranges must solve their own frontier and disclose that it is a project ex
 
 The current AR coefficient is an AR(1)-through-origin sample diagnostic. It has no intercept, confidence interval, stationarity test, residual diagnostic, parameter-stability test, or out-of-sample calibration. Half-life is usable as a conditional path coordinate only when the fitted process passes all declared gates, including positive `rho`, `rho<1`, `isMeanReverting=true`, and `decayMode=monotonic-decay`. Negative rho is oscillatory decay, not the same trading thesis. Non-stationary estimates stay blocked.
 
-`expectedDays`, `expectedReturn*`, and `monthlyEfficiency*` assume the fitted decay continues with zero future shocks while the signal-day structural state is frozen. They are scenario-path projections, not forecasts, expected realized returns, or live sizing inputs.
+`expectedSessions` and `expectedReturn*` assume the fitted decay continues with zero future shocks while the signal-day structural state is frozen. They are scenario-path projections, not forecasts, expected realized returns, or live sizing inputs; fixed monthly-session conversions are forbidden.
 
 `orderPlan.signalStrength = 1 - twoSidedNormalTail(|z|)` is a normal-reference extremeness transform. It is not confidence, win probability, or calibrated edge. Profile-scaled risk budgets and notionals derived from it are simulation-only.
 
 ## Options and Volatility
 
 - Historical realized volatility used by the stock screen must be labelled `historical-realized-scenario`; `isMarketIv=false`.
+- `timeToExpirySessions` is the option contract's remaining tenor, not
+  `formulaHorizonSessions`, an AR half-life, or a structural-repair period. The screen
+  computes option scenarios only when `--option-tenor-sessions` is explicitly supplied;
+  otherwise option values, Greeks, and Gamma PnL remain `null` with
+  `claimClass=missing-input`.
 - A blank or unknown option premium remains `null`. Explicit zero is a distinct value.
 - `isMarketIv` must be verified from the input source and cannot be inferred safely from a descriptive string. Multi-leg templates are incomplete while any leg premium, quote, or contract input is missing.
 - Model price is not entry cashflow. Without market quote/bid-ask, do not report executable PnL.

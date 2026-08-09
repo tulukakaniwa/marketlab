@@ -27,12 +27,12 @@ const currentValues = computed(() => {
       v.push(['成本锚', fmt(m?.costAnchor)])
       v.push(['偏离', pct(m?.costDistance)])
       v.push(['上沿 / 下沿', `${fmt(m?.costHigh)} / ${fmt(m?.costLow)}`])
-      v.push(['5日斜率', pct(m?.costSlope5)])
+      v.push(['自适应近期斜率', pct(m?.costSlopeRecent)])
       break
     case 'volatility':
       v.push(['历史年化波动', pct(m?.annualVol)])
       v.push(['ATR%', pct(m?.atrPercent)])
-      v.push(['5日动量', pct(m?.momentum5)])
+      v.push(['自适应快动量', pct(m?.momentumFast)])
       break
     case 'delta-band':
       v.push(['多头低', fmt(g.deltaBands?.long?.low)])
@@ -43,23 +43,24 @@ const currentValues = computed(() => {
     case 'option-greeks':
       if (g.optionPortfolio) {
         v.push(['组合价值', fmt(g.optionPortfolio.value)])
-        v.push(['组合 Delta', f4(g.optionPortfolio.delta)])
-        v.push(['组合 Gamma', f4(g.optionPortfolio.gamma)])
-        v.push(['Theta/日', f4(g.optionPortfolio.thetaDaily)])
-        v.push(['Vega', f4(g.optionPortfolio.vega)])
+        v.push(['组合 Delta', f4(g.optionPortfolio.optionDelta)])
+        v.push(['组合 Gamma', f4(g.optionPortfolio.optionGamma)])
+        v.push(['Theta/交易会话', f4(g.optionPortfolio.optionThetaPerSession)])
+        v.push(['Vega/1% 波动', f4(g.optionPortfolio.optionVegaPerPct)])
         v.push(['Legs', g.optionPortfolio.legs?.length ?? 0])
       } else {
         v.push(['价格', fmt(g.option?.price)])
-        v.push(['Delta', f4(g.option?.delta)])
-        v.push(['Gamma', f4(g.option?.gamma)])
-        v.push(['Theta', f4(g.option?.theta)])
-        v.push(['Vega', f4(g.option?.vega)])
+        v.push(['Delta', f4(g.option?.optionDelta)])
+        v.push(['Gamma', f4(g.option?.optionGamma)])
+        v.push(['Theta/交易会话', f4(g.option?.optionThetaPerSession)])
+        v.push(['Vega/1% 波动', f4(g.option?.optionVegaPerPct)])
       }
       break
     case 'lp-inventory':
       v.push(['LP 价值', fmt(g.lpV3?.value)])
-      v.push(['库存 Delta', f4(g.lpV3?.inventoryDelta)])
-      v.push(['IL', pct(g.impermanentLoss?.impermanentLoss)])
+      v.push(['库存 Delta (token0)', f4(g.lpV3?.inventoryDeltaToken0)])
+      v.push(['V3 区间 IL', pct(g.rangeV3Il?.rangeV3Il)])
+      v.push(['V2 全区间 IL 代理', pct(g.fullRangeV2Il?.fullRangeV2IlProxy)])
       break
     case 'capital-efficiency':
       v.push(['效率倍数', `${(g.efficiency?.efficiency ?? 0).toFixed(2)}×`])
@@ -67,8 +68,8 @@ const currentValues = computed(() => {
       v.push(['区间上沿', f4(g.efficiency?.upper)])
       break
     case 'funding':
-      v.push(['资金费率', pct(g.funding?.ratio)])
-      v.push(['累计资金成本', f4(g.funding?.funding)])
+      v.push(['基差比例代理', pct(g.funding?.basisFraction)])
+      v.push(['累计资金成本代理', f4(g.funding?.cumulativeFundingProxy)])
       break
     case 'portfolio':
       v.push(['组合研究', fmt(g.portfolio)])

@@ -92,8 +92,8 @@ export function useMainChartSeries({ getChart, getProps }) {
       }),
     )
 
-    toggle('fundingProxy', overlayPlan.paneOn.carry, () =>
-      addPaneLine('fundingProxy', paneLayout.carry, { priceScaleId: 'carry-return' }),
+    toggle('cumulativeFundingProxy', overlayPlan.paneOn.carry, () =>
+      addPaneLine('cumulativeFundingProxy', paneLayout.carry, { priceScaleId: 'carry-return' }),
     )
     toggle('netCarry', overlayPlan.paneOn.carry, () =>
       addPaneLine('netCarry', paneLayout.carry, { priceScaleId: 'carry-return' }),

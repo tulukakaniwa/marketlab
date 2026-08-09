@@ -44,24 +44,25 @@ export function buildNarrative({ label, score, maxScore, dimensions, catchKnife,
     lines.push(`当前价格位于合成 CK 区间内；未建模成交路径，不能据此推断手续费收入。`)
 
   // 锚趋势 + 接飞刀
-  if (Number.isFinite(metrics.costSlope5)) {
+  if (Number.isFinite(metrics.costSlopeRecent)) {
     const dir = metrics.anchorDirection
-    if (dir === 'up') lines.push(`成本锚 5 日斜率 ${formatPct(metrics.costSlope5)}（↑），样本成本锚上移。`)
-    else if (dir === 'flat') lines.push(`成本锚 5 日斜率 ${formatPct(metrics.costSlope5)}（→），样本成本锚近似走平。`)
+    if (dir === 'up') lines.push(`成本锚自适应近期斜率 ${formatPct(metrics.costSlopeRecent)}（↑），样本成本锚上移。`)
+    else if (dir === 'flat')
+      lines.push(`成本锚自适应近期斜率 ${formatPct(metrics.costSlopeRecent)}（→），样本成本锚近似走平。`)
     else if (dir === 'down') {
       if (catchKnife)
         lines.push(
-          `成本锚 5 日斜率 ${formatPct(metrics.costSlope5)}（↓）；已人工开启且具备独立留出校准标识，仍需独立风险复核。`,
+          `成本锚自适应近期斜率 ${formatPct(metrics.costSlopeRecent)}（↓）；已人工开启且具备独立留出校准标识，仍需独立风险复核。`,
         )
-      else lines.push(`成本锚 5 日斜率 ${formatPct(metrics.costSlope5)}（↓），趋势延续风险未解除。`)
+      else lines.push(`成本锚自适应近期斜率 ${formatPct(metrics.costSlopeRecent)}（↓），趋势延续风险未解除。`)
     }
   }
 
   // 半衰期 + 持仓周期
-  if (Number.isFinite(metrics.halfLifeDays)) {
+  if (Number.isFinite(metrics.halfLifeSessions)) {
     const monotonic = metrics.meanReversionMonotonicGate === true
     lines.push(
-      `历史 AR 半衰期 ${metrics.halfLifeDays} 天（${metrics.halfLifeSpeed}）；${monotonic ? '样本内单调衰减门禁成立，尚未校准' : '未通过单调回归门禁'}。`,
+      `历史 AR 半衰期 ${metrics.halfLifeSessions} 个交易会话（${metrics.arDecayLabel}）；${monotonic ? '样本内单调衰减门禁成立，尚未校准' : '未通过单调回归门禁'}。`,
     )
   }
 

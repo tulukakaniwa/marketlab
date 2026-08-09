@@ -5,24 +5,24 @@ export function resolveDynamicHoldingData({ graph, market, rows, deviation, mean
   const anchorPrice = market?.costAnchor
   const costLower = market?.costLow
   const zScore = deviation?.z
-  const halfLifeDays = meanReversion?.halfLifeDays
+  const halfLifeSessions = meanReversion?.halfLifeSessions
   const hasMonotonicMeanReversion =
     meanReversion?.isMeanReverting === true &&
     meanReversion?.decayMode === 'monotonic-decay' &&
-    Number.isFinite(meanReversion?.rho) &&
-    meanReversion.rho > 0 &&
-    meanReversion.rho < 1
+    Number.isFinite(meanReversion?.arCoefficient) &&
+    meanReversion.arCoefficient > 0 &&
+    meanReversion.arCoefficient < 1
 
   if (!hasMonotonicMeanReversion) return null
-  if (![zScore, halfLifeDays, entryPrice, anchorPrice, costLower].every(Number.isFinite)) return null
+  if (![zScore, halfLifeSessions, entryPrice, anchorPrice, costLower].every(Number.isFinite)) return null
   return deriveDynamicHoldingState({
     zScore,
-    halfLifeDays,
+    halfLifeSessions,
     entryPrice,
     anchorPrice,
     targetPrices: { costLower, anchor: anchorPrice },
     drawdown: deriveDrawdownFeatures({ rows, index: rows.length - 1 }),
     lpPercentile: fingerprint?.stats?.activeShare ?? null,
-    costSlopePct: Number.isFinite(market?.costSlope5) ? market.costSlope5 * 100 : 0,
+    costSlopePct: Number.isFinite(market?.costSlopeRecent) ? market.costSlopeRecent * 100 : 0,
   })
 }

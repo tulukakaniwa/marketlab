@@ -9,8 +9,8 @@ export function summarizeRegime(payload) {
   const { costDistance, costWindow } = payload
   if (!Number.isFinite(costDistance)) return '载入 K 线后判断'
 
-  const window = Number.isFinite(costWindow) && costWindow > 0 ? Math.round(costWindow) : 60
-  const baseline = `近 ${window} 日均价`
+  const baseline =
+    Number.isFinite(costWindow) && costWindow > 0 ? `近 ${Math.round(costWindow)} 个交易会话均价` : '自适应前缀成本均价'
   const distance = pct(costDistance)
 
   if (costDistance < -0.05) return `低于${baseline} ${distance}，处于成本带下方`

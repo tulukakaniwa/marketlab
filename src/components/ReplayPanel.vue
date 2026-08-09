@@ -10,15 +10,28 @@ const props = defineProps({
 
 const isDisabled = computed(() => props.replay.status === 'disabled')
 const isMissingAccount = computed(() => props.replay.status === 'missing-account-input')
-const isRunnable = computed(() => !isDisabled.value && !isMissingAccount.value)
+const isMissingFee = computed(() => props.replay.status === 'missing-replay-fee-input')
+const isMissingInput = computed(() => isMissingAccount.value || isMissingFee.value)
+const isRunnable = computed(() => !isDisabled.value && !isMissingInput.value)
+const replayFeePct = computed({
+  get: () => (Number.isFinite(props.input?.replayFeeRate) ? props.input.replayFeeRate * 100 : null),
+  set: (value) => {
+    if (!props.input) return
+    props.input.replayFeeRate =
+      value === '' || value === null || value === undefined || !Number.isFinite(Number(value))
+        ? null
+        : Number(value) / 100
+  },
+})
 const titleValue = computed(() => {
   if (isDisabled.value) return '未启用'
-  if (isMissingAccount.value) return '未运行'
+  if (isMissingInput.value) return '未运行'
   return money(props.replay.totalPnl)
 })
 const statusText = computed(() => {
   if (isDisabled.value) return '现货路径回放未启用'
   if (isMissingAccount.value) return '需要账户资金或底仓名义'
+  if (isMissingFee.value) return '需要显式回放总费率；系统不注入隐藏默认值'
   return `${props.replay.range || '等待样本'} · 下一根 K 线验证`
 })
 const showProfileScan = computed(() => isRunnable.value && props.profileReplays.some((item) => !item.replay?.status))
@@ -41,6 +54,7 @@ const engineScope = computed(
 const emptyText = computed(() => {
   if (isDisabled.value) return '现货路径回放未启用。'
   if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行现货路径回放并显示成交记录。'
+  if (isMissingFee.value) return '填写回放总费率后才运行；0% 也必须显式填写。'
   return '当前样本没有形成路径回放成交。'
 })
 
@@ -124,7 +138,7 @@ function pct(value) {
     <p v-else class="replay-empty">
       {{ emptyText }}
     </p>
-    <div v-if="isMissingAccount && input" class="replay-account-inputs">
+    <div v-if="isMissingInput && input" class="replay-account-inputs">
       <label>
         <span>账户资金</span>
         <input v-model.number="input.capital" type="number" min="0" step="100" />
@@ -132,6 +146,10 @@ function pct(value) {
       <label>
         <span>底仓名义</span>
         <input v-model.number="input.baseNotional" type="number" min="0" step="100" />
+      </label>
+      <label>
+        <span>回放总费率 %</span>
+        <input v-model.number="replayFeePct" type="number" min="0" step="0.01" placeholder="需显式填写" />
       </label>
     </div>
   </section>

@@ -42,7 +42,9 @@ describe('resolveChartOverlayPlan', () => {
   it('有 funding 数据时插入 carry pane，不覆盖后续指标', () => {
     const plan = resolveChartOverlayPlan({
       overlays: baseOverlays,
-      formulaPath: [{ optionGamma: 0.1, lpValue: 1, lpNormalizedDelta: 0.2, fundingProxy: 0.001, netCarry: -0.001 }],
+      formulaPath: [
+        { optionGamma: 0.1, lpValue: 1, lpNormalizedDelta: 0.2, cumulativeFundingProxy: 0.001, netCarry: -0.001 },
+      ],
     })
     expect(plan.paneOn.carry).toBe(true)
     expect(plan.panes.carry).toBe(4)

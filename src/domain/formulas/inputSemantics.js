@@ -1,5 +1,5 @@
 export function resolveDeltaSlope(input = {}) {
-  return nonNegative(input.deltaSlope, nonNegative(input.targetReturn, 0))
+  return nonNegative(input.deltaSlope, null)
 }
 
 export function resolveExitTargetReturn(input = {}) {

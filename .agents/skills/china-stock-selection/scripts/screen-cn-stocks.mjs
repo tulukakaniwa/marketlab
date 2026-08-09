@@ -13,9 +13,9 @@ import {
   deviationScore,
   deriveDrawdownFeatures,
   deriveDynamicHoldingState,
+  fullRangeV2ImpermanentLoss,
   gammaPnl,
   getDeltaBands,
-  impermanentLoss,
   liquidityFingerprint,
   lpResearchAttribution,
   meanReversionHalfLife,
@@ -29,18 +29,21 @@ import {
   CLAIM_CLASS_CONTRACT,
   SYNTHETIC_CK_GEOMETRY_DISCLOSURE,
   buildSyntheticCkGeometryState,
+  canonicalizeFormulaSessionFields,
+  deriveAdaptiveWindowSpec,
   empiricalDeviationStats,
   isPositiveMonotonicMeanReversion,
   loadNameMap,
   passesAshareShebaoFilter,
   resolveInstrumentName,
+  scoreFreshnessEvidence,
 } from './selection-helpers.mjs'
 
-const SCHEMA_VERSION = 'china-stock-selection.screen.v1'
+const SCHEMA_VERSION = 'china-stock-selection.screen.v3'
 const SUPPORTED_MARKETS = new Set(['A股', '港股'])
 const SUPPORTED_FORMATS = new Set(['markdown', 'json'])
 const SUPPORTED_FLAGS = new Set([
-  'market', 'top', 'min-rows', 'format', 'require-shebao',
+  'market', 'top', 'min-rows', 'option-tenor-sessions', 'format', 'require-shebao',
   'exclude-alcohol', 'exclude-banks', 'exclude-realestate', 'exclude-northeast',
   'index', 'data-dir', 'name-map',
 ])
@@ -59,7 +62,7 @@ const STATE_CONTRACT = Object.freeze({
   candidateStatus: ['需刷新数据', '剔除', '等待', '观察'],
   executionStatus: ['blocked'],
 })
-const SCREEN_CLAIM_CLASSES = Object.freeze({
+const BASE_SCREEN_CLAIM_CLASSES = Object.freeze({
   score: 'scenario-proxy',
   costAnchor: 'sample-estimate',
   deviation: 'sample-estimate',
@@ -67,7 +70,6 @@ const SCREEN_CLAIM_CLASSES = Object.freeze({
   realizedVolatility: 'sample-estimate',
   meanReversion: 'sample-estimate',
   deltaBands: 'scenario-proxy',
-  optionAndGreeks: 'scenario-proxy',
   syntheticCkGeometry: 'scenario-proxy',
   capitalEfficiency: 'exact-identity',
   fullRangeV2IlProxy: 'scenario-proxy',
@@ -117,7 +119,8 @@ const args = parseArgs(process.argv.slice(2), SUPPORTED_FLAGS, BOOLEAN_FLAGS)
 const marketValues = parseMarkets(args.market ?? 'A股,港股')
 const markets = new Set(marketValues)
 const top = positiveIntArg(args.top, 20, 'top')
-const minRows = positiveIntArg(args['min-rows'], 180, 'min-rows')
+const explicitMinRows = optionalPositiveIntArg(args['min-rows'], 'min-rows')
+const explicitOptionTenorSessions = optionalPositiveIntArg(args['option-tenor-sessions'], 'option-tenor-sessions')
 const format = enumArg(args.format ?? 'markdown', SUPPORTED_FORMATS, 'format')
 const excludeAlcohol = booleanArg(args['exclude-alcohol'], true, 'exclude-alcohol')
 const excludeRealestate = booleanArg(args['exclude-realestate'], true, 'exclude-realestate')
@@ -131,6 +134,10 @@ const indexPath = resolvePath(indexInput)
 const dataDir = resolvePath(dataDirInput)
 const nameMapPath = resolvePath(nameMapInput)
 const nameMap = loadNameMap(nameMapPath)
+const SCREEN_CLAIM_CLASSES = Object.freeze({
+  ...BASE_SCREEN_CLAIM_CLASSES,
+  optionAndGreeks: explicitOptionTenorSessions === null ? 'missing-input' : 'scenario-proxy',
+})
 
 const index = readJson(indexPath)
 if (!Array.isArray(index)) fail(`stock index must be an array: ${indexPath}`)
@@ -168,11 +175,34 @@ for (const entry of index) {
     continue
   }
   const rows = parseCsv(readFileSync(file, 'utf8'))
-  if (rows.length < minRows) {
-    skipped.push(skipRecord(entry, 'insufficient-rows', { rows: rows.length, minRows }))
+  const tdpy = inferTdpy(entry)
+  const adaptiveWindowSpec = deriveAdaptiveWindowSpec({
+    tradingDaysPerYear: tdpy.value,
+    visibleRows: rows.length,
+  })
+  const requiredRows = explicitMinRows ?? adaptiveWindowSpec.minimumRequiredRows
+  const rowGate = {
+    mode: explicitMinRows === null ? 'adaptive' : 'explicit-scenario',
+    source: explicitMinRows === null ? adaptiveWindowSpec.source : 'cli:--min-rows',
+    requiredRows,
+    explicitMinimumRows: explicitMinRows,
+    adaptiveMinimumRows: adaptiveWindowSpec.minimumRequiredRows,
+  }
+  if (rows.length < requiredRows) {
+    skipped.push(skipRecord(entry, 'insufficient-rows', {
+      rows: rows.length,
+      requiredRows,
+      rowGate,
+      adaptiveWindowSpec,
+    }))
     continue
   }
-  candidates.push(profileInstrument(entry, rows))
+  candidates.push(profileInstrument(entry, rows, {
+    tdpy,
+    adaptiveWindowSpec,
+    rowGate,
+    optionTenorSessions: explicitOptionTenorSessions,
+  }))
 }
 
 const candidateStatusPriority = new Map([
@@ -199,6 +229,20 @@ const provenance = {
   dataDir: dataDirInput,
   nameMap: nameMapInput,
 }
+const rowGate = {
+  mode: explicitMinRows === null ? 'adaptive' : 'explicit-scenario',
+  source: explicitMinRows === null
+    ? 'per-instrument adaptive window spec from tradingDaysPerYear and visible prefix'
+    : 'cli:--min-rows',
+  explicitMinimumRows: explicitMinRows,
+  adaptiveFormula: 'ceil(sqrt(tradingDaysPerYear))',
+}
+const optionScenario = {
+  mode: explicitOptionTenorSessions === null ? 'missing-input' : 'explicit-scenario',
+  timeToExpirySessions: explicitOptionTenorSessions,
+  source: explicitOptionTenorSessions === null ? 'missing-input' : 'cli:--option-tenor-sessions',
+  executionAuthority: 'none',
+}
 const freshness = summarizeFreshness(candidates)
 const audit = {
   considered,
@@ -214,7 +258,8 @@ if (format === 'json') {
     generatedAt: new Date().toISOString(),
     markets: marketValues,
     top,
-    minRows,
+    rowGate,
+    optionScenario,
     provenance,
     filters,
     freshness,
@@ -228,21 +273,40 @@ if (format === 'json') {
     skipped,
   }, null, 2))
 } else {
-  printMarkdown(ranked, { markets: marketValues, top, minRows, skipped, filters, provenance, freshness, audit })
+  printMarkdown(ranked, {
+    markets: marketValues,
+    top,
+    rowGate,
+    optionScenario,
+    skipped,
+    filters,
+    provenance,
+    freshness,
+    audit,
+  })
 }
 
 // ── 单标的完整分析 ──
 
-function profileInstrument(entry, rows) {
+function profileInstrument(entry, rows, sampleContext) {
   const latest = rows.at(-1)
   const staleDays = ageInDays(latest.date)
-  const formula = buildFormula(entry, rows)
+  const formula = buildFormula(entry, rows, sampleContext)
   const nameInfo = resolveInstrumentName(entry, nameMap)
   const amounts = rows.map(r => r.close * r.volume)
-  const avgAmt20 = mean(amounts.slice(-20))
+  const amountWindowRows = formula.windowSpec?.marketRecentWindowRows
+    ?? formula.windowSpec?.scenarioHorizonSessions
+    ?? 1
+  const avgAmountRecent = mean(amounts.slice(-amountWindowRows))
 
   const score = round(Math.min(100,
-    scoreCostAnchor(formula) + scoreSyntheticCkGeometry(formula) + scoreDeviation(formula) + scoreData(staleDays, rows.length)
+    scoreCostAnchor(formula) + scoreSyntheticCkGeometry(formula) + scoreDeviation(formula)
+      + (scoreFreshnessEvidence({
+        staleDays,
+        totalRows: rows.length,
+        tradingDaysPerYear: formula.tdpy.value,
+        minimumRequiredRows: formula.windowSpec.minimumRequiredRows,
+      })?.score ?? 0)
   ), 1)
   const source = entry.source ?? 'local csv'
   const freshness = freshnessRecord(latest.date, rows.length)
@@ -286,21 +350,29 @@ function profileInstrument(entry, rows) {
       nameSource: nameInfo.source,
       dataThrough: latest.date,
       rows: rows.length,
+      rowGate: sampleContext.rowGate,
+      adaptiveWindowSpec: sampleContext.adaptiveWindowSpec,
     },
-    avgAmt20: Math.round(avgAmt20),
+    avgAmountRecent: Math.round(avgAmountRecent),
+    avgAmountWindowRows: amountWindowRows,
     formula,
   }
 }
 
 // ── 完整公式计算 ──
 
-function buildFormula(entry, rows) {
-  const tdpy = inferTdpy(entry)
+function buildFormula(entry, rows, sampleContext) {
+  const tdpy = sampleContext?.tdpy ?? inferTdpy(entry)
+  const adaptiveWindowSpec = sampleContext?.adaptiveWindowSpec ?? deriveAdaptiveWindowSpec({
+    tradingDaysPerYear: tdpy.value,
+    visibleRows: rows.length,
+  })
   const marketPath = buildMarketStatePath(rows, tdpy.value)
   const market = marketPath.at(-1)
   const latest = rows.at(-1)
   const iv = Math.max(market?.annualVol ?? 0, 0.01)
-  const holdingDays = 20
+  const formulaHorizonSessions = adaptiveWindowSpec.scenarioHorizonSessions
+  const timeToExpirySessions = sampleContext?.optionTenorSessions ?? null
   const deltaSlope = 0.08
 
   // 成本锚
@@ -310,40 +382,62 @@ function buildFormula(entry, rows) {
     low: round(market.costLow, 3),
     high: round(market.costHigh, 3),
     distancePct: round((market.costDistance ?? 0) * 100, 2),
-    slope5Pct: round((market.costSlope5 ?? 0) * 100, 2),
+    slopeRecentPct: round((market.costSlopeRecent ?? 0) * 100, 2),
+    slopeWindowRows: market.windowSpec?.recent ?? null,
   } : null
 
   // z-score 偏离
-  const deviation = deviationScore({ costDistance: market?.costDistance ?? 0, annualVol: iv, holdingDays, tradingDaysPerYear: tdpy.value })
+  const deviation = deviationScore({
+    costDistance: market?.costDistance ?? 0,
+    annualVol: iv,
+    formulaHorizonSessions,
+    tradingDaysPerYear: tdpy.value,
+  })
   const deviationDistribution = empiricalDeviationStats(
-    marketPath.slice(-726).map((item) => item?.costDistance),
+    marketPath.slice(-adaptiveWindowSpec.empiricalDeviationWindowRows).map((item) => item?.costDistance),
     market?.costDistance,
   )
 
   // Delta 成本带
-  const deltaBands = getDeltaBands({ entryPrice: latest.close, holdingDays, iv, deltaSlope, tradingDaysPerYear: tdpy.value })
+  const deltaBands = getDeltaBands({
+    entryPrice: latest.close,
+    formulaHorizonSessions,
+    iv,
+    deltaSlope,
+    tradingDaysPerYear: tdpy.value,
+  })
 
   // 期权 + 亚式 + Bachelier
   const strikePrice = latest.close * 1.05
-  const optArgs = { entryPrice: latest.close, strikePrice, holdingDays, iv, type: 'call', tradingDaysPerYear: tdpy.value }
-  const option = blackScholes(optArgs)
-  const asian = asianOption(optArgs)
-  const bachelier = bachelierOption({ ...optArgs, normalVol: iv * latest.close })
+  const optArgs = timeToExpirySessions === null ? null : {
+    entryPrice: latest.close,
+    strikePrice,
+    timeToExpirySessions,
+    iv,
+    type: 'call',
+    tradingDaysPerYear: tdpy.value,
+  }
+  const option = optArgs ? blackScholes(optArgs) : null
+  const asian = optArgs ? asianOption(optArgs) : null
+  const bachelier = optArgs ? bachelierOption({ ...optArgs, normalVol: iv * latest.close }) : null
 
   // 风险曲面
-  const surface = deltaBands ? riskSurface({
-    entryPrice: latest.close, strikePrice, holdingDays, iv,
+  const surface = deltaBands && timeToExpirySessions !== null ? riskSurface({
+    entryPrice: latest.close,
+    strikePrice,
+    timeToExpirySessions,
+    iv,
     bandLow: deltaBands.long.low, bandHigh: deltaBands.short.high,
     steps: 12, tradingDaysPerYear: tdpy.value,
   }) : null
 
   // Gamma PnL
-  const gamma = gammaPnl({
-    gamma: option?.gamma ?? 0,
+  const gamma = option ? gammaPnl({
+    gamma: option.optionGamma,
     markPrice: latest.close,
     priceChange: market?.atr ?? 0,
     positionSize: 1,
-  })
+  }) : null
 
   // CK / Uniswap v3 几何 (L=1 合成模式，不代表真实 LP 仓位或股票囤货)
   const syntheticCkGeometry = buildSyntheticCkGeometryState(market, latest)
@@ -353,7 +447,11 @@ function buildFormula(entry, rows) {
 
   // 合成几何值的历史分位数；这是形状排名，不是持仓量、收益或价格概率。
   const ckGeometryValues = []
-  for (let i = Math.max(0, marketPath.length - 242); i < marketPath.length; i++) {
+  for (
+    let i = Math.max(0, marketPath.length - adaptiveWindowSpec.ckGeometryRankWindowRows);
+    i < marketPath.length;
+    i += 1
+  ) {
     const m = marketPath[i]
     const r = rows[i]
     if (!m || !r) continue
@@ -371,6 +469,8 @@ function buildFormula(entry, rows) {
     entryPrice: market?.costAnchor ?? latest.close, priceGrid: 40,
     lowerFactor: 1 - Math.min(synRW * 2, 0.5),
     upperFactor: 1 + Math.min(synRW * 2, 0.5), segmentCount: 6,
+    volatility: market?.annualVol,
+    tradingDaysPerYear: tdpy.value,
   })
 
   // AMM 几何 (合成)
@@ -379,13 +479,22 @@ function buildFormula(entry, rows) {
   // CK 几何诊断：CE 是精确几何恒等式；这里的 IL 仅是 full-range v2 代理，
   // 不消费 synthetic v3 区间上下界，不能解释成该区间的 v3 IL。
   const ce = capitalEfficiency({ rangeWidth: synRW, skew: 1 })
-  const fullRangeV2IlProxy = impermanentLoss({ markPrice: latest.close, startPrice: market?.costAnchor ?? latest.close, liquidity: 1 })
+  const fullRangeV2IlProxy = fullRangeV2ImpermanentLoss({
+    markPrice: latest.close,
+    startPrice: market?.costAnchor ?? latest.close,
+    liquidity: 1,
+  })
   const geometryResearchAttribution = ce ? lpResearchAttribution({
     capitalEfficiency: ce.efficiency,
-    impermanentLoss: fullRangeV2IlProxy?.impermanentLoss,
+    lpIlFraction: fullRangeV2IlProxy?.fullRangeV2IlProxy,
+    ilModel: fullRangeV2IlProxy?.model ?? 'constant-product-v2-full-range-no-fees',
+    capitalBasis: 'full-range-v2-entry-hold-value-at-current-mark',
+    startPrice: market?.costAnchor ?? latest.close,
+    markPrice: latest.close,
     feeReturn: null,
     feeSource: null,
-    horizonDays: null,
+    feeTreatment: null,
+    horizonSessions: null,
   }) : null
 
   // 资金费率 + 持仓净收益 (合成, 无 perp/spot TWAP 则 null)
@@ -397,30 +506,34 @@ function buildFormula(entry, rows) {
 
   // 均值回归
   const costSeries = marketPath.map(x => x.costDistance).filter(Number.isFinite)
-  const mr = meanReversionHalfLife({ costDistanceSeries: costSeries.slice(-180), tradingDaysPerYear: tdpy.value })
+  const mr = meanReversionHalfLife({
+    costDistanceSeries: costSeries.slice(-adaptiveWindowSpec.meanReversionWindowRows),
+    tradingDaysPerYear: tdpy.value,
+  })
   const drawdown = deriveDrawdownFeatures({ rows })
-  const dynamicHolding = isPositiveMonotonicMeanReversion(mr) && market
+  const rawDynamicHolding = isPositiveMonotonicMeanReversion(mr) && market
     ? deriveDynamicHoldingState({
       zScore: deviation.z,
-      halfLifeDays: mr.halfLifeDays,
+      halfLifeSessions: mr.halfLifeSessions,
       entryPrice: latest.close,
       anchorPrice: market.costAnchor,
       targetPrices: { costLower: market.costLow, anchor: market.costAnchor },
       drawdown,
-      costSlopePct: (market.costSlope5 ?? 0) * 100,
+      costSlopePct: (market.costSlopeRecent ?? 0) * 100,
     })
     : null
+  const dynamicHolding = canonicalizeFormulaSessionFields(rawDynamicHolding)
 
   // VIX Fix
-  const recent22 = rows.slice(-22)
-  const vix = vixFix({ highestClose: Math.max(...recent22.map(r => r.close)), low: latest.low })
+  const vixWindow = rows.slice(-adaptiveWindowSpec.vixFixWindowRows)
+  const vix = vixFix({ highestClose: Math.max(...vixWindow.map(r => r.close)), low: latest.low })
 
   // 订单决策
   const decisionGraph = buildDecisionGraph({
     market,
     input: {
       entryPrice: latest.close,
-      holdingDays,
+      formulaHorizonSessions,
       iv,
       ivSource: 'historical-realized-scenario',
       deltaSlope,
@@ -432,9 +545,18 @@ function buildFormula(entry, rows) {
 
   return {
     tdpy,
+    windowSpec: {
+      ...adaptiveWindowSpec,
+      marketCostWindowRows: market?.windowSpec?.cost ?? null,
+      marketRecentWindowRows: market?.windowSpec?.recent ?? null,
+      marketVolWindowRows: market?.windowSpec?.vol ?? null,
+      marketWindowMode: market?.windowSpec?.mode ?? null,
+      rowGate: sampleContext?.rowGate ?? null,
+    },
     cost,
     deviation: {
       claimClass: 'sample-estimate',
+      formulaHorizonSessions,
       z: round(deviation.z, 2),
       regime: deviation.regime,
       strength: deviation.strength,
@@ -450,6 +572,7 @@ function buildFormula(entry, rows) {
     },
     deltaBands: deltaBands ? {
       claimClass: 'scenario-proxy',
+      formulaHorizonSessions,
       longLow: round(deltaBands.long.low, 3),
       longCost: round(deltaBands.long.cost, 3),
       longHigh: round(deltaBands.long.high, 3),
@@ -458,14 +581,25 @@ function buildFormula(entry, rows) {
       shortHigh: round(deltaBands.short.high, 3),
     } : null,
     options: {
-      claimClass: 'scenario-proxy',
+      status: option ? 'research-only' : 'missing-input',
+      claimClass: option ? 'scenario-proxy' : 'missing-input',
       model: 'scenario-pricing-not-market-option-quote',
+      horizonMode: option ? 'explicit-scenario' : 'missing-input',
+      timeToExpirySessions,
+      timeToExpirySource: option ? 'cli:--option-tenor-sessions' : 'missing-input',
       volatilitySource: 'historical-realized-scenario',
       isMarketIv: false,
-      missingInputs: ['option-chain-quote', 'bid-ask', 'contract-multiplier', 'settlement-rules', 'market-implied-volatility'],
-      delta: option ? round(option.delta, 3) : null,
-      gamma: option ? round(option.gamma, 6) : null,
-      thetaDaily: option ? round(option.thetaDaily, 6) : null,
+      missingInputs: [
+        timeToExpirySessions === null ? 'explicit-option-tenor-sessions' : null,
+        'option-chain-quote',
+        'bid-ask',
+        'contract-multiplier',
+        'settlement-rules',
+        'market-implied-volatility',
+      ].filter(Boolean),
+      optionDelta: option ? round(option.optionDelta, 3) : null,
+      optionGamma: option ? round(option.optionGamma, 6) : null,
+      optionThetaPerSession: option ? round(option.optionThetaPerSession, 6) : null,
       asianPrice: asian ? round(asian.price, 3) : null,
       bachelierPrice: bachelier ? round(bachelier.price, 3) : null,
       riskSurfacePoints: surface?.points?.length ?? 0,
@@ -477,7 +611,8 @@ function buildFormula(entry, rows) {
       claimClass: 'scenario-proxy',
       model: 'synthetic Black-Scholes call',
       strikePrice: round(strikePrice, 3),
-      holdingDays,
+      timeToExpirySessions,
+      timeToExpirySource: 'cli:--option-tenor-sessions',
       positionSize: 1,
       positionGamma: round(gamma.positionGamma, 8),
       dollarGamma: round(gamma.dollarGamma, 6),
@@ -506,7 +641,7 @@ function buildFormula(entry, rows) {
       upperPrice: round(synUpper, 3),
       rangeWidthPct: round(synRW * 100, 2),
       percentilePct: ckGeometryPercentile,
-      sampleDays: ckGeometryValues.length,
+      sampleSessions: ckGeometryValues.length,
       capitalEfficiencyMultiple: ce ? round(ce.efficiency, 2) : null,
       capitalEfficiencyClaimClass: ce?.claimClass ?? 'missing-input',
       capitalEfficiencyValuationBasis: ce?.efficiencyValuationBasis ?? null,
@@ -518,14 +653,15 @@ function buildFormula(entry, rows) {
         ? 'endpoint-ratio capital efficiency is valued at the range geometric midpoint; normalized current-versus-anchor geometry is a separate basis'
         : null,
       fullRangeV2IlProxyPct: fullRangeV2IlProxy
-        ? round((fullRangeV2IlProxy.impermanentLoss ?? 0) * 100, 2)
+        ? round((fullRangeV2IlProxy.fullRangeV2IlProxy ?? 0) * 100, 2)
         : null,
       fullRangeV2IlProxyBasis: 'constant-product-v2-current-price-versus-cost-anchor; does-not-consume-v3-range-bounds',
       fullRangeV2IlProxyClaimClass: 'scenario-proxy',
       researchAttribution: geometryResearchAttribution ? {
         ...geometryResearchAttribution,
-        status: 'basis-separated',
         inputMode: 'synthetic-geometry-scenario',
+        researchBoundary: 'research-only',
+        executionStatus: 'blocked',
         geometry: {
           ...geometryResearchAttribution.geometry,
           claimClass: 'exact-identity',
@@ -534,7 +670,7 @@ function buildFormula(entry, rows) {
         returns: {
           ...geometryResearchAttribution.returns,
           unit: 'full-range-v2-relative-return-proxy',
-          impermanentLossBasis: 'full-range-v2-proxy-current-price-versus-cost-anchor',
+          lpIlBasis: 'full-range-v2-proxy-current-price-versus-cost-anchor',
           commonV3RangeAndCapitalBasisVerified: false,
           isV3RangeIl: false,
         },
@@ -547,13 +683,28 @@ function buildFormula(entry, rows) {
         relation: 'separate-geometry-and-full-range-v2-proxy-no-aggregation',
       } : null,
     },
-    fingerprint: {
-      claimClass: 'scenario-proxy',
-      segments: fingerprint?.segments?.length ?? 0,
-      entropy: fingerprint?.stats?.entropy ?? null,
-      inputMode: 'synthetic-model-density',
-      interpretation: 'normalized model allocation mass; not a price probability or real order book',
-    },
+    fingerprint: fingerprint
+      ? {
+          claimClass: 'scenario-proxy',
+          status: fingerprint.status,
+          segments: fingerprint.segments.length,
+          entropy: fingerprint.stats?.entropy ?? null,
+          inputMode: 'synthetic-model-density',
+          missingInputs: fingerprint.missingInputs,
+          interpretation: 'normalized model allocation mass; not a price probability or real order book',
+        }
+      : {
+          claimClass: 'missing-input',
+          status: 'blocked',
+          segments: 0,
+          entropy: null,
+          inputMode: 'missing-input',
+          missingInputs: [
+            Number.isFinite(market?.annualVol) && market.annualVol > 0 ? null : 'realized-volatility',
+            Number.isFinite(tdpy.value) && tdpy.value > 0 ? null : 'tradingDaysPerYear',
+          ].filter(Boolean),
+          interpretation: 'fingerprint unavailable until volatility and trading-session basis are known',
+        },
     amm: synAmm ? {
       claimClass: 'scenario-proxy',
       reserveX: round(synAmm.currentX, 3),
@@ -578,9 +729,9 @@ function buildFormula(entry, rows) {
     } : null,
     meanReversion: mr ? {
       claimClass: 'sample-estimate',
-      rho: round(mr.rho, 6),
-      theta: mr.theta === null ? null : round(mr.theta, 6),
-      halfLifeDays: mr.halfLifeDays === null ? null : round(mr.halfLifeDays, 2),
+      arCoefficient: round(mr.arCoefficient, 6),
+      arDecayRatePerStep: mr.arDecayRatePerStep === null ? null : round(mr.arDecayRatePerStep, 6),
+      halfLifeSessions: mr.halfLifeSessions === null ? null : round(mr.halfLifeSessions, 2),
       speed: mr.speed,
       isMeanReverting: mr.isMeanReverting,
       decayMode: mr.decayMode,
@@ -591,7 +742,7 @@ function buildFormula(entry, rows) {
     dynamicHolding: dynamicHolding ? {
       ...dynamicHolding,
       claimClass: 'scenario-proxy',
-      zBasisDays: holdingDays,
+      zBasisSessions: formulaHorizonSessions,
       targetInputMode: 'cost-band-and-anchor-only',
       syntheticCkGeometryUsedAsTarget: false,
     } : null,
@@ -654,10 +805,10 @@ function scoreCostAnchor(formula) {
   const c = formula.cost
   if (!c) return 0
   // 锚方向 — 确认信号 (0-14)
-  if (c.slope5Pct > 0) s += 14
-  else if (c.slope5Pct > -0.5) s += 10
-  else if (c.slope5Pct > -1.5) s += 5
-  else if (c.slope5Pct > -2.5) s += 2
+  if (c.slopeRecentPct > 0) s += 14
+  else if (c.slopeRecentPct > -0.5) s += 10
+  else if (c.slopeRecentPct > -1.5) s += 5
+  else if (c.slopeRecentPct > -2.5) s += 2
   // 价格位置 (0-10)
   if (c.distancePct >= -3 && c.distancePct <= 15) s += 10
   else if (c.distancePct >= -8 && c.distancePct <= 25) s += 7
@@ -704,21 +855,12 @@ function scoreDeviation(formula) {
   return s
 }
 
-function scoreData(stale, total) {
-  let s = 5
-  if (stale > 10) s -= 5
-  if (stale > 30) s -= 5
-  if (total >= 500) s += 3
-  if (total >= 1000) s += 2
-  return Math.max(0, s)
-}
-
 // ── 三列输出文本 ──
 
 function costNoteStr(f) {
   const c = f.cost
   if (!c) return 'n/a'
-  const dir = c.slope5Pct > 0.5 ? '↑' : c.slope5Pct < -0.5 ? '↓' : '→'
+  const dir = c.slopeRecentPct > 0.5 ? '↑' : c.slopeRecentPct < -0.5 ? '↓' : '→'
   return `${c.distancePct > 0 ? '+' : ''}${c.distancePct}% ${dir} [${c.low}-${c.high}]`
 }
 
@@ -744,7 +886,8 @@ function zNoteStr(f) {
 function printMarkdown(rows, meta) {
   console.log(`# 国内股票筛选 (成本锚 / 合成 CK 几何 / 偏离分布)`)
   console.log(``)
-  console.log(`Markets: ${meta.markets.join(', ')} | top: ${meta.top} | minRows: ${meta.minRows}`)
+  console.log(`Markets: ${meta.markets.join(', ')} | top: ${meta.top} | rowGate: ${meta.rowGate.mode} (${meta.rowGate.source})`)
+  console.log(`Option tenor: ${meta.optionScenario.timeToExpirySessions ?? 'missing'} sessions | mode: ${meta.optionScenario.mode} | source: ${meta.optionScenario.source}`)
   console.log(`Source: ${meta.provenance.index} + ${meta.provenance.dataDir} | freshness: ${freshnessText(meta.freshness)}`)
   console.log(`Filters: alcohol=${onOff(meta.filters.excludeAlcohol)}, banks=${onOff(meta.filters.excludeBanks)}, realestate=${onOff(meta.filters.excludeRealestate)}, northeast=${onOff(meta.filters.excludeNortheast)}, A-share shebao=${onOff(meta.filters.requireShebaoForAshareOnly)}`)
   console.log(`公式栈: 价格路径→成本→Δ带→期权→合成CK几何→AMM→经验偏离分布→曲面→回归 (无RSI/KDJ/EMA/MA)`)
@@ -878,6 +1021,10 @@ function positiveIntArg(value, fallback, name) {
   const parsed = Number(value)
   if (!Number.isInteger(parsed) || parsed <= 0) fail(`invalid --${name} value "${value}", expected a positive integer`)
   return parsed
+}
+
+function optionalPositiveIntArg(value, name) {
+  return value === undefined ? null : positiveIntArg(value, null, name)
 }
 
 function parseMarkets(value) {

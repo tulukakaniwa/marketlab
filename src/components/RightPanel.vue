@@ -24,7 +24,7 @@ const GROUP_META = [
   { id: 'cn', label: 'A 股', icon: '🇨🇳' },
 ]
 
-// 按市场分组（不含 fallback：fallback 多为未识别样本，不显示）
+// 按已识别市场分组；missing-input 样本不猜测 TDPY，也不混入任一市场组。
 const groupedSamples = computed(() => {
   const buckets = { crypto: [], us: [], hk: [], cn: [] }
   for (const s of props.samples) {

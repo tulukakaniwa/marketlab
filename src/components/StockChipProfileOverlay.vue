@@ -11,7 +11,7 @@ const profile = computed(() =>
   buildVolumePriceProfile({
     rows: props.rows,
     activeIndex: Number.isInteger(props.viewport?.activeIndex) ? props.viewport.activeIndex : props.rows.length - 1,
-    visibleWindow: Number.isFinite(props.viewport?.visibleWindow) ? props.viewport.visibleWindow : 180,
+    visibleWindow: Number.isFinite(props.viewport?.visibleWindow) ? props.viewport.visibleWindow : null,
     binCount: 36,
   }),
 )

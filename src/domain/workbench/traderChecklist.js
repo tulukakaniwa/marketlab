@@ -107,7 +107,7 @@ function optionItem(graph) {
     '期权组合',
     'research',
     `${combo.legs?.length ?? 0} legs`,
-    `Delta ${f4(combo.delta)}，Gamma ${f4(combo.gamma)}，research-only。`,
+    `Delta ${f4(combo.optionDelta)}，Gamma ${f4(combo.optionGamma)}，research-only。`,
   )
 }
 
@@ -128,7 +128,7 @@ function fundingItem(graph) {
     '资金费率',
     'research',
     'TWAP 估计',
-    `当前估计 ${pct(funding.ratio)}，缺真实结算周期和交易所制度。`,
+    `当前基差比例代理 ${pct(funding.basisFraction)}，缺真实结算周期和交易所制度。`,
   )
 }
 

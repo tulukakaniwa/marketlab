@@ -63,7 +63,7 @@ export function formatHit(id, m) {
     case 'lpRatio3y':
       return `几何代理 3 年 ${m.lpValueRatio3y.toFixed(2)}×`
     case 'halfLife':
-      return `HL=${Math.round(m.halfLifeDays)}天`
+      return `HL=${Math.round(m.halfLifeSessions)}会话`
     case 'volConfidence':
       return '波动样本质量'
     case 'socialSecurityWhitelist':

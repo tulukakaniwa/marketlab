@@ -21,12 +21,12 @@ export function useFormulaSecondOrderModel({
         return c?.anchor > 0 && row ? (row.close - c.anchor) / c.anchor : null
       })
       .filter((v) => v !== null)
-    return series.length >= 5
-      ? meanReversionHalfLife({
-          costDistanceSeries: series,
-          tradingDaysPerYear: props.graph.inputs?.tradingDaysPerYear,
-        })
-      : null
+    if (series.length < 5) return null
+    const result = meanReversionHalfLife({
+      costDistanceSeries: series,
+      tradingDaysPerYear: props.graph.inputs?.tradingDaysPerYear,
+    })
+    return result ? { ...result, plotHorizonSessions: decayPlotHorizon(result) } : null
   })
 
   const dynamicHoldingData = computed(() =>
@@ -44,13 +44,13 @@ export function useFormulaSecondOrderModel({
   const decayCurve = computed(() => {
     try {
       const d = mrData.value
-      if (!d?.halfLifeDays || !Number.isFinite(d.theta)) return ''
-      const maxT = d.halfLifeDays * 3
+      if (!d?.halfLifeSessions || !Number.isFinite(d.arDecayRatePerStep)) return ''
+      const maxT = d.plotHorizonSessions
       const n = 50
       const pts = []
       for (let i = 0; i <= n; i++) {
         const t = (maxT / n) * i
-        const decay = Math.exp(-d.theta * t)
+        const decay = Math.exp(-d.arDecayRatePerStep * t)
         if (Number.isFinite(decay)) pts.push(`${PL + (t / maxT) * pw},${sy(decay)}`)
       }
       return pts.join(' ')
@@ -61,9 +61,9 @@ export function useFormulaSecondOrderModel({
   const hlMarker = computed(() => {
     try {
       const d = mrData.value
-      if (!d?.halfLifeDays || !Number.isFinite(d.halfLifeDays)) return { x: PL, y: sy(0) }
-      const maxT = d.halfLifeDays * 3
-      const x = PL + (d.halfLifeDays / maxT) * pw
+      if (!d?.halfLifeSessions || !Number.isFinite(d.halfLifeSessions)) return { x: PL, y: sy(0) }
+      const maxT = d.plotHorizonSessions
+      const x = PL + (d.halfLifeSessions / maxT) * pw
       if (!Number.isFinite(x)) return { x: PL, y: sy(0) }
       return { x, y: sy(0.5) }
     } catch {
@@ -73,7 +73,7 @@ export function useFormulaSecondOrderModel({
 
   const gpData = computed(() =>
     gammaPnl({
-      gamma: props.graph.option?.gamma,
+      gamma: props.graph.option?.optionGamma,
       priceChange: Math.abs(props.market?.costDistance ?? 0) * (props.market?.markPrice ?? 0),
       positionSize: 1,
       markPrice: props.market?.markPrice,
@@ -117,9 +117,16 @@ export function useFormulaSecondOrderModel({
   const vcData = computed(() =>
     volConfidence({
       annualVol: props.market?.annualVol || props.graph.inputs?.iv,
-      sampleSize: Math.min(activeRows.value.length || 60, 60),
+      sampleSize: activeRows.value.length,
     }),
   )
 
   return { mrData, dynamicHoldingData, decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData }
+}
+
+function decayPlotHorizon(result) {
+  if (!Number.isFinite(result?.arDecayRatePerStep) || result.arDecayRatePerStep <= 0) return null
+  const sampleSize = Math.max(Number(result.sampleSize) || 1, 2)
+  const visibleResidualFloor = 1 / Math.sqrt(sampleSize)
+  return Math.max(result.halfLifeSessions, -Math.log(visibleResidualFloor) / result.arDecayRatePerStep)
 }

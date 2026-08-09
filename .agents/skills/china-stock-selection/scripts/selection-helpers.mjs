@@ -81,13 +81,104 @@ export function passesAshareShebaoFilter(entry, whitelist, required = true) {
 }
 
 export function isPositiveMonotonicMeanReversion(meanReversion) {
+  const arCoefficient = meanReversion?.arCoefficient
+  const halfLifeSessions = meanReversion?.halfLifeSessions
   return meanReversion?.isMeanReverting === true &&
     meanReversion?.decayMode === 'monotonic-decay' &&
-    Number.isFinite(meanReversion?.rho) &&
-    meanReversion.rho > 0 &&
-    meanReversion.rho < 1 &&
-    Number.isFinite(meanReversion?.halfLifeDays) &&
-    meanReversion.halfLifeDays > 0
+    Number.isFinite(arCoefficient) &&
+    arCoefficient > 0 &&
+    arCoefficient < 1 &&
+    Number.isFinite(halfLifeSessions) &&
+    halfLifeSessions > 0
+}
+
+export function deriveAdaptiveWindowSpec({ tradingDaysPerYear, visibleRows }) {
+  const prefixRows = Math.max(0, Math.floor(Number(visibleRows) || 0))
+  const parsedTdpy = Number(tradingDaysPerYear)
+  if (!Number.isFinite(parsedTdpy) || parsedTdpy <= 0) {
+    return {
+      mode: 'missing-input',
+      source: 'missing-input:tradingDaysPerYear',
+      tradingDaysPerYear: null,
+      visibleRows: prefixRows,
+      minimumRequiredRows: null,
+      analysisWindowRows: null,
+      ckGeometryRankWindowRows: null,
+      empiricalDeviationWindowRows: null,
+      meanReversionWindowRows: null,
+      vixFixWindowRows: null,
+      scenarioHorizonSessions: null,
+      status: 'missing-input',
+      missingInputs: ['tradingDaysPerYear'],
+      causal: true,
+      futureRowsUsed: false,
+    }
+  }
+  const tdpy = Math.max(1, Math.floor(parsedTdpy))
+  const minimumRequiredRows = Math.max(3, Math.ceil(Math.sqrt(tdpy)))
+  const analysisWindowRows = prefixRows > 0
+    ? Math.min(prefixRows, Math.max(minimumRequiredRows, Math.ceil(Math.sqrt(tdpy * prefixRows))))
+    : 0
+  const scenarioHorizonSessions = prefixRows > 0
+    ? Math.max(1, Math.min(prefixRows, Math.ceil(Math.sqrt(prefixRows))))
+    : null
+
+  return {
+    mode: 'adaptive-tdpy-visible-prefix',
+    source: 'formula:sqrt(tradingDaysPerYear),sqrt(tradingDaysPerYear*visibleRows),sqrt(visibleRows)',
+    tradingDaysPerYear: tdpy,
+    visibleRows: prefixRows,
+    minimumRequiredRows,
+    analysisWindowRows,
+    ckGeometryRankWindowRows: analysisWindowRows,
+    empiricalDeviationWindowRows: analysisWindowRows,
+    meanReversionWindowRows: analysisWindowRows,
+    vixFixWindowRows: analysisWindowRows,
+    scenarioHorizonSessions,
+    status: 'formula-derived',
+    missingInputs: [],
+    causal: true,
+    futureRowsUsed: false,
+  }
+}
+
+const SESSION_FIELD_NAMES = Object.freeze({
+  halfLifeDays: 'halfLifeSessions',
+  modelHorizonDays: 'modelHorizonSessions',
+  expectedDays: 'expectedSessions',
+  executableDays: 'executableSessions',
+  firstRepairDays: 'firstRepairSessions',
+  baseAnchorDays: 'baseAnchorSessions',
+  stretchDays: 'stretchSessions',
+  partialRecoveryDays: 'partialRecoverySessions',
+  executableHoldingDays: 'executableHoldingSessions',
+  minExecutableDays: 'minExecutableSessions',
+  maxHoldingDays: 'maxHoldingSessions',
+  daysToZExit: 'sessionsToZExit',
+  lookbackDays: 'lookbackSessions',
+  peakDays: 'peakSessions',
+  troughDays: 'troughSessions',
+  returnPerDayPct: 'returnPerSessionPct',
+})
+
+/**
+ * Domain formula objects still expose a few compatibility aliases. Skill JSON is a
+ * new machine contract, so keep only canonical session names and omit legacy aliases.
+ */
+export function canonicalizeFormulaSessionFields(value) {
+  if (Array.isArray(value)) return value.map(canonicalizeFormulaSessionFields)
+  if (!value || typeof value !== 'object') return value
+
+  const out = {}
+  for (const [key, item] of Object.entries(value)) {
+    if (key === 'legacyAliases') continue
+    if (key === 'drawdownSpeed5' || key === 'drawdownSpeed20') continue
+    if (key === 'monthlyEfficiencyPct') continue
+    const canonicalKey = SESSION_FIELD_NAMES[key] ?? key
+    if (Object.hasOwn(out, canonicalKey) && SESSION_FIELD_NAMES[key]) continue
+    out[canonicalKey] = canonicalizeFormulaSessionFields(item)
+  }
+  return out
 }
 
 export function empiricalDeviationStats(values, current) {
@@ -106,5 +197,25 @@ export function empiricalDeviationStats(values, current) {
     upperTailPct: upperTail * 100,
     twoSidedTailPct: Math.min(1, 2 * Math.min(lowerTail, upperTail)) * 100,
     interpretation: 'empirical historical rank and tail share; not a probability of mean reversion',
+  }
+}
+
+export function scoreFreshnessEvidence({ staleDays, totalRows, tradingDaysPerYear, minimumRequiredRows }) {
+  if (![staleDays, totalRows, tradingDaysPerYear, minimumRequiredRows].every(Number.isFinite)) return null
+  if (staleDays < 0 || totalRows < 0 || tradingDaysPerYear <= 0 || minimumRequiredRows <= 0) return null
+  const freshnessScore = staleDays > 10 ? 0 : 5
+  const evidenceRatio = totalRows / minimumRequiredRows
+  const annualCoverage = totalRows / tradingDaysPerYear
+  const evidenceDepthScore = Math.min(3, Math.max(0, Math.floor(Math.log2(Math.max(evidenceRatio, 1)))))
+  const annualCoverageScore = Math.min(2, Math.max(0, Math.floor(Math.sqrt(annualCoverage))))
+  return {
+    score: freshnessScore + evidenceDepthScore + annualCoverageScore,
+    freshnessScore,
+    evidenceDepthScore,
+    annualCoverageScore,
+    staleThresholdDays: 10,
+    evidenceRatio,
+    annualCoverage,
+    claimClass: 'scenario-proxy',
   }
 }

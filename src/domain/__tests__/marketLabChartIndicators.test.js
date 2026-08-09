@@ -49,14 +49,14 @@ function fullFormulaPath() {
     lpRealPrice: 10.5 + index,
     optionDelta: 0.4 + index / 100,
     optionGamma: 0.03 + index / 1000,
-    optionThetaDaily: -0.02 - index / 1000,
+    optionThetaPerSession: -0.02 - index / 1000,
     lpNormalizedDelta: -0.2 + index / 100,
     lpValue: 1000 + index,
     lpRealDivergence: 0.01 + index / 1000,
     lpPoolTurnover24h: 0.2 + index / 100,
     lpPoolTopReserveShare: 0.3 + index / 100,
     capitalEfficiency: 2 + index / 100,
-    fundingProxy: 0.001 + index / 10000,
+    cumulativeFundingProxy: 0.001 + index / 10000,
     netCarry: 0.002 + index / 10000,
   }))
 }
@@ -235,7 +235,7 @@ describe('queryMarketLabChartSeries', () => {
     expect(model.controls.greeksPane.missing).toEqual([
       'formulaPath.optionDelta',
       'formulaPath.optionGamma',
-      'formulaPath.optionThetaDaily',
+      'formulaPath.optionThetaPerSession',
     ])
     expect(model.controls.volume).toMatchObject({ state: 'ready', outputCount: 1, active: true })
   })

@@ -25,10 +25,23 @@ describe('strategyProfileList', () => {
 
 describe('buildDecisionGraph', () => {
   const rows = makeRows(120, (i) => 100 + Math.sin(i / 10) * 5)
-  const market = buildMarketStatePath(rows).at(-1)
+  const market = buildMarketStatePath(rows, 252).at(-1)
   const baseInput = {
     entryPrice: market.markPrice,
-    holdingDays: 30,
+    formulaHorizonSessions: 13,
+    formulaHorizonState: {
+      context: {
+        mode: 'formula-derived',
+        side: 'long',
+        cycleStartPrice: 90,
+        anchorPrice: 100,
+        targetPrice: 95,
+        targetSource: 'adaptive-cost-lower',
+        halfLifeSessions: 13,
+        availableAt: 'test:close',
+        executionAuthority: 'none',
+      },
+    },
     iv: market.annualVol,
     deltaSlope: 0.3,
     exitTargetReturn: 0,
@@ -46,6 +59,7 @@ describe('buildDecisionGraph', () => {
     fees: 0,
     perpTwap: market.markPrice,
     spotTwap: market.costAnchor,
+    tradingDaysPerYear: 252,
   }
   const noAccountInput = {
     ...baseInput,
@@ -82,17 +96,37 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
-    const input = { ...baseInput, entryPrice: 100, iv: 0.4, deltaSlope: 0.12, exitTargetReturn: 0.25 }
+    const input = { ...baseInput, entryPrice: 100, iv: 0.4, deltaSlope: 0.12, exitTargetReturn: 0.08 }
     const g = buildDecisionGraph({ market: buyMarket, input })
     expect(g.inputs.deltaSlope).toBe(0.12)
-    expect(g.inputs.exitTargetReturn).toBe(0.25)
+    expect(g.inputs.exitTargetReturn).toBe(0.08)
     expect(g.deltaBands.variables.d).toBe(0.12)
-    expect(g.position.exitTargetReturn).toBe(0.25)
-    expect(g.plan.primaryOrders[0]?.targetReturn).toBe(0.25)
+    expect(g.position.exitTargetReturn).toBe(0.08)
+    expect(g.plan.primaryOrders[0]?.exitTargetReturn).toBe(0.08)
+    expect(g.plan.primaryOrders[0]).not.toHaveProperty('targetReturn')
+    expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
+    for (const order of g.plan.primaryOrders) {
+      expect(order.horizonBinding.cycleStartPrice).toBe(order.price)
+      expect(order.horizonBinding.targetPrice).toBe(order.targetPrice)
+      expect(order.formulaHorizonSessions).toBe(order.horizonBinding.modelHorizonSessions)
+      expect(order.horizonBinding.rederivedForLimitScenario).toBe(true)
+    }
+  })
+
+  it('旧 targetReturn 输入不能污染 GetDelta 的 deltaSlope', () => {
+    const legacyOnly = buildDecisionGraph({
+      market,
+      input: { ...baseInput, deltaSlope: undefined, targetReturn: 0.91 },
+    })
+    const canonical = buildDecisionGraph({ market, input: { ...baseInput, deltaSlope: 0, targetReturn: 0.05 } })
+    expect(legacyOnly.inputs.deltaSlope).toBeNull()
+    expect(legacyOnly.inputs).not.toHaveProperty('targetReturn')
+    expect(legacyOnly.deltaBands).toBeNull()
+    expect(canonical.deltaBands.variables.d).toBe(0)
   })
 
   it('折价 + 动量止跌时使用市场缩放 profile 生成买入挂单', () => {
@@ -106,9 +140,9 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
     const g = buildDecisionGraph({ market: buyMarket, input: { ...baseInput, entryPrice: 100, iv: 0.4 } })
     expect(g.profile.minEdge).toBeGreaterThan(0)
@@ -121,7 +155,7 @@ describe('buildDecisionGraph', () => {
     expect(g.plan.primaryOrders.every((o) => o.executionStatus === 'simulation-only')).toBe(true)
   })
 
-  it('偏离强度使用自有公式里的持仓窗口口径', () => {
+  it('偏离强度使用每个事件自己的公式周期口径', () => {
     const buyMarket = {
       rows: 120,
       markPrice: 90,
@@ -132,22 +166,46 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
     const short = buildDecisionGraph({
       market: buyMarket,
-      input: { ...baseInput, holdingDays: 1, entryPrice: 100, iv: 0.4 },
+      input: { ...baseInput, formulaHorizonSessions: 2, entryPrice: 100, iv: 0.4 },
     })
     const long = buildDecisionGraph({
       market: buyMarket,
-      input: { ...baseInput, holdingDays: 30, entryPrice: 100, iv: 0.4 },
+      input: { ...baseInput, formulaHorizonSessions: 19, entryPrice: 100, iv: 0.4 },
     })
     expect(Math.abs(long.decision.timing.zScore)).toBeLessThan(Math.abs(short.decision.timing.zScore))
     expect(long.formulaStrategy.steps.find((step) => step.id === 'deviation-score').formula).toBe(
       'costDistance / periodVol',
     )
+  })
+
+  it('缺少公式周期时关闭默认挂单，不回退到 holdingDays', () => {
+    const blocked = buildDecisionGraph({
+      market,
+      input: { ...baseInput, formulaHorizonSessions: null, holdingDays: 30 },
+    })
+
+    expect(blocked.deltaBands).toBeNull()
+    expect(blocked.plan.primaryOrders).toEqual([])
+    expect(blocked.decision.missingInputs).toContain('formula-derived-horizon')
+    expect(blocked.decision.holdingWindow).toBe('待公式推导')
+  })
+
+  it('缺少 tradingDaysPerYear 时关闭默认挂单', () => {
+    const blocked = buildDecisionGraph({
+      market,
+      input: { ...baseInput, tradingDaysPerYear: null },
+    })
+
+    expect(blocked.inputs.tradingDaysPerYear).toBeNull()
+    expect(blocked.deltaBands).toBeNull()
+    expect(blocked.plan.primaryOrders).toEqual([])
+    expect(blocked.decision.missingInputs).toContain('trading-days-per-year')
   })
 
   it('无账户资金输入时不生成名义金额和候选订单', () => {
@@ -161,9 +219,9 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
     const g = buildDecisionGraph({ market: buyMarket, input: { ...noAccountInput, entryPrice: 100, iv: 0.4 } })
     expect(g.decision.timing.side).toBe('buy')
@@ -182,7 +240,7 @@ describe('buildDecisionGraph', () => {
     expect(g.decision.missingInputs).toContain('account.capital')
   })
 
-  it('有底仓溢价时使用市场缩放 profile 生成减仓挂单', () => {
+  it('long-side 成本下沿周期不能复用于溢价减仓', () => {
     const sellMarket = {
       rows: 120,
       markPrice: 110,
@@ -193,17 +251,64 @@ describe('buildDecisionGraph', () => {
       costDistance: 0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0,
-      momentum20: 0,
-      costSlope5: 0,
+      momentumFast: 0,
+      momentumSlow: 0,
+      costSlopeRecent: 0,
     }
     const g = buildDecisionGraph({
       market: sellMarket,
       input: { ...baseInput, entryPrice: 110, iv: 0.4, baseNotional: 10000 },
     })
     expect(g.profile.exposureMax).toBeGreaterThan(0)
+    expect(g.decision.timing.side).toBeNull()
+    expect(g.plan.primaryOrders).toEqual([])
+    expect(g.decision.missingInputs).toContain('short-side-target-horizon-binding')
+  })
+
+  it('独立 short-side 成本上沿周期才允许生成减仓模拟单', () => {
+    const sellMarket = {
+      rows: 120,
+      markPrice: 110,
+      costAnchor: 100,
+      costRecent: 100,
+      costLow: 95,
+      costHigh: 105,
+      costDistance: 0.1,
+      annualVol: 0.4,
+      atrPercent: 0.02,
+      momentumFast: 0,
+      momentumSlow: 0,
+      costSlopeRecent: 0,
+    }
+    const g = buildDecisionGraph({
+      market: sellMarket,
+      input: {
+        ...baseInput,
+        entryPrice: 110,
+        iv: 0.4,
+        baseNotional: 10000,
+        formulaHorizonState: {
+          context: {
+            mode: 'formula-derived',
+            side: 'short',
+            cycleStartPrice: 110,
+            anchorPrice: 100,
+            targetPrice: 105,
+            targetSource: 'adaptive-cost-upper',
+            halfLifeSessions: 13,
+            availableAt: 'test:close',
+            executionAuthority: 'none',
+          },
+        },
+      },
+    })
     expect(g.decision.timing.side).toBe('sell')
     expect(g.plan.primaryOrders.length).toBeGreaterThan(0)
+    expect(g.plan.primaryOrders.every((order) => order.horizonBinding.side === 'short')).toBe(true)
+    expect(g.plan.primaryOrders.every((order) => order.horizonBinding.cycleStartPrice === order.price)).toBe(true)
+    expect(g.plan.primaryOrders.every((order) => order.horizonBinding.targetPrice === order.targetPrice)).toBe(true)
+    expect(g.plan.primaryOrders.every((order) => order.horizonBinding.rederivedForLimitScenario === true)).toBe(true)
+    expect(new Set(g.plan.primaryOrders.map((order) => order.formulaHorizonSessions)).size).toBeGreaterThan(1)
     expect(g.plan.primaryOrders.every((o) => o.side === 'sell')).toBe(true)
   })
 
@@ -218,13 +323,32 @@ describe('buildDecisionGraph', () => {
       costDistance: 0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0,
-      momentum20: 0,
-      costSlope5: 0,
+      momentumFast: 0,
+      momentumSlow: 0,
+      costSlopeRecent: 0,
     }
     const g = buildDecisionGraph({
       market: sellMarket,
-      input: { ...baseInput, capital: 0, baseNotional: 10000, entryPrice: 110, iv: 0.4 },
+      input: {
+        ...baseInput,
+        capital: 0,
+        baseNotional: 10000,
+        entryPrice: 110,
+        iv: 0.4,
+        formulaHorizonState: {
+          context: {
+            mode: 'formula-derived',
+            side: 'short',
+            cycleStartPrice: 110,
+            anchorPrice: 100,
+            targetPrice: 105,
+            targetSource: 'adaptive-cost-upper',
+            halfLifeSessions: 13,
+            availableAt: 'test:close',
+            executionAuthority: 'none',
+          },
+        },
+      },
     })
     expect(g.decision.timing.side).toBe('sell')
     expect(g.decision.missingInputs).not.toContain('account.capital')
@@ -243,9 +367,9 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
     const g = buildDecisionGraph({
       market: buyMarket,
@@ -268,9 +392,9 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
     const executableInput = { ...baseInput, entryPrice: 100, iv: 0.4 }
     const researchChangedInput = {
@@ -324,9 +448,9 @@ describe('buildDecisionGraph', () => {
       costDistance: -0.1,
       annualVol: 0.4,
       atrPercent: 0.02,
-      momentum5: 0.03,
-      momentum20: 0.01,
-      costSlope5: 0,
+      momentumFast: 0.03,
+      momentumSlow: 0.01,
+      costSlopeRecent: 0,
     }
     const small = buildDecisionGraph({
       market: buyMarket,

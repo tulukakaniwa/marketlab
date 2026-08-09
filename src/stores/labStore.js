@@ -40,12 +40,24 @@ export const useLabStore = defineStore('lab', () => {
   const observationDate = computed(() => (sourceKey.value ? (observationDates[sourceKey.value] ?? '') : ''))
 
   // 3. tdpy：按品种自动 + 用户覆盖
-  const tdpyMeta = computed(() => inferTdpy(data.source.value))
-  const effectiveTdpy = computed(() => {
-    const sym = data.source.value?.symbol
-    const override = sym ? planning.tdpyOverride[sym] : null
-    return Number.isFinite(override) && override > 0 ? override : tdpyMeta.value.value
+  const inferredTdpyMeta = computed(() => inferTdpy(data.source.value))
+  const tdpyOverrideKey = computed(
+    () => data.source.value?.symbol ?? data.source.value?.id ?? data.source.value?.label ?? '',
+  )
+  const tdpyMeta = computed(() => {
+    const key = tdpyOverrideKey.value
+    const override = key ? planning.tdpyOverride[key] : null
+    if (Number.isFinite(override) && override > 0) {
+      return {
+        value: override,
+        basis: 'explicit-override',
+        label: `手动覆盖 ${override}`,
+        inferredBasis: inferredTdpyMeta.value.basis,
+      }
+    }
+    return inferredTdpyMeta.value
   })
+  const effectiveTdpy = computed(() => tdpyMeta.value.value)
 
   // 4. baseInput：合并 tdpy；默认 profile 只来自用户手动选择。
   const baseInput = computed(() => ({
@@ -61,14 +73,20 @@ export const useLabStore = defineStore('lab', () => {
   // 6. ReplayAccount 是显式开启的旁路查询；只有 replayAutoProfile 打开才参与 profile 选择。
   const replayLayer = useReplay(marketState.activeRows, input, baseInput, activeMarketStates, planning.featureFlags)
 
-  const effectiveInput = computed(() => ({
-    ...baseInput.value,
-    lpOnchainSnapshot: resolveLpOnchainSnapshot(data.source.value, lpOnchainSnapshots),
-    strategyProfile:
-      planning.featureFlags.replayAccount && planning.featureFlags.replayAutoProfile
-        ? replayLayer.recommendedProfile.value.id
-        : input.strategyProfile,
-  }))
+  const effectiveInput = computed(() => {
+    const formulaPoint = marketState.formulaPath.value.at(-1)
+    return {
+      ...baseInput.value,
+      formulaHorizonSessions: formulaPoint?.formulaHorizonSessions ?? null,
+      formulaRecoveryFraction: formulaPoint?.recoveryFraction ?? null,
+      formulaHorizonState: formulaPoint?.fieldStates?.formulaHorizonSessions ?? null,
+      lpOnchainSnapshot: resolveLpOnchainSnapshot(data.source.value, lpOnchainSnapshots),
+      strategyProfile:
+        planning.featureFlags.replayAccount && planning.featureFlags.replayAutoProfile
+          ? replayLayer.recommendedProfile.value.id
+          : input.strategyProfile,
+    }
+  })
 
   // 7. 默认条件图 + 研究层快照并列组合。
   //    StrategyPlanning 不直接依赖研究层，facade 只为 UI 组装查询模型。
@@ -154,7 +172,6 @@ export const useLabStore = defineStore('lab', () => {
   }
 
   function selectSample(sample) {
-    input.tradingDaysPerYear = inferTdpy(sample).value
     return data.loadSample(sample)
   }
 
@@ -235,6 +252,7 @@ export const useLabStore = defineStore('lab', () => {
     // tdpy 层（PR-1）
     tdpyMeta,
     effectiveTdpy,
+    tdpyOverrideKey,
     setTdpyOverride: planning.setTdpyOverride,
     clearTdpyOverride: planning.clearTdpyOverride,
     tdpyOverride: planning.tdpyOverride,

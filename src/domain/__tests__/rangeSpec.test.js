@@ -16,7 +16,8 @@ const rows = Array.from({ length: 40 }, (_, index) => {
 
 const input = {
   entryPrice: 100,
-  holdingDays: 30,
+  formulaHorizonSessions: 30,
+  optionTenorSessions: 30,
   iv: 0.3,
   deltaSlope: 0.2,
   strikePrice: 100,
@@ -26,6 +27,7 @@ const input = {
   liquidity: 1,
   capital: 10000,
   optionType: 'put',
+  tradingDaysPerYear: 252,
 }
 
 describe('arithmetic LP range validation', () => {
@@ -41,7 +43,7 @@ describe('arithmetic LP range validation', () => {
     const snapshot = buildResearchSnapshot({
       market: { costAnchor: 100 },
       input,
-      executable: { inputs: { entryPrice: 100, holdingDays: 30, iv: 0.3, capital: 10000 } },
+      executable: { inputs: { entryPrice: 100, formulaHorizonSessions: 30, iv: 0.3, capital: 10000 } },
     })
     expect(snapshot.researchInputs.rangeStatus).toBe('invalid-input')
     expect(snapshot.lpV3).toBeNull()
@@ -62,7 +64,7 @@ describe('arithmetic LP range validation', () => {
         ivSource: 'market-option-quote-implied',
         ivSourceVerified: false,
       },
-      executable: { inputs: { entryPrice: 100, holdingDays: 30, iv: 0.3, capital: 10000 } },
+      executable: { inputs: { entryPrice: 100, formulaHorizonSessions: 30, iv: 0.3, capital: 10000 } },
     })
     expect(snapshot.optionPortfolio.missingInputs).toContain('verified-market-iv-source')
     expect(snapshot.portfolioResearch.missingInputs).toContain('verified-market-iv-source')
