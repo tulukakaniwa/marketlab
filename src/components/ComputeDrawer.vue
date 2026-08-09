@@ -5,6 +5,7 @@ import ChainFlow from './ChainFlow.vue'
 import FormulaDrawerContent from './FormulaDrawerContent.vue'
 import FormulaChart from './FormulaChart.vue'
 import FormulaNav from './FormulaNav.vue'
+import WorkbenchSummary from './WorkbenchSummary.vue'
 
 const props = defineProps({
   graph: { type: Object, required: true },
@@ -23,6 +24,7 @@ const props = defineProps({
   hoverPrevRow: { type: Object, default: null },
   hoverDate: { type: String, default: '' },
   isHovering: { type: Boolean, default: false },
+  summary: { type: Object, default: null },
 })
 
 const emit = defineEmits(['select-formula'])
@@ -40,16 +42,17 @@ const viewDeltaBands = computed(() => {
 
 const metrics = computed(() => {
   const m = viewMarket.value
-  const g = props.graph
   const bands = viewDeltaBands.value
-  const base = [
-    { label: '现价', value: money(m?.markPrice), unit: props.sourceLabel },
+  return [
+    { label: '观察价', value: money(m?.markPrice), unit: props.sourceLabel },
     { label: '成本锚', value: money(m?.costAnchor), unit: pct(m?.costDistance) },
-    { label: 'IV', value: pct(g.inputs?.iv), unit: `ATR ${pct(m?.atrPercent)}` },
-    { label: '波动带', value: money(bands?.long?.low), unit: money(bands?.long?.high) },
+    { label: '历史波动', value: pct(m?.annualVol), unit: `样本估计 · ATR ${pct(m?.atrPercent)}` },
+    {
+      label: 'GetDelta 区间',
+      value: `${money(bands?.long?.low)} — ${money(bands?.long?.high)}`,
+      unit: '低 / 高 · 条件情景',
+    },
   ]
-  if (props.portfolioEnabled) base.push({ label: '组合研究', value: money(g.portfolio), unit: 'research-only' })
-  return base
 })
 
 // hover 时的 OHLCV 详情条
@@ -100,11 +103,12 @@ function compactVolume(v) {
   <div class="cd-drawer">
     <section class="cd-section">
       <h3 class="cd-h">
-        五个市场指标
+        市场快照
         <small v-if="isHovering && hoverDate" class="cd-hover-tag" :title="`鼠标悬停日期：${hoverDate}`">
           <span class="cd-hover-dot" />{{ hoverDate }}
         </small>
       </h3>
+      <WorkbenchSummary :model="summary" default-open />
       <div v-if="hoverOhlcv" class="cd-hover-ohlcv" :class="`dir-${hoverOhlcv.direction}`">
         <span class="cd-ohlcv-cell"><em>开</em>{{ money(hoverOhlcv.open) }}</span>
         <span class="cd-ohlcv-cell"><em>高</em>{{ money(hoverOhlcv.high) }}</span>
@@ -119,18 +123,18 @@ function compactVolume(v) {
       <MetricStrip :items="metrics" />
     </section>
 
-    <section class="cd-section">
-      <h3 class="cd-h">计算管线</h3>
+    <details class="cd-section cd-disclosure">
+      <summary>这组数怎么来的 <small>样本 → 成本 → 波动 → 价格带 → 门禁</small></summary>
       <ChainFlow
         :graph="graph"
         :market="market"
         :active-id="activeFormulaId"
         @select="emit('select-formula', $event)"
       />
-    </section>
+    </details>
 
     <section class="cd-section">
-      <h3 class="cd-h">当前公式 · {{ activeFormula?.label || '—' }}</h3>
+      <h3 class="cd-h">研究图 · {{ activeFormula?.label || '—' }}</h3>
       <FormulaChart
         v-if="activeFormulaId"
         :formula-id="activeFormulaId"
@@ -140,13 +144,16 @@ function compactVolume(v) {
         :cost-path="costPath"
         :formula-path="formulaPath"
       />
-      <FormulaDrawerContent v-if="activeFormulaId" :formula-id="activeFormulaId" :graph="graph" :market="market" />
+      <details v-if="activeFormulaId" class="cd-detail">
+        <summary>公式、输入输出和研究边界</summary>
+        <FormulaDrawerContent :formula-id="activeFormulaId" :graph="graph" :market="market" />
+      </details>
     </section>
 
-    <section class="cd-section">
-      <h3 class="cd-h">完整公式列表</h3>
+    <details class="cd-section cd-disclosure">
+      <summary>更多研究模型 <small>默认不参与模拟挂单</small></summary>
       <FormulaNav :active-id="activeFormulaId" @select="emit('select-formula', $event)" />
-    </section>
+    </details>
   </div>
 </template>
 
@@ -172,7 +179,7 @@ function compactVolume(v) {
 .cd-h {
   margin: 0;
   color: var(--green);
-  font-size: 0.66rem;
+  font-size: 0.74rem;
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -267,14 +274,64 @@ function compactVolume(v) {
 .cd-hover-ohlcv.dir-down .cd-ohlcv-change small {
   color: rgba(169, 50, 38, 0.75);
 }
-/* 5 个市场指标在窄面板（< 360px）下自动换行成 2 行 */
+/* 核心快照固定两列，避免桌面窄侧栏被挤成孤行。 */
 .cd-drawer .metric-strip {
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
   padding: 0;
 }
 .cd-drawer .metric-strip article {
-  padding: 6px 7px;
+  padding: 8px 9px;
   min-width: 0;
+}
+.cd-drawer .metric-strip article:first-child {
+  grid-column: auto;
+}
+.cd-disclosure > summary,
+.cd-detail > summary {
+  min-height: 38px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+.cd-disclosure > summary::-webkit-details-marker,
+.cd-detail > summary::-webkit-details-marker {
+  display: none;
+}
+.cd-disclosure > summary::after,
+.cd-detail > summary::after {
+  content: '展开';
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.cd-disclosure[open] > summary::after,
+.cd-detail[open] > summary::after {
+  content: '收起';
+}
+.cd-disclosure > summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.cd-detail {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+@media (max-width: 300px) {
+  .cd-drawer .metric-strip {
+    grid-template-columns: 1fr;
+  }
+  .cd-disclosure > summary small {
+    display: none;
+  }
 }
 </style>

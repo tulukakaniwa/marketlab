@@ -6,7 +6,7 @@ import { deriveWindows } from '../domain/market-data/cost.js'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
 import ProfileChip from './ProfileChip.vue'
 
-const { isMobile } = useBreakpoint()
+const { isCompact } = useBreakpoint()
 
 const overflowOpen = ref(false)
 function toggleOverflow() {
@@ -106,7 +106,7 @@ function pctSign(v) {
 <template>
   <header class="topbar">
     <button
-      v-if="isMobile"
+      v-if="isCompact"
       class="tb-mobile-btn tb-mobile-left"
       type="button"
       aria-label="打开菜单"
@@ -115,8 +115,10 @@ function pctSign(v) {
       <Menu :size="20" />
     </button>
     <div class="tb-brand">
-      <span>Market Lab</span>
-      <h1>公式工作台</h1>
+      <span
+        >Market Lab <em v-if="source">{{ source.symbol }} · {{ source.interval }}</em></span
+      >
+      <h1>{{ source?.label ?? '行情研究台' }}</h1>
     </div>
 
     <div v-if="market" class="tb-summary">
@@ -147,7 +149,7 @@ function pctSign(v) {
       </button>
       <button class="tb-reset" type="button" title="清空持久化参数" @click="$emit('reset')">重置</button>
     </div>
-    <div v-if="isMobile" class="tb-overflow-wrap">
+    <div v-if="isCompact" class="tb-overflow-wrap">
       <button
         class="tb-mobile-btn tb-overflow-btn"
         type="button"
@@ -180,7 +182,7 @@ function pctSign(v) {
       </div>
     </div>
     <button
-      v-if="isMobile"
+      v-if="isCompact"
       class="tb-mobile-btn tb-mobile-right"
       type="button"
       aria-label="打开标的列表"
@@ -213,6 +215,11 @@ function pctSign(v) {
   font-weight: 900;
   letter-spacing: 0.07em;
   text-transform: uppercase;
+}
+.tb-brand span em {
+  color: var(--muted);
+  font-style: normal;
+  letter-spacing: 0.03em;
 }
 .tb-brand h1 {
   margin: 0;
@@ -319,8 +326,9 @@ function pctSign(v) {
     display: none;
   }
 }
-@media (max-width: 768px) {
-  .tb-summary .tb-narrative {
+@media (max-width: 1279px) {
+  .tb-summary .tb-narrative,
+  .tb-summary .tb-action {
     display: none;
   }
 }
@@ -328,7 +336,7 @@ function pctSign(v) {
 .tb-mobile-btn {
   display: none;
 }
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   /* mobile 下 topbar 子节点变多（左按钮 / brand / summary / actions / 右按钮），
      扩到 5 列 grid 避免 implicit row 自动换行；summary 仍是唯一弹性轨道 */
   .topbar {
@@ -336,12 +344,21 @@ function pctSign(v) {
     gap: 8px;
     padding: 7px 10px;
   }
+  .tb-brand {
+    min-width: 0;
+  }
+  .tb-brand h1 {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .tb-mobile-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: var(--bg);
@@ -354,7 +371,7 @@ function pctSign(v) {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .tb-desktop-only {
     display: none !important;
   }

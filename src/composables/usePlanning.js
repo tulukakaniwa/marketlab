@@ -103,14 +103,17 @@ export function usePlanning() {
 
   // 面板宽度（v3.2 拖宽）
   const LEFT_MIN = 200,
-    LEFT_MAX = 400
+    LEFT_MAX = 360
   const RIGHT_MIN = 200,
-    RIGHT_MAX = 380
+    RIGHT_MAX = 300
   const LEFT_DEFAULT = 280
   const RIGHT_DEFAULT = 240
 
   const leftPanelW = persistedRef('lab.leftPanelW.v1', LEFT_DEFAULT)
   const rightPanelW = persistedRef('lab.rightPanelW.v1', RIGHT_DEFAULT)
+  // 旧版本或手工改写的 localStorage 也必须在消费前校验，不能直接把主图挤没。
+  leftPanelW.value = clamp(Number(leftPanelW.value), LEFT_MIN, LEFT_MAX)
+  rightPanelW.value = clamp(Number(rightPanelW.value), RIGHT_MIN, RIGHT_MAX)
 
   function setLeftPanelW(w) {
     leftPanelW.value = clamp(w, LEFT_MIN, LEFT_MAX)
