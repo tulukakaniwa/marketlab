@@ -1,16 +1,7 @@
 import { computed } from 'vue'
 import { gammaPnl, meanReversionHalfLife, volConfidence } from '../domain/formulas/core.js'
-import { resolveDynamicHoldingData } from './formulaDynamicHolding.js'
 
-export function useFormulaSecondOrderModel({
-  props,
-  activeIndex,
-  activeRows,
-  researchInputs,
-  devScoreData,
-  fingerprintData,
-  layout,
-}) {
+export function useFormulaSecondOrderModel({ props, activeIndex, activeRows, layout }) {
   const { PL, pw, sy } = layout
 
   const mrData = computed(() => {
@@ -29,17 +20,7 @@ export function useFormulaSecondOrderModel({
     return result ? { ...result, plotHorizonSessions: decayPlotHorizon(result) } : null
   })
 
-  const dynamicHoldingData = computed(() =>
-    resolveDynamicHoldingData({
-      graph: props.graph,
-      market: props.market,
-      rows: activeRows.value,
-      researchInputs: researchInputs.value,
-      deviation: devScoreData.value,
-      meanReversion: mrData.value,
-      fingerprint: fingerprintData.value,
-    }),
-  )
+  const dynamicHoldingData = computed(() => props.graph?.dynamicHolding ?? null)
 
   const decayCurve = computed(() => {
     try {

@@ -38,8 +38,8 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
 
   if (aboveCost && !explicitScenario && inputs.formulaHorizonSide !== 'short') {
     return waitTiming({
-      state: '上沿周期待推导',
-      reason: '价格已高于成本上沿；长侧成本下沿修复周期不适用于减仓，尚缺独立的 short-side 结构目标与周期。',
+      state: '执行上沿周期待推导',
+      reason: '价格已高于成本上沿；长侧成本下沿修复周期不适用于减仓，尚缺独立的 short-side 执行结构目标与周期。',
       facts: {
         regime: regimeLabel,
         zScore: null,
@@ -48,7 +48,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
         signalStrength: 0,
         signalSemantics: 'missing-short-side-structure-not-confidence-or-win-probability',
         triggeredConditions: ['价格高于成本带'],
-        blockedReasons: ['尚未定义与上沿减仓方向绑定的结构目标和周期'],
+        blockedReasons: ['尚未定义与上沿减仓执行方向绑定的结构目标和周期'],
         missingInputs: ['short-side-target-horizon-binding'],
       },
     })
@@ -156,7 +156,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       state: '低于波动带',
       reason: `价格 ${formatPrice(market.markPrice)} 低于波动带下沿 ${formatPrice(bands?.long?.low)}。`,
       facts: withFacts(baseFacts, {
-        triggeredConditions: ['价格低于成本带', '价格低于 GetDelta 下沿'],
+        triggeredConditions: ['价格低于成本带', '价格低于入场价情景 GetDelta 下沿'],
         blockedReasons: ['超出当前默认入场带，需要额外风控输入'],
       }),
     })
@@ -199,7 +199,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       state: '高于波动带',
       reason: `价格 ${formatPrice(market.markPrice)} 高于波动带上沿 ${formatPrice(bands?.short?.high)}。`,
       facts: withFacts(baseFacts, {
-        triggeredConditions: ['价格高于成本带', '价格高于 GetDelta 上沿'],
+        triggeredConditions: ['价格高于成本带', '价格高于入场价情景 GetDelta 上沿'],
         blockedReasons: ['模拟挂单不把研究层或高位状态翻译成追价动作'],
       }),
     })

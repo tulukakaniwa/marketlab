@@ -347,6 +347,8 @@ function netCarryMissing(ctx) {
 }
 
 function dynamicHoldingMissing(ctx) {
+  if (ctx.graph?.dynamicHolding?.missingInputs?.length) return ctx.graph.dynamicHolding.missingInputs
+  if (ctx.graph?.dynamicHolding?.status && ctx.graph.dynamicHolding.status !== '需刷新数据') return []
   const horizon = ctx.latestFormulaRow?.formulaHorizonSessions ?? ctx.graph?.inputs?.formulaHorizonSessions
   if (positive(horizon) && ctx.meanReversion?.decayMode === 'monotonic-decay') return []
   const fieldState = ctx.latestFormulaRow?.fieldStates?.formulaHorizonSessions

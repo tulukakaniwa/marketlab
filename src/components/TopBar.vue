@@ -128,7 +128,7 @@ function pctSign(v) {
       </div>
       <div class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
       <div v-if="recommendation" class="tb-segment tb-action">
-        <span>状态</span>
+        <span>市场结构</span>
         <strong>{{ recommendation }}</strong>
         <em title="正态参考下的偏离极端度，不是胜率">偏离极端度 {{ Math.round(extremeness * 100) }}%</em>
       </div>

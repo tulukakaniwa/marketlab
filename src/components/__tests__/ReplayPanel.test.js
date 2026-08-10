@@ -76,4 +76,22 @@ describe('ReplayPanel', () => {
     expect(wrapper.text()).toContain('回放总费率 %')
     expect(wrapper.find('.replay-grid').exists()).toBe(false)
   })
+
+  it('零成交时区分诊断方向与候选门禁，不把它写成没有信号', () => {
+    const wrapper = mount(ReplayPanel, {
+      props: {
+        replay: replay({
+          status: undefined,
+          candidateAudit: {
+            diagnosticBuyPrefixes: 6,
+            diagnosticSellPrefixes: 0,
+            acceptedCandidates: 0,
+          },
+        }),
+      },
+    })
+
+    expect(wrapper.text()).toContain('6 个诊断方向前缀')
+    expect(wrapper.text()).toContain('均未通过候选门禁')
+  })
 })

@@ -44,6 +44,8 @@ describe('FormulaChart', () => {
     expect(wrapper.text()).toContain('基金周期')
     expect(wrapper.text()).toContain('成本下沿')
     expect(wrapper.text()).toContain('交易会话')
+    expect(wrapper.text()).toContain('候选硬门槛（dynamic-holding-candidate-v1）')
+    expect(wrapper.text()).toContain('情景毛收益 ≥ 3.00%')
   })
 
   it('LP 池覆盖展示聚合池快照指标', () => {
@@ -163,6 +165,8 @@ describe('FormulaChart', () => {
       deltaBands: null,
       decision: {
         state: '周期门禁未通过',
+        candidateStatus: '需刷新数据',
+        executionStatus: 'blocked',
         missingInputs: ['formula-derived-horizon'],
         timing: { reason: '当前结构没有有限公式周期' },
         reviewConditions: ['成本锚、结构目标或 AR 门禁变化后复核'],
@@ -172,6 +176,9 @@ describe('FormulaChart', () => {
     }
     const plan = mount(FormulaChart, { props: makeProps('order-plan', { graph }) })
     expect(plan.text()).toContain('公式推导周期')
+    expect(plan.text()).toContain('市场结构')
+    expect(plan.text()).toContain('候选状态需刷新数据')
+    expect(plan.text()).toContain('执行状态不可执行')
     expect(plan.text()).toContain('复核条件')
     expect(plan.text()).toContain('成本锚、结构目标或 AR 门禁变化后复核')
     expect(plan.text()).not.toContain('失效下沿')
@@ -261,5 +268,25 @@ function makeGraph() {
     lpV3Hedged: { upperPrice: 103, lowerPrice: 82.8 },
     deltaBands: { long: { low: 78, cost: 90, high: 108 }, short: { low: 72, cost: 90, high: 112 } },
     option: { optionGamma: 0.0015 },
+    dynamicHolding: {
+      status: '观察',
+      gateVersion: 'dynamic-holding-candidate-v1',
+      candidateThresholds: { shortTradeMinimumGrossReturn: 0.03, fundCycleMinimumGrossReturn: 0.03 },
+      phase: 'repair-start',
+      phaseLabel: '修复启动',
+      state: {
+        zScore: -2.2,
+        halfLifeSessions: 12,
+        drawdown: { drawdownDepth: -0.25, drawdownRepair: 0.3 },
+      },
+      holdingPlan: {
+        shortTrade: { status: '观察', targetId: 'firstRepair', expectedSessions: 4 },
+        fundCycle: { status: '观察', targetId: 'baseAnchor', expectedSessions: 12 },
+      },
+      milestones: [
+        { id: 'firstRepair', targetPrice: 94, expectedSessions: 4 },
+        { id: 'baseAnchor', targetPrice: 100, expectedSessions: 12 },
+      ],
+    },
   }
 }

@@ -20,6 +20,8 @@ describe('ComputeDrawer GetDelta metric', () => {
 
     const metric = getDeltaMetric(wrapper)
     expect(metric.text()).toContain('80 — 120')
+    expect(metric.text()).toContain('P=入场价')
+    expect(metric.text()).toContain('不等于主图成本锚路径')
     expect(wrapper.text()).toContain('图表回看')
     expect(wrapper.findAll('.metric-strip article')[0].text()).toContain('100')
   })
@@ -110,5 +112,5 @@ function mountDrawer(overrides = {}) {
 }
 
 function getDeltaMetric(wrapper) {
-  return wrapper.findAll('.metric-strip article').find((item) => item.text().includes('GetDelta 区间'))
+  return wrapper.findAll('.metric-strip article').find((item) => item.text().includes('入场价情景 GetDelta'))
 }

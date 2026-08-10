@@ -42,6 +42,18 @@ function dateText(v) {
 function tierTitle(kind) {
   return kind === 'focus' ? '研究关注' : '等待观察'
 }
+
+function holdingHorizonText(metrics) {
+  const sessions = Number(metrics?.formulaHorizonSessions)
+  if (Number.isFinite(sessions) && sessions > 0) return `${Math.ceil(sessions)} 个交易会话*`
+  return (
+    {
+      'not-applicable': '当前结构不适用',
+      'model-gate-failed': '模型门禁失败',
+      'missing-input': '缺输入',
+    }[metrics?.holdingProjectionStatus] ?? '待公式推导'
+  )
+}
 </script>
 
 <template>
@@ -78,7 +90,7 @@ function tierTitle(kind) {
       </section>
 
       <section class="pool-dims">
-        <span>仅研究 · 非执行建议</span>
+        <span>评分研究池 · 非执行建议</span>
         <span v-for="dim in dimensions" :key="dim.id">{{ dim.label }} {{ dim.weight }}</span>
       </section>
 
@@ -119,7 +131,7 @@ function tierTitle(kind) {
               <span>价格</span>
               <span>几何代理P</span>
               <span>Z</span>
-              <span>AR参考</span>
+              <span>公式周期</span>
             </div>
             <div v-for="item in group.items" :key="item.symbol" class="pool-row">
               <span>
@@ -130,7 +142,7 @@ function tierTitle(kind) {
               <span>{{ fmt(item.metrics?.price, 2) }}</span>
               <span>{{ pct(item.metrics?.lpValuePercentile) }}</span>
               <span>{{ fmt(item.metrics?.zScore, 2) }}σ</span>
-              <span>{{ fmt(item.metrics?.holdingProjectionDays, 0) }}天*</span>
+              <span>{{ holdingHorizonText(item.metrics) }}</span>
             </div>
           </div>
         </article>
@@ -140,7 +152,7 @@ function tierTitle(kind) {
         <h2>策略说明</h2>
         <p>{{ pool.logic }}</p>
         <p>{{ pool.riskNote }}</p>
-        <p>* AR 参考周期是信号结构冻结、零冲击衰减下的条件投影，不是持仓期预测。</p>
+        <p>* 公式周期以交易会话计，是结构目标、成本锚与 AR 半衰期共同推导的条件情景，不是持仓期预测。</p>
       </section>
     </template>
   </main>

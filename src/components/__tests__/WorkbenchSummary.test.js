@@ -26,7 +26,8 @@ describe('WorkbenchSummary', () => {
     const wrapper = mount(WorkbenchSummary, { props: { model, defaultOpen: true } })
     const rendered = wrapper.html()
 
-    expect(wrapper.text()).toContain('执行门禁：不可执行')
+    expect(wrapper.text()).toContain('候选等待 · 执行不可执行')
+    expect(wrapper.text()).toContain('市场结构：周期门禁未通过')
     expect(wrapper.text()).toContain('样本估计')
     expect(wrapper.text()).toContain('等待方向、前向结构目标与 AR 单调衰减门禁同时成立')
     expect(rendered).not.toContain('blocked')

@@ -76,6 +76,10 @@ describe('buildDailyReplay', () => {
     expect(r.drawdownCurve).toHaveLength(r.equityCurve.length)
     expect(r.drawdownBasis.source).toContain('成本路径')
     expect(Number.isFinite(r.winRate)).toBe(true)
+    expect(r.candidateAudit.eligiblePrefixes).toBeGreaterThan(0)
+    expect(r.candidateAudit.acceptedCandidates + r.candidateAudit.blockedCandidates).toBe(
+      r.candidateAudit.diagnosticBuyPrefixes + r.candidateAudit.diagnosticSellPrefixes,
+    )
   })
 
   it('A4/A5 回归：tdpy 透传 + 接受外部 marketStates 不抛错', () => {

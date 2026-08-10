@@ -60,7 +60,12 @@ const checklist = computed(() => buildTraderChecklist({ graph: props.graph, mark
 const primaryOrders = computed(() => props.graph?.plan?.primaryOrders ?? [])
 const orderReview = computed(() => buildOrderPlanReviewPresentation(props.graph))
 const extremenessText = computed(() => `偏离极端度 ${Math.round((props.graph?.decision?.signalStrength ?? 0) * 100)}%`)
-const factMeta = computed(() => props.graph?.decision?.state || '等待数据')
+const factMeta = computed(() => {
+  const decision = props.graph?.decision
+  if (!decision) return '等待数据'
+  const execution = decision.executionStatus === 'simulation-only' ? '仅模拟' : '不可执行'
+  return `${decision.state} · 候选${decision.candidateStatus ?? '等待'} · ${execution}`
+})
 const hasPositionFacts = computed(() =>
   [
     props.graph?.position?.firstNotional,
@@ -212,7 +217,7 @@ function moveSection(id, delta) {
     >
       <article class="dd-action-card">
         <header>
-          <strong>{{ graph?.decision?.state || '等待数据' }}</strong>
+          <strong>市场结构 · {{ graph?.decision?.state || '等待数据' }}</strong>
           <em title="正态参考下的偏离极端度，不是胜率">{{ extremenessText }}</em>
         </header>
         <div v-if="hasPositionFacts" class="dd-action-grid">

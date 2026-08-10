@@ -55,6 +55,14 @@ const emptyText = computed(() => {
   if (isDisabled.value) return '现货路径回放未启用。'
   if (isMissingAccount.value) return '填写账户资金或底仓名义后，才运行现货路径回放并显示成交记录。'
   if (isMissingFee.value) return '填写回放总费率后才运行；0% 也必须显式填写。'
+  const audit = props.replay.candidateAudit
+  const directional = (audit?.diagnosticBuyPrefixes ?? 0) + (audit?.diagnosticSellPrefixes ?? 0)
+  if (directional && !audit?.acceptedCandidates) {
+    return `${directional} 个诊断方向前缀均未通过候选门禁，因此没有生成模拟成交。`
+  }
+  if (directional) {
+    return `${directional} 个诊断方向前缀中有 ${audit.acceptedCandidates} 个进入候选观察，但未形成下一根 K 线模拟成交。`
+  }
   return '当前样本没有形成路径回放成交。'
 })
 

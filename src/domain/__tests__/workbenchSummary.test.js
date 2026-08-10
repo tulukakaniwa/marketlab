@@ -18,13 +18,17 @@ describe('buildWorkbenchSummary data state', () => {
         dataThrough: '',
         rows: 0,
         source: '本地数据源未标注',
+        modelVersion: null,
+        modelLabel: '模型版本未标注',
         claimClass: 'missing-input',
         claimLabel: '缺少输入',
       },
       gate: {
-        state: '等待载入',
+        marketState: '等待载入',
+        candidateStatus: '等待',
+        candidateLabel: '候选等待',
         executionStatus: 'blocked',
-        label: '不可执行',
+        executionLabel: '不可执行',
       },
       reason: '等待市场样本形成明确条件。',
       review: {
@@ -32,7 +36,8 @@ describe('buildWorkbenchSummary data state', () => {
         label: '何时复核',
         value: '尚未形成策略失效线；下一交易会话复核结构。',
       },
-      nextCheck: '下一交易会话更新成本锚、上下沿与结构门禁；没有方向信号时不生成周期或订单。',
+      nextCheck:
+        '下一交易会话更新成本锚、上下沿与结构门禁；研究周期仍由公式动态推导，无执行方向或账户输入时不生成订单。',
       disclosure: '本地日线样本只用于研究；偏离度不是胜率，手绘标注不进入公式或模拟挂单。',
     })
   })
@@ -41,14 +46,17 @@ describe('buildWorkbenchSummary data state', () => {
     const summary = buildWorkbenchSummary({
       source: { source: 'BaoStock', interval: '1d' },
       rows: rows(3),
+      graph: { inputs: { modelVersion: 'adaptive-prefix-ar-cycle-recovery-v2' } },
     })
     expect(summary.data).toEqual({
       state: 'provisional',
-      label: '可研究',
+      label: '本地样本可研究',
       detail: '3 根 1d K 线 · 截至 2026-08-03',
       dataThrough: '2026-08-03',
       rows: 3,
       source: 'BaoStock',
+      modelVersion: 'adaptive-prefix-ar-cycle-recovery-v2',
+      modelLabel: '前缀因果 · AR 动态周期 v2',
       claimClass: 'sample-estimate',
       claimLabel: '样本估计',
     })
@@ -90,7 +98,13 @@ describe('buildWorkbenchSummary decision gate', () => {
         },
       },
     })
-    expect(summary.gate).toEqual({ state: '等待', executionStatus: 'simulation-only', label: '仅模拟' })
+    expect(summary.gate).toEqual({
+      marketState: '等待',
+      candidateStatus: '等待',
+      candidateLabel: '候选等待',
+      executionStatus: 'simulation-only',
+      executionLabel: '仅模拟',
+    })
     expect(summary.reason).toBe('次级原因')
     expect(summary).not.toHaveProperty('invalidation')
     expect(summary.review).toEqual({ kind: 'invalidation', label: '何时失效', value: '收盘跌破结构低点' })
@@ -102,9 +116,17 @@ describe('buildWorkbenchSummary decision gate', () => {
       rows: rows(),
       graph: { decision: { state: '观察', timing: { reason: '成本修复已开始' } } },
     })
-    expect(summary.gate).toEqual({ state: '观察', executionStatus: 'blocked', label: '不可执行' })
+    expect(summary.gate).toEqual({
+      marketState: '观察',
+      candidateStatus: '等待',
+      candidateLabel: '候选等待',
+      executionStatus: 'blocked',
+      executionLabel: '不可执行',
+    })
     expect(summary.reason).toBe('成本修复已开始')
-    expect(summary.nextCheck).toBe('下一交易会话更新成本锚、上下沿与结构门禁；没有方向信号时不生成周期或订单。')
+    expect(summary.nextCheck).toBe(
+      '下一交易会话更新成本锚、上下沿与结构门禁；研究周期仍由公式动态推导，无执行方向或账户输入时不生成订单。',
+    )
   })
 
   it.each([

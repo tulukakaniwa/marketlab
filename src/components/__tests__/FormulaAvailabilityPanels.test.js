@@ -43,6 +43,8 @@ describe('formula availability panels', () => {
     const props = contextProps()
     props.graph.decision = {
       state: '周期门禁未通过',
+      candidateStatus: '需刷新数据',
+      executionStatus: 'blocked',
       timing: { side: null },
       missingInputs: ['formula-derived-horizon'],
       reviewConditions: ['成本锚变化后复核'],
@@ -54,6 +56,9 @@ describe('formula availability panels', () => {
     })
 
     expect(wrapper.text()).toContain('复核条件')
+    expect(wrapper.text()).toContain('市场结构周期门禁未通过')
+    expect(wrapper.text()).toContain('候选状态需刷新数据')
+    expect(wrapper.text()).toContain('执行状态不可执行')
     expect(wrapper.text()).toContain('成本锚变化后复核')
     expect(wrapper.text()).not.toContain('失效下沿')
     expect(wrapper.text()).not.toContain('失效上沿')

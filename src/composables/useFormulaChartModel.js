@@ -340,9 +340,6 @@ export function useFormulaChartModel(props) {
     props,
     activeIndex,
     activeRows,
-    researchInputs,
-    devScoreData,
-    fingerprintData,
     layout: { PL, pw, sy },
   })
 
