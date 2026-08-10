@@ -1,6 +1,8 @@
 // 成本与市场态计算：每个历史点的窗口只由当时可见前缀自适应推导，
 // 不使用模块级可变状态，确保不同样本/不同入口调用之间不会互相污染。
 
+import { buildMarketModelContext, DELTA_ANCHOR_SOURCES, MARKET_MODEL_VERSION } from './modelVersion.js'
+
 const PREFIX_CAUSAL_PATH = Symbol('market-lab-prefix-causal-state-path')
 
 function adaptiveWindow(sampleSize) {
@@ -36,6 +38,12 @@ export function buildMarketStatePath(rows, tradingDaysPerYear, windows = null) {
 
   const path = rows.map((last, index) => {
     const w = windows ?? deriveWindows(index + 1)
+    const windowSpec = {
+      ...w,
+      mode: windows ? 'explicit-scenario' : 'adaptive-prefix',
+      visiblePrefixRows: index + 1,
+      futureRowsUsed: false,
+    }
     peak = Math.max(peak, last.close)
     peakDrawdown = Math.min(peakDrawdown, peak > 0 ? (last.close - peak) / peak : 0)
     const returnWindow = windowValues(returns, Math.max(1, index - w.vol + 1), index + 1)
@@ -48,6 +56,13 @@ export function buildMarketStatePath(rows, tradingDaysPerYear, windows = null) {
     const momentumSlow = momentumAt(rows, index, w.cost)
     const costSlopeRecent = previousCost.anchor > 0 ? (cost.anchor - previousCost.anchor) / previousCost.anchor : 0
     return {
+      modelVersion: MARKET_MODEL_VERSION,
+      modelContext: buildMarketModelContext({
+        windowSpec,
+        deltaAnchorSource: DELTA_ANCHOR_SOURCES.adaptiveCostAnchor,
+        tradingDaysPerYear,
+        observationDate: last.date,
+      }),
       markPrice: last.close,
       firstPrice: first.close,
       annualVol,
@@ -66,12 +81,7 @@ export function buildMarketStatePath(rows, tradingDaysPerYear, windows = null) {
       momentum5: momentumFast,
       momentum20: momentumSlow,
       costSlope5: costSlopeRecent,
-      windowSpec: {
-        ...w,
-        mode: windows ? 'explicit-scenario' : 'adaptive-prefix',
-        visiblePrefixRows: index + 1,
-        futureRowsUsed: false,
-      },
+      windowSpec,
       tradingDaysPerYear,
       maxDrawdown: peakDrawdown,
       rows: index + 1,
@@ -121,6 +131,10 @@ function statePathFingerprint(states) {
         state?.momentumFast,
         state?.momentumSlow,
         state?.costSlopeRecent,
+        state?.modelVersion,
+        state?.modelContext?.deltaAnchorSource,
+        state?.modelContext?.tradingDaysPerYear,
+        state?.modelContext?.observationDate,
         state?.windowSpec?.mode,
         state?.windowSpec?.visiblePrefixRows,
         state?.windowSpec?.futureRowsUsed,
@@ -136,23 +150,31 @@ function momentumAt(rows, index, window) {
   return previous > 0 ? (current - previous) / previous : 0
 }
 
-export function buildCostPath(rows, windows = null) {
+export function buildCostPath(rows, windows = null, tradingDaysPerYear = null) {
   if (!Array.isArray(rows) || rows.length === 0) return []
   return rows.map((row, index) => {
     const w = windows ?? deriveWindows(index + 1)
     const cost = rollingCost(rows, index, w)
+    const windowSpec = {
+      ...w,
+      mode: windows ? 'explicit-scenario' : 'adaptive-prefix',
+      visiblePrefixRows: index + 1,
+      futureRowsUsed: false,
+    }
     return {
+      modelVersion: MARKET_MODEL_VERSION,
+      modelContext: buildMarketModelContext({
+        windowSpec,
+        deltaAnchorSource: DELTA_ANCHOR_SOURCES.adaptiveCostAnchor,
+        tradingDaysPerYear,
+        observationDate: row.date,
+      }),
       date: row.date,
       close: row.close,
       anchor: cost?.anchor ?? null,
       lower: cost?.lower ?? null,
       upper: cost?.upper ?? null,
-      windowSpec: {
-        ...w,
-        mode: windows ? 'explicit-scenario' : 'adaptive-prefix',
-        visiblePrefixRows: index + 1,
-        futureRowsUsed: false,
-      },
+      windowSpec,
     }
   })
 }

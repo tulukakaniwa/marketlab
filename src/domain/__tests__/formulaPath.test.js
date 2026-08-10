@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { loadCsv } from '../../test/helpers/loadCsv.js'
 import { FORMULA_PATH_FIELDS, buildFormulaPath } from '../market-data/formulaPath.js'
 import { resolveExplicitScenarioHorizonSessions } from '../market-data/formulaPathScenarioInput.js'
 
@@ -62,8 +63,8 @@ describe('buildFormulaPath causal horizon contract', () => {
     )
   })
 
-  it('普通 holdingDays 不再成为隐藏周期；只有显式情景模式才消费它', () => {
-    const rows = makeRows(20)
+  it('主图周期只由行情公式推导，显式情景开关也不能消费手填周期', () => {
+    const rows = makeRows(100)
     const ordinary = buildFormulaPath(rows, { holdingDays: 7, deltaSlope: 0.3, tradingDaysPerYear: 242 })
     const scenario = buildFormulaPath(rows, {
       holdingDays: 7,
@@ -83,15 +84,18 @@ describe('buildFormulaPath causal horizon contract', () => {
       pathUsesScenarioInputs: true,
     })
 
-    expect(ordinary[2].formulaHorizonSessions).toBeNull()
-    expect(scenario[2].formulaHorizonSessions).toBe(7)
-    expect(ignoredLegacyInput[2].formulaHorizonSessions).toBeNull()
-    expect(explicitLegacyAdapter[2].formulaHorizonSessions).toBe(9)
-    expect(scenario[2].fieldStates.formulaHorizonSessions.context.executionAuthority).toBe('none')
-    expect(scenario[2].fieldStates.formulaHorizonSessions.context.status).toBe('eligible')
-    expect(scenario[2].fieldStates.formulaHorizonSessions.context.resultClaimClass).toBe('scenario-proxy')
-    expect(scenario[2]).not.toHaveProperty('formulaHorizonDays')
-    expect(scenario[2].fieldStates).not.toHaveProperty('formulaHorizonDays')
+    expect(scenario).toEqual(ordinary)
+    expect(explicitLegacyAdapter).toEqual(ignoredLegacyInput)
+    expect(scenario.at(-1).formulaHorizonSessions).not.toBe(7)
+    expect(explicitLegacyAdapter.at(-1).formulaHorizonSessions).not.toBe(9)
+    expect(scenario.at(-1).fieldStates.formulaHorizonSessions.context).toMatchObject({
+      mode: 'formula-derived',
+      executionAuthority: 'none',
+      status: 'eligible',
+      resultClaimClass: 'scenario-proxy',
+    })
+    expect(scenario.at(-1)).not.toHaveProperty('formulaHorizonDays')
+    expect(scenario.at(-1).fieldStates).not.toHaveProperty('formulaHorizonDays')
   })
 
   it('v2 全区间与 v3 指定区间 IL 只以 canonical 字段输出', () => {
@@ -126,8 +130,6 @@ describe('buildFormulaPath causal horizon contract', () => {
     }).at(-1)
 
     for (const field of [
-      'lpLowerPrice',
-      'lpUpperPrice',
       'lpValue',
       'lpInventoryDeltaToken0',
       'lpNormalizedDelta',
@@ -137,6 +139,17 @@ describe('buildFormulaPath causal horizon contract', () => {
     ]) {
       expect(row[field]).toBeNull()
     }
+    expect(row.lpLowerPrice).toBeTypeOf('number')
+    expect(row.lpUpperPrice).toBeTypeOf('number')
+    expect(row.fieldStates.lpLowerPrice).toMatchObject({
+      source: 'formula-derived-lp-research-range',
+      status: 'research-only',
+    })
+    expect(row.fieldStates.lpLowerPrice.context).toMatchObject({
+      notAPosition: true,
+      valuationAuthority: 'none',
+      executionAuthority: 'none',
+    })
     expect(row.fieldStates.lpValue.status).toBe('missing-input')
     expect(row.fieldStates.lpValue.missingInputs).toEqual(['declared-lp-scenario-or-complete-position'])
   })
@@ -181,6 +194,23 @@ describe('buildFormulaPath causal horizon contract', () => {
     expect(row.fieldStates).not.toHaveProperty('optionThetaDaily')
   })
 
+  it('期权期限存在但缺少行权价时不回退成本锚绘制 Greeks', () => {
+    const path = buildFormulaPath(makeRows(40), {
+      pathUsesScenarioInputs: true,
+      formulaHorizonSessions: 8,
+      optionTenorSessions: 20,
+      deltaSlope: 0.3,
+      tradingDaysPerYear: 242,
+    })
+    const row = path.at(-1)
+
+    expect(path.every((point) => point.optionDelta === null)).toBe(true)
+    expect(path.every((point) => point.optionGamma === null)).toBe(true)
+    expect(path.every((point) => point.optionThetaPerSession === null)).toBe(true)
+    expect(row.fieldStates.optionDelta.status).toBe('missing-input')
+    expect(row.fieldStates.optionDelta.missingInputs).toContain('scenario-strike')
+  })
+
   it('canonical row、fieldStates 和字段注册表不暴露 deprecated aliases', () => {
     const row = buildFormulaPath(makeRows(40), {
       pathUsesScenarioInputs: true,
@@ -217,15 +247,21 @@ describe('buildFormulaPath causal horizon contract', () => {
     expect(row.fieldStates.optionDelta.missingInputs).toContain('trading-days-per-year')
   })
 
-  it('结构目标不适用时 Delta 继承 not-applicable，不提示补充周期', () => {
+  it('动态方向、周期起点与边界目标共同推导 q/H 和当前 GetDelta', () => {
     const row = buildFormulaPath(makeRows(100), { deltaSlope: 0.3, tradingDaysPerYear: 242 }).at(-1)
+    const context = row.fieldStates.formulaHorizonSessions.context
+    const q = (context.targetPrice - context.cycleStartPrice) / (context.anchorPrice - context.cycleStartPrice)
+    const expectedRaw = context.halfLifeSessions * (Math.log(1 / (1 - q)) / Math.log(2))
 
-    expect(row.fieldStates.formulaHorizonSessions.status).toBe('not-applicable')
-    expect(row.fieldStates.formulaHorizonSessions.context.status).toBe('not-applicable')
-    expect(row.fieldStates.formulaHorizonSessions.context.resultClaimClass).toBeNull()
-    expect(row.fieldStates.deltaUpper.status).toBe('not-applicable')
-    expect(row.fieldStates.deltaUpper.missingInputs).not.toContain('formula-derived-horizon')
-    expect(row.fieldStates.deltaUpper.blockedReasons).toEqual(row.fieldStates.formulaHorizonSessions.blockedReasons)
+    expect(row.fieldStates.formulaHorizonSessions.status).toBe('research-only')
+    expect(context.status).toBe('eligible')
+    expect(context.side).toMatch(/long|short/)
+    expect(context.recoveryFraction).toBeCloseTo(q, 12)
+    expect(context.modelHorizonRaw).toBeCloseTo(expectedRaw, 12)
+    expect(row.formulaHorizonSessions).toBe(Math.ceil(expectedRaw))
+    expect(row.fieldStates.deltaUpper.status).toBe('implemented')
+    expect(row.deltaLower).toBeTypeOf('number')
+    expect(row.deltaUpper).toBeTypeOf('number')
   })
 
   it('AR 前缀门禁失败时 Delta 继承 model-gate-failed，同时保留真实输入缺口', () => {
@@ -237,6 +273,38 @@ describe('buildFormulaPath causal horizon contract', () => {
     expect(row.fieldStates.deltaUpper.status).toBe('model-gate-failed')
     expect(row.fieldStates.deltaUpper.missingInputs).toContain('realized-volatility')
     expect(row.fieldStates.deltaUpper.missingInputs).not.toContain('formula-derived-horizon')
+  })
+
+  it('真实零波动历史窗口明确标为模型退化，不冒充缺输入或绘制零宽 Delta/LP', () => {
+    const fixtures = [
+      ['000301', ['2021-05-11', '2021-05-12']],
+      ['000425', ['2021-04-16', '2021-04-19', '2021-04-20']],
+      ['600009', ['2021-06-24']],
+      ['601988', ['2021-01-29']],
+    ]
+
+    for (const [symbol, dates] of fixtures) {
+      const path = buildFormulaPath(loadCsv(`public/data/${symbol}-1d.csv`), {
+        deltaSlope: 0.3,
+        tradingDaysPerYear: 242,
+      })
+      for (const date of dates) {
+        const row = path.find((point) => point.date === date)
+        expect(row, `${symbol} ${date}`).toBeTruthy()
+        expect(row.formulaHorizonSessions).toBeGreaterThan(0)
+        expect(row.iv).toBeNull()
+        expect([row.deltaLower, row.deltaUpper, row.lpLowerPrice, row.lpUpperPrice]).toEqual([null, null, null, null])
+        for (const field of ['iv', 'deltaLower', 'deltaUpper', 'lpLowerPrice', 'lpUpperPrice']) {
+          expect(row.fieldStates[field].status).toBe('model-gate-failed')
+          expect(row.fieldStates[field].missingInputs).toEqual([])
+          expect(row.fieldStates[field].blockedReasons).toContain('degenerate-volatility')
+        }
+        expect(row.modelContext.volatility).toEqual({
+          value: null,
+          source: 'rolling-log-return-volatility-degenerate-zero',
+        })
+      }
+    }
   })
 
   it('周期结构输入确实无效时 Delta 才标 missing-input', () => {
@@ -252,7 +320,7 @@ describe('buildFormulaPath causal horizon contract', () => {
     expect(row.fieldStates.deltaUpper.missingInputs).not.toContain('formula-derived-horizon')
   })
 
-  it('显式 carry 情景也必须提供方向、终点、来源、可知时点、共同名义和日历映射', () => {
+  it('carry 只复用公式周期，手填周期方向/目标/可知时点不能覆盖它', () => {
     const rows = makeRows(20)
     const base = {
       pathUsesScenarioInputs: true,
@@ -278,7 +346,9 @@ describe('buildFormulaPath causal horizon contract', () => {
     expect(row).not.toHaveProperty('fundingProxy')
     expect(row.fieldStates).not.toHaveProperty('fundingProxy')
     expect(row.fieldStates.netCarry.context.availableAt).toBe('session-0019:close')
-    expect(missingKnownAt.netCarry).toBeNull()
-    expect(missingKnownAt.fieldStates.netCarry.status).toBe('missing-input')
+    expect(row.fieldStates.formulaHorizonSessions.context.targetPrice).not.toBe(150)
+    expect(row.fieldStates.formulaHorizonSessions.context.targetSource).toMatch(/^adaptive-cost-/)
+    expect(missingKnownAt.netCarry).toBe(row.netCarry)
+    expect(missingKnownAt.fieldStates.netCarry.status).toBe('proxy-only')
   })
 })

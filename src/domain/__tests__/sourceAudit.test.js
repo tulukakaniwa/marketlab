@@ -48,12 +48,39 @@ describe('formula source audit', () => {
 
   it('keeps formula stages backed by the evidence catalog', () => {
     const evidenceIds = new Set(formulaEvidenceCatalog.map((entry) => entry.id))
+    const stageIds = new Set(formulaStages.map((stage) => stage.id))
     expect(formulaStages.every((stage) => evidenceIds.has(stage.id))).toBe(true)
+    expect(stageIds).toEqual(evidenceIds)
     for (const entry of formulaEvidenceCatalog) {
       expect(entry.inputs.length).toBeGreaterThan(0)
       expect(entry.outputs.length).toBeGreaterThan(0)
       expect(['implemented', 'research-only', 'protocol-unverified', 'proxy-only'].includes(entry.status)).toBe(true)
     }
+  })
+
+  it('keeps the formula-derived LP display range research-only and without valuation or execution authority', () => {
+    const stage = getFormulaStage('lp-research-range')
+    const evidence = formulaEvidenceCatalog.find((entry) => entry.id === 'lp-research-range')
+    const audit = formulaSourceAudit.find((entry) => entry.id === 'lp-research-range')
+
+    expect(stage.status).toBe('research-only')
+    expect(stage.formulas.join(' ')).toContain('scenario-proxy only')
+    expect(stage.formulas.join(' ')).toContain('executionAuthority=none')
+    expect(stage.formulas.join(' ')).toContain('valuationAuthority=none')
+    expect(evidence).toMatchObject({
+      status: 'research-only',
+      executable: false,
+      executionInput: false,
+      executionDecision: false,
+      queryOnly: true,
+    })
+    expect(audit).toMatchObject({
+      status: 'research-only',
+      executable: false,
+      executionInput: false,
+      executionDecision: false,
+    })
+    expect(audit.boundary).toContain('no execution or valuation authority')
   })
 
   it('keeps drawer registry semantics causal, session-based, and unit-explicit', () => {

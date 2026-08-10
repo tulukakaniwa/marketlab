@@ -54,6 +54,20 @@ export const formulaEvidenceCatalog = [
     ['real-lp-position'],
   ),
   entry(
+    'lp-research-range',
+    'heuristic',
+    'research-only',
+    false,
+    ['adaptiveCostAnchor', 'GetDelta.rT', 'formulaHorizonSessions', 'realizedVolatility'],
+    ['lpResearchLowerPrice', 'lpResearchUpperPrice'],
+    ['943334771f', 'uniswap-v3-whitepaper'],
+    [],
+    {
+      assumptions: ['range geometry only; no liquidity or position is implied'],
+      invalidWhen: ['display range is presented as real LP inventory, fees, IL or PnL'],
+    },
+  ),
+  entry(
     'lp-pool-coverage',
     'real-data-snapshot',
     'research-only',

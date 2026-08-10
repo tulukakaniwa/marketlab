@@ -143,6 +143,7 @@ const BLOCK_REASON_LABELS = Object.freeze({
   'non-finite-recovery-horizon': '结构修复周期无法得到有限值，模型门禁未通过',
   'invalid-recovery-input': '结构修复周期的输入不完整',
   'delta-band-model-domain': '当前参数超出 GetDelta 有效定义域',
+  'degenerate-volatility': '波动率样本为零，模型退化，当前不生成零宽价格带',
 })
 
 export function formatFormulaInputToken(value) {

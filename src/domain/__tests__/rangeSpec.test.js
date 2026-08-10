@@ -34,10 +34,13 @@ const input = {
 describe('arithmetic LP range validation', () => {
   it('formula path does not silently clamp an invalid declared LP width', () => {
     const path = buildFormulaPath(rows, input)
-    expect(path.at(-1).lpLowerPrice).toBeNull()
-    expect(path.at(-1).lpUpperPrice).toBeNull()
-    expect(path.at(-1).capitalEfficiency).toBeNull()
-    expect(path.at(-1).fieldStates.lpLowerPrice.missingInputs).toContain('lp-scenario-range-width')
+    const point = path.at(-1)
+    expect(point.lpLowerPrice).toBeTypeOf('number')
+    expect(point.lpUpperPrice).toBeTypeOf('number')
+    expect(point.fieldStates.lpLowerPrice.context).toMatchObject({ notAPosition: true, valuationAuthority: 'none' })
+    expect(point.lpValue).toBeNull()
+    expect(point.capitalEfficiency).toBeNull()
+    expect(point.fieldStates.lpValue.missingInputs).toContain('lp-scenario-range-width')
   })
 
   it('research snapshot blocks the same invalid declared LP width', () => {

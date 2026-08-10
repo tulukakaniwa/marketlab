@@ -7,6 +7,7 @@ export function resolveExitTargetReturn(input = {}) {
 }
 
 function nonNegative(value, fallback) {
+  if (value === null || value === undefined || value === '') return fallback
   const n = Number(value)
   return Number.isFinite(n) && n >= 0 ? n : fallback
 }
