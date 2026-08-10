@@ -33,7 +33,7 @@ const GOLDENS = [
       deltaUpper: 70207.64589099,
     },
     deltaCoverage: { validPoints: 2028, segments: 6 },
-    pathDigest: '16796c2f9eede0dff1b9f4fc6b90bbac4325961bb0b2c8a851d770036e470fb9',
+    pathDigest: 'fb3d272a605e6e34b3c67a73a9b539eb6d28172bc3f80237b53d58d0f5ab40e9',
   },
   {
     symbol: '002594',
@@ -62,7 +62,7 @@ const GOLDENS = [
       deltaUpper: 95.7645309,
     },
     deltaCoverage: { validPoints: 1346, segments: 4 },
-    pathDigest: 'ad069a07a4896ab14dd026940e151c2c181cabec3269cd649c3d596a9b226651',
+    pathDigest: 'a017bb4ec7b3c7ed7a4659fa2925e52435ec8379f9dde3374b553e7a6d34f7b3',
   },
   {
     symbol: '601698',
@@ -91,7 +91,7 @@ const GOLDENS = [
       deltaUpper: 35.47691031,
     },
     deltaCoverage: { validPoints: 1337, segments: 5 },
-    pathDigest: '4567d5fc3a2d6cf935f74991f3acae843ddd1238d99560610eb1eb11caa5f6ee',
+    pathDigest: '0c9d5ed32d293edb47b362eebea2e35a0e0233d9283d891f32226627e2d895a0',
   },
 ]
 
@@ -276,30 +276,32 @@ function formulaPathDigest(path) {
     point.modelContext?.windowSpec?.recent,
     point.modelContext?.windowSpec?.vol,
     point.modelContext?.windowSpec?.visiblePrefixRows,
-    roundedOrNull(point.modelContext?.bandAnchor),
-    roundedOrNull(point.modelContext?.volatility?.value),
+    canonicalNumberOrNull(point.modelContext?.bandAnchor),
+    canonicalNumberOrNull(point.modelContext?.volatility?.value),
     point.modelContext?.volatility?.source,
-    roundedOrNull(point.modelContext?.deltaSlope?.value),
+    canonicalNumberOrNull(point.modelContext?.deltaSlope?.value),
     point.modelContext?.deltaSlope?.source,
     point.modelContext?.formulaHorizon?.mode,
     point.modelContext?.formulaHorizon?.status,
-    roundedOrNull(point.modelContext?.formulaHorizon?.sessions),
+    canonicalNumberOrNull(point.modelContext?.formulaHorizon?.sessions),
     point.modelContext?.formulaHorizon?.side,
-    roundedOrNull(point.modelContext?.formulaHorizon?.cycleStartPrice),
-    roundedOrNull(point.modelContext?.formulaHorizon?.targetPrice),
+    canonicalNumberOrNull(point.modelContext?.formulaHorizon?.cycleStartPrice),
+    canonicalNumberOrNull(point.modelContext?.formulaHorizon?.targetPrice),
     point.modelContext?.formulaHorizon?.targetSource,
-    roundedOrNull(point.costAnchor),
-    roundedOrNull(point.costLower),
-    roundedOrNull(point.costUpper),
-    roundedOrNull(point.deltaLower),
-    roundedOrNull(point.deltaCost),
-    roundedOrNull(point.deltaUpper),
+    canonicalNumberOrNull(point.costAnchor),
+    canonicalNumberOrNull(point.costLower),
+    canonicalNumberOrNull(point.costUpper),
+    canonicalNumberOrNull(point.deltaLower),
+    canonicalNumberOrNull(point.deltaCost),
+    canonicalNumberOrNull(point.deltaUpper),
     point.fieldStates?.deltaUpper?.status,
     (point.fieldStates?.deltaUpper?.blockedReasons ?? []).join(','),
   ])
   return createHash('sha256').update(JSON.stringify(projection)).digest('hex')
 }
 
-function roundedOrNull(value) {
-  return Number.isFinite(value) ? Number(value.toFixed(10)) : null
+function canonicalNumberOrNull(value) {
+  if (!Number.isFinite(value)) return null
+  // Golden 摘要锁 10 位有效数字的模型语义，不锁 CPU/libm 相关的 IEEE-754 尾数。
+  return (Object.is(value, -0) ? 0 : value).toPrecision(10)
 }
