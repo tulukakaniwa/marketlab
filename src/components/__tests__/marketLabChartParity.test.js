@@ -127,6 +127,33 @@ describe('Market Lab Light / HQ chart parity', () => {
     }
   })
 
+  it('现价、入场、成本、GetDelta 与 LP 区间始终共用主 K 线价格轴', () => {
+    const model = queryMarketLabChartSeries(fixture)
+    const chart = fakeChart()
+    const light = useMainChartSeries({ getChart: () => chart, getProps: () => fixture })
+    light.applyOverlays()
+    const required = [
+      'mark',
+      'entry',
+      'cost',
+      'costUpper',
+      'costLower',
+      'deltaUpper',
+      'deltaLower',
+      'lpUpper',
+      'lpLower',
+    ]
+
+    expect(model.groups.find((group) => group.id === 'price').series.map((series) => series.id)).toEqual(
+      expect.arrayContaining(required),
+    )
+    for (const id of required) {
+      expect(light.series[id].pane).toBe(0)
+      expect(light.series[id].options.priceScaleId).toBeUndefined()
+    }
+    expect(buildHqResearchChartConfig(model).overlayIndex[0]).toMatchObject({ Windows: 0, IsShareY: true })
+  })
+
   it('latest-only pool snapshots stay anchored to the active formula observation date', () => {
     const activeLength = 10
     const activeFixture = { ...fixture, formulaPath: formulaPath.slice(0, activeLength) }

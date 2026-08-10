@@ -21,10 +21,12 @@ export function resolveChartOverlayPlan({ overlays, formulaPath }) {
   return {
     price: {
       costBand: priceBands && overlayOn(overlays, 'costBand'),
-      deltaBand: priceBands && overlayOn(overlays, 'volBand'),
+      deltaBand:
+        priceBands && overlayOn(overlays, 'volBand') && hasAllPathData(formulaPath, ['deltaUpper', 'deltaLower']),
       lpBand,
       lpRealPrice: lpBand && hasPathData(formulaPath, ['lpRealPrice']),
       entryLine: overlayOn(overlays, 'entryLine'),
+      currentLine: true,
     },
     panes,
     paneOn: {
@@ -62,6 +64,10 @@ export function buildPaneLayout({ volume, greeks, lp, carry, equity, kdj, rsi })
 
 export function hasPathData(formulaPath, fields) {
   return fields.some((field) => formulaPath.some((row) => Number.isFinite(row?.[field])))
+}
+
+function hasAllPathData(formulaPath, fields) {
+  return fields.every((field) => formulaPath.some((row) => Number.isFinite(row?.[field])))
 }
 
 function overlayOn(overlays, key) {

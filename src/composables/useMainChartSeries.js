@@ -18,6 +18,8 @@ export function useMainChartSeries({ getChart, getProps }) {
   let overlayPlan = null
   let paneLayoutSignature = ''
   let markersApi = null
+  const lineDescriptors = {}
+  const auxiliarySeries = {}
 
   function applyOverlays() {
     const chart = getChart()
@@ -43,6 +45,7 @@ export function useMainChartSeries({ getChart, getProps }) {
     toggle('lpUpper', overlayPlan.price.lpBand, () => addLine('lpUpper'))
     toggle('lpRealPrice', overlayPlan.price.lpRealPrice, () => addLine('lpRealPrice'))
     toggle('entry', overlayPlan.price.entryLine, () => addLine('entry'))
+    toggle('mark', overlayPlan.price.currentLine, () => addLine('mark'))
     toggle('target', overlayPlan.markers.execution && Number.isFinite(props.position?.targetPrice), () =>
       addLine('target'),
     )
@@ -65,7 +68,7 @@ export function useMainChartSeries({ getChart, getProps }) {
       addPaneLine('bsTheta', paneLayout.greeks, { priceScaleId: 'greeks-theta' }),
     )
     toggle('greeksZero', overlayPlan.paneOn.greeks, () =>
-      addGuideLine('0', '#888', paneLayout.greeks, {
+      addGuideLine('greeksZero', '0', '#888', paneLayout.greeks, {
         priceScaleId: 'greeks-delta',
         lineStyle: LineStyle.Dashed,
         lastValueVisible: false,
@@ -85,7 +88,7 @@ export function useMainChartSeries({ getChart, getProps }) {
     )
     toggle('lpCe', overlayPlan.paneOn.lp, () => addPaneLine('lpCe', paneLayout.lp, { priceScaleId: 'lp-multiple' }))
     toggle('lpZero', overlayPlan.paneOn.lp, () =>
-      addGuideLine('LP暴露零线', '#888', paneLayout.lp, {
+      addGuideLine('lpZero', 'LP暴露零线', '#888', paneLayout.lp, {
         priceScaleId: 'lp-ratio',
         lineStyle: LineStyle.Dashed,
         lastValueVisible: false,
@@ -99,20 +102,20 @@ export function useMainChartSeries({ getChart, getProps }) {
       addPaneLine('netCarry', paneLayout.carry, { priceScaleId: 'carry-return' }),
     )
     toggle('carryZero', overlayPlan.paneOn.carry, () =>
-      addGuideLine('归因零线', '#888', paneLayout.carry, {
+      addGuideLine('carryZero', '归因零线', '#888', paneLayout.carry, {
         priceScaleId: 'carry-return',
         lineStyle: LineStyle.Dashed,
         lastValueVisible: false,
       }),
     )
 
-    toggle('equity', overlayPlan.paneOn.equity, () => chart.addSeries(LineSeries, equityOptions(), paneLayout.equity))
+    toggle('equity', overlayPlan.paneOn.equity, () => createLineSeries('equity', equityOptions(), paneLayout.equity))
     toggle('equityZero', overlayPlan.paneOn.equity, () =>
-      chart.addSeries(LineSeries, equityZeroOptions(), paneLayout.equity),
+      createLineSeries('equityZero', equityZeroOptions(), paneLayout.equity),
     )
 
-    toggle('kdjK', overlayPlan.paneOn.kdj, () => chart.addSeries(LineSeries, kdjKOptions(), paneLayout.kdj))
-    toggle('kdjJ', overlayPlan.paneOn.kdj, () => chart.addSeries(LineSeries, kdjJOptions(), paneLayout.kdj))
+    toggle('kdjK', overlayPlan.paneOn.kdj, () => createLineSeries('kdjK', kdjKOptions(), paneLayout.kdj))
+    toggle('kdjJ', overlayPlan.paneOn.kdj, () => createLineSeries('kdjJ', kdjJOptions(), paneLayout.kdj))
     if (series.kdjJ && !series.kdjJ.__hlinesInstalled) {
       series.kdjJ.__hlinesInstalled = true
       series.kdjJ.createPriceLine({
@@ -130,7 +133,7 @@ export function useMainChartSeries({ getChart, getProps }) {
         axisLabelVisible: false,
       })
     }
-    toggle('rsi', overlayPlan.paneOn.rsi, () => chart.addSeries(LineSeries, rsiOptions(), paneLayout.rsi))
+    toggle('rsi', overlayPlan.paneOn.rsi, () => createLineSeries('rsi', rsiOptions(), paneLayout.rsi))
     if (series.rsi && !series.rsi.__hlinesInstalled) {
       series.rsi.__hlinesInstalled = true
       series.rsi.createPriceLine({
@@ -169,16 +172,20 @@ export function useMainChartSeries({ getChart, getProps }) {
     const chart = getChart()
     if (on && !series[key]) {
       series[key] = factory()
-    } else if (!on && series[key]) {
-      chart?.removeSeries(series[key])
-      delete series[key]
-      delete seriesMeta[key]
+    } else if (!on) {
+      clearAuxiliarySeries(key)
+      if (series[key]) {
+        chart?.removeSeries(series[key])
+        delete series[key]
+        delete seriesMeta[key]
+      }
+      delete lineDescriptors[key]
     }
   }
 
   function addLine(key) {
     const style = requiredSeriesStyle(key)
-    return getChart().addSeries(LineSeries, {
+    return createLineSeries(key, {
       title: style.label,
       color: style.color,
       lineWidth: style.lineWidth,
@@ -189,14 +196,12 @@ export function useMainChartSeries({ getChart, getProps }) {
   }
 
   function addPaneLine(key, paneIndex, options = {}) {
-    const line = getChart().addSeries(LineSeries, deltaLine(key, options), paneIndex)
-    line.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 }, alignLabels: true })
-    return line
+    return createLineSeries(key, deltaLine(key, options), paneIndex, configurePaneLine)
   }
 
-  function addGuideLine(title, color, paneIndex, options = {}) {
-    const line = getChart().addSeries(
-      LineSeries,
+  function addGuideLine(key, title, color, paneIndex, options = {}) {
+    return createLineSeries(
+      key,
       {
         title,
         color,
@@ -208,9 +213,66 @@ export function useMainChartSeries({ getChart, getProps }) {
         priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
       },
       paneIndex,
+      configurePaneLine,
     )
-    line.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 }, alignLabels: true })
+  }
+
+  function createLineSeries(key, options, paneIndex, configure) {
+    const descriptor = { options, paneIndex, configure }
+    lineDescriptors[key] = descriptor
+    return addConfiguredLine(descriptor, options)
+  }
+
+  function addConfiguredLine(descriptor, options) {
+    const chart = getChart()
+    const line =
+      descriptor.paneIndex === undefined
+        ? chart.addSeries(LineSeries, options)
+        : chart.addSeries(LineSeries, options, descriptor.paneIndex)
+    descriptor.configure?.(line)
     return line
+  }
+
+  function setLineSegments(key, segments) {
+    const main = series[key]
+    if (!main) return
+    const validSegments = (Array.isArray(segments) ? segments : []).filter(
+      (segment) => Array.isArray(segment) && segment.length,
+    )
+    const descriptor = lineDescriptors[key]
+    const mainSegment = validSegments.at(-1) ?? []
+    main.setData(mainSegment)
+    applySegmentPointMarker(main, mainSegment)
+    if (!descriptor) return
+
+    const auxiliaries = auxiliarySeries[key] ?? (auxiliarySeries[key] = [])
+    const requiredCount = Math.max(0, validSegments.length - 1)
+    while (auxiliaries.length < requiredCount) {
+      auxiliaries.push(
+        addConfiguredLine(descriptor, {
+          ...descriptor.options,
+          title: '',
+          lastValueVisible: false,
+          priceLineVisible: false,
+        }),
+      )
+    }
+    while (auxiliaries.length > requiredCount) getChart()?.removeSeries(auxiliaries.pop())
+    auxiliaries.forEach((line, index) => {
+      const segment = validSegments[index]
+      line.setData(segment)
+      applySegmentPointMarker(line, segment)
+    })
+  }
+
+  function applySegmentPointMarker(line, segment) {
+    line.applyOptions({ pointMarkersVisible: segment.length === 1 })
+  }
+
+  function clearAuxiliarySeries(key) {
+    const chart = getChart()
+    for (const line of auxiliarySeries[key] ?? []) chart?.removeSeries(line)
+    delete auxiliarySeries[key]
   }
 
   function refreshSeriesMeta() {
@@ -227,11 +289,13 @@ export function useMainChartSeries({ getChart, getProps }) {
   function resetOverlaySeries() {
     const chart = getChart()
     if (!chart) return
+    for (const key of Object.keys(auxiliarySeries)) clearAuxiliarySeries(key)
     for (const key of Object.keys(series)) {
       if (key === 'candle') continue
       chart.removeSeries(series[key])
       delete series[key]
     }
+    for (const key of Object.keys(lineDescriptors)) delete lineDescriptors[key]
   }
 
   function rebalancePanes() {
@@ -252,9 +316,14 @@ export function useMainChartSeries({ getChart, getProps }) {
     series,
     seriesMeta,
     applyOverlays,
+    setLineSegments,
     getPaneLayout: () => paneLayout,
     getMarkersApi: () => markersApi,
   }
+}
+
+function configurePaneLine(line) {
+  line.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.18 }, alignLabels: true })
 }
 
 // ── series option factories（独立小函数，每个对象字面量很小 prettier 不展开） ─

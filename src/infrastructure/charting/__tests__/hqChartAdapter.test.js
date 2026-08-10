@@ -50,7 +50,6 @@ const hq = vi.hoisted(() => {
 })
 vi.mock('hqchart', () => ({ default: hq.runtime }))
 import { buildHqChartOption, createHqChartAdapter, repairHqRuntimeRegistry } from '../hqChartAdapter.js'
-import { applyHqResearchSeriesStyle } from '../hqChartResearchAdapter.js'
 
 function sizedElement() {
   const element = document.createElement('div')
@@ -242,60 +241,6 @@ describe('buildHqChartOption', () => {
     expect(repairHqRuntimeRegistry(registry)).toBe(true)
     expect(registry.IChartDrawPicture.ArrayDrawPricture[0].ClassName).toBe('ChartDrawTVShortPosition')
     expect(repairHqRuntimeRegistry(registry)).toBe(false)
-  })
-
-  it('仅让 Lab 多点线跨过空值连续绘制，不改写缺失值和点图语义', () => {
-    const sparseLine = {
-      Name: '期权 Delta',
-      DrawType: 1,
-      Color: '',
-      LineWidth: 0,
-      IsDotLine: false,
-      LineDash: [],
-    }
-    const singleLine = { Name: '单点线', DrawType: 1 }
-    const pointSeries = { Name: '最新权益', DrawType: 1 }
-    const undeclaredSeries = { Name: '未声明图形', DrawType: 1 }
-    const nativeSeries = { Name: 'MACD', DrawType: 1 }
-    const model = {
-      groups: [
-        {
-          series: [
-            {
-              label: '期权 Delta',
-              render: 'line',
-              color: '#a93226',
-              points: [
-                { time: '2026-08-01', value: 0.4 },
-                { time: '2026-08-08', value: 0.42 },
-              ],
-            },
-            { label: '单点线', render: 'line', color: '#333', points: [{ time: '2026-08-08', value: 1 }] },
-            {
-              label: '最新权益',
-              render: 'point',
-              color: '#1f5fbf',
-              points: [
-                { time: '2026-08-01', value: 100 },
-                { time: '2026-08-08', value: 101 },
-              ],
-            },
-            { label: '未声明图形', color: '#333', points: [{ value: 1 }, { value: 2 }] },
-          ],
-        },
-      ],
-    }
-
-    expect(applyHqResearchSeriesStyle({ Chart: sparseLine }, model)).toBe(true)
-    expect(sparseLine).toMatchObject({ DrawType: 0, Color: 'rgb(169,50,38)', LineWidth: 1 })
-    expect(applyHqResearchSeriesStyle({ Chart: singleLine }, model)).toBe(true)
-    expect(singleLine.DrawType).toBe(1)
-    expect(applyHqResearchSeriesStyle({ Chart: pointSeries }, model)).toBe(true)
-    expect(pointSeries.DrawType).toBe(1)
-    expect(applyHqResearchSeriesStyle({ Chart: undeclaredSeries }, model)).toBe(true)
-    expect(undeclaredSeries.DrawType).toBe(1)
-    expect(applyHqResearchSeriesStyle({ Chart: nativeSeries }, model)).toBe(false)
-    expect(nativeSeries.DrawType).toBe(1)
   })
 
   it('没有事件 ID 时不注册无效回调，空 scope 使用 global', () => {

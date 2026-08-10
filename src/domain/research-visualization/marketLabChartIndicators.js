@@ -1,6 +1,7 @@
 import { computeKDJ } from '../indicators/kdj.js'
 import { computeRSI } from '../indicators/rsi.js'
 import { resolveChartOverlayPlan } from './chartPaneLayout.js'
+import { buildMarketLabChartControls } from './marketLabChartControls.js'
 import { buildMarketLabChartGuides } from './marketLabChartGuides.js'
 import { getMarketLabSeriesStyle } from './marketLabSeriesStyles.js'
 
@@ -27,16 +28,36 @@ const DEFINITIONS = Object.freeze([
     fallback: ['costPath', 'lower'],
     controls: ['priceBands', 'costBand'],
   }),
-  pathIndicator('deltaUpper', 'GetDelta 上沿', 'price', 'price', '#9a4f00', 'main', 'price.deltaBand', 'deltaUpper', {
-    controls: ['priceBands', 'volBand'],
-  }),
-  pathIndicator('deltaLower', 'GetDelta 下沿', 'price', 'price', '#1f5fbf', 'main', 'price.deltaBand', 'deltaLower', {
-    controls: ['priceBands', 'volBand'],
-  }),
-  pathIndicator('lpLower', 'LP 情景区间下沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpLowerPrice', {
+  pathIndicator(
+    'deltaUpper',
+    '动态周期 GetDelta 上沿',
+    'price',
+    'price',
+    '#9a4f00',
+    'main',
+    'price.deltaBand',
+    'deltaUpper',
+    {
+      controls: ['priceBands', 'volBand'],
+    },
+  ),
+  pathIndicator(
+    'deltaLower',
+    '动态周期 GetDelta 下沿',
+    'price',
+    'price',
+    '#1f5fbf',
+    'main',
+    'price.deltaBand',
+    'deltaLower',
+    {
+      controls: ['priceBands', 'volBand'],
+    },
+  ),
+  pathIndicator('lpLower', 'LP 动态研究区间下沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpLowerPrice', {
     controls: ['priceBands', 'lpBand'],
   }),
-  pathIndicator('lpUpper', 'LP 情景区间上沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpUpperPrice', {
+  pathIndicator('lpUpper', 'LP 动态研究区间上沿', 'price', 'price', '#7a5cff', 'main', 'price.lpBand', 'lpUpperPrice', {
     controls: ['priceBands', 'lpBand'],
   }),
   pathIndicator('lpRealPrice', '链上池价', 'price', 'price', '#8b5a16', 'main', 'price.lpRealPrice', 'lpRealPrice', {
@@ -44,6 +65,9 @@ const DEFINITIONS = Object.freeze([
   }),
   constantIndicator('entry', '入场价', 'price', 'price', '#b3261e', 'main', 'price.entryLine', 'input', 'entryPrice', {
     controls: ['entryLine'],
+    state: 'ready',
+  }),
+  constantIndicator('mark', '现价', 'price', 'price', '#202020', 'main', 'price.currentLine', 'rows', 'close', {
     state: 'ready',
   }),
   constantIndicator(
@@ -168,22 +192,6 @@ const DEFINITIONS = Object.freeze([
   }),
 ])
 
-const CONTROL_KEYS = Object.freeze([
-  'priceBands',
-  'costBand',
-  'volBand',
-  'lpBand',
-  'entryLine',
-  'executionMarkers',
-  'greeksPane',
-  'lpPane',
-  'carryPane',
-  'equityPane',
-  'kdjPane',
-  'rsiPane',
-  'volume',
-])
-
 export const MARKET_LAB_CHART_INDICATOR_CATALOG = Object.freeze(
   DEFINITIONS.map((definition) => Object.freeze(publicMeta(definition, definition.sources[0]))),
 )
@@ -211,7 +219,7 @@ export function queryMarketLabChartSeries({
       series: item.series.filter((series) => series.active).map(({ active: _active, ...series }) => series),
     }),
   )
-  const controls = buildControls({ candidates, context, overlays, plan })
+  const controls = buildMarketLabChartControls({ candidates, context, overlays, plan })
   const availableSeriesCount = candidates.filter((candidate) => candidate.points.length).length
   const activeSeriesCount = candidates.filter((candidate) => candidate.active && candidate.points.length).length
 
@@ -271,38 +279,6 @@ function buildGroup(meta, candidates, rows) {
   }
 }
 
-function buildControls({ candidates, context, overlays, plan }) {
-  const controls = {}
-  for (const key of CONTROL_KEYS) {
-    const active = controlActive(key, overlays, plan)
-    const related = candidates.filter((candidate) => candidate.controls.includes(key))
-    const available = related.filter((candidate) => candidate.points.length)
-    const missing = related.filter((candidate) => !candidate.points.length).map((candidate) => candidate.missingSource)
-    if (key === 'volume') {
-      const hasVolume = context.rows.some((row) => Number.isFinite(row?.volume))
-      controls[key] = controlState({
-        active,
-        states: hasVolume ? ['ready'] : [],
-        missing: hasVolume ? [] : ['rows.volume'],
-      })
-      continue
-    }
-    controls[key] = controlState({ active, states: available.map((candidate) => candidate.state), missing })
-  }
-  return controls
-}
-
-function controlState({ active, states, missing }) {
-  const state = aggregateStates(states)
-  return {
-    state,
-    reason: state === 'missing-input' ? 'no-finite-output' : active ? stateReason(state) : 'overlay-disabled',
-    missing,
-    outputCount: states.length,
-    active,
-  }
-}
-
 function buildPoints(definition, selected, context) {
   if (definition.kind === 'constant') return constantPoints(context.rows, selected.value)
   if (definition.kind === 'equity') return equityPoints(context.rows, context.replay?.equityCurve)
@@ -316,15 +292,20 @@ function buildPoints(definition, selected, context) {
   const path = selected.source === 'costPath' ? context.costPath : context.formulaPath
   if (definition.pointMode === 'latest') {
     const index = path.length - 1
-    return pathPoint(index, selected.field, path, context)
+    return pathPoint(index, selected.field, path)
   }
-  return path.flatMap((_, index) => pathPoint(index, selected.field, path, context))
+  return path.flatMap((_, index) => pathPoint(index, selected.field, path))
 }
 
 function selectSource(definition, context) {
   if (definition.kind === 'constant') {
+    const source = definition.sources[0]
     const value =
-      definition.sources[0].source === 'position' ? context.position[definition.sources[0].field] : context.entryPrice
+      source.source === 'position'
+        ? context.position[source.field]
+        : source.source === 'rows'
+          ? context.rows.at(-1)?.[source.field]
+          : context.entryPrice
     return { ...definition.sources[0], value }
   }
   if (definition.kind !== 'path') return definition.sources[0]
@@ -335,9 +316,9 @@ function selectSource(definition, context) {
   return definition.sources[0]
 }
 
-function pathPoint(index, field, path, context) {
+function pathPoint(index, field, path) {
   const value = path[index]?.[field]
-  const time = context.rows[index]?.date ?? context.formulaPath[index]?.date ?? context.costPath[index]?.date
+  const time = path[index]?.date
   return Number.isFinite(value) && validTime(time) ? [{ time, value }] : []
 }
 
@@ -460,23 +441,6 @@ function groupReason({ state, groupActive }) {
 
 function stateReason(state) {
   return state === 'estimated' ? 'research-estimate' : 'finite-output-available'
-}
-
-function controlActive(key, overlays, plan) {
-  if (key === 'priceBands') return overlays?.priceBands !== false
-  if (key === 'costBand') return plan.price.costBand
-  if (key === 'volBand') return plan.price.deltaBand
-  if (key === 'lpBand') return plan.price.lpBand
-  if (key === 'entryLine') return plan.price.entryLine
-  if (key === 'executionMarkers') return plan.markers.execution
-  if (key === 'greeksPane') return overlays?.greeksPane !== false
-  if (key === 'lpPane') return overlays?.lpPane !== false
-  if (key === 'carryPane') return overlays?.carryPane !== false
-  if (key === 'equityPane') return overlays?.equityPane !== false
-  if (key === 'kdjPane') return overlays?.kdjPane !== false
-  if (key === 'rsiPane') return overlays?.rsiPane !== false
-  if (key === 'volume') return overlays?.volume !== false
-  return false
 }
 
 function readGate(plan, gate) {

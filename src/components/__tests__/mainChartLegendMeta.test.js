@@ -8,9 +8,9 @@ import {
 } from '../mainChartLegendMeta.js'
 
 describe('SERIES_META', () => {
-  it('包含全部 26 个 series key 且每个都含 title/color/unit/group', () => {
+  it('包含全部 27 个 series key 且每个都含 title/color/unit/group', () => {
     const keys = Object.keys(SERIES_META)
-    expect(keys).toHaveLength(26)
+    expect(keys).toHaveLength(27)
     for (const k of keys) {
       const meta = SERIES_META[k]
       expect(typeof meta.title).toBe('string')
@@ -23,6 +23,7 @@ describe('SERIES_META', () => {
 
 describe('fallbackValue', () => {
   const ctx = {
+    rows: [{ close: 98 }, { close: 101 }],
     formulaPath: [
       {
         costAnchor: 100,
@@ -93,8 +94,35 @@ describe('fallbackValue', () => {
     expect(fallbackValue('netCarry', 0, ctx)).toBe(0.0008)
   })
 
+  it('hover fallback 按当前 K 线日期关联 path，不读取同索引的其他日期', () => {
+    const dated = {
+      rows: [{ date: '2026-08-01' }, { date: '2026-08-02' }, { date: '2026-08-03' }],
+      formulaPath: [
+        { date: '2026-08-03', deltaUpper: 103, costAnchor: 93 },
+        { date: '2026-08-01', deltaUpper: 101, costAnchor: 91 },
+      ],
+      costPath: [{ date: '2026-08-02', anchor: 92 }],
+    }
+
+    expect(fallbackValue('deltaUpper', 0, dated)).toBe(101)
+    expect(fallbackValue('deltaUpper', 1, dated)).toBeUndefined()
+    expect(fallbackValue('deltaUpper', 2, dated)).toBe(103)
+    expect(fallbackValue('cost', 0, dated)).toBe(91)
+    expect(fallbackValue('cost', 1, dated)).toBeUndefined()
+    expect(
+      fallbackValue('deltaUpper', 0, {
+        rows: dated.rows,
+        formulaPath: [{ deltaUpper: 999 }],
+      }),
+    ).toBeUndefined()
+  })
+
   it('entry 直接返回 ctx.entryPrice', () => {
     expect(fallbackValue('entry', 0, ctx)).toBe(99)
+  })
+
+  it('现价线始终读取当前观察前缀的最后收盘价', () => {
+    expect(fallbackValue('mark', 0, ctx)).toBe(101)
   })
 
   it('模拟目标与失效线从 position 查询结果读取', () => {
@@ -124,15 +152,16 @@ describe('latestFinitePathPoint', () => {
     const rows = [{ date: '2026-08-01' }, { date: '2026-08-02' }, { date: '2026-08-03' }]
     const path = [
       { date: '2026-08-01', lpPoolTurnover24h: 0.2 },
-      { date: '2026-08-02', lpPoolTurnover24h: 0.3 },
+      { date: '2026-08-03', lpPoolTurnover24h: 0.3 },
     ]
 
     expect(latestFinitePathPoint(rows, path, 'lpPoolTurnover24h')).toEqual({
-      time: '2026-08-02',
+      time: '2026-08-03',
       value: 0.3,
     })
     expect(latestFinitePathPoint(rows, path, 'missing')).toBeNull()
     expect(latestFinitePathPoint(rows, [], 'lpPoolTurnover24h')).toBeNull()
+    expect(latestFinitePathPoint(rows, [{ lpPoolTurnover24h: 0.4 }], 'lpPoolTurnover24h')).toBeNull()
   })
 })
 

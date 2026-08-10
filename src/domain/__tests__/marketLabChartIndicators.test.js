@@ -84,8 +84,8 @@ describe('Market Lab chart indicator catalog', () => {
       'kdj',
       'rsi',
     ])
-    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(26)
-    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(26)
+    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(27)
+    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(27)
     expect(
       MARKET_LAB_CHART_INDICATOR_CATALOG.filter((item) => item.source === 'formulaPath')
         .map((item) => item.field)
@@ -114,8 +114,8 @@ describe('queryMarketLabChartSeries', () => {
 
     expect(model.dates).toEqual(rows.map((row) => row.date))
     expect(model.groups.map((group) => group.id)).toEqual(['price', 'greeks', 'lp', 'carry', 'equity', 'kdj', 'rsi'])
-    expect(model.activeSeriesCount).toBe(26)
-    expect(model.availableSeriesCount).toBe(26)
+    expect(model.activeSeriesCount).toBe(27)
+    expect(model.availableSeriesCount).toBe(27)
     expect(model.availability).toBe(model.controls)
 
     const price = model.groups[0]
@@ -127,8 +127,8 @@ describe('queryMarketLabChartSeries', () => {
       active: true,
       state: 'estimated',
       reason: 'research-estimate',
-      activeSeriesCount: 11,
-      availableSeriesCount: 11,
+      activeSeriesCount: 12,
+      availableSeriesCount: 12,
     })
     expect(price.series.map((series) => series.id)).toEqual([
       'cost',
@@ -140,6 +140,7 @@ describe('queryMarketLabChartSeries', () => {
       'lpUpper',
       'lpRealPrice',
       'entry',
+      'mark',
       'target',
       'stop',
     ])
@@ -151,6 +152,12 @@ describe('queryMarketLabChartSeries', () => {
       sourceField: 'formulaPath.costAnchor',
       render: 'line',
     })
+    expect(price.series.find((series) => series.id === 'mark')).toMatchObject({
+      label: '现价',
+      pane: 'main',
+      sourceField: 'rows.close',
+      points: rows.map((row) => ({ time: row.date, value: rows.at(-1).close })),
+    })
     expect(model.groups.find((group) => group.id === 'equity')).toMatchObject({
       state: 'ready',
       activeSeriesCount: 1,
@@ -159,13 +166,15 @@ describe('queryMarketLabChartSeries', () => {
     expect(model.groups.find((group) => group.id === 'rsi').series[0].points.length).toBeGreaterThan(0)
   })
 
-  it('关闭 overlay 时保留所有组和 availability，但 active series 为 0', () => {
+  it('关闭可选 overlay 时仍保留独立现价线，其余组保持关闭', () => {
     const model = fullQuery(ALL_OFF)
 
     expect(model.groups).toHaveLength(7)
-    expect(model.availableSeriesCount).toBe(26)
-    expect(model.activeSeriesCount).toBe(0)
-    for (const group of model.groups) {
+    expect(model.availableSeriesCount).toBe(27)
+    expect(model.activeSeriesCount).toBe(1)
+    expect(model.groups[0]).toMatchObject({ active: true, activeSeriesCount: 1 })
+    expect(model.groups[0].series.map((series) => series.id)).toEqual(['mark'])
+    for (const group of model.groups.slice(1)) {
       expect(group.active).toBe(false)
       expect(group.reason).toBe('overlay-disabled')
       expect(group.series).toEqual([])
@@ -255,10 +264,82 @@ describe('queryMarketLabChartSeries', () => {
       sourceField: 'formulaPath.costAnchor',
       points: [{ time: rows[1].date, value: 20 }],
     })
+    expect(price.series.find((series) => series.id === 'deltaUpper')).toBeUndefined()
+    expect(model.groups.find((group) => group.id === 'lp').series[0].points).toEqual([{ time: rows[0].date, value: 0 }])
+  })
+
+  it('当前 GetDelta 合法时保留历史有限点，空白日期交给适配器断线', () => {
+    const sampleRows = rows.slice(0, 3)
+    const formulaPath = sampleRows.map((row, index) => ({
+      date: row.date,
+      deltaUpper: index === 1 ? null : 11 + index,
+      deltaLower: index === 1 ? null : 9 + index,
+    }))
+    const model = queryMarketLabChartSeries({ rows: sampleRows, formulaPath, overlays: ALL_ON })
+    const price = model.groups.find((group) => group.id === 'price')
+
     expect(price.series.find((series) => series.id === 'deltaUpper').points).toEqual([
       { time: rows[0].date, value: 11 },
+      { time: rows[2].date, value: 13 },
     ])
-    expect(model.groups.find((group) => group.id === 'lp').series[0].points).toEqual([{ time: rows[0].date, value: 0 }])
+  })
+
+  it('路径点使用自身观察日，不把错序 path 值套到同索引 K 线日期', () => {
+    const sampleRows = rows.slice(0, 3)
+    const formulaPath = [
+      { date: sampleRows[2].date, costAnchor: 30 },
+      { date: sampleRows[0].date, costAnchor: 10 },
+    ]
+    const model = queryMarketLabChartSeries({ rows: sampleRows, formulaPath, overlays: ALL_ON })
+    const cost = model.groups.find((group) => group.id === 'price').series.find((series) => series.id === 'cost')
+
+    expect(cost.points).toEqual([
+      { time: sampleRows[2].date, value: 30 },
+      { time: sampleRows[0].date, value: 10 },
+    ])
+  })
+
+  it('路径点没有自身日期时 fail closed，不借用同索引 K 线日期', () => {
+    const model = queryMarketLabChartSeries({
+      rows: rows.slice(0, 1),
+      formulaPath: [{ costAnchor: 99 }],
+      overlays: ALL_ON,
+    })
+    const price = model.groups.find((group) => group.id === 'price')
+
+    expect(price.series.find((series) => series.id === 'cost')).toBeUndefined()
+  })
+
+  it('最新 GetDelta 不适用时仍显示历史稀疏段，并把当前状态和历史计数分开', () => {
+    const formulaPath = rows.map((row, index) => ({
+      date: row.date,
+      deltaUpper: index < 2 ? 11 + index : null,
+      deltaLower: index < 2 ? 9 + index : null,
+      fieldStates: {
+        deltaUpper: {
+          status: index === rows.length - 1 ? 'not-applicable' : 'implemented',
+          missingInputs: [],
+          blockedReasons: index === rows.length - 1 ? ['cycle-start-at-or-beyond-anchor'] : [],
+        },
+      },
+    }))
+    const model = queryMarketLabChartSeries({ rows, formulaPath, overlays: ALL_ON })
+    const price = model.groups.find((group) => group.id === 'price')
+
+    expect(price.series.find((series) => series.id === 'deltaUpper').points).toEqual([
+      { time: rows[0].date, value: 11 },
+      { time: rows[1].date, value: 12 },
+    ])
+    expect(model.controls.volBand).toEqual({
+      state: 'not-applicable',
+      reason: 'current-formula-output-unavailable',
+      missing: [],
+      blockedReasons: ['cycle-start-at-or-beyond-anchor'],
+      outputCount: 2,
+      historicalOutputCount: 2,
+      active: true,
+      current: true,
+    })
   })
 
   it('真实池覆盖只输出最新快照点，公式 cost 全空时回退 costPath', () => {

@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     priceToCoordinate: vi.fn((price) => 200 - price),
     priceScale: vi.fn(() => ({ applyOptions: mainPriceScaleApply })),
   }
+  const setLineSegments = vi.fn()
   const chart = {
     applyOptions: vi.fn(),
     timeScale: vi.fn(() => timeScale),
@@ -40,6 +41,7 @@ const mocks = vi.hoisted(() => {
     stockDispose: vi.fn(),
     crosshairHandler: vi.fn(() => null),
     mainPriceScaleApply,
+    setLineSegments,
   }
 })
 
@@ -51,9 +53,18 @@ vi.mock('lightweight-charts', () => ({
 
 vi.mock('../../composables/useMainChartSeries.js', () => ({
   useMainChartSeries: () => ({
-    series: { candle: mocks.candle },
+    series: {
+      candle: mocks.candle,
+      deltaUpper: {},
+      mark: {},
+      equity: {},
+      kdjK: {},
+      kdjJ: {},
+      rsi: {},
+    },
     seriesMeta: {},
     applyOverlays: mocks.applyOverlays,
+    setLineSegments: mocks.setLineSegments,
     getPaneLayout: () => ({ main: 0 }),
     getMarkersApi: () => null,
   }),
@@ -141,6 +152,51 @@ describe('MainChart', () => {
     expect(mocks.chart.unsubscribeCrosshairMove).toHaveBeenCalledTimes(1)
     expect(mocks.chart.remove).toHaveBeenCalledTimes(1)
   })
+
+  it('把稀疏公式、权益和指标数据按连续有限区间交给 series 管理器', () => {
+    const rows = makeManyRows(20)
+    const wrapper = mount(MainChart, {
+      props: {
+        ...makeProps(rows),
+        replay: {
+          equityCurve: [
+            { date: rows[0].date, equity: 100_000 },
+            { date: rows[2].date, equity: 100_200 },
+          ],
+        },
+        formulaPath: [
+          { date: rows[0].date, deltaUpper: 110 },
+          { date: rows[2].date, deltaUpper: 112 },
+        ],
+      },
+      global: {
+        stubs: {
+          ChartDrawingToolbar: true,
+          ChartDisplayTools: true,
+          ChartStatusBar: true,
+          MainChartHoverLegend: true,
+          StockChipProfileOverlay: true,
+          WorkbenchSummary: true,
+        },
+      },
+    })
+
+    expect(lastSegments('deltaUpper')).toEqual([
+      [{ time: rows[0].date, value: 110 }],
+      [{ time: rows[2].date, value: 112 }],
+    ])
+    expect(lastSegments('equity')).toEqual([
+      [{ time: rows[0].date, value: 100_000 }],
+      [{ time: rows[2].date, value: 100_200 }],
+    ])
+    expect(lastSegments('mark')).toEqual([rows.map((row) => ({ time: row.date, value: rows.at(-1).close }))])
+    for (const segments of [lastSegments('kdjK'), lastSegments('kdjJ'), lastSegments('rsi')]) {
+      expect(segments.length).toBeGreaterThan(0)
+      expect(segments.flat().every((point) => point.time && Number.isFinite(point.value))).toBe(true)
+    }
+
+    wrapper.unmount()
+  })
 })
 
 function makeProps(rows) {
@@ -161,4 +217,22 @@ function makeRows() {
     { date: '2026-01-01', open: 99, high: 102, low: 98, close: 101, volume: 1000 },
     { date: '2026-01-02', open: 101, high: 104, low: 100, close: 103, volume: 1200 },
   ]
+}
+
+function makeManyRows(count) {
+  return Array.from({ length: count }, (_, index) => {
+    const close = 100 + index
+    return {
+      date: new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10),
+      open: close - 1,
+      high: close + 1,
+      low: close - 2,
+      close,
+      volume: 1000 + index,
+    }
+  })
+}
+
+function lastSegments(key) {
+  return mocks.setLineSegments.mock.calls.filter(([seriesKey]) => seriesKey === key).at(-1)?.[1]
 }

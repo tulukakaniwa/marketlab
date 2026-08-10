@@ -17,6 +17,7 @@ const GROUPS = {
   lpUpper: 'price',
   lpRealPrice: 'price',
   entry: 'price',
+  mark: 'price',
   target: 'price',
   stop: 'price',
   bsDelta: 'greeks',
@@ -51,18 +52,22 @@ export const SERIES_META = Object.freeze(
  * 只有 primary 全空时才整条回退，避免在同一条线里逐点拼接两个口径。
  */
 export function resolvePreferredPathValues(primaryPath, primaryField, fallbackPath, fallbackField) {
+  const selected = resolvePreferredPath(primaryPath, primaryField, fallbackPath, fallbackField)
+  return selected.path.map((row) => row?.[selected.field])
+}
+
+export function resolvePreferredPath(primaryPath, primaryField, fallbackPath, fallbackField) {
   const primary = Array.isArray(primaryPath) ? primaryPath : []
-  if (pathHasFiniteValue(primary, primaryField)) return primary.map((row) => row?.[primaryField])
-  const fallback = Array.isArray(fallbackPath) ? fallbackPath : []
-  return fallback.map((row) => row?.[fallbackField])
+  if (pathHasFiniteValue(primary, primaryField)) return { path: primary, field: primaryField }
+  return { path: Array.isArray(fallbackPath) ? fallbackPath : [], field: fallbackField }
 }
 
 /** latest-only 快照必须落在 path 自己的观察日，而不是完整 rows 的最后一日。 */
-export function latestFinitePathPoint(rows, path, field) {
+export function latestFinitePathPoint(_rows, path, field) {
   if (!Array.isArray(path) || !path.length) return null
   const index = path.length - 1
   const value = path[index]?.[field]
-  const time = rows?.[index]?.date ?? path[index]?.date
+  const time = path[index]?.date
   return Number.isFinite(value) && time !== null && time !== undefined && time !== '' ? { time, value } : null
 }
 
@@ -70,11 +75,11 @@ export function latestFinitePathPoint(rows, path, field) {
  * hover 时按 idx 从 formulaPath/costPath/entryPrice 反查某 series 的兜底值
  * （首选是 lightweight-charts 的 param.seriesData，失败时走这条路径）
  *
- * ctx 形如 `{ formulaPath, costPath, entryPrice }`，可以直接传入 Vue 的 props（响应式 proxy 会自动 unwrap），
- * 或任意纯对象。函数只读取这三个字段，不会写入。
+ * ctx 形如 `{ rows, formulaPath, costPath, entryPrice }`，可以直接传入 Vue 的 props（响应式 proxy 会自动 unwrap），
+ * 或任意纯对象。存在带日期的 rows/path 时按日期关联；旧的无日期测试夹具才回退索引读取。
  */
 export function fallbackValue(key, idx, ctx = {}) {
-  const fp = ctx.formulaPath?.[idx]
+  const fp = pathRowAtObservation(ctx.formulaPath, idx, ctx.rows)
   switch (key) {
     case 'cost':
       return preferredPathValue(ctx, idx, 'costAnchor', 'anchor')
@@ -94,6 +99,8 @@ export function fallbackValue(key, idx, ctx = {}) {
       return fp?.lpRealPrice
     case 'entry':
       return ctx.entryPrice
+    case 'mark':
+      return ctx.rows?.at(-1)?.close
     case 'target':
       return ctx.position?.targetPrice
     case 'stop':
@@ -111,9 +118,9 @@ export function fallbackValue(key, idx, ctx = {}) {
     case 'lpRealDiv':
       return fp?.lpRealDivergence
     case 'lpPoolTurnover':
-      return idx === ctx.formulaPath?.length - 1 ? fp?.lpPoolTurnover24h : null
+      return fp && fp === ctx.formulaPath?.at(-1) ? fp.lpPoolTurnover24h : null
     case 'lpPoolConcentration':
-      return idx === ctx.formulaPath?.length - 1 ? fp?.lpPoolTopReserveShare : null
+      return fp && fp === ctx.formulaPath?.at(-1) ? fp.lpPoolTopReserveShare : null
     case 'lpCe':
       return fp?.capitalEfficiency
     case 'cumulativeFundingProxy':
@@ -126,9 +133,20 @@ export function fallbackValue(key, idx, ctx = {}) {
 }
 
 function preferredPathValue(ctx, idx, primaryField, fallbackField) {
-  const primary = Array.isArray(ctx.formulaPath) ? ctx.formulaPath : []
-  if (pathHasFiniteValue(primary, primaryField)) return primary[idx]?.[primaryField]
-  return Array.isArray(ctx.costPath) ? ctx.costPath[idx]?.[fallbackField] : undefined
+  const selected = resolvePreferredPath(ctx.formulaPath, primaryField, ctx.costPath, fallbackField)
+  return pathRowAtObservation(selected.path, idx, ctx.rows)?.[selected.field]
+}
+
+function pathRowAtObservation(path, idx, rows) {
+  if (!Array.isArray(path)) return undefined
+  const date = rows?.[idx]?.date
+  if (date !== null && date !== undefined && date !== '') {
+    for (let index = path.length - 1; index >= 0; index -= 1) {
+      if (path[index]?.date === date) return path[index]
+    }
+    return undefined
+  }
+  return path[idx]
 }
 
 function pathHasFiniteValue(path, field) {
