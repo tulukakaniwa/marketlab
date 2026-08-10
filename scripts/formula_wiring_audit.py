@@ -42,8 +42,10 @@ def run_node_checks() -> list[dict]:
       import { buildPortfolioResearch } from './src/domain/formula-research/portfolioResearch.js'
       import { buildCostPath, buildMarketState, buildMarketStatePath } from './src/domain/market-data/cost.js'
       import { buildFormulaPath } from './src/domain/market-data/formulaPath.js'
+      import { deriveFormulaPathLpResearchRange } from './src/domain/market-data/formulaPathLpResearchRange.js'
       import { lpPoolCoverageMetrics } from './src/domain/market-data/lpPoolMetrics.js'
       import { parseBinanceKlines, parseCsvText } from './src/domain/market-data/ohlcv.js'
+      import { inferTdpy } from './src/domain/market-data/tdpy.js'
       import { buildDecisionGraph } from './src/domain/strategy-planning/orderPlan.js'
 
       const csv = await readFile('./public/data/btcusdt-1d-2017-2025.csv', 'utf8')
@@ -102,6 +104,15 @@ def run_node_checks() -> list[dict]:
         recoveryNotionalBasis: 'cycle-start-quote-notional',
         fundingNotionalBasis: 'cycle-start-quote-notional',
         tradingDaysPerYear: 365,
+        dynamicHoldingGate: {
+          status: '观察',
+          candidateStatus: '观察',
+          phase: 'repair-start',
+          phaseLabel: '修复启动',
+          blockedReasons: [],
+          executionAuthority: 'none',
+          source: 'audit-fixture',
+        },
         lpOnchainSnapshot,
       }
       const formulaPath = buildFormulaPath(rows, input)
@@ -129,6 +140,11 @@ def run_node_checks() -> list[dict]:
       const asian = asianOption({ entryPrice: 100, strikePrice: 105, timeToExpirySessions: 30, iv: 0.4, riskFreeRate: 0.04, type: 'put', tradingDaysPerYear: 365 })
       const bach = bachelierOption({ entryPrice: 100, strikePrice: 105, timeToExpirySessions: 30, normalVol: 40, riskFreeRate: 0.04, type: 'put', tradingDaysPerYear: 365 })
       const lp = uniswapV3Inventory({ markPrice: 110, lowerPrice: 80, upperPrice: 130, liquidity: 10 })
+      const lpResearchRange = deriveFormulaPathLpResearchRange({
+        bandAnchor: 100,
+        deltaBands: bands,
+        horizon: { modelHorizonSessions: 30, recoveryFraction: 0.5, availableAt: 'audit-snapshot-known-at' },
+      })
       const lpCoverage = lpPoolCoverageMetrics(lpOnchainSnapshot.poolCoverage)
       const lpBelow = uniswapV3Inventory({ markPrice: 70, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
       const lpInside = uniswapV3Inventory({ markPrice: 100, lowerPrice: 80, upperPrice: 120, liquidity: 10 })
@@ -234,15 +250,98 @@ def run_node_checks() -> list[dict]:
       const missingFundingLast = missingFundingPath.at(-1)
       const sampleMatrixOk = sampleMatrix.every((sample) => sample.rows >= 120 && sample.pathRows === sample.rows && Object.values(sample.finiteFields).every((count) => count > 0))
       const missingFundingOk = missingFundingLast?.status?.includes('missing-input') && missingFundingLast?.status?.includes('fallback-input') && missingFundingLast?.fieldStates?.cumulativeFundingProxy?.missingInputs?.includes('perpTwap')
+      const stockIndex = JSON.parse(await readFile('./src/data/stock-index.json', 'utf8'))
+      const invariantSamples = [
+        ...stockIndex.map((item) => ({ ...item, file: `./public${item.url}`, parser: parseCsvText })),
+        {
+          symbol: 'BTCUSDT-legacy',
+          market: '加密',
+          file: './public/data/btcusdt-1d-2017-2025.csv',
+          parser: parseBinanceKlines,
+        },
+      ]
+      const formulaPathInvariant = {
+        datasets: invariantSamples.length,
+        rows: 0,
+        fullyDefinedRows: 0,
+        degenerateVolatilityRows: 0,
+        eligibleDegenerateVolatilityRows: 0,
+        failures: [],
+      }
+      const invariantDeltaSlope = 0.3
+      const gateStatuses = new Set(['missing-input', 'not-applicable', 'model-gate-failed'])
+      const recordFailure = (sample, row, field, reason) => {
+        if (formulaPathInvariant.failures.length >= 20) return
+        formulaPathInvariant.failures.push(`${sample.symbol}:${row.date}:${field}:${reason}`)
+      }
+      const inspectPair = (sample, row, fields, stateField) => {
+        const finiteCount = fields.filter((field) => finite(row[field])).length
+        if (finiteCount === 1) recordFailure(sample, row, fields.join('/'), 'partial-path-would-hard-connect')
+        if (finiteCount !== 0) return
+        const state = row.fieldStates?.[stateField]
+        const reasons = [...(state?.missingInputs ?? []), ...(state?.blockedReasons ?? [])]
+        if (!gateStatuses.has(state?.status) || !reasons.length) {
+          recordFailure(sample, row, stateField, 'null-without-explicit-gate-reason')
+        }
+      }
+      for (const sample of invariantSamples) {
+        const sampleRows = sample.parser(await readFile(sample.file, 'utf8'))
+        const sampleTdpy = inferTdpy(sample).value
+        const path = buildFormulaPath(sampleRows, {
+          deltaSlope: invariantDeltaSlope,
+          tradingDaysPerYear: sampleTdpy,
+        })
+        formulaPathInvariant.rows += path.length
+        for (const row of path) {
+          const fullyDefined =
+            row.formulaHorizonSessions > 0 &&
+            row.iv > 0 &&
+            row.bandAnchor > 0 &&
+            sampleTdpy > 0 &&
+            Number.isFinite(invariantDeltaSlope)
+          if (fullyDefined) {
+            formulaPathInvariant.fullyDefinedRows += 1
+            for (const field of ['deltaLower', 'deltaUpper', 'lpLowerPrice', 'lpUpperPrice']) {
+              if (!finite(row[field])) recordFailure(sample, row, field, 'finite-inputs-require-finite-output')
+            }
+          }
+          inspectPair(sample, row, ['deltaLower', 'deltaUpper'], 'deltaUpper')
+          inspectPair(sample, row, ['lpLowerPrice', 'lpUpperPrice'], 'lpUpperPrice')
+          if (row.fieldStates?.iv?.context?.observedValue === 0) {
+            formulaPathInvariant.degenerateVolatilityRows += 1
+            if (row.formulaHorizonSessions > 0 && row.bandAnchor > 0) {
+              formulaPathInvariant.eligibleDegenerateVolatilityRows += 1
+            }
+            for (const field of ['iv', 'deltaUpper', 'lpUpperPrice']) {
+              const state = row.fieldStates?.[field]
+              if (
+                state?.status !== 'model-gate-failed' ||
+                state?.missingInputs?.length ||
+                !state?.blockedReasons?.includes('degenerate-volatility')
+              ) {
+                recordFailure(sample, row, field, 'zero-volatility-must-be-explicit-model-gate')
+              }
+            }
+          }
+        }
+      }
+      const formulaPathInvariantOk =
+        formulaPathInvariant.datasets === stockIndex.length + 1 &&
+        formulaPathInvariant.rows > 500000 &&
+        formulaPathInvariant.fullyDefinedRows > 0 &&
+        formulaPathInvariant.degenerateVolatilityRows > 0 &&
+        formulaPathInvariant.eligibleDegenerateVolatilityRows >= 7 &&
+        formulaPathInvariant.failures.length === 0
 
       const checks = {
         path: nonEmpty(marketPath) && finite(marketPath.at(-1)?.markPrice) && finite(marketPath.at(-1)?.annualVol) && sampleMatrixOk,
         cost: nonEmpty(costPath) && finite(costPath.at(-1)?.anchor) && finite(costPath.at(-1)?.upper) && finite(costPath.at(-1)?.lower),
         volatility: finite(market.annualVol) && market.annualVol > 0 && finite(market.atrPercent),
-        'delta-band': finite(bands?.long?.low) && finite(bands?.long?.cost) && finite(bands?.long?.high) && pathFinite('deltaUpper'),
+        'delta-band': finite(bands?.long?.low) && finite(bands?.long?.cost) && finite(bands?.long?.high) && pathFinite('deltaUpper') && formulaPathInvariantOk,
         'option-greeks': finite(option?.price) && finite(option?.optionDelta) && finite(option?.optionGamma) && pathFinite('optionGamma'),
         'asian-option': finite(asian?.price) && finite(asian?.optionDelta) && finite(bach?.price) && finite(bach?.optionDelta),
         'lp-inventory': finite(lp?.token0) && finite(lp?.token1) && finite(lp?.value) && lp?.inventoryDeltaToken0 === lp?.token0 && !Object.prototype.hasOwnProperty.call(lp, 'delta') && pathFinite('lpValue') && pathFinite('lpInventoryDeltaToken0') && lpBelow?.zone === 'token0' && lpInside?.zone === 'range' && lpAbove?.zone === 'token1',
+        'lp-research-range': lpResearchRange?.status === 'research-only' && lpResearchRange?.claimClass === 'scenario-proxy' && lpResearchRange?.executionAuthority === 'none' && finite(lpResearchRange?.lowerPrice) && finite(lpResearchRange?.upperPrice) && lpResearchRange.lowerPrice < 100 && lpResearchRange.upperPrice > 100 && formulaPathInvariantOk,
         'lp-pool-coverage': finite(lpCoverage?.turnover24h) && finite(lpCoverage?.topReserveShare) && pathFinite('lpPoolTurnover24h') && pathFinite('lpPoolTopReserveShare'),
         'liquidity-fingerprint': nonEmpty(fingerprint?.segments) && fingerprint.inputMode === 'hybrid-model' && fingerprint.stats?.orderShare > 0 && Math.abs(fingerprint.segments.reduce((sum, seg) => sum + seg.weight, 0) - 1) < 1e-6,
         'amm-geometry': nonEmpty(amm?.points) && numoen?.status === 'protocol-unverified' && finite(numoen?.R0),
@@ -265,6 +364,14 @@ def run_node_checks() -> list[dict]:
         sampleMatrix,
         missingFundingStatus: missingFundingLast?.status ?? [],
         lpZones: [lpBelow?.zone, lpInside?.zone, lpAbove?.zone],
+        lpResearchRange: {
+          status: lpResearchRange?.status,
+          claimClass: lpResearchRange?.claimClass,
+          executionAuthority: lpResearchRange?.executionAuthority,
+          lowerPrice: lpResearchRange?.lowerPrice,
+          upperPrice: lpResearchRange?.upperPrice,
+        },
+        formulaPathInvariant,
         fingerprintStats: fingerprint?.stats,
         orderCount: graph.plan?.primaryOrders?.length ?? 0,
       }

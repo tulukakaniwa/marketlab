@@ -110,6 +110,82 @@ function expandingAr1ThroughOrigin(states) {
   return { rho, half_life_sessions, valid }
 }
 
+function resolveCycleStart(rows, states) {
+  const pointIndex = rows.length - 1
+  const row = rows[pointIndex]
+  const state = states[pointIndex]
+  const side = row.close > state.anchor ? 'short' : 'long'
+  const target_price = side === 'short' ? state.upper : state.lower
+  const target_source = side === 'short' ? 'adaptive-cost-upper' : 'adaptive-cost-lower'
+  const windowStart = Math.max(0, pointIndex - state.cost_window + 1)
+  let windowExtreme = null
+
+  for (let cursor = windowStart; cursor <= pointIndex; cursor += 1) {
+    const candidate = candleExtreme(rows[cursor], cursor, side)
+    if (!candidate) continue
+    if (
+      !windowExtreme ||
+      (side === 'long' ? candidate.price <= windowExtreme.price : candidate.price >= windowExtreme.price)
+    ) {
+      windowExtreme = candidate
+    }
+  }
+
+  if (validStructure(windowExtreme?.price, target_price, state.anchor, side)) {
+    return {
+      ...windowExtreme,
+      side,
+      target_price,
+      target_source,
+      source: side === 'long' ? 'adaptive-cost-window-low-extreme' : 'adaptive-cost-window-high-extreme',
+    }
+  }
+
+  for (let cursor = pointIndex; cursor >= 0; cursor -= 1) {
+    const candidate = candleExtreme(rows[cursor], cursor, side)
+    const boundary = positive(side === 'long' ? states[cursor]?.lower : states[cursor]?.upper)
+    if (!candidate || !crossesBoundary(candidate.price, boundary, side)) continue
+    if (!validStructure(candidate.price, target_price, state.anchor, side)) continue
+    return {
+      ...candidate,
+      side,
+      target_price,
+      target_source,
+      source: side === 'long' ? 'recent-dynamic-lower-crossing' : 'recent-dynamic-upper-crossing',
+    }
+  }
+
+  return {
+    ...windowExtreme,
+    side,
+    target_price,
+    target_source,
+    source: side === 'long' ? 'adaptive-cost-window-low-extreme' : 'adaptive-cost-window-high-extreme',
+  }
+}
+
+function candleExtreme(row, index, side) {
+  const price = positive(side === 'long' ? row?.low : row?.high)
+  return price === null ? null : { price, date: row?.date ?? null, index }
+}
+
+function validStructure(cycleStartPrice, targetPrice, anchorPrice, side) {
+  if (![cycleStartPrice, targetPrice, anchorPrice].every(Number.isFinite)) return false
+  return side === 'short'
+    ? cycleStartPrice > targetPrice && targetPrice > anchorPrice
+    : cycleStartPrice < targetPrice && targetPrice < anchorPrice
+}
+
+function crossesBoundary(price, boundary, side) {
+  if (![price, boundary].every(Number.isFinite)) return false
+  return side === 'short' ? price > boundary : price < boundary
+}
+
+function positive(value) {
+  const next = Number(value)
+  return Number.isFinite(next) && next > 0 ? next : null
+}
+
 function getDeltaBand({ entryPrice, horizonSessions, iv, deltaSlope, tradingSessionsPerYear }) {
   const wave = iv * Math.sqrt(horizonSessions / (tradingSessionsPerYear * 2 * Math.PI))
   if (!(entryPrice > 0 && horizonSessions > 0 && iv > 0 && wave > 0 && wave < 1)) return null
@@ -149,10 +225,12 @@ export function pineEquivalent(rows, inputs = {}) {
   const last = rows.at(-1)
   const state = states.at(-1)
   const ar = expandingAr1ThroughOrigin(states)
-  const anchorGap = state.anchor - last.close
-  const targetGap = state.lower - last.close
-  const recovery_fraction = anchorGap > 0 ? targetGap / anchorGap : NaN
-  const recoveryValid = recovery_fraction > 0 && recovery_fraction < 1
+  const cycleStart = resolveCycleStart(rows, states)
+  const direction = cycleStart.side === 'short' ? -1 : 1
+  const anchorGap = (state.anchor - cycleStart.price) * direction
+  const targetGap = (cycleStart.target_price - cycleStart.price) * direction
+  const recovery_fraction = anchorGap !== 0 ? targetGap / anchorGap : NaN
+  const recoveryValid = anchorGap > 0 && targetGap > 0 && recovery_fraction > 0 && recovery_fraction < 1
   const formula_horizon_raw_sessions =
     ar.valid && recoveryValid ? ar.half_life_sessions * (Math.log(1 / (1 - recovery_fraction)) / Math.log(2)) : NaN
   const formula_horizon_sessions = formula_horizon_raw_sessions > 0 ? Math.ceil(formula_horizon_raw_sessions) : NaN
@@ -191,6 +269,16 @@ export function pineEquivalent(rows, inputs = {}) {
     cost_distance: state.cost_distance,
     rho: ar.rho,
     half_life_sessions: ar.half_life_sessions,
+    side: cycleStart.side,
+    target_price: cycleStart.target_price,
+    target_source: cycleStart.target_source,
+    cycle_start_price: cycleStart.price,
+    cycle_start_source: cycleStart.source,
+    cycle_start_date: cycleStart.date,
+    cycle_start_index: cycleStart.index,
+    cycle_start_lookback_sessions: rows.length - 1 - cycleStart.index,
+    anchor_gap: anchorGap,
+    target_gap: targetGap,
     recovery_fraction,
     formula_horizon_raw_sessions,
     formula_horizon_sessions,
