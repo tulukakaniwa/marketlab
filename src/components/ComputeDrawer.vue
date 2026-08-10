@@ -48,10 +48,12 @@ const metrics = computed(() => {
     { label: '成本锚', value: money(m?.costAnchor), unit: pct(m?.costDistance) },
     { label: '历史波动', value: pct(m?.annualVol), unit: `样本估计 · ATR ${pct(m?.atrPercent)}` },
     {
-      label: 'GetDelta 区间',
+      label: '入场价情景 GetDelta',
       value: bands?.long ? `${money(bands.long.low)} — ${money(bands.long.high)}` : deltaState.label,
       unit: bands?.long
-        ? '低 / 高 · 条件情景'
+        ? deltaState.source === 'current-graph'
+          ? 'P=入场价 · 条件情景，不等于主图成本锚路径'
+          : 'P=当前成本锚 · 公式路径快照'
         : deltaState.blockedReasons.length
           ? deltaState.reasonText
           : `缺少：${deltaState.missingText}`,

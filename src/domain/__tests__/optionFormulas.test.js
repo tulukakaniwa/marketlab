@@ -50,6 +50,12 @@ describe('getDeltaBands', () => {
       }),
     ).toBeNull()
   })
+  it('空的 deltaSlope 不能被 Number 强转为有效的 0', () => {
+    expect(resolveDeltaSlope({ deltaSlope: null })).toBeNull()
+    expect(resolveDeltaSlope({ deltaSlope: undefined })).toBeNull()
+    expect(resolveDeltaSlope({ deltaSlope: '' })).toBeNull()
+    expect(resolveDeltaSlope({ deltaSlope: 0 })).toBe(0)
+  })
   it('非法参数返回 null', () => {
     expect(
       getDeltaBands({ entryPrice: 0, formulaHorizonSessions: 30, iv: 1, deltaSlope: 0.3, tradingDaysPerYear: 365 }),

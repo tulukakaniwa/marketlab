@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildMarketStatePath } from '../market-data/cost.js'
-import { buildDecisionGraph, strategyProfileList } from '../strategy-planning/orderPlan.js'
+import { buildDecisionGraph } from '../strategy-planning/orderPlan.js'
 
 function makeRows(n, gen) {
   return Array.from({ length: n }, (_, i) => {
@@ -25,12 +25,6 @@ function moveBelowCost(market) {
     costDistance: (markPrice - market.costAnchor) / market.costAnchor,
   }
 }
-
-describe('strategyProfileList', () => {
-  it('档位顺序固定：保守 / 均衡 / 激进 / 自定义', () => {
-    expect(strategyProfileList.map((p) => p.id)).toEqual(['conservative', 'balanced', 'aggressive', 'custom'])
-  })
-})
 
 describe('buildDecisionGraph', () => {
   const rows = makeRows(120, (i) => 100 + Math.sin(i / 10) * 5)
@@ -69,6 +63,14 @@ describe('buildDecisionGraph', () => {
     perpTwap: market.markPrice,
     spotTwap: market.costAnchor,
     tradingDaysPerYear: 252,
+    dynamicHoldingGate: {
+      status: '观察',
+      candidateStatus: '观察',
+      phase: 'repair-start',
+      phaseLabel: '修复启动',
+      blockedReasons: [],
+      executionAuthority: 'none',
+    },
   }
   const noAccountInput = {
     ...baseInput,
@@ -124,18 +126,6 @@ describe('buildDecisionGraph', () => {
       expect(order.formulaHorizonSessions).toBe(order.horizonBinding.modelHorizonSessions)
       expect(order.horizonBinding.rederivedForLimitScenario).toBe(true)
     }
-  })
-
-  it('旧 targetReturn 输入不能污染 GetDelta 的 deltaSlope', () => {
-    const legacyOnly = buildDecisionGraph({
-      market,
-      input: { ...baseInput, deltaSlope: undefined, targetReturn: 0.91 },
-    })
-    const canonical = buildDecisionGraph({ market, input: { ...baseInput, deltaSlope: 0, targetReturn: 0.05 } })
-    expect(legacyOnly.inputs.deltaSlope).toBeNull()
-    expect(legacyOnly.inputs).not.toHaveProperty('targetReturn')
-    expect(legacyOnly.deltaBands).toBeNull()
-    expect(canonical.deltaBands.variables.d).toBe(0)
   })
 
   it('折价 + 动量止跌时使用市场缩放 profile 生成买入挂单', () => {
@@ -203,7 +193,7 @@ describe('buildDecisionGraph', () => {
     expect(blocked.deltaBands).toBeNull()
     expect(blocked.plan.primaryOrders).toEqual([])
     expect(blocked.decision.missingInputs).toContain('formula-derived-horizon')
-    expect(blocked.decision.holdingWindow).toBe('当前无方向周期')
+    expect(blocked.decision.holdingWindow).toBe('当前无执行方向；研究周期待公式推导')
   })
 
   it('缺少 tradingDaysPerYear 时关闭默认挂单', () => {

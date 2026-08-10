@@ -33,11 +33,17 @@ const pipeline = computed(() => [
   },
   {
     id: 'order-plan',
-    label: '条件',
-    val: props.graph.plan?.primaryOrders?.length ? `${props.graph.plan.primaryOrders.length}档` : '未触发',
-    sub: props.graph.decision?.state ?? '等待',
+    label: '候选 / 执行',
+    val: props.graph.plan?.primaryOrders?.length
+      ? `${props.graph.plan.primaryOrders.length} 档模拟`
+      : `候选${props.graph.decision?.candidateStatus ?? '等待'}`,
+    sub: `市场结构 ${props.graph.decision?.state ?? '等待'} · ${executionLabel(props.graph.decision?.executionStatus)}`,
   },
 ])
+
+function executionLabel(status) {
+  return status === 'simulation-only' ? '仅模拟' : '不可执行'
+}
 
 function fmt(v) {
   return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—'

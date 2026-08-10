@@ -14,6 +14,7 @@ import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
 import { useChartOverlays } from '../composables/useChartOverlays.js'
 import { persistedReactive } from '../composables/usePersisted.js'
 import { buildWorkbenchSummary } from '../domain/workbench/workbenchSummary.js'
+import { buildDynamicHoldingGate } from '../domain/strategy-planning/dynamicHoldingGate.js'
 
 const LP_SCENARIO_FIELDS = new Set([
   'lpScenarioEnabled',
@@ -81,6 +82,16 @@ export const useLabStore = defineStore('lab', () => {
   // 6. ReplayAccount 是显式开启的旁路查询；只有 replayAutoProfile 打开才参与 profile 选择。
   const replayLayer = useReplay(marketState.activeRows, input, baseInput, activeMarketStates, planning.featureFlags)
 
+  const dynamicHoldingGate = computed(() => {
+    const formulaPoint = marketState.formulaPath.value.at(-1)
+    return buildDynamicHoldingGate({
+      market: marketState.market.value,
+      rows: marketState.activeRows.value,
+      formulaPoint,
+      tradingDaysPerYear: effectiveTdpy.value,
+    })
+  })
+
   const effectiveInput = computed(() => {
     const formulaPoint = marketState.formulaPath.value.at(-1)
     return {
@@ -88,6 +99,8 @@ export const useLabStore = defineStore('lab', () => {
       formulaHorizonSessions: formulaPoint?.formulaHorizonSessions ?? null,
       formulaRecoveryFraction: formulaPoint?.recoveryFraction ?? null,
       formulaHorizonState: formulaPoint?.fieldStates?.formulaHorizonSessions ?? null,
+      modelVersion: formulaPoint?.modelVersion ?? marketState.market.value?.modelVersion ?? null,
+      dynamicHoldingGate: dynamicHoldingGate.value,
       lpOnchainSnapshot: resolveLpOnchainSnapshot(data.source.value, lpOnchainSnapshots),
       strategyProfile:
         planning.featureFlags.replayAccount && planning.featureFlags.replayAutoProfile
@@ -238,7 +251,13 @@ export const useLabStore = defineStore('lab', () => {
   const hoverFormulaRow = computed(() => {
     const idx = hoverIndex.value
     if (idx === null) return marketState.formulaPath.value.at(-1) ?? null
-    return marketState.formulaPath.value[idx] ?? marketState.formulaPath.value.at(-1) ?? null
+    const date = hoverRow.value?.date
+    if (!date) return null
+    const path = marketState.formulaPath.value
+    for (let pathIndex = path.length - 1; pathIndex >= 0; pathIndex -= 1) {
+      if (path[pathIndex]?.date === date) return path[pathIndex]
+    }
+    return null
   })
 
   return {
@@ -278,6 +297,7 @@ export const useLabStore = defineStore('lab', () => {
     market: marketState.market,
     costPath: marketState.costPath,
     formulaPath: marketState.formulaPath,
+    dynamicHoldingGate,
 
     // 决策层
     input: planning.input,

@@ -118,6 +118,29 @@ describe('useLabStore（v3 重写后契约）', () => {
     expect(lab.activeRows).toHaveLength(90)
   })
 
+  it('hover 公式行按 K 线日期关联，路径错序或缺日时不回退最新值', async () => {
+    const lab = useLabStore()
+    lab.importText(
+      [
+        'date,open,high,low,close,volume',
+        '2024-01-01,10,11,9,10,100',
+        '2024-01-02,11,12,10,11,100',
+        '2024-01-03,12,13,11,12,100',
+      ].join('\n'),
+      'hover-date-join',
+    )
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    lab.formulaPath.reverse()
+    lab.setHoverIndex(0)
+    expect(lab.hoverFormulaRow?.date).toBe('2024-01-01')
+
+    const first = lab.formulaPath.findIndex((row) => row.date === '2024-01-02')
+    lab.formulaPath.splice(first, 1)
+    lab.setHoverIndex(1)
+    expect(lab.hoverFormulaRow).toBeNull()
+  })
+
   it('观察日期按数据源隔离，避免不同用户样本串时间', async () => {
     const lab = useLabStore()
     const csvA = [

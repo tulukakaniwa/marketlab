@@ -15,7 +15,7 @@ const overlays = {
   priceBands: true,
   costBand: true,
   volBand: true,
-  lpBand: false,
+  lpBand: true,
   entryLine: true,
   executionMarkers: false,
   volume: true,
@@ -34,7 +34,7 @@ const researchModel = {
     priceBands: available('estimated', 5),
     costBand: available('estimated', 3),
     volBand: available('estimated', 2),
-    lpBand: missing('缺少真实 LP 区间输入'),
+    lpBand: available('estimated', 2),
     entryLine: available('ready', 1),
     executionMarkers: missing('missing-execution-input'),
     volume: available('ready', 1),
@@ -102,6 +102,33 @@ describe('HqIndicatorLayers', () => {
     expect(cost.classes()).toContain('suppressed')
     expect(cost.get('[data-state="estimated"]').text()).toBe('待开启主层')
     expect(cost.get('.hq-layer-reason').text()).toContain('开启“研究价格层”后才会绘制')
+  })
+
+  it('当前 Delta 不适用时保留历史稀疏段并明确当前无右侧值', async () => {
+    const wrapper = mountLayers({
+      researchModel: {
+        ...researchModel,
+        controls: {
+          ...researchModel.controls,
+          volBand: {
+            state: 'not-applicable',
+            reason: 'current-formula-output-unavailable',
+            missing: [],
+            blockedReasons: ['cycle-start-at-or-beyond-anchor'],
+            outputCount: 2,
+            historicalOutputCount: 2,
+            active: true,
+            current: true,
+          },
+        },
+      },
+    })
+    await wrapper.find('.hq-layer-trigger.lab').trigger('click')
+
+    const delta = labelByText(wrapper, '动态周期 GetDelta 路径')
+    expect(delta.get('[data-state="not-applicable"]').text()).toBe('当前结构不适用')
+    expect(delta.get('.hq-layer-reason').text()).toContain('历史稀疏分段仍显示')
+    expect(delta.get('input').element.checked).toBe(true)
   })
 
   it('Lab checkbox 保留 set-overlay(key, checked) 合约', async () => {

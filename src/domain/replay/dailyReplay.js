@@ -1,6 +1,7 @@
 import { buildMarketStatePath, isPrefixCausalMarketStatePath } from '../market-data/cost.js'
 import { buildFormulaPath } from '../market-data/formulaPath.js'
 import { buildDecisionGraph, resolveProfile } from '../planning/orderPlan.js'
+import { buildDynamicHoldingGate } from '../strategy-planning/dynamicHoldingGate.js'
 import {
   accountExit,
   applyFill,
@@ -53,6 +54,7 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   let nextSignalIndex = startIndex
   let pendingOrder = null
   let lastFormulaStrategy = null
+  const candidateAudit = emptyCandidateAudit()
 
   for (let index = startIndex; index < rows.length; index += 1) {
     const row = rows[index]
@@ -111,11 +113,19 @@ export function buildDailyReplay(rows, input, marketStates = null) {
     if (index >= rows.length - 1 || index < nextSignalIndex || pendingOrder) continue
     if (!queryEligibility.eligible) continue
 
+    const formulaPoint = formulaPath[index]
+    const dynamicHoldingGate = buildDynamicHoldingGate({
+      market,
+      rows: rows.slice(0, index + 1),
+      formulaPoint,
+      tradingDaysPerYear: tdpy,
+    })
     const graph = buildDecisionGraph({
       market,
-      input: replayInput(input, market, profile, formulaPath[index]),
+      input: replayInput(input, market, profile, formulaPoint, dynamicHoldingGate),
       account: { cash, base, costBasis },
     })
+    recordCandidateAudit(candidateAudit, graph)
     lastFormulaStrategy = graph.formulaStrategy ?? lastFormulaStrategy
     const order = chooseAccountOrder(graph, { cash, base, markPrice: row.close })
     if (!order) continue
@@ -140,6 +150,7 @@ export function buildDailyReplay(rows, input, marketStates = null) {
     startIndex,
     initialUsedNotional: initialBaseNotional,
     formulaStrategy: lastFormulaStrategy,
+    candidateAudit,
   })
 }
 
@@ -180,13 +191,14 @@ function resolveMarketStatePath(rows, tradingDaysPerYear, externalStates) {
   }
 }
 
-function replayInput(input, market, profile, formulaPoint) {
+function replayInput(input, market, profile, formulaPoint, dynamicHoldingGate) {
   return {
     ...input,
     strategyProfile: profile.id,
     entryPrice: market.markPrice,
     formulaHorizonSessions: formulaPoint?.formulaHorizonSessions ?? null,
     formulaHorizonState: formulaPoint?.fieldStates?.formulaHorizonSessions ?? null,
+    dynamicHoldingGate,
     iv: market.annualVol,
     strikePrice: market.markPrice * 1.05,
     startPrice: market.costAnchor,
@@ -228,4 +240,27 @@ function feeRate(input) {
 function positive(value) {
   const next = Number(value)
   return Number.isFinite(next) && next > 0 ? next : null
+}
+
+function emptyCandidateAudit() {
+  return {
+    eligiblePrefixes: 0,
+    diagnosticBuyPrefixes: 0,
+    diagnosticSellPrefixes: 0,
+    acceptedCandidates: 0,
+    blockedCandidates: 0,
+    statusCounts: { 观察: 0, 等待: 0, 剔除: 0, 需刷新数据: 0 },
+  }
+}
+
+function recordCandidateAudit(audit, graph) {
+  audit.eligiblePrefixes += 1
+  const side = graph?.diagnosticTiming?.side
+  if (side === 'buy') audit.diagnosticBuyPrefixes += 1
+  if (side === 'sell') audit.diagnosticSellPrefixes += 1
+  if (side !== 'buy' && side !== 'sell') return
+  const status = graph?.decision?.candidateStatus ?? '等待'
+  audit.statusCounts[status] = (audit.statusCounts[status] ?? 0) + 1
+  if (graph?.decision?.timing?.side) audit.acceptedCandidates += 1
+  else audit.blockedCandidates += 1
 }

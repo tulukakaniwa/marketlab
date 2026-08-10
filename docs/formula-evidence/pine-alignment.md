@@ -37,14 +37,20 @@ ATR window = recent_window
 ```text
 rho = sum(x_t * x_(t-1)) / sum(x_(t-1)^2)
 half_life_sessions = ln(2) / -ln(rho)
-q = (cost_low - close) / (cost_anchor - close)
+side = close > cost_anchor ? short : long
+target = side == long ? cost_low : cost_high
+direction = side == long ? 1 : -1
+q = ((target - cycle_start) * direction) / ((cost_anchor - cycle_start) * direction)
 formula_horizon_raw_sessions = half_life_sessions * log2(1 / (1 - q))
 formula_horizon_sessions = ceil(formula_horizon_raw_sessions)
 ```
 
-其中 `rho` 是 expanding、through-origin 的前缀样本估计；`cost_low` 是当时冻结的恢复目标。只有以下条件全部成立时才输出 GetDelta、z 和信号：
+其中 `rho` 是 expanding、through-origin 的前缀样本估计。`cycle_start` 先取当前自适应成本窗口内的 low（long）或 high（short）极值；若当前目标不严格位于该极值和成本锚之间，则从当前点向前回扫最近一次 `low < 当日动态 cost_low`（long）或 `high > 当日动态 cost_high`（short），并以当前 `target / cost_anchor` 重新验证严格结构。回扫比较是逐日边界穿越，不是要求相邻 K 线发生 crossover/crossunder。
+
+只有以下条件全部成立时才输出 GetDelta、z 和信号：
 
 - `0 < rho < 1`
+- long 满足 `cycle_start < cost_low < cost_anchor`，或 short 满足 `cycle_start > cost_high > cost_anchor`
 - `0 < q < 1`
 - `formula_horizon_sessions > 0`
 - 至少 5 个因果对数收益观测且年化波动率为正
@@ -61,7 +67,7 @@ formula_horizon_sessions = ceil(formula_horizon_raw_sessions)
 | `annual_vol`                                   | `buildMarketState.annualVol`       | prefix sample stdev × √`trading_sessions_per_year`                     |
 | `atr_pct`                                      | `buildMarketState.atrPercent`      | `recent_window` 内 simple-mean TR / close                              |
 | `rho / half_life_sessions`                     | `meanReversionHalfLife`            | expanding AR(1)-through-origin                                         |
-| `recovery_fraction / formula_horizon_sessions` | `buildFormulaPath`                 | 同一 cost-lower 目标和恢复恒等式                                       |
+| `recovery_fraction / formula_horizon_sessions` | `buildFormulaPath`                 | 同一双边动态目标、窗口极值/动态边界回扫和恢复恒等式                    |
 | `long_cost / long_high / long_low`             | `buildFormulaPath.delta*`          | `entryPrice=cost_anchor`、实现波动率、`delta_slope`                    |
 | `z_score / match_pct`                          | `deviationScore`                   | 同 `formula_horizon_sessions` 周期化；match 是偏离极端度，不是回归概率 |
 
@@ -70,9 +76,9 @@ formula_horizon_sessions = ceil(formula_horizon_raw_sessions)
 `pnpm run verify:pine` 同时执行：
 
 1. 静态契约：禁止固定 holding/cost/recent/vol 输入、day 单位字段和 `targetReturn` 别名。
-2. 窗口恒等式：检查 prefix/sqrt 窗口、recent ATR、`rho/q` 双门禁。
+2. 窗口与周期恒等式：检查 prefix/sqrt 窗口、recent ATR、双边目标、窗口极值、动态边界回扫和 `rho/q` 双门禁。
 3. 数值等价：对 GOOG、AAPL、600519、BTCUSDT 比较 JS twin 与 `buildMarketState` 的最新前缀。
-4. 动态周期：对每个标的最近可用前缀比较 `rho`、`half_life_sessions`、`q`、`formula_horizon_sessions`、GetDelta 和 z。
+4. 动态周期：对每个标的最近可用前缀比较 side、target、cycle start/source、`rho`、`half_life_sessions`、`q`、`formula_horizon_sessions`、GetDelta 和 z；另锁定 long/short × 窗口极值/边界回扫四条分支。
 5. 失效路径：周期门禁不成立时，确认 GetDelta、z 和信号为空。
 
 JS twin 是独立复刻，不直接调用 `cost.js` 或 `formulaPath.js` 的被测函数，避免循环自证。自动比较使用 `1e-10` 相对容差，目的是阻止代码口径漂移，不代表 TradingView 与本地数据源会完全同步。

@@ -1,4 +1,6 @@
 export const FORMULA_PATH_FIELDS = {
+  modelVersion: field('formula-path', 'label', 'researchMarkers', 'implemented', false, false),
+  modelContext: field('formula-path', 'metadata', 'researchMarkers', 'implemented', false, false),
   bandAnchor: field('cost', 'price', 'priceBands', 'implemented'),
   costAnchor: field('cost', 'price', 'priceBands', 'implemented', true),
   costUpper: field('cost', 'price', 'priceBands', 'implemented', true),
@@ -12,8 +14,8 @@ export const FORMULA_PATH_FIELDS = {
   optionDelta: field('option-greeks', 'delta', 'greeksPane', 'research-only', true),
   optionGamma: field('option-greeks', 'gamma', 'greeksPane', 'research-only', true),
   optionThetaPerSession: field('option-greeks', 'theta/trading-session', 'greeksPane', 'research-only', true),
-  lpLowerPrice: field('lp-inventory', 'price', 'priceBands', 'research-only', true),
-  lpUpperPrice: field('lp-inventory', 'price', 'priceBands', 'research-only', true),
+  lpLowerPrice: field('lp-research-range', 'price', 'priceBands', 'research-only', true),
+  lpUpperPrice: field('lp-research-range', 'price', 'priceBands', 'research-only', true),
   lpValue: field('lp-inventory', 'quote', 'lpPane', 'research-only', true),
   lpInventoryDeltaToken0: field('lp-inventory', 'token0', 'lpPane', 'research-only'),
   lpNormalizedDelta: field('lp-inventory', 'ratio', 'lpPane', 'research-only', true),

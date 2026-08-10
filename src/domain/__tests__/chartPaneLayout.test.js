@@ -72,16 +72,29 @@ describe('resolveChartOverlayPlan', () => {
     expect(plan.price.deltaBand).toBe(false)
     expect(plan.price.lpBand).toBe(false)
     expect(plan.price.entryLine).toBe(true)
+    expect(plan.price.currentLine).toBe(true)
   })
 
   it('LP 价格区间可独立关闭，避免主图标签过载', () => {
     const plan = resolveChartOverlayPlan({
       overlays: { ...baseOverlays, lpBand: false },
-      formulaPath: [{ lpRealPrice: 12 }],
+      formulaPath: [{ lpRealPrice: 12, deltaLower: 9, deltaUpper: 13 }],
     })
     expect(plan.price.costBand).toBe(true)
     expect(plan.price.deltaBand).toBe(true)
     expect(plan.price.lpBand).toBe(false)
     expect(plan.price.lpRealPrice).toBe(false)
+  })
+
+  it('当前没有合法 GetDelta 时仍保留历史稀疏分段，不插值当前值', () => {
+    const plan = resolveChartOverlayPlan({
+      overlays: baseOverlays,
+      formulaPath: [
+        { deltaLower: 90, deltaUpper: 110 },
+        { deltaLower: null, deltaUpper: null },
+      ],
+    })
+
+    expect(plan.price.deltaBand).toBe(true)
   })
 })

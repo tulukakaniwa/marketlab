@@ -50,11 +50,11 @@ describe('planning gate semantics', () => {
     expect(graph.decision.timing.side).toBeNull()
     expect(graph.decision.missingInputs).not.toContain('formula-derived-horizon')
     expect(graph.decision.missingInputs).not.toContain('account.capital')
-    expect(graph.decision.holdingWindow).toBe('当前无方向周期')
+    expect(graph.decision.holdingWindow).toBe('当前无执行方向；研究周期待公式推导')
     expect(graph.decision.invalidations).toEqual([])
     expect(graph.decision.reviewConditions).toEqual([
-      '收盘价跌破成本下沿 83.53',
-      '收盘价突破成本上沿 93.34',
+      '收盘价跌破届时成本下沿（当前 83.53，逐 K 线重算）',
+      '收盘价突破届时成本上沿（当前 93.34，逐 K 线重算）',
       '成本锚、结构目标或 AR 门禁发生变化',
       '偏离阈值参考 4.0%',
     ])
@@ -71,10 +71,11 @@ describe('planning gate semantics', () => {
       input: { ...bydInput, entryPrice: 95, formulaHorizonSessions: 7 },
     })
 
-    expect(graph.decision.state).toBe('上沿周期待推导')
+    expect(graph.decision.state).toBe('执行上沿周期待推导')
+    expect(graph.decision.holdingWindow).toBe('无执行方向；研究周期 7 个交易会话（公式推导）')
     expect(graph.decision.timing.side).toBeNull()
     expect(graph.decision.missingInputs).toEqual(['short-side-target-horizon-binding'])
-    expect(graph.decision.blockedReasons[0]).toContain('上沿减仓方向绑定')
+    expect(graph.decision.blockedReasons[0]).toContain('上沿减仓执行方向绑定')
     expect(graph.decision.timing.reason).toContain('不适用于减仓')
     expect(graph.plan.primaryOrders).toEqual([])
   })

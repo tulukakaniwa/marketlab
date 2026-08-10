@@ -271,7 +271,12 @@ function greekTone(value) {
         <span class="fc-big">等待</span>
         <div class="fc-meta">{{ props.graph.decision?.timing?.reason || '价格未触发入场条件' }}</div>
         <div class="fc-kv">
-          <div><b>状态</b><span>{{ props.graph.decision?.state || '—' }}</span></div>
+          <div><b>市场结构</b><span>{{ props.graph.decision?.state || '—' }}</span></div>
+          <div><b>候选状态</b><span>{{ props.graph.decision?.candidateStatus || '等待' }}</span></div>
+          <div>
+            <b>执行状态</b
+            ><span>{{ props.graph.decision?.executionStatus === 'simulation-only' ? '仅模拟' : '不可执行' }}</span>
+          </div>
           <template v-if="orderReview.mode === 'invalidation'">
             <div><b>失效下沿</b><span>{{ fmt(orderReview.lower) }}</span></div>
             <div><b>失效上沿</b><span>{{ fmt(orderReview.upper) }}</span></div>

@@ -22,7 +22,7 @@ export function buildWorkbenchSummary({ source, rows = [], graph }) {
     ? nextCheckForMissingInput(missingInput)
     : decision?.timing?.side && blockedReason
       ? `下一根 K 线后复核：${blockedReason}。`
-      : '下一交易会话更新成本锚、上下沿与结构门禁；没有方向信号时不生成周期或订单。'
+      : '下一交易会话更新成本锚、上下沿与结构门禁；研究周期仍由公式动态推导，无执行方向或账户输入时不生成订单。'
 
   return {
     data: {
@@ -32,13 +32,17 @@ export function buildWorkbenchSummary({ source, rows = [], graph }) {
       dataThrough,
       rows: rows.length,
       source: source?.source ?? '本地数据源未标注',
+      modelVersion: graph?.inputs?.modelVersion ?? null,
+      modelLabel: modelVersionLabel(graph?.inputs?.modelVersion),
       claimClass: rows.length ? 'sample-estimate' : 'missing-input',
       claimLabel: rows.length ? '样本估计' : '缺少输入',
     },
     gate: {
-      state: decision?.state ?? '等待载入',
+      marketState: decision?.state ?? '等待载入',
+      candidateStatus: decision?.candidateStatus ?? '等待',
+      candidateLabel: `候选${decision?.candidateStatus ?? '等待'}`,
       executionStatus: decision?.executionStatus ?? 'blocked',
-      label: decision?.executionStatus === 'simulation-only' ? '仅模拟' : '不可执行',
+      executionLabel: executionStatusLabel(decision?.executionStatus),
     },
     reason,
     review,
@@ -63,7 +67,13 @@ function resolveDataState(source, rows) {
 function dataStateLabel(state) {
   if (state === 'invalid') return '不可用'
   if (state === 'stale') return '需刷新'
-  return '可研究'
+  return '本地样本可研究'
+}
+
+function executionStatusLabel(status) {
+  if (status === 'simulation-only') return '仅模拟'
+  if (status === 'executable') return '可执行'
+  return '不可执行'
 }
 
 function buildDataDetail(source, rows, dataThrough) {
@@ -71,6 +81,12 @@ function buildDataDetail(source, rows, dataThrough) {
   const interval = source?.interval ?? '周期未标注'
   const date = dataThrough || '截止日未知'
   return `${rows.length} 根 ${interval} K 线 · 截至 ${date}`
+}
+
+function modelVersionLabel(version) {
+  if (version === 'adaptive-prefix-ar-cycle-recovery-v2') return '前缀因果 · AR 动态周期 v2'
+  if (version === 'adaptive-prefix-ar-recovery-v1') return '前缀因果 · AR 修复 v1'
+  return version ? String(version) : '模型版本未标注'
 }
 
 function humanizeMissingInput(value) {
@@ -84,6 +100,7 @@ function humanizeMissingInput(value) {
     'short-side-target-horizon-binding': '上沿减仓方向的独立结构目标与周期',
     'long-side-target-horizon-binding': '下沿修复方向的结构目标与周期',
     'delta-band': '与公式周期对应的 GetDelta 价格带',
+    'dynamic-holding-state': '当前行情前缀生成的动态持仓门禁',
     volatility: '有效波动率口径',
     'trading-days-per-year': '市场年交易会话基准',
   }
@@ -97,6 +114,7 @@ function nextCheckForMissingInput(value) {
     'short-side-target-horizon-binding': '先独立定义并验证上沿减仓目标；不得复用长侧修复周期。',
     'long-side-target-horizon-binding': '先验证成本下沿仍是观察价前方的长侧修复目标。',
     'delta-band': '公式周期成立后，再生成同周期 GetDelta 价格带。',
+    'dynamic-holding-state': '等待当前行情前缀同时形成结构周期、回撤阶段与动态持仓候选状态。',
   }
   return actions[value] ?? `如需生成模拟订单，先补充${humanizeMissingInput(value)}。`
 }

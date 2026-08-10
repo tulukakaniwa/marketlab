@@ -37,6 +37,8 @@ export function buildExecutableContext({ market, input }) {
       horizonExecutionAuthority: horizonContext?.executionAuthority ?? 'none',
       horizonStatus: horizonContext?.status ?? input.formulaHorizonState?.status ?? null,
       horizonReason,
+      modelVersion: typeof input.modelVersion === 'string' ? input.modelVersion : null,
+      dynamicHoldingGate: input.dynamicHoldingGate ?? null,
       iv,
       deltaSlope,
       exitTargetReturn,
@@ -48,7 +50,7 @@ export function buildExecutableContext({ market, input }) {
   }
 }
 
-export function buildDecision({ market, timing, position, formulaHorizonSessions }) {
+export function buildDecision({ market, timing, diagnosticTiming, position, formulaHorizonSessions }) {
   const hasDirectionalThesis = Boolean(timing?.side)
   const invalidations = hasDirectionalThesis
     ? [
@@ -56,14 +58,14 @@ export function buildDecision({ market, timing, position, formulaHorizonSessions
         `目标价 ${formatPrice(position.targetPrice)}`,
         Number.isFinite(formulaHorizonSessions)
           ? `${formulaHorizonSessions} 个交易会话后未触发则到期`
-          : '等待公式推导有限周期',
+          : '等待执行方向绑定的公式周期',
       ]
     : []
   const reviewConditions = hasDirectionalThesis
     ? []
     : [
-        `收盘价跌破成本下沿 ${formatPrice(market.costLow)}`,
-        `收盘价突破成本上沿 ${formatPrice(market.costHigh)}`,
+        `收盘价跌破届时成本下沿（当前 ${formatPrice(market.costLow)}，逐 K 线重算）`,
+        `收盘价突破届时成本上沿（当前 ${formatPrice(market.costHigh)}，逐 K 线重算）`,
         `成本锚、结构目标或 AR 门禁发生变化`,
         `偏离阈值参考 ${pctFmt(Math.max(market.atrPercent * 1.5, 0.015))}`,
       ]
@@ -71,15 +73,19 @@ export function buildDecision({ market, timing, position, formulaHorizonSessions
     state: timing?.state ?? '等待',
     path: timing?.path ?? '等待路径',
     timing,
+    diagnosticTiming: diagnosticTiming ?? timing ?? null,
     position,
     signalStrength: timing?.signalStrength ?? 0,
     signalSemantics: timing?.signalSemantics ?? 'normal-reference-extremeness-not-confidence-or-win-probability',
     executionStatus: position?.executionStatus ?? 'blocked',
+    candidateStatus: timing?.candidateStatus ?? '等待',
     holdingWindow: !hasDirectionalThesis
-      ? '当前无方向周期'
+      ? Number.isFinite(formulaHorizonSessions)
+        ? `无执行方向；研究周期 ${formulaHorizonSessions} 个交易会话（公式推导）`
+        : '当前无执行方向；研究周期待公式推导'
       : Number.isFinite(formulaHorizonSessions)
-        ? `${formulaHorizonSessions} 个交易会话（方向/目标绑定）`
-        : '方向周期待公式推导',
+        ? `${formulaHorizonSessions} 个交易会话（执行方向/目标绑定）`
+        : '执行方向周期待公式推导',
     invalidations,
     reviewConditions,
     regime: timing?.regime ?? null,
@@ -113,6 +119,7 @@ export function emptyGraph() {
   return {
     inputs: null,
     deltaBands: null,
+    dynamicHolding: null,
     profile: strategyProfiles.balanced,
     account: null,
     position: emptyPosition(null),

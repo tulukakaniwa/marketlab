@@ -186,13 +186,15 @@ function capabilityForFormula(id) {
 
 export function buildExecutionBrief(graph) {
   const state = graph?.decision?.state ?? '未载入路径'
+  const candidate = graph?.decision?.candidateStatus ?? '等待'
+  const execution = graph?.decision?.executionStatus === 'simulation-only' ? '仅模拟' : '不可执行'
   const orders = graph?.plan?.primaryOrders ?? []
   const firstOrder = orders[0]
   const blocked = graph?.decision?.blockedReasons ?? []
   const missing = graph?.decision?.missingInputs ?? []
   return {
-    title: state,
-    bias: orders.length ? '已生成模拟挂单' : '信号条件未触发或缺少必要输入',
+    title: `市场结构：${state}`,
+    bias: `候选${candidate} · ${execution}${orders.length ? ` · ${orders.length} 档` : ''}`,
     profileLabel: `手动档位 ${graph?.profile?.label ?? '均衡'}`,
     price: firstOrder?.price ?? null,
     notional: firstOrder?.notional ?? null,

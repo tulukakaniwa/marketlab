@@ -13,6 +13,6 @@ describe('ChartOverlayToggles', () => {
 
     expect(overlays.lpBand).toBe(false)
     expect(wrapper.emitted('change')).toContainEqual(['lpBand', true])
-    expect(wrapper.text()).toContain('LP 情景价格区间')
+    expect(wrapper.text()).toContain('LP 动态公式研究区间')
   })
 })

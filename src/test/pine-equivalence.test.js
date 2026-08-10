@@ -78,6 +78,16 @@ for (const { symbol, path } of FIXTURES) {
       expect(twin.rho).toBeLessThan(1)
       expect(rel(twin.rho, context.meanReversion.arCoefficient)).toBeLessThan(1e-10)
       expect(rel(twin.half_life_sessions, context.meanReversion.halfLifeSessions)).toBeLessThan(1e-10)
+      expect(twin.side).toBe(context.side)
+      expect(twin.target_source).toBe(context.targetSource)
+      expect(rel(twin.target_price, context.targetPrice)).toBeLessThan(1e-10)
+      expect(twin.cycle_start_source).toBe(context.cycleStartSource)
+      expect(twin.cycle_start_date).toBe(context.cycleStartDate)
+      expect(twin.cycle_start_index).toBe(context.cycleStartIndex)
+      expect(twin.cycle_start_lookback_sessions).toBe(context.cycleStartLookbackSessions)
+      expect(rel(twin.cycle_start_price, context.cycleStartPrice)).toBeLessThan(1e-10)
+      expect(rel(twin.anchor_gap, context.anchorGap)).toBeLessThan(1e-10)
+      expect(rel(twin.target_gap, context.targetGap)).toBeLessThan(1e-10)
       expect(rel(twin.recovery_fraction, point.recoveryFraction)).toBeLessThan(1e-10)
       expect(twin.formula_horizon_sessions).toBe(point.formulaHorizonSessions)
       expect(rel(twin.long_cost, point.deltaCost)).toBeLessThan(1e-10)
@@ -104,9 +114,53 @@ for (const { symbol, path } of FIXTURES) {
   })
 }
 
+describe('Pine ↔ JS 动态周期结构分支', () => {
+  const rows = loadCsv('public/data/GOOG-1d.csv')
+  const tdpy = inferTdpy({ symbol: 'GOOG' }).value
+  const path = buildFormulaPath(rows, {
+    tradingDaysPerYear: tdpy,
+    deltaSlope: PINE_DEFAULTS.delta_slope,
+  })
+  const cases = [
+    { side: 'long', source: 'adaptive-cost-window-low-extreme' },
+    { side: 'short', source: 'adaptive-cost-window-high-extreme' },
+    { side: 'long', source: 'recent-dynamic-lower-crossing' },
+    { side: 'short', source: 'recent-dynamic-upper-crossing' },
+  ]
+
+  for (const scenario of cases) {
+    it(`${scenario.side} / ${scenario.source} 与 JS 前缀算法逐字段一致`, () => {
+      const index = findEligibleIndex(path, scenario)
+      expect(index).toBeGreaterThanOrEqual(0)
+      const point = path[index]
+      const context = point.fieldStates.formulaHorizonSessions.context
+      const twin = pineEquivalent(rows.slice(0, index + 1), { trading_sessions_per_year: tdpy })
+
+      expect(twin.side).toBe(context.side)
+      expect(twin.target_source).toBe(context.targetSource)
+      expect(rel(twin.target_price, context.targetPrice)).toBeLessThan(1e-10)
+      expect(twin.cycle_start_source).toBe(context.cycleStartSource)
+      expect(twin.cycle_start_date).toBe(context.cycleStartDate)
+      expect(twin.cycle_start_index).toBe(context.cycleStartIndex)
+      expect(twin.cycle_start_lookback_sessions).toBe(context.cycleStartLookbackSessions)
+      expect(rel(twin.cycle_start_price, context.cycleStartPrice)).toBeLessThan(1e-10)
+      expect(rel(twin.recovery_fraction, context.recoveryFraction)).toBeLessThan(1e-10)
+      expect(twin.formula_horizon_sessions).toBe(context.modelHorizonSessions)
+    })
+  }
+})
+
 describe('周期参数语义隔离', () => {
   it('canonical DEFAULTS 没有人工 holding/cost/recent/vol 周期', () => {
-    for (const forbidden of ['holding_days', 'cost_len', 'recent_len', 'vol_len', 'target_return_pct']) {
+    for (const forbidden of [
+      'holding_days',
+      'formula_horizon_days',
+      'formula_horizon_sessions',
+      'cost_len',
+      'recent_len',
+      'vol_len',
+      'target_return_pct',
+    ]) {
       expect(PINE_DEFAULTS).not.toHaveProperty(forbidden)
     }
     expect(PINE_DEFAULTS).not.toHaveProperty('trading_days')
@@ -117,7 +171,20 @@ describe('周期参数语义隔离', () => {
   it('旧 holding_days 输入不能悄悄改写 canonical 结果', () => {
     const rows = loadCsv('public/data/AAPL-1d.csv')
     const a = pineEquivalent(rows, { trading_sessions_per_year: 252 })
-    const b = pineEquivalent(rows, { trading_sessions_per_year: 252, holding_days: 30 })
+    const b = pineEquivalent(rows, {
+      trading_sessions_per_year: 252,
+      holding_days: 30,
+      formula_horizon_days: 30,
+      formula_horizon_sessions: 30,
+    })
     expect(b).toEqual(a)
   })
 })
+
+function findEligibleIndex(path, { side, source }) {
+  for (let index = path.length - 1; index >= 0; index -= 1) {
+    const context = path[index]?.fieldStates?.formulaHorizonSessions?.context
+    if (context?.eligible && context.side === side && context.cycleStartSource === source) return index
+  }
+  return -1
+}

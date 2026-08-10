@@ -35,6 +35,7 @@ export function summarizeReplay({
   startIndex = 0,
   initialUsedNotional = 0,
   formulaStrategy = null,
+  candidateAudit = null,
 }) {
   let peak = 0
   let peakDate = null
@@ -76,6 +77,7 @@ export function summarizeReplay({
     engineScope: engineScope(),
     profileId: profile.id,
     profileLabel: profile.label,
+    candidateAudit: candidateAudit ?? emptyCandidateAudit(),
     formulaStrategy: formulaStrategySnapshot(formulaStrategy),
     drawdownBasis: drawdownBasis(formulaStrategy),
     startDate,
@@ -127,6 +129,7 @@ export function emptyReplay() {
     profileId: '',
     profileLabel: '',
     formulaStrategy: null,
+    candidateAudit: emptyCandidateAudit(),
     drawdownBasis: drawdownBasis(null),
     range: '',
     startDate: '',
@@ -149,6 +152,17 @@ export function emptyReplay() {
     base: 0,
     openValue: 0,
     openCost: 0,
+  }
+}
+
+function emptyCandidateAudit() {
+  return {
+    eligiblePrefixes: 0,
+    diagnosticBuyPrefixes: 0,
+    diagnosticSellPrefixes: 0,
+    acceptedCandidates: 0,
+    blockedCandidates: 0,
+    statusCounts: { 观察: 0, 等待: 0, 剔除: 0, 需刷新数据: 0 },
   }
 }
 

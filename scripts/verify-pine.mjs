@@ -90,6 +90,8 @@ for (const [label, pattern] of [
 
 for (const forbidden of [
   /holding_days\s*=\s*input\./,
+  /formula_horizon_sessions\s*=\s*input\./,
+  /formula_horizon_days\s*=\s*input\./,
   /cost_len\s*=\s*input\./,
   /recent_len\s*=\s*input\./,
   /vol_len\s*=\s*input\./,
@@ -98,6 +100,7 @@ for (const forbidden of [
   /\bformula_horizon_days\b/,
   /\bformula_horizon_raw\b/,
   /\btrading_days\b/,
+  /formula_horizon_sessions\s*=\s*30\b/,
 ]) {
   if (forbidden.test(content)) errors.push(`Forbidden fixed-cycle or polluted input: ${forbidden}`)
 }
@@ -109,6 +112,22 @@ for (const required of [
   'ar_sum_x2',
   'rho_valid',
   'half_life_sessions',
+  'cycle_side_short',
+  'target_price',
+  'target_source',
+  'window_low_extreme',
+  'window_high_extreme',
+  'window_cycle_start',
+  'window_structure_valid',
+  'lower_cross_prices',
+  'upper_cross_prices',
+  'fallback_cycle_start',
+  'scan_structure_valid',
+  'cycle_start_price',
+  'cycle_start_source',
+  'cycle_direction',
+  'anchor_gap',
+  'target_gap',
   'recovery_fraction',
   'recovery_valid',
   'formula_horizon_raw_sessions',
@@ -119,14 +138,37 @@ for (const required of [
   if (!content.includes(required)) errors.push(`Missing causal horizon variable: ${required}`)
 }
 
-if (!/recovery_fraction\s*=\s*anchor_gap\s*>\s*0\s*\?\s*target_gap\s*\/\s*anchor_gap/.test(content)) {
-  errors.push('recovery_fraction must be (cost_low-close)/(cost_anchor-close) with a positive anchor gap')
+for (const [label, pattern] of [
+  ['side=close relative to cost anchor', /cycle_side_short\s*=\s*close\s*>\s*cost_anchor/],
+  ['target=dynamic lower or upper', /target_price\s*=\s*cycle_side_short\s*\?\s*cost_high\s*:\s*cost_low/],
+  ['long window low extreme', /window_low_extreme\s*=\s*ta\.lowest\(low,\s*cost_observed\)/],
+  ['short window high extreme', /window_high_extreme\s*=\s*ta\.highest\(high,\s*cost_observed\)/],
+  [
+    'window extreme strictly brackets current target and anchor',
+    /window_structure_valid\s*=\s*cycle_side_short\s*\?\s*window_cycle_start\s*>\s*target_price\s*and\s*target_price\s*>\s*cost_anchor\s*:\s*window_cycle_start\s*<\s*target_price\s*and\s*target_price\s*<\s*cost_anchor/,
+  ],
+  ['long dynamic lower crossing', /lower_crossed\s*=.*low\s*<\s*cost_low/],
+  ['short dynamic upper crossing', /upper_crossed\s*=.*high\s*>\s*cost_high/],
+  ['latest crossing fallback scan', /while\s+scan_index\s*>=\s*0\s+and\s+na\(fallback_cycle_start\)/],
+  [
+    'fallback crossing strictly brackets current target and anchor',
+    /scan_structure_valid\s*=\s*cycle_side_short\s*\?\s*scan_price\s*>\s*target_price\s*and\s*target_price\s*>\s*cost_anchor\s*:\s*scan_price\s*<\s*target_price\s*and\s*target_price\s*<\s*cost_anchor/,
+  ],
+  ['side-normalized anchor gap', /anchor_gap\s*=\s*\(cost_anchor\s*-\s*cycle_start_price\)\s*\*\s*cycle_direction/],
+  ['side-normalized target gap', /target_gap\s*=\s*\(target_price\s*-\s*cycle_start_price\)\s*\*\s*cycle_direction/],
+  ['q target-over-anchor identity', /recovery_fraction\s*=.*target_gap\s*\/\s*anchor_gap/],
+]) {
+  if (!pattern.test(content)) errors.push(`Missing dynamic recovery identity: ${label}`)
 }
 if (!/rho_valid\s*=.*rho\s*>\s*0\s*and\s*rho\s*<\s*1/.test(content)) {
   errors.push('rho gate must require 0 < rho < 1')
 }
-if (!/recovery_valid\s*=.*recovery_fraction\s*>\s*0\s*and\s*recovery_fraction\s*<\s*1/.test(content)) {
-  errors.push('recovery gate must require 0 < q < 1')
+if (
+  !/recovery_valid\s*=.*anchor_gap\s*>\s*0.*target_gap\s*>\s*0.*recovery_fraction\s*>\s*0.*recovery_fraction\s*<\s*1/.test(
+    content,
+  )
+) {
+  errors.push('recovery gate must require directional gaps > 0 and 0 < q < 1')
 }
 if (!/formula_ready\s*=\s*delta_ok/.test(content)) {
   errors.push('signals must be gated by the dynamic GetDelta/horizon validity state')

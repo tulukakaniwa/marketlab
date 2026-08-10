@@ -104,7 +104,9 @@ const currentValues = computed(() => {
       } else {
         v.push(['复核条件', orderReview.value.conditions.join('；') || '当前没有可展示的复核条件'])
       }
-      v.push(['信号状态', g.decision?.state ?? '—'])
+      v.push(['市场结构', g.decision?.state ?? '—'])
+      v.push(['候选状态', g.decision?.candidateStatus ?? '等待'])
+      v.push(['执行状态', g.decision?.executionStatus === 'simulation-only' ? '仅模拟' : '不可执行'])
       break
     default:
       v.push(['当前输出', '当前无数值输出，按上方可用性补输入'])

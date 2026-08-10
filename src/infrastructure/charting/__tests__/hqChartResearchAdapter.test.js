@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   applyHqOverlaySeriesStyle,
+  bindHqSharedPriceScale,
   buildHqResearchChartConfig,
   hqResearchApiId,
   isHqResearchApiRequest,
@@ -250,7 +251,99 @@ describe('HQChart Market Lab research adapter', () => {
     expect(chart).toMatchObject({ Color: 'rgb(14,117,88)', LineWidth: 2, IsDotLine: false, LineDash: [5, 4] })
   })
 
-  it('保留指标内部空值，只在绘制层跨空值连接有限点', () => {
+  it('价格 Overlay 委托主 K 线做同一套对数坐标换算', () => {
+    let offset = 12
+    const getYData = vi.fn((coordinate) => (coordinate - offset) * 1000)
+    const mainFrame = {
+      GetYFromData: (value) => value / 1000 + offset,
+      GetYData: getYData,
+      GetYLogarithmicData: (coordinate) => (coordinate - offset) * 1000,
+    }
+    const frame = {
+      IsShareY: true,
+      MainFrame: mainFrame,
+      GetYFromData: (value) => value / 2000,
+      GetYData: (coordinate) => coordinate * 2000,
+      GetYLogarithmicData: (coordinate) => coordinate * 2000,
+    }
+
+    expect(bindHqSharedPriceScale(frame)).toBe(true)
+    expect(frame.GetYFromData(64_923.19)).toBeCloseTo(76.92319)
+    expect(frame.GetYData(76.92319, false)).toBeCloseTo(64_923.19)
+    expect(getYData).toHaveBeenLastCalledWith(76.92319, false)
+    expect(frame.GetYLogarithmicData(76.92319)).toBeCloseTo(64_923.19)
+
+    offset = 20
+    expect(frame.GetYFromData(64_923.19)).toBeCloseTo(84.92319)
+
+    frame.MainFrame = {
+      GetYFromData: (value) => value / 100 + 3,
+      GetYData: (coordinate) => (coordinate - 3) * 100,
+      GetYLogarithmicData: (coordinate) => (coordinate - 3) * 100,
+    }
+    expect(frame.GetYFromData(90.04)).toBeCloseTo(3.9004)
+    expect(frame.GetYData(3.9004)).toBeCloseTo(90.04)
+  })
+
+  it('坐标修复不改写 BTC / BYD 原始价格值', () => {
+    const rawPriceModel = {
+      dates: ['2026-08-06', '2026-08-07'],
+      groups: [
+        {
+          id: 'price',
+          active: true,
+          state: 'estimated',
+          series: [
+            {
+              id: 'btcEntry',
+              label: 'BTC 入场价',
+              render: 'line',
+              color: '#b3261e',
+              points: [
+                { time: '2026-08-06', value: 64_000 },
+                { time: '2026-08-07', value: 64_923.19 },
+              ],
+            },
+            {
+              id: 'bydEntry',
+              label: 'BYD 入场价',
+              render: 'line',
+              color: '#274f9f',
+              points: [
+                { time: '2026-08-06', value: 89.5 },
+                { time: '2026-08-07', value: 90.04 },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const response = toHqResearchIndexResponse(rawPriceModel, hqResearchApiId('price'), {})
+    expect(response.outdata.outvar.map((item) => item.data.at(-1))).toEqual([64_923.19, 90.04])
+  })
+
+  it('只在价格组的共享框架上经真实样式入口绑定主图坐标', () => {
+    const mainFrame = { GetYFromData: (value) => value + 10, GetYData: (coordinate) => coordinate - 10 }
+    const priceFrame = { IsShareY: true, MainFrame: mainFrame, GetYFromData: (value) => value }
+    const priceChart = { Name: '成本锚', ChartFrame: priceFrame }
+    expect(applyHqOverlaySeriesStyle({ Chart: priceChart }, model)).toBe(true)
+    expect(priceFrame.GetYFromData(90.04)).toBeCloseTo(100.04)
+
+    const greeksFrame = { IsShareY: true, MainFrame: mainFrame, GetYFromData: (value) => value }
+    const greeksChart = { Name: '期权 Delta', ChartFrame: greeksFrame }
+    expect(applyHqOverlaySeriesStyle({ Chart: greeksChart }, model)).toBe(true)
+    expect(greeksFrame.GetYFromData(0.42)).toBe(0.42)
+  })
+
+  it('非共享副图不改写自己的数值坐标', () => {
+    const ownMapping = (value) => value * 2
+    const frame = { IsShareY: false, MainFrame: { GetYFromData: () => 1 }, GetYFromData: ownMapping }
+
+    expect(bindHqSharedPriceScale(frame)).toBe(false)
+    expect(frame.GetYFromData).toBe(ownMapping)
+  })
+
+  it('保留指标内部空值，并让稀疏研究线在空白公式日断开', () => {
     const sparseModel = {
       dates: ['2026-08-01', '2026-08-02', '2026-08-03'],
       groups: [
@@ -279,8 +372,36 @@ describe('HQChart Market Lab research adapter', () => {
 
     expect(response.outdata.outvar[0].data).toEqual([0.4, null, 0.42])
     expect(applyHqOverlaySeriesStyle({ Chart: chart }, sparseModel)).toBe(true)
-    expect(chart.DrawType).toBe(0)
+    expect(chart.DrawType).toBe(1)
     expect(response.outdata.outvar[0].data).toEqual([0.4, null, 0.42])
+  })
+
+  it('连续研究线也使用遇空值即断开的安全绘制模式', () => {
+    const denseModel = {
+      dates: ['2026-08-01', '2026-08-02', '2026-08-03'],
+      groups: [
+        {
+          id: 'price',
+          series: [
+            {
+              id: 'cost',
+              label: '成本锚',
+              render: 'line',
+              color: '#0e7558',
+              points: [
+                { time: '2026-08-01', value: 10 },
+                { time: '2026-08-02', value: 10.1 },
+                { time: '2026-08-03', value: 10.2 },
+              ],
+            },
+          ],
+        },
+      ],
+    }
+    const chart = { Name: '成本锚', DrawType: 1 }
+
+    expect(applyHqOverlaySeriesStyle({ Chart: chart }, denseModel)).toBe(true)
+    expect(chart.DrawType).toBe(1)
   })
 
   it('研究日期先排序去重，再按日期对齐每条序列', () => {

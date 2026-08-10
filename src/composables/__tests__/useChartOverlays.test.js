@@ -17,6 +17,7 @@ describe('useChartOverlays', () => {
       window.localStorage.removeItem('lab.chartOverlays.v10')
       window.localStorage.removeItem('lab.chartOverlays.v11')
       window.localStorage.removeItem('lab.chartOverlays.v12')
+      window.localStorage.removeItem('lab.chartOverlays.v13')
     }
   })
 
@@ -34,7 +35,7 @@ describe('useChartOverlays', () => {
     expect(o.costBand).toBe(true)
     expect(o.entryLine).toBe(true)
     expect(o.volBand).toBe(true)
-    expect(o.lpBand).toBe(false)
+    expect(o.lpBand).toBe(true)
     expect(o.volume).toBe(true)
     expect(o.stockChipProfile).toBe(true)
     expect(o.replayMarkers).toBe(true)
@@ -77,14 +78,22 @@ describe('useChartOverlays', () => {
     expect(o.stockChipProfile).toBe(true)
   })
 
-  it('从 v8 迁移到 v12 时保留用户关闭成交量并恢复缺失的筹码工具', () => {
+  it('从 v8 迁移到 v13 时保留用户关闭成交量并恢复主图研究区间', () => {
     if (typeof window === 'undefined') return
     window.localStorage.setItem('lab.chartOverlays.v8', JSON.stringify({ volume: false, lpPane: true }))
     const o = useChartOverlays()
     expect(o.volume).toBe(false)
     expect(o.lpPane).toBe(true)
     expect(o.stockChipProfile).toBe(true)
-    expect(o.lpBand).toBe(false)
+    expect(o.lpBand).toBe(true)
+  })
+
+  it('从 v12 升级时一次性恢复动态 LP 研究区间，之后由 v13 保留用户选择', () => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('lab.chartOverlays.v12', JSON.stringify({ lpBand: false, costBand: false }))
+    const o = useChartOverlays()
+    expect(o.lpBand).toBe(true)
+    expect(o.costBand).toBe(false)
   })
 
   it('保留旧版明确关闭的筹码开关', () => {

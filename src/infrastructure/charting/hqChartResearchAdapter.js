@@ -192,16 +192,21 @@ export function toHqColor(value) {
 
 export function applyHqResearchSeriesStyle(data, model) {
   const chart = data?.Chart
-  const series = findSeriesByLabel(model, chart?.Name)
-  if (!chart || !series) return false
+  const match = findSeriesByLabel(model, chart?.Name)
+  if (!chart || !match) return false
+  const { group, series } = match
   chart.Color = toHqColor(series.color)
   chart.LineWidth = series.lineWidth ?? 1
   chart.IsDotLine = series.lineStyle === 'dotted'
   chart.LineDash = series.lineStyle === 'dashed' ? [5, 4] : series.lineStyle === 'dotted' ? [2, 2] : []
-  // HQChart 为 API 指标线默认使用 DrawType=1，遇到 null 会断开；
-  // Lightweight Charts 则只接收有限点并跨过缺失日期连线。这里只调整
-  // 多点线的绘制方式，不改原始 null、不插值，也不影响单点/点图指标。
-  if (series.render === 'line' && finiteSeriesPointCount(series) >= 2) chart.DrawType = 0
+  // HQChart 的 OverlayKLineFrame 在共享 Y 轴时只复制主框架的最大/最小值，
+  // 不会复制对数坐标的分段映射。结果是图例保留原始价格，叠加线却按线性
+  // 坐标落点。价格层直接委托主框架做正反向换算，缩放后也继续使用同一映射。
+  if (group?.id === 'price') bindHqSharedPriceScale(chart.ChartFrame)
+  // HQChart 的 DrawType=0 会跨过 null 连线。API 数据贴回真实 K 线日期时仍
+  // 可能新增空值，因此所有研究线都保持 DrawType=1：连续值照常相连，任何
+  // 空值都明确断开，不能补成一段并不存在的公式路径。
+  if (series.render === 'line') chart.DrawType = 1
   return true
 }
 
@@ -211,15 +216,22 @@ export const applyHqOverlaySeriesStyle = applyHqResearchSeriesStyle
 function findSeriesByLabel(model, label) {
   for (const group of model?.groups ?? []) {
     const series = [...(group?.series ?? []), ...(group?.guides ?? [])].find((item) => item?.label === label)
-    if (series) return series
+    if (series) return { group, series }
   }
   return null
 }
 
-function finiteSeriesPointCount(series) {
-  if (Array.isArray(series?.values)) return series.values.filter(Number.isFinite).length
-  const points = series?.points ?? series?.data
-  return Array.isArray(points) ? points.filter((point) => Number.isFinite(point?.value)).length : 0
+export function bindHqSharedPriceScale(frame) {
+  if (frame?.IsShareY !== true || typeof frame?.MainFrame?.GetYFromData !== 'function') return false
+
+  frame.GetYFromData = (...args) => frame.MainFrame.GetYFromData(...args)
+  if (typeof frame.MainFrame.GetYData === 'function') {
+    frame.GetYData = (...args) => frame.MainFrame.GetYData(...args)
+  }
+  if (typeof frame.MainFrame.GetYLogarithmicData === 'function') {
+    frame.GetYLogarithmicData = (...args) => frame.MainFrame.GetYLogarithmicData(...args)
+  }
+  return true
 }
 
 function finiteOrNull(value) {

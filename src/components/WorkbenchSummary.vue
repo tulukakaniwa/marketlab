@@ -10,8 +10,9 @@ defineProps({
   <details v-if="model" class="workbench-summary" :class="{ compact }" :open="defaultOpen">
     <summary>
       <span class="ws-data" :class="`state-${model.data.state}`">{{ model.data.label }}</span>
-      <strong>{{ model.gate.state }}</strong>
-      <span class="ws-gate">{{ model.gate.label }}</span>
+      <strong>{{ model.gate.marketState }}</strong>
+      <span class="ws-candidate">{{ model.gate.candidateLabel }}</span>
+      <span class="ws-gate">{{ model.gate.executionLabel }}</span>
       <span class="ws-reason">{{ model.reason }}</span>
       <span class="ws-more">看懂当前图</span>
     </summary>
@@ -19,12 +20,12 @@ defineProps({
       <article>
         <span>1 · 数据能用吗</span>
         <strong>{{ model.data.label }}</strong>
-        <small>{{ model.data.detail }} · {{ model.data.source }}</small>
+        <small>{{ model.data.detail }} · {{ model.data.source }} · 模型：{{ model.data.modelLabel }}</small>
       </article>
       <article>
         <span>2 · 当前门禁</span>
-        <strong>{{ model.gate.state }} · {{ model.gate.label }}</strong>
-        <small>执行门禁：{{ model.gate.label }}</small>
+        <strong>{{ model.gate.candidateLabel }} · 执行{{ model.gate.executionLabel }}</strong>
+        <small>市场结构：{{ model.gate.marketState }}</small>
       </article>
       <article>
         <span>3 · 为什么</span>
@@ -56,7 +57,7 @@ defineProps({
 .workbench-summary summary {
   min-height: 38px;
   display: grid;
-  grid-template-columns: auto auto auto minmax(120px, 1fr) auto;
+  grid-template-columns: auto auto auto auto minmax(120px, 1fr) auto;
   gap: 8px;
   align-items: center;
   padding: 6px 9px;
@@ -71,6 +72,7 @@ defineProps({
   outline-offset: 2px;
 }
 .ws-data,
+.ws-candidate,
 .ws-gate {
   border-radius: 999px;
   padding: 2px 7px;
@@ -90,6 +92,11 @@ defineProps({
 .ws-gate {
   color: var(--blue);
   background: var(--blue-dim);
+}
+.ws-candidate {
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--surface-active);
 }
 .workbench-summary summary > strong {
   font-size: 0.82rem;
@@ -151,7 +158,7 @@ defineProps({
 }
 @container (max-width: 900px) {
   .workbench-summary summary {
-    grid-template-columns: auto auto minmax(90px, 1fr) auto;
+    grid-template-columns: auto auto auto minmax(90px, 1fr) auto;
   }
   .ws-gate {
     display: none;
@@ -165,13 +172,13 @@ defineProps({
 }
 @container (max-width: 300px) {
   .workbench-summary summary {
-    grid-template-columns: auto auto 1fr;
+    grid-template-columns: auto auto auto 1fr;
   }
   .ws-reason {
     grid-column: 1 / -1;
   }
   .ws-more {
-    grid-column: 3;
+    grid-column: 4;
     grid-row: 1;
     justify-self: end;
   }

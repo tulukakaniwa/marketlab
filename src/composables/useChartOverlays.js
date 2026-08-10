@@ -18,7 +18,7 @@ const DEFAULTS = {
   costBand: true,
   entryLine: true,
   volBand: true,
-  lpBand: false,
+  lpBand: true,
   volume: true,
   replayMarkers: true,
   replayMarkerLabels: false,
@@ -29,8 +29,9 @@ const DEFAULTS = {
   stockChipProfile: true,
 }
 
-const STORAGE_KEY = 'lab.chartOverlays.v12'
+const STORAGE_KEY = 'lab.chartOverlays.v13'
 const LEGACY_KEYS = [
+  'lab.chartOverlays.v12',
   'lab.chartOverlays.v11',
   'lab.chartOverlays.v10',
   'lab.chartOverlays.v9',
@@ -58,12 +59,12 @@ function migrateChartOverlayState() {
   for (const key of Object.keys(DEFAULTS)) {
     if (key in legacy) next[key] = legacy[key]
   }
-  // KDJ/RSI 与 LP 区间仍保持显式开启，避免默认挤压 K 线。
+  // 副图保持显式开启；主图 LP 研究区间按产品契约恢复为默认可见。
   next.kdjPane = false
   next.rsiPane = false
-  next.lpBand = false
+  next.lpBand = true
   // v11 曾把筹码层无条件关闭，无法区分用户选择和迁移副作用；升级时
-  // 一次性恢复旧版默认。之后 v12 会正常保留用户自己的开关状态。
+  // 一次性恢复旧版默认。之后 v13 会正常保留用户自己的开关状态。
   if (legacyEntry.key === 'lab.chartOverlays.v11') next.stockChipProfile = true
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
 }

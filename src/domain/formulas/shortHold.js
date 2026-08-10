@@ -10,6 +10,7 @@ import {
   unique,
 } from './dynamicHoldingSupport.js'
 import { defineLegacyAliasContract } from './legacyAliases.js'
+import { recoveryHorizonAudit } from './recoveryHorizonAudit.js'
 
 export { DEFAULT_DYNAMIC_HOLDING_PROFILES } from './dynamicHoldingSupport.js'
 
@@ -166,38 +167,33 @@ export function deriveRecoveryHorizon({
   side = 'long',
   availableAt = null,
 } = {}) {
+  const audit = recoveryHorizonAudit(cycleStartPrice, anchorPrice, targetPrice, halfLifeSessions, side, availableAt)
   if (![cycleStartPrice, anchorPrice, targetPrice, halfLifeSessions].every(Number.isFinite)) {
-    return unavailableRecovery('invalid-recovery-input')
+    return unavailableRecovery('invalid-recovery-input', audit)
   }
   if (cycleStartPrice <= 0 || anchorPrice <= 0 || targetPrice <= 0 || halfLifeSessions <= 0) {
-    return unavailableRecovery('invalid-recovery-input')
+    return unavailableRecovery('invalid-recovery-input', audit)
   }
 
-  const direction = side === 'short' ? -1 : 1
-  const anchorGap = (anchorPrice - cycleStartPrice) * direction
-  const targetGap = (targetPrice - cycleStartPrice) * direction
-  if (!(anchorGap > 0)) return unavailableRecovery('cycle-start-at-or-beyond-anchor')
-  if (!(targetGap > 0)) return unavailableRecovery('target-already-crossed-at-cycle-start')
+  const { anchorGap, targetGap } = audit
+  if (!(anchorGap > 0)) return unavailableRecovery('cycle-start-at-or-beyond-anchor', audit)
+  if (!(targetGap > 0)) return unavailableRecovery('target-already-crossed-at-cycle-start', audit)
 
-  const recoveryFraction = targetGap / anchorGap
+  const recoveryFraction = audit.rawRecoveryFraction
   if (!(recoveryFraction > 0 && recoveryFraction < 1)) {
-    return unavailableRecovery('target-not-strictly-between-cycle-start-and-anchor', { recoveryFraction })
+    return unavailableRecovery('target-not-strictly-between-cycle-start-and-anchor', audit)
   }
 
   const modelHorizonRaw = halfLifeSessions * log2(1 / (1 - recoveryFraction))
   if (!Number.isFinite(modelHorizonRaw) || modelHorizonRaw <= 0) {
-    return unavailableRecovery('non-finite-recovery-horizon', { recoveryFraction })
+    return unavailableRecovery('non-finite-recovery-horizon', audit)
   }
 
   return {
+    ...audit,
     status: 'eligible',
     eligible: true,
-    side,
-    cycleStartPrice,
-    anchorPrice,
-    targetPrice,
     recoveryFraction,
-    halfLifeSessions,
     modelHorizonRaw,
     modelHorizonSessions: Math.ceil(modelHorizonRaw),
     horizonUnit: 'trading-session',
@@ -479,15 +475,15 @@ function log2(value) {
   return Math.log(value) / Math.log(2)
 }
 
-function unavailableRecovery(reason, extra = {}) {
+function unavailableRecovery(reason, audit = {}) {
   const status = recoveryAvailabilityStatus(reason)
   return {
+    ...audit,
     status,
     eligible: false,
     reason,
     identityClaimClass: 'exact-identity',
     resultClaimClass: status === 'missing-input' ? 'missing-input' : null,
-    ...extra,
   }
 }
 

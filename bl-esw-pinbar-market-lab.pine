@@ -104,8 +104,11 @@ cost_slope_recent = bar_index >= recent_window and cost_anchor[recent_window] > 
 
 // ============================================================
 // Expanding AR(1)-through-origin / dynamic recovery horizon
-// rho 是前缀样本估计；H 是在冻结 cost_low 目标下的条件情景坐标，不是预测。
-// q=(cost_low-close)/(cost_anchor-close), H=HL*log2(1/(1-q)).
+// rho 是前缀样本估计；H 是冻结当前成本沿目标后的条件情景坐标，不是预测。
+// side 由 close 相对 cost_anchor 决定；long/short 分别以 cost_low/cost_high 为目标。
+// cycle start 优先取当前自适应成本窗口的 low/high 极值；若目标不严格位于极值与锚之间，
+// 则回扫最近一次当日 low<动态 cost_low / high>动态 cost_high 的穿越，并用当前目标/锚复核。
+// q=(target-cycleStart)/(anchor-cycleStart)（按 side 归一方向），H=HL*log2(1/(1-q)).
 // ============================================================
 cost_distance = cost_anchor > 0 ? (close - cost_anchor) / cost_anchor : na
 ar_xy = not na(cost_distance[1]) ? cost_distance * cost_distance[1] : 0.0
@@ -117,10 +120,42 @@ rho_valid = not na(rho) and rho > 0 and rho < 1
 ar_decay = rho_valid ? -math.log(rho) : na
 half_life_sessions = rho_valid and ar_decay > 0 ? math.log(2.0) / ar_decay : na
 
-anchor_gap = cost_anchor - close
-target_gap = cost_low - close
-recovery_fraction = anchor_gap > 0 ? target_gap / anchor_gap : na
-recovery_valid = not na(recovery_fraction) and recovery_fraction > 0 and recovery_fraction < 1
+cycle_side_short = close > cost_anchor
+target_price = cycle_side_short ? cost_high : cost_low
+target_source = cycle_side_short ? "adaptive-cost-upper" : "adaptive-cost-lower"
+window_low_extreme = ta.lowest(low, cost_observed)
+window_high_extreme = ta.highest(high, cost_observed)
+window_cycle_start = cycle_side_short ? window_high_extreme : window_low_extreme
+window_structure_valid = cycle_side_short ? window_cycle_start > target_price and target_price > cost_anchor : window_cycle_start < target_price and target_price < cost_anchor
+
+// 保存逐日前缀中真正发生过的动态成本沿穿越；当前窗口极值无效时从最新记录向前回扫。
+var lower_cross_prices = array.new_float()
+var upper_cross_prices = array.new_float()
+lower_crossed = low > 0 and cost_low > 0 and low < cost_low
+upper_crossed = high > 0 and cost_high > 0 and high > cost_high
+if lower_crossed
+    array.push(lower_cross_prices, low)
+if upper_crossed
+    array.push(upper_cross_prices, high)
+
+float fallback_cycle_start = na
+int scan_index = na
+if not window_structure_valid
+    scan_index := (cycle_side_short ? array.size(upper_cross_prices) : array.size(lower_cross_prices)) - 1
+    while scan_index >= 0 and na(fallback_cycle_start)
+        scan_price = cycle_side_short ? array.get(upper_cross_prices, scan_index) : array.get(lower_cross_prices, scan_index)
+        scan_structure_valid = cycle_side_short ? scan_price > target_price and target_price > cost_anchor : scan_price < target_price and target_price < cost_anchor
+        if scan_structure_valid
+            fallback_cycle_start := scan_price
+        scan_index := scan_index - 1
+
+cycle_start_price = window_structure_valid ? window_cycle_start : not na(fallback_cycle_start) ? fallback_cycle_start : window_cycle_start
+cycle_start_source = window_structure_valid ? (cycle_side_short ? "adaptive-cost-window-high-extreme" : "adaptive-cost-window-low-extreme") : not na(fallback_cycle_start) ? (cycle_side_short ? "recent-dynamic-upper-crossing" : "recent-dynamic-lower-crossing") : (cycle_side_short ? "adaptive-cost-window-high-extreme" : "adaptive-cost-window-low-extreme")
+cycle_direction = cycle_side_short ? -1.0 : 1.0
+anchor_gap = (cost_anchor - cycle_start_price) * cycle_direction
+target_gap = (target_price - cycle_start_price) * cycle_direction
+recovery_fraction = not na(cycle_start_price) and anchor_gap != 0 ? target_gap / anchor_gap : na
+recovery_valid = anchor_gap > 0 and target_gap > 0 and not na(recovery_fraction) and recovery_fraction > 0 and recovery_fraction < 1
 formula_horizon_raw_sessions = rho_valid and recovery_valid ? half_life_sessions * math.log(1.0 / (1.0 - recovery_fraction)) / math.log(2.0) : na
 formula_horizon_sessions = not na(formula_horizon_raw_sessions) and formula_horizon_raw_sessions > 0 ? int(math.ceil(formula_horizon_raw_sessions)) : na
 dynamic_horizon_valid = not na(formula_horizon_sessions) and formula_horizon_sessions > 0

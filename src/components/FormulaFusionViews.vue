@@ -41,6 +41,14 @@ const dynamicPlans = computed(() => {
       ]
     : []
 })
+const candidateThresholdText = computed(() => {
+  const thresholds = props.dynamicHoldingData?.candidateThresholds
+  const shortTrade = thresholds?.shortTradeMinimumGrossReturn
+  const fundCycle = thresholds?.fundCycleMinimumGrossReturn
+  if (![shortTrade, fundCycle].every(Number.isFinite)) return ''
+  if (shortTrade === fundCycle) return `短线 / 基金周期情景毛收益 ≥ ${props.pctFmt(shortTrade)}`
+  return `短线 ≥ ${props.pctFmt(shortTrade)} · 基金周期 ≥ ${props.pctFmt(fundCycle)}`
+})
 
 function barWidth(value) {
   return `${Math.max(2, Math.min(100, (Math.abs(value || 0) / lpScale.value) * 100)).toFixed(1)}%`
@@ -241,6 +249,11 @@ function inputModeLabel(mode, isSynthetic = false) {
         </div>
       </div>
       <div class="ff-note">周期和收益按信号日结构、AR 零冲击衰减投影，仅是情景坐标，不是预测或预期实现值。</div>
+      <div v-if="candidateThresholdText" class="ff-note">
+        候选硬门槛（{{ dynamicHoldingData.gateVersion }}）：{{
+          candidateThresholdText
+        }}；未通过时只保留研究诊断，不生成模拟挂单。
+      </div>
     </template>
     <div v-else class="ff-empty">等待回撤 / z / 半衰期 / 结构目标</div>
   </div>

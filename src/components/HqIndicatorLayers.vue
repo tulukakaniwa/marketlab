@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { HQ_MAIN_INDICATORS, HQ_SUB_INDICATORS } from '../infrastructure/charting/hqChartCatalog.js'
+import { formatFormulaInputList, formatFormulaReasonList } from '../domain/formula-research/formulaInputLabels.js'
 
 const props = defineProps({
   preferences: { type: Object, required: true },
@@ -20,10 +21,11 @@ const INTERNAL_REASONS = new Set([
   'no-finite-output',
   'overlay-disabled',
   'research-estimate',
+  'current-formula-output-unavailable',
 ])
 
 const MISSING_HINTS = Object.freeze({
-  lpBand: '需要完整 LP 情景区间，或可估值的链上真实仓位',
+  lpBand: '需要动态周期、波动率与成本锚；仅为公式研究区间，不代表真实 LP 仓位',
   executionMarkers: '需要持仓目标价或失效价',
   greeksPane: '需要期权 Delta、Gamma 或 Theta 情景输入',
   lpPane: '需要完整 LP 情景，或可估值的链上真实仓位；池聚合报价本身不能估值',
@@ -34,8 +36,8 @@ const MISSING_HINTS = Object.freeze({
 const labToggles = Object.freeze([
   { key: 'priceBands', label: '研究价格层', group: 'price', parent: true },
   { key: 'costBand', label: '成本锚带', group: 'price', child: true },
-  { key: 'volBand', label: 'GetDelta 价格带', group: 'price', child: true },
-  { key: 'lpBand', label: 'LP 情景价格区间', group: 'price', child: true },
+  { key: 'volBand', label: '动态周期 GetDelta 路径', group: 'price', child: true },
+  { key: 'lpBand', label: 'LP 动态公式研究区间', group: 'price', child: true },
   { key: 'entryLine', label: '入场价线', group: 'price' },
   { key: 'executionMarkers', label: '目标 / 失效价格线', group: 'price' },
   { key: 'volume', label: '成交量', group: 'volume' },
@@ -112,6 +114,9 @@ function availability(option) {
 function statusLabel(option) {
   const item = availability(option)
   if (suppressedByParent(option)) return '待开启主层'
+  if (item.current && item.state === 'not-applicable') return '当前结构不适用'
+  if (item.current && item.state === 'model-gate-failed') return '当前门禁未通过'
+  if (item.current && item.state === 'missing-input') return '缺少当前输入'
   if (item.state === 'missing-input') return '缺少输入'
   if (!props.overlays[option.key]) return '已关闭'
   const count = item.outputCount ?? item.series?.length ?? 0
@@ -132,6 +137,14 @@ function suppressedByParent(option) {
 function reasonLabel(option) {
   if (suppressedByParent(option)) return '此项已选；开启“研究价格层”后才会绘制。'
   const item = availability(option)
+  if (item.current) {
+    const boundary = item.historicalOutputCount
+      ? '历史稀疏分段仍显示；当前观察日不生成右侧带值。'
+      : '当前观察日没有合法 GetDelta 上下沿。'
+    if (item.blockedReasons?.length) return `${formatFormulaReasonList(item.blockedReasons)}；${boundary}`
+    if (item.missing?.length) return `缺少：${formatFormulaInputList(item.missing)}；${boundary}`
+    return boundary
+  }
   if (item.state !== 'missing-input') return ''
   const reason = String(item.reason || '')
   if (reason && !INTERNAL_REASONS.has(reason) && !/^[a-z\d_-]+$/i.test(reason)) return reason
