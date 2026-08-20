@@ -11,7 +11,7 @@ const SRC_JSON = join(ROOT, 'src', 'data', 'recommended-pool-latest.json')
 const PUBLIC_DIR = join(ROOT, 'public', 'recommended-pool')
 const CLIENT_SOURCE = join(ROOT, 'scripts', 'recommended-pool', 'report-client.js')
 const STYLE_SOURCE = join(ROOT, 'scripts', 'recommended-pool', 'report-page.css')
-const RANKING_SOURCE = join(ROOT, 'src', 'domain', 'strategy-planning', 'recommendedPoolRanking.js')
+const QUERY_SOURCE = join(ROOT, 'src', 'domain', 'strategy-planning', 'recommendedPoolQuery.js')
 
 const report = JSON.parse(await readFile(SRC_JSON, 'utf8'))
 const html = renderRecommendedPoolPage(report)
@@ -25,7 +25,7 @@ await Promise.all([
   ...Object.entries(publicFiles).map(([name, contents]) => writeFile(join(PUBLIC_DIR, name), contents, 'utf8')),
   copyFile(CLIENT_SOURCE, join(PUBLIC_DIR, 'report-client.js')),
   copyFile(STYLE_SOURCE, join(PUBLIC_DIR, 'report-page.css')),
-  copyFile(RANKING_SOURCE, join(PUBLIC_DIR, 'report-ranking.js')),
+  copyFile(QUERY_SOURCE, join(PUBLIC_DIR, 'report-query.js')),
 ])
 
 const datedDir = join(PUBLIC_DIR, report.generatedDate)
@@ -34,7 +34,7 @@ await Promise.all([
   ...Object.entries(publicFiles).map(([name, contents]) => writeFile(join(datedDir, name), contents, 'utf8')),
   copyFile(CLIENT_SOURCE, join(datedDir, 'report-client.js')),
   copyFile(STYLE_SOURCE, join(datedDir, 'report-page.css')),
-  copyFile(RANKING_SOURCE, join(datedDir, 'report-ranking.js')),
+  copyFile(QUERY_SOURCE, join(datedDir, 'report-query.js')),
 ])
 
 const quarantinedArchives = await quarantineLegacyPublicSnapshots(report.generatedDate)

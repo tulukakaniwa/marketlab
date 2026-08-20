@@ -6,6 +6,12 @@ const STATUS_META = Object.freeze({
 })
 
 const STATUS_ORDER = Object.freeze(['观察', '等待', '剔除', '需刷新数据'])
+const QUERY_BAND_META = Object.freeze({
+  'priority-review': { title: '优先复核', note: '达到优先阈值，仅代表函数查询命中' },
+  'secondary-review': { title: '次级复核', note: '达到次级阈值，仍需更多结构证据' },
+  'below-threshold': { title: '阈值外', note: '通过数据门禁，但当前函数分未达阈值' },
+  'canonical-gate': { title: '门禁隔离', note: 'canonical 剔除或需刷新，配置不可提升' },
+})
 const DATA_STATE_LABELS = Object.freeze({
   ready: '数据可用',
   provisional: '暂定数据',
@@ -66,23 +72,23 @@ export function renderRecommendedPoolPage(report) {
 
   <details class="config" id="config-panel" open>
     <summary>
-      <span>动态排序配置</span>
-      <small>${escapeHtml(report.rankingPolicy.dimensions.length)} 个诊断维度可调 · 默认展开，可折叠 · 仅同状态组内重排</small>
+      <span>动态函数配置</span>
+      <small>权重与阈值实时重算复核分层 · 默认展开，可折叠 · canonical 门禁保持不变</small>
     </summary>
     <div class="config-body">
-      <p>默认沿用严格门禁原始顺序。自定义权重只在同一状态组内重排，不能改变候选状态、执行状态或固定计数。</p>
+      <p>配置会重算“优先复核 / 次级复核 / 阈值外”，也会实时改变结果数量。它不改写观察、等待、剔除、数据状态或执行状态。</p>
       <div class="config-toolbar">
-        <label>排序模式
-          <select id="ranking-mode">
-            <option value="canonical">严格门禁原始顺序</option>
-            <option value="custom">自定义诊断排序</option>
-          </select>
-        </label>
         <label>每组展示
           <input id="display-limit" type="number" min="1" max="${escapeHtml(report.totalCandidates)}" value="${escapeHtml(report.topN)}" />
         </label>
+        <label>优先复核阈值（%）
+          <input type="number" min="0" max="100" step="1" value="${escapeHtml(report.queryPolicy.defaultThresholds.priorityReviewMin * 100)}" data-query-threshold="priorityReviewMin" />
+        </label>
+        <label>次级复核阈值（%）
+          <input type="number" min="0" max="100" step="1" value="${escapeHtml(report.queryPolicy.defaultThresholds.secondaryReviewMin * 100)}" data-query-threshold="secondaryReviewMin" />
+        </label>
         <button id="reset-config" type="button">恢复默认</button>
-        <button id="copy-agent-task" type="button">复制 LLM Agent 复核任务</button>
+        <button id="copy-agent-task" type="button">复制当前配置给 LLM Agent</button>
       </div>
       <table class="dimension-table">
         <thead><tr><th>维度</th><th>启用</th><th>权重</th></tr></thead>
@@ -92,13 +98,15 @@ export function renderRecommendedPoolPage(report) {
     </div>
   </details>
 
+  ${renderQueryResults(report)}
+
   ${renderAgentReview(report.agentReview, report.agentReviewRequest)}
 
   <div class="group-stack">${sections}</div>
 
   <section class="boundary-note">
     <strong>研究边界</strong>
-    <span>诊断分是可配置的复核顺序，不是胜率、回归概率、买卖信号或仓位建议。合成 CK 仅为价格几何代理。</span>
+    <span>函数分层与复核顺序不是胜率、回归概率、买卖信号或仓位建议。合成 CK 仅为价格几何代理。</span>
   </section>
 </main>
 <script>window.__POOL_REPORT__ = ${serializeForScript(report)};</script>
@@ -122,7 +130,7 @@ function renderSummaryCard(label, value, note) {
 function renderAgentReview(review, request) {
   if (review.status !== 'reviewed') {
     return `<section class="agent-review pending" id="agent-review" data-review-status="${escapeHtml(review.status)}">
-      <div><p class="eyebrow">LLM Agent 结论</p><h2>待 Agent 复核</h2></div>
+      <div><p class="eyebrow">canonical 证据 Agent 结论</p><h2>待 Agent 复核</h2></div>
       <p>${escapeHtml(review.message)}</p>
       <p class="agent-applicability" id="agent-applicability">可使用 ${request.compatibleAgents.map(escapeHtml).join('、')} 读取当前证据合同后生成复核产物。</p>
     </section>`
@@ -131,7 +139,7 @@ function renderAgentReview(review, request) {
   const conclusion = review.conclusion
   return `<section class="agent-review reviewed" id="agent-review" data-review-status="reviewed">
     <div class="agent-review-head">
-      <div><p class="eyebrow">LLM Agent 结论</p><h2>${escapeHtml(review.agent.name)} 已复核</h2></div>
+      <div><p class="eyebrow">canonical 证据 Agent 结论</p><h2>${escapeHtml(review.agent.name)} 已复核</h2></div>
       <time>${escapeHtml(formatTimestamp(review.generatedAt))}</time>
     </div>
     <p class="agent-summary">${escapeHtml(conclusion.summary)}</p>
@@ -139,7 +147,29 @@ function renderAgentReview(review, request) {
     ${renderReviewList('反证', conclusion.counterEvidence)}
     ${renderWatchlist(conclusion.watchlist)}
     ${renderReviewList('下次复核', conclusion.nextReview)}
-    <p class="agent-applicability" id="agent-applicability">该结论对应严格门禁原始顺序与当前证据摘要。</p>
+    <p class="agent-applicability" id="agent-applicability">该结论对应 canonical 证据摘要；上方函数配置如需文字判断，应复制当前任务重新调用 Agent。</p>
+  </section>`
+}
+
+function renderQueryResults(report) {
+  const groups = report.queryPolicy.bands
+    .map((band) => {
+      const meta = QUERY_BAND_META[band.id]
+      return `<section class="query-group" data-query-group="${escapeHtml(band.id)}">
+        <header><div><h3>${escapeHtml(meta.title)}</h3><small>${escapeHtml(meta.note)}</small></div><strong data-query-count="${escapeHtml(band.id)}">0</strong></header>
+        <ol class="query-list" data-query-list="${escapeHtml(band.id)}"></ol>
+        <p class="empty" data-query-empty="${escapeHtml(band.id)}">当前没有结果。</p>
+      </section>`
+    })
+    .join('')
+
+  return `<section class="query-results" id="query-results">
+    <header class="query-results-head">
+      <div><p class="eyebrow">固定证据上的纯查询</p><h2>函数查询结果</h2></div>
+      <p id="query-digest" class="query-digest">当前配置摘要计算中…</p>
+    </header>
+    <p class="query-boundary">函数分层是确定性研究结果，不是 LLM 结论，也不会解除任何执行阻断。文字判断需由 Codex、Claude Code 等 Agent 读取当前配置任务后生成。</p>
+    <div class="query-grid">${groups}</div>
   </section>`
 }
 
@@ -158,10 +188,20 @@ function renderWatchlist(items) {
 
 function renderDimensionRow(dimension) {
   const checked = dimension.enabled ? 'checked' : ''
+  if (dimension.queryMutable === false) {
+    return `<tr data-dimension-row="${escapeHtml(dimension.id)}" class="dimension-locked">
+      <td>${escapeHtml(dimension.label)}<small>固定范围条件；本地配置不可关闭</small></td>
+      <td><input type="checkbox" data-dimension-enabled="${escapeHtml(dimension.id)}" checked disabled /></td>
+      <td><span class="locked-label">生成候选集时执行</span></td>
+    </tr>`
+  }
   return `<tr data-dimension-row="${escapeHtml(dimension.id)}">
     <td>${escapeHtml(dimension.label)}</td>
     <td><input type="checkbox" data-dimension-enabled="${escapeHtml(dimension.id)}" ${checked} /></td>
-    <td><input type="range" min="0" max="50" step="1" value="${escapeHtml(dimension.weight)}" data-dimension-weight="${escapeHtml(dimension.id)}" /><output data-dimension-output="${escapeHtml(dimension.id)}">${escapeHtml(dimension.weight)}</output></td>
+    <td><div class="weight-controls">
+      <input type="range" min="0" max="50" step="1" value="${escapeHtml(dimension.weight)}" data-dimension-weight="${escapeHtml(dimension.id)}" aria-label="${escapeHtml(`${dimension.label}权重滑块`)}" />
+      <input type="number" min="0" max="50" step="1" value="${escapeHtml(dimension.weight)}" data-dimension-weight="${escapeHtml(dimension.id)}" aria-label="${escapeHtml(`${dimension.label}权重数值`)}" />
+    </div></td>
   </tr>`
 }
 
@@ -199,7 +239,7 @@ function renderCandidate(candidate, index, topN) {
     </div>
     <div class="score-row">
       <span>严格诊断分 <strong>${escapeHtml(candidate.score)}</strong></span>
-      <span>自定义排序分 <strong data-custom-score>${escapeHtml(formatPercent(diagnosticPercent))}</strong></span>
+      <span>当前函数分 <strong data-custom-score>${escapeHtml(formatPercent(diagnosticPercent))}</strong></span>
       <span>${escapeHtml(DATA_STATE_LABELS[candidate.dataState] ?? candidate.dataState)}</span>
     </div>
     <dl class="metric-grid">

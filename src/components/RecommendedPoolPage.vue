@@ -64,7 +64,7 @@ function formatNumber(value, digits = 2) {
       </section>
 
       <section class="agent-review">
-        <p>LLM Agent 结论</p>
+        <p>canonical 证据 Agent 结论</p>
         <h2>
           {{ pool.agentReview.status === 'reviewed' ? `${pool.agentReview.agent.name} 已复核` : '待 Agent 复核' }}
         </h2>
@@ -96,7 +96,7 @@ function formatNumber(value, digits = 2) {
 
       <section class="pool-notes">
         <strong>边界</strong>
-        <span>动态权重只能调整同一状态内的诊断排序；候选状态和执行门禁由 canonical 查询固定。</span>
+        <span>完整报告可用权重与阈值重算独立复核分层；候选状态和执行门禁仍由 canonical 查询固定。</span>
       </section>
     </template>
   </main>

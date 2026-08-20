@@ -6,7 +6,12 @@ import {
   createRecommendedPoolEvidence,
   diagnosticsFromCanonicalCandidate,
 } from '../strategy-planning/recommendedPoolReport.js'
-import { configuredDiagnosticRatio, rankWithinCandidateStatus } from '../strategy-planning/recommendedPoolRanking.js'
+import {
+  configuredDiagnosticRatio,
+  normalizeRecommendedPoolQueryConfig,
+  rankWithinCandidateStatus,
+  runRecommendedPoolQuery,
+} from '../strategy-planning/recommendedPoolQuery.js'
 
 const DIGEST = 'a'.repeat(64)
 const candidate = {
@@ -177,5 +182,143 @@ describe('recommended pool report contract', () => {
         dimensions,
       }),
     ).toThrow('cannot cross candidateStatus groups')
+  })
+
+  it('keeps raw diagnostic readings available when a dimension is disabled by default', () => {
+    const report = buildRecommendedPoolReport({ screen, latest, diagnosticsBySymbol, evidenceDigest: DIGEST })
+    const result = report.candidatesAll[0]
+    const socialPolicy = report.rankingPolicy.dimensions.find((dimension) => dimension.id === 'socialSecurityWhitelist')
+
+    expect(result.diagnosticReadings.socialSecurityWhitelist).toEqual({
+      ratio: 1,
+      availability: 'available',
+    })
+    expect(socialPolicy).toMatchObject({ enabled: false, queryMutable: false, rangeCondition: true })
+  })
+
+  it('recomputes functional review bands while preserving canonical state fields', () => {
+    const policy = [
+      { id: 'geometry', label: '几何', enabled: true, weight: 10, queryMutable: true },
+      { id: 'deviation', label: '偏离', enabled: true, weight: 0, queryMutable: true },
+    ]
+    const base = {
+      canonicalRank: 0,
+      candidateStatus: '等待',
+      executionStatus: 'blocked',
+      dataState: 'provisional',
+      scoreStatus: 'diagnostic-medium',
+    }
+    const geometryCandidate = {
+      ...base,
+      symbol: 'A',
+      diagnosticReadings: {
+        geometry: { ratio: 1, availability: 'available' },
+        deviation: { ratio: 0, availability: 'available' },
+      },
+    }
+    const deviationCandidate = {
+      ...base,
+      symbol: 'B',
+      canonicalRank: 1,
+      diagnosticReadings: {
+        geometry: { ratio: 0, availability: 'available' },
+        deviation: { ratio: 1, availability: 'available' },
+      },
+    }
+    const gatedCandidate = {
+      ...geometryCandidate,
+      symbol: 'C',
+      canonicalRank: 2,
+      candidateStatus: '剔除',
+    }
+    const before = [geometryCandidate, deviationCandidate, gatedCandidate].map((item) => ({
+      symbol: item.symbol,
+      dataState: item.dataState,
+      scoreStatus: item.scoreStatus,
+      candidateStatus: item.candidateStatus,
+      executionStatus: item.executionStatus,
+    }))
+    const first = runRecommendedPoolQuery(
+      [geometryCandidate, deviationCandidate, gatedCandidate],
+      { dimensions: policy, thresholds: { priorityReviewMin: 0.65, secondaryReviewMin: 0.4 } },
+      policy,
+    )
+    const swappedDimensions = [
+      { ...policy[0], weight: 0 },
+      { ...policy[1], weight: 10 },
+    ]
+    const second = runRecommendedPoolQuery(
+      [geometryCandidate, deviationCandidate, gatedCandidate],
+      { dimensions: swappedDimensions, thresholds: { priorityReviewMin: 0.65, secondaryReviewMin: 0.4 } },
+      policy,
+    )
+
+    expect(first.groups['priority-review'].map(({ candidate: item }) => item.symbol)).toEqual(['A'])
+    expect(second.groups['priority-review'].map(({ candidate: item }) => item.symbol)).toEqual(['B'])
+    expect(first.groups['canonical-gate'].map(({ candidate: item }) => item.symbol)).toEqual(['C'])
+    expect(second.groups['canonical-gate'].map(({ candidate: item }) => item.symbol)).toEqual(['C'])
+    expect(
+      [geometryCandidate, deviationCandidate, gatedCandidate].map((item) => ({
+        symbol: item.symbol,
+        dataState: item.dataState,
+        scoreStatus: item.scoreStatus,
+        candidateStatus: item.candidateStatus,
+        executionStatus: item.executionStatus,
+      })),
+    ).toEqual(before)
+  })
+
+  it('enables a measured default-off dimension and rejects dimensions outside the report policy', () => {
+    const policy = [{ id: 'optional', label: '可选维度', enabled: false, weight: 5, queryMutable: true }]
+    const configured = normalizeRecommendedPoolQueryConfig(
+      { dimensions: [{ id: 'optional', enabled: true, weight: 5 }] },
+      policy,
+    )
+    const candidateWithReading = {
+      diagnosticReadings: { optional: { ratio: 0.8, availability: 'available' } },
+    }
+    const disabled = normalizeRecommendedPoolQueryConfig(
+      { dimensions: [{ id: 'optional', enabled: false, weight: 5 }] },
+      policy,
+    )
+
+    expect(configuredDiagnosticRatio(candidateWithReading, configured.dimensions)).toBeCloseTo(0.8)
+    expect(configuredDiagnosticRatio(candidateWithReading, disabled.dimensions)).toBe(0)
+    expect(() =>
+      normalizeRecommendedPoolQueryConfig({ dimensions: [{ id: 'rsi', enabled: true, weight: 50 }] }, policy),
+    ).toThrow('unsupported recommended-pool query dimension')
+    expect(() =>
+      normalizeRecommendedPoolQueryConfig({ dimensions: [{ id: 'optional' }, { id: 'optional' }] }, policy),
+    ).toThrow('must be unique')
+  })
+
+  it('uses configurable review thresholds and keeps the secondary threshold below the priority threshold', () => {
+    const policy = [{ id: 'signal', label: '信号', enabled: true, weight: 10, queryMutable: true }]
+    const queryCandidate = {
+      symbol: 'A',
+      canonicalRank: 0,
+      candidateStatus: '等待',
+      executionStatus: 'blocked',
+      diagnosticReadings: { signal: { ratio: 0.85, availability: 'available' } },
+    }
+    const strict = runRecommendedPoolQuery(
+      [queryCandidate],
+      {
+        dimensions: policy,
+        thresholds: { priorityReviewMin: 0.9, secondaryReviewMin: 0.8 },
+      },
+      policy,
+    )
+    const normalized = normalizeRecommendedPoolQueryConfig(
+      {
+        dimensions: policy,
+        thresholds: { priorityReviewMin: 0.3, secondaryReviewMin: 0.8 },
+      },
+      policy,
+    )
+
+    expect(strict.groups['priority-review']).toHaveLength(0)
+    expect(strict.groups['secondary-review'].map(({ candidate: item }) => item.symbol)).toEqual(['A'])
+    expect(normalized.thresholds).toEqual({ priorityReviewMin: 0.3, secondaryReviewMin: 0.3 })
   })
 })

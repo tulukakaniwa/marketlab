@@ -1,7 +1,14 @@
 import { buildScoreConfig, computeBuyScore, deriveRecommendedStockDecisionMetrics } from './recommendedStockPool.js'
+import {
+  DEFAULT_RECOMMENDED_POOL_QUERY_THRESHOLDS,
+  RECOMMENDED_POOL_QUERY_BANDS,
+  RECOMMENDED_POOL_QUERY_FUNCTION,
+  RECOMMENDED_POOL_QUERY_SCHEMA,
+} from './recommendedPoolQuery.js'
 
-export const RECOMMENDED_POOL_REPORT_SCHEMA = 'market-lab.recommended-pool-report.v4'
+export const RECOMMENDED_POOL_REPORT_SCHEMA = 'market-lab.recommended-pool-report.v5'
 export const RECOMMENDED_POOL_AGENT_REVIEW_SCHEMA = 'market-lab.recommended-pool-agent-review.v1'
+export const RECOMMENDED_POOL_QUERY_REVIEW_SCHEMA = 'market-lab.recommended-pool-query-review.v1'
 
 export const CANDIDATE_STATUS_ORDER = Object.freeze(['观察', '等待', '剔除', '需刷新数据'])
 
@@ -17,8 +24,16 @@ const REPORT_DIMENSION_IDS = Object.freeze([
 
 const AGENT_REVIEW_INSTRUCTIONS = Object.freeze([
   '只使用报告中的 canonical 状态、公式证据和数据来源。',
-  '自定义诊断排序只能改变同一 candidateStatus 内的复核顺序。',
+  '用户函数查询是独立的诊断复核分层，不能替代 canonical 状态。',
   '不得改写 dataState、candidateStatus 或 executionStatus。',
+  '缺少账户风险预算、实时盘口或成交输入时，不得生成执行指令。',
+  '必须同时写出支持证据、反证和下一次复核条件。',
+])
+
+const QUERY_REVIEW_INSTRUCTIONS = Object.freeze([
+  '只使用任务中的 canonical 证据、用户函数配置和函数查询结果。',
+  '结论必须同时匹配 evidenceDigest 与 queryDigest。',
+  '优先复核和次级复核只是诊断分层，不得改写 candidateStatus 或 executionStatus。',
   '缺少账户风险预算、实时盘口或成交输入时，不得生成执行指令。',
   '必须同时写出支持证据、反证和下一次复核条件。',
 ])
@@ -61,7 +76,7 @@ export function createRecommendedPoolEvidence({ screen, latest, diagnosticsBySym
   const candidates = screen.ranked.map((candidate) => {
     const metrics = diagnosticsBySymbol[candidate.symbol] ?? {}
     const derivedMetrics = deriveRecommendedStockDecisionMetrics(metrics)
-    const diagnostic = computeBuyScore({ ...metrics, ...derivedMetrics }, { dimensions: diagnosticDimensions })
+    const diagnosticReadings = measureDiagnosticReadings({ ...metrics, ...derivedMetrics }, diagnosticDimensions)
 
     return {
       symbol: candidate.symbol,
@@ -76,7 +91,7 @@ export function createRecommendedPoolEvidence({ screen, latest, diagnosticsBySym
       executionStatus: candidate.executionStatus,
       executionReasons: candidate.executionReasons,
       formula: candidate.formula,
-      diagnostic: compactDiagnostic(diagnostic),
+      diagnosticReadings,
     }
   })
 
@@ -150,11 +165,20 @@ export function buildRecommendedPoolReport({
     },
     rankingPolicy: {
       defaultMode: 'canonical',
-      configurableMode: 'diagnostic-within-status',
+      configurableMode: 'functional-query-over-canonical-snapshot',
       candidateStatusMutable: false,
       executionStatusMutable: false,
-      explanation: '用户配置只调整同一门禁状态内的诊断排序，不改变观察、等待、剔除或执行状态。',
+      explanation: '用户配置会重算诊断复核分层和组内顺序，不改变观察、等待、剔除或执行状态。',
       dimensions: dimensions.map(dimensionMetadata),
+    },
+    queryPolicy: {
+      schemaVersion: RECOMMENDED_POOL_QUERY_SCHEMA,
+      functionId: RECOMMENDED_POOL_QUERY_FUNCTION,
+      defaultThresholds: { ...DEFAULT_RECOMMENDED_POOL_QUERY_THRESHOLDS },
+      bands: RECOMMENDED_POOL_QUERY_BANDS.map((band) => ({ ...band })),
+      eligibleCandidateStatuses: ['观察', '等待'],
+      immutableFields: ['dataState', 'scoreStatus', 'candidateStatus', 'executionStatus'],
+      explanation: '函数查询只对通过数据门禁的观察和等待项做复核分层；剔除和需刷新数据始终隔离。',
     },
     agentReview: normalizedAgentReview,
     agentReviewRequest: {
@@ -163,6 +187,12 @@ export function buildRecommendedPoolReport({
       instructions: [...AGENT_REVIEW_INSTRUCTIONS],
       compatibleAgents: ['Codex', 'Claude Code', '其他可输出合同 JSON 的 LLM Agent'],
       outputFields: ['schemaVersion', 'evidenceDigest', 'generatedAt', 'agent', 'conclusion'],
+    },
+    queryReviewRequest: {
+      schemaVersion: RECOMMENDED_POOL_QUERY_REVIEW_SCHEMA,
+      instructions: [...QUERY_REVIEW_INSTRUCTIONS],
+      compatibleAgents: ['Codex', 'Claude Code', '其他可输出合同 JSON 的 LLM Agent'],
+      outputFields: ['schemaVersion', 'evidenceDigest', 'queryDigest', 'generatedAt', 'agent', 'conclusion'],
     },
     candidatesAll,
     focusItems: candidatesAll.filter(hasStatus('观察')).slice(0, safeTopN),
@@ -175,7 +205,13 @@ function buildReportDimensions() {
     { id: 'halfLife', enabled: true },
     { id: 'volConfidence', enabled: true },
   ])
-  return configured.filter((dimension) => REPORT_DIMENSION_IDS.includes(dimension.id))
+  return configured
+    .filter((dimension) => REPORT_DIMENSION_IDS.includes(dimension.id))
+    .map((dimension) =>
+      dimension.id === 'socialSecurityWhitelist'
+        ? { ...dimension, enabled: false, queryMutable: false, rangeCondition: true }
+        : { ...dimension, queryMutable: true, rangeCondition: false },
+    )
 }
 
 function buildCandidate({ candidate, canonicalRank, metrics, dimensions }) {
@@ -183,6 +219,7 @@ function buildCandidate({ candidate, canonicalRank, metrics, dimensions }) {
   const completeMetrics = { ...metrics, ...derivedMetrics }
   const diagnostic = computeBuyScore(completeMetrics, { dimensions })
   const ratio = diagnostic.maxScore > 0 ? diagnostic.score / diagnostic.maxScore : 0
+  const diagnosticReadings = measureDiagnosticReadings(completeMetrics, dimensions)
 
   return {
     ...candidate,
@@ -191,28 +228,29 @@ function buildCandidate({ candidate, canonicalRank, metrics, dimensions }) {
       score: diagnostic.score,
       maxScore: diagnostic.maxScore,
       ratio,
-      dimensions: diagnostic.dimensions,
       hits: diagnostic.hits,
-      semantics: 'configurable-diagnostic-order-within-fixed-candidate-status',
+      semantics: 'default-diagnostic-score-over-fixed-canonical-state',
     },
+    diagnosticReadings,
   }
 }
 
-function compactDiagnostic(diagnostic) {
-  return {
-    score: diagnostic.score,
-    maxScore: diagnostic.maxScore,
-    dimensions: Object.fromEntries(
-      Object.entries(diagnostic.dimensions).map(([id, value]) => [
-        id,
+function measureDiagnosticReadings(metrics, dimensions) {
+  const measurementDimensions = dimensions.map((dimension) => ({ ...dimension, enabled: true, weight: 1 }))
+  const measured = computeBuyScore(metrics, { dimensions: measurementDimensions })
+  return Object.fromEntries(
+    dimensions.map((dimension) => {
+      const value = measured.dimensions[dimension.id]
+      const available = value && !value.missing && !value.forbidden && Number.isFinite(value.ratio)
+      return [
+        dimension.id,
         {
-          ratio: value.ratio,
-          missing: value.missing === true,
-          disabled: value.disabled === true,
+          ratio: available ? value.ratio : null,
+          availability: available ? 'available' : 'missing',
         },
-      ]),
-    ),
-  }
+      ]
+    }),
+  )
 }
 
 function normalizeAgentReview(review, evidenceDigest, candidateSymbols) {
@@ -303,6 +341,8 @@ function dimensionMetadata(dimension) {
     weight: dimension.weight,
     enabled: dimension.enabled,
     optional: dimension.optional === true,
+    queryMutable: dimension.queryMutable !== false,
+    rangeCondition: dimension.rangeCondition === true,
   }
 }
 

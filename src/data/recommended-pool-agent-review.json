@@ -1,13 +1,13 @@
 {
   "schemaVersion": "market-lab.recommended-pool-agent-review.v1",
-  "evidenceDigest": "2912611be61fa16c7c0fcc7c94c1e4a17d02a1248ff006b08bb96c1f21dac09c",
-  "generatedAt": "2026-08-20T05:24:19Z",
+  "evidenceDigest": "91464a62adc93d653b1aeb97325f6ac467b339b903499701acb01892546757ad",
+  "generatedAt": "2026-08-20T06:07:50Z",
   "agent": {
     "name": "Codex",
     "runtime": "desktop"
   },
   "conclusion": {
-    "summary": "严格门禁没有产生观察项，combo/latest 也没有短持信号；本轮没有可执行的新开仓候选。自定义权重只用于安排同一状态内的复核顺序。",
+    "summary": "canonical 门禁没有产生观察项，combo/latest 也没有短持信号；本轮没有可执行的新开仓候选。页面函数查询只是在同一证据快照上划分复核层级，自定义配置需要单独调用 Agent 形成文字判断。",
     "supportingEvidence": [
       "A股 316 只经静态研究白名单和四类排除后，77 只进入完整门禁计算。",
       "完整日线统一截止 2026-08-19，77 只均未触发陈旧数据门禁。",
@@ -35,7 +35,7 @@
     "nextReview": [
       "下一根已闭合 A 股日线接入后，重新运行 canonical screen 与 combo/latest。",
       "重点检查下跌扩张、回撤扩大和 orderPlan 阻断是否解除。",
-      "若用户调整诊断权重，应导出当前配置并重新调用 LLM Agent。"
+      "若用户调整诊断权重或阈值，应复制当前函数任务并重新调用 LLM Agent。"
     ]
   }
 }
