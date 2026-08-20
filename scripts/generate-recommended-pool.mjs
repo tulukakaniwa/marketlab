@@ -1,261 +1,118 @@
 #!/usr/bin/env node
-// 生成「今日研究观察池」快照（v3 多维 + AR 样本门禁 + 独立留出校准边界）
 
-import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
-import { parseCsvText } from '../src/domain/market-data/ohlcv.js'
-import { buildMarketStatePath } from '../src/domain/market-data/cost.js'
-import { inferTdpy } from '../src/domain/market-data/tdpy.js'
-import { uniswapV3Inventory } from '../src/domain/formulas/lp.js'
 import {
-  buildScoreConfig,
-  deriveRecommendedStockDecisionMetrics,
-  generateRecommendedStockPool,
-  deviationReferenceFromZ,
-} from '../src/domain/strategy-planning/recommendedStockPool.js'
+  buildRecommendedPoolReport,
+  createRecommendedPoolEvidence,
+  diagnosticsFromCanonicalCandidate,
+} from '../src/domain/strategy-planning/recommendedPoolReport.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const ROOT = join(__dirname, '..')
-const INDEX_PATH = join(ROOT, 'src', 'data', 'stock-index.json')
-const DATA_DIR = join(ROOT, 'public', 'data')
+const executeFile = promisify(execFile)
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const SCREEN_RUNTIME = join(ROOT, '.agents', 'skills', 'china-stock-selection', 'scripts', 'screen-cn-stocks.mjs')
+const LATEST_RUNTIME = join(ROOT, '.agents', 'skills', 'china-stock-selection', 'scripts', 'replay-short-hold.mjs')
 const OUT_DIR = join(ROOT, 'src', 'data', 'recommended-pools')
 const LATEST_PATH = join(ROOT, 'src', 'data', 'recommended-pool-latest.json')
-const WHITELIST_PATH = join(ROOT, 'src', 'data', 'social-security-q1-whitelist.json')
+const AGENT_REVIEW_PATH = join(ROOT, 'src', 'data', 'recommended-pool-agent-review.json')
 
-const TOP_N = numberArg('--top', 10)
-const RANGE_WIDTH = numberArg('--range-width', 0.1)
-const LIQUIDITY = numberArg('--liquidity', 1)
-const HISTORY_SESSIONS_OVERRIDE = optionalNumberArg('--history-sessions')
+const TOP_N = positiveNumberArg('--top', 10)
+const SCREEN_ARGS = Object.freeze([
+  '--market',
+  'A股',
+  '--top',
+  '1000',
+  '--format',
+  'json',
+  '--require-shebao',
+  'true',
+  '--exclude-alcohol',
+  'true',
+  '--exclude-banks',
+  'true',
+  '--exclude-realestate',
+  'true',
+  '--exclude-northeast',
+  'true',
+])
+const LATEST_ARGS = Object.freeze([
+  '--profile',
+  'combo',
+  '--mode',
+  'latest',
+  '--market',
+  'A股',
+  '--fee',
+  '0.0011',
+  '--require-shebao',
+  'true',
+  '--format',
+  'json',
+])
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+await main()
 
 async function main() {
-  const indexRaw = await readFile(INDEX_PATH, 'utf8')
-  const index = JSON.parse(indexRaw)
-  if (!Array.isArray(index)) throw new Error('stock-index.json 不是数组')
-
-  const csvSet = new Set((await readdir(DATA_DIR)).filter((f) => f.endsWith('.csv')))
-  const whitelist = await loadWhitelist()
-
-  const candidates = []
-  let okCount = 0
-  let skipCount = 0
-  for (const entry of index) {
-    const file = String(entry.url ?? '').replace(/^\/(?:data|datasets)\//, '')
-    if (!file || !csvSet.has(file)) {
-      skipCount += 1
-      continue
-    }
-    try {
-      const text = await readFile(join(DATA_DIR, file), 'utf8')
-      const rows = parseCsvText(text)
-      const metrics = computeMetricsForRows(rows, entry, whitelist)
-      if (!metrics) {
-        skipCount += 1
-        continue
-      }
-      const derivedMetrics = deriveRecommendedStockDecisionMetrics(metrics)
-      candidates.push({
-        symbol: entry.symbol,
-        label: entry.label,
-        market: entry.market,
-        metrics: { ...metrics, ...derivedMetrics },
-      })
-      okCount += 1
-    } catch (err) {
-      skipCount += 1
-      console.warn(`  [warn] ${entry.symbol}: ${err.message}`)
-    }
-  }
-
+  const [screen, latest, agentReview] = await Promise.all([
+    runJsonRuntime(SCREEN_RUNTIME, SCREEN_ARGS),
+    runJsonRuntime(LATEST_RUNTIME, LATEST_ARGS),
+    readOptionalJson(AGENT_REVIEW_PATH),
+  ])
+  const diagnosticsBySymbol = Object.fromEntries(
+    screen.ranked.map((candidate) => [candidate.symbol, diagnosticsFromCanonicalCandidate(candidate)]),
+  )
+  const evidence = createRecommendedPoolEvidence({ screen, latest, diagnosticsBySymbol })
+  const evidenceDigest = createHash('sha256').update(JSON.stringify(evidence)).digest('hex')
   const generatedAt = new Date().toISOString()
-  const dimensions = buildScoreConfig()
-  const pool = generateRecommendedStockPool(candidates, {
-    topN: TOP_N,
+  const report = buildRecommendedPoolReport({
+    screen,
+    latest,
+    diagnosticsBySymbol,
+    evidenceDigest,
+    agentReview,
     generatedAt,
-    dimensions,
+    topN: TOP_N,
   })
 
   await mkdir(OUT_DIR, { recursive: true })
-  const datedPath = join(OUT_DIR, `stock-pool-${pool.generatedDate}.json`)
+  const datedPath = join(OUT_DIR, `stock-pool-${report.generatedDate}.json`)
+  const serialized = `${JSON.stringify(report, null, 2)}\n`
+  await Promise.all([writeFile(datedPath, serialized, 'utf8'), writeFile(LATEST_PATH, serialized, 'utf8')])
 
-  const payload = {
-    ...pool,
-    parameters: {
-      topN: TOP_N,
-      rangeWidth: RANGE_WIDTH,
-      liquidity: LIQUIDITY,
-      historyWindowMode: HISTORY_SESSIONS_OVERRIDE ? 'explicit-scenario' : 'market-tdpy-derived',
-      historySessionsOverride: HISTORY_SESSIONS_OVERRIDE,
-    },
-    counts: {
-      indexEntries: index.length,
-      processed: okCount,
-      skipped: skipCount,
-      whitelistEntries: whitelist.size,
-    },
-  }
-
-  // 把所有候选（包含未入选的）也保留一份，让前端能在调权重后重新排序
-  payload.candidatesAll = candidates.map((c) => ({
-    symbol: c.symbol,
-    label: c.label,
-    market: c.market,
-    metrics: c.metrics,
-  }))
-
-  await writeFile(datedPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-  await writeFile(LATEST_PATH, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-
+  const counts = report.canonicalSummary.statusCounts
   console.log(
-    `研究观察池生成完毕：focus=${pool.focusItems.length} / wait=${pool.waitItems.length}，` +
-      `processed=${okCount}, skipped=${skipCount}, whitelist=${whitelist.size}, dated=${datedPath}`,
+    `研究报告证据生成完毕：A股 ${report.canonicalSummary.audit.considered}→${report.totalCandidates}，观察=${counts.观察}，等待=${counts.等待}，剔除=${counts.剔除}，latest=${report.canonicalSummary.latestSignalCount}，agent=${report.agentReview.status}，dated=${datedPath}`,
   )
 }
 
-async function loadWhitelist() {
-  try {
-    const text = await readFile(WHITELIST_PATH, 'utf8')
-    const data = JSON.parse(text)
-    const set = new Set()
-    if (Array.isArray(data?.symbols)) for (const s of data.symbols) set.add(String(s).trim())
-    return set
-  } catch {
-    return new Set()
-  }
+async function runJsonRuntime(runtime, args) {
+  const { stdout } = await executeFile(process.execPath, [runtime, ...args], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  return JSON.parse(stdout)
 }
 
-function computeMetricsForRows(rows, entry, whitelist) {
-  const market = entry.market
-  const tdpy = inferTdpy({ symbol: entry.symbol, market }).value
-  const historySessions1y = HISTORY_SESSIONS_OVERRIDE ?? tdpy
-  const historySessions3y = historySessions1y * 3
-  const minimumEvidenceSamples = Math.max(3, Math.ceil(Math.sqrt(tdpy)))
-  const last = rows.at(-1)
-  if (!last) return null
-
-  const marketStatePath = buildMarketStatePath(rows, tdpy)
-  const lastMarket = marketStatePath.at(-1)
-  if (!lastMarket) return null
-
-  // 1 年 lpValue 序列 → 当前百分位
-  const lpValues1y = collectLpValues(rows, marketStatePath, historySessions1y)
-  // 3 年 lpValue 序列 → max/min 比值
-  const lpValues3y = collectLpValues(rows, marketStatePath, historySessions3y)
-
-  const currentLp = computeLpAt({ price: last.close, anchor: lastMarket.costAnchor })
-  if (!currentLp) return null
-
-  const lpValuePercentile =
-    lpValues1y.length >= minimumEvidenceSamples ? percentileOf(lpValues1y, currentLp.value) : null
-
-  const lpRatio3y =
-    lpValues3y.length >= minimumEvidenceSamples
-      ? Math.max(...lpValues3y) / Math.max(Math.min(...lpValues3y), 1e-12)
-      : null
-
-  // z 值
-  const halfWidth =
-    lastMarket.costHigh > lastMarket.costAnchor
-      ? lastMarket.costHigh - lastMarket.costAnchor
-      : lastMarket.costLow < lastMarket.costAnchor
-        ? lastMarket.costAnchor - lastMarket.costLow
-        : null
-  const zScore = halfWidth && halfWidth > 0 ? (last.close - lastMarket.costAnchor) / halfWidth : null
-  const deviationReference = zScore !== null ? deviationReferenceFromZ(zScore) : null
-
-  // costDistance 序列（用于半衰期）
-  const distSeries = []
-  const distStart = Math.max(0, marketStatePath.length - historySessions1y)
-  for (let i = distStart; i < marketStatePath.length; i += 1) {
-    const ms = marketStatePath[i]
-    if (Number.isFinite(ms?.costDistance)) distSeries.push(ms.costDistance)
-  }
-
-  return {
-    price: last.close,
-    costAnchor: lastMarket.costAnchor,
-    costLow: lastMarket.costLow,
-    costHigh: lastMarket.costHigh,
-    costDistance: lastMarket.costDistance,
-    costSlopeRecent: lastMarket.costSlopeRecent,
-    annualVol: lastMarket.annualVol,
-    lpZone: currentLp.zone,
-    lpValue: currentLp.value,
-    lpValuePercentile,
-    lpValueMin1y: lpValues1y.length ? Math.min(...lpValues1y) : null,
-    lpValueMax1y: lpValues1y.length ? Math.max(...lpValues1y) : null,
-    lpValueRatio3y: lpRatio3y,
-    zScore,
-    deviationPercentile: deviationReference?.deviationPercentile ?? null,
-    twoSidedTailProbability: deviationReference?.twoSidedTailProbability ?? null,
-    deviationSemantics: deviationReference?.semantics ?? null,
-    annualVolSource: 'historical-realized-scenario-sigma',
-    lpProxySemantics: 'dynamic-range-synthetic-price-geometry-not-fixed-position',
-    anchorDirection: directionOfSlope(lastMarket.costSlopeRecent),
-    costDistanceSeries: distSeries,
-    tradingDays: distSeries.length,
-    tradingDaysPerYear: tdpy,
-    historySessions1y,
-    historySessions3y,
-    minimumEvidenceSamples,
-    socialSecurityWhitelisted: whitelist.has(entry.symbol),
-    observationDate: last.date,
-  }
+async function readOptionalJson(path) {
+  const parsed = await readFile(path, 'utf8').then(JSON.parse).catch(optionalFileFallback)
+  return parsed
 }
 
-function collectLpValues(rows, marketStatePath, historyLen) {
-  const start = Math.max(0, marketStatePath.length - historyLen)
-  const out = []
-  for (let i = start; i < marketStatePath.length; i += 1) {
-    const ms = marketStatePath[i]
-    const row = rows[i]
-    if (!ms || !row) continue
-    const lp = computeLpAt({ price: row.close, anchor: ms.costAnchor })
-    if (lp && Number.isFinite(lp.value) && lp.value > 0) out.push(lp.value)
-  }
-  return out
+function optionalFileFallback(error) {
+  if (error?.code === 'ENOENT') return null
+  console.warn(`Agent 复核文件不可用：${error.message}`)
+  return null
 }
 
-function computeLpAt({ price, anchor }) {
-  if (![price, anchor].every((v) => Number.isFinite(v) && v > 0)) return null
-  const lower = anchor * (1 - RANGE_WIDTH)
-  const upper = anchor * (1 + RANGE_WIDTH)
-  if (lower <= 0 || upper <= lower) return null
-  const inv = uniswapV3Inventory({ markPrice: price, lowerPrice: lower, upperPrice: upper, liquidity: LIQUIDITY })
-  if (!inv) return null
-  return { value: inv.value, zone: inv.zone }
-}
-
-function percentileOf(series, value) {
-  if (!series.length || !Number.isFinite(value)) return null
-  let count = 0
-  for (const v of series) if (v <= value) count += 1
-  return count / series.length
-}
-
-function directionOfSlope(slope) {
-  if (!Number.isFinite(slope)) return null
-  if (slope >= 0.003) return 'up'
-  if (slope <= -0.003) return 'down'
-  return 'flat'
-}
-
-function numberArg(name, fallback) {
-  const idx = process.argv.indexOf(name)
-  if (idx < 0) return fallback
-  const value = Number(process.argv[idx + 1])
-  return Number.isFinite(value) && value > 0 ? value : fallback
-}
-
-function optionalNumberArg(name) {
-  const idx = process.argv.indexOf(name)
-  if (idx < 0) return null
-  const value = Number(process.argv[idx + 1])
-  return Number.isFinite(value) && value > 0 ? Math.round(value) : null
+function positiveNumberArg(name, fallback) {
+  const index = process.argv.indexOf(name)
+  if (index < 0) return fallback
+  const value = Number(process.argv[index + 1])
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback
 }

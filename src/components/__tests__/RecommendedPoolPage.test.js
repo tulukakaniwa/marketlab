@@ -1,45 +1,50 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import RecommendedPoolPage from '../RecommendedPoolPage.vue'
 
-vi.mock('../../composables/useBreakpoint.js', () => ({
-  useBreakpoint: () => ({ isMobile: { value: false } }),
-}))
+import RecommendedPoolPage from '../RecommendedPoolPage.vue'
 
 afterEach(() => {
   vi.unstubAllGlobals()
 })
 
 describe('RecommendedPoolPage', () => {
-  it('使用公式交易会话字段，并把不可用状态与固定天数分开', async () => {
+  it('renders the canonical status contract and Agent conclusion without promoting a high diagnostic score', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
-          generatedAt: '2026-08-10T00:00:00.000Z',
+          schemaVersion: 'market-lab.recommended-pool-report.v4',
           totalCandidates: 2,
-          dimensions: [],
-          logic: '评分逻辑',
-          riskNote: '仅研究',
-          focusItems: [
+          topN: 10,
+          canonicalSummary: {
+            audit: { considered: 316, dataReady: 2 },
+            statusCounts: { 观察: 0, 等待: 1, 剔除: 1, 需刷新数据: 0 },
+            latestSignalCount: 0,
+          },
+          agentReview: {
+            status: 'reviewed',
+            agent: { name: 'Codex' },
+            conclusion: { summary: '本轮没有通过观察门禁的标的。' },
+          },
+          candidatesAll: [
             {
-              symbol: 'A',
-              label: '有效周期',
+              symbol: '600085',
+              label: '同仁堂',
               market: 'A股',
-              buyScore: 8,
-              maxScore: 10,
-              metrics: { price: 10, formulaHorizonSessions: 6.2, holdingProjectionStatus: 'eligible' },
+              score: 99,
+              candidateStatus: '等待',
+              executionStatus: 'blocked',
+              dataThrough: '2026-08-19',
             },
-          ],
-          waitItems: [
             {
-              symbol: 'B',
-              label: '结构不适用',
+              symbol: '000001',
+              label: '示例剔除项',
               market: 'A股',
-              buyScore: 4,
-              maxScore: 10,
-              metrics: { price: 11, formulaHorizonSessions: null, holdingProjectionStatus: 'not-applicable' },
+              score: 80,
+              candidateStatus: '剔除',
+              executionStatus: 'blocked',
+              dataThrough: '2026-08-19',
             },
           ],
         }),
@@ -49,10 +54,13 @@ describe('RecommendedPoolPage', () => {
     const wrapper = mount(RecommendedPoolPage)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('评分研究池 · 非执行建议')
-    expect(wrapper.text()).toContain('7 个交易会话*')
-    expect(wrapper.text()).toContain('当前结构不适用')
-    expect(wrapper.text()).not.toContain('--天*')
-    expect(wrapper.text()).toContain('不是持仓期预测')
+    expect(wrapper.text()).toContain('316 → 2')
+    expect(wrapper.text()).toContain('Codex 已复核')
+    expect(wrapper.text()).toContain('本轮没有通过观察门禁的标的。')
+    expect(wrapper.text()).toContain('同仁堂')
+    expect(wrapper.text()).toContain('99')
+    expect(wrapper.text()).toContain('等待')
+    expect(wrapper.text()).toContain('blocked')
+    expect(wrapper.text()).not.toContain('研究关注')
   })
 })

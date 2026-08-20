@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "market-lab.recommended-pool-agent-review.v1",
+  "evidenceDigest": "2912611be61fa16c7c0fcc7c94c1e4a17d02a1248ff006b08bb96c1f21dac09c",
+  "generatedAt": "2026-08-20T05:24:19Z",
+  "agent": {
+    "name": "Codex",
+    "runtime": "desktop"
+  },
+  "conclusion": {
+    "summary": "严格门禁没有产生观察项，combo/latest 也没有短持信号；本轮没有可执行的新开仓候选。自定义权重只用于安排同一状态内的复核顺序。",
+    "supportingEvidence": [
+      "A股 316 只经静态研究白名单和四类排除后，77 只进入完整门禁计算。",
+      "完整日线统一截止 2026-08-19，77 只均未触发陈旧数据门禁。",
+      "候选状态为观察 0、等待 63、剔除 14；latest 信号为 0。"
+    ],
+    "counterEvidence": [
+      "所有候选的 executionStatus 均为 blocked，账户风险预算与实时执行输入缺失。",
+      "排名靠前的等待项仍处于下跌扩张阶段，回撤扩张门禁未解除。",
+      "诊断分和合成 CK 几何都不能替代方向、结构目标与周期绑定。"
+    ],
+    "watchlist": [
+      {
+        "symbol": "600085",
+        "note": "同仁堂：等待；下跌扩张与回撤扩大仍是主要反证。"
+      },
+      {
+        "symbol": "600930",
+        "note": "华电新能：等待；方向、目标、成本锚和周期尚未完成绑定。"
+      },
+      {
+        "symbol": "601319",
+        "note": "中国人保：等待；当前没有方向清晰的结构信号。"
+      }
+    ],
+    "nextReview": [
+      "下一根已闭合 A 股日线接入后，重新运行 canonical screen 与 combo/latest。",
+      "重点检查下跌扩张、回撤扩大和 orderPlan 阻断是否解除。",
+      "若用户调整诊断权重，应导出当前配置并重新调用 LLM Agent。"
+    ]
+  }
+}

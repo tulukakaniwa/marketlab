@@ -118,7 +118,9 @@ pnpm run refresh:market-data
 
 中文辅助：不要把 CSV 当成线上运行时接口。刷新数据后必须重新跑 `generate:data`，让 Amplify 发布 JS 化的数据资产。
 
-`refresh:market-data` 链路在 `generate:data` 之后会自动运行 `generate:recommended-pool`，按当日 J / RSI / 成本与 LP 关键区域计算 `buyScore`，写出 `src/data/recommended-pools/stock-pool-YYYY-MM-DD.json` 与 `src/data/recommended-pool-latest.json`。页面会把 `recommended-pool-latest.json` 直接渲染到主区域的「今日推荐股票池」模块（DOM 直渲，方便 OpenClaw 抓取后推送企业微信）。手动重新生成可单独运行：
+`refresh:market-data` 链路在 `generate:data` 之后会自动运行 `generate:recommended-pool`。报告生成器直接消费 `china-stock-selection` 的 canonical A 股 screen 与 `combo/latest` JSON：候选状态和执行门禁保持固定，可配置权重只调整同一状态组内的诊断排序。结果写入 `src/data/recommended-pools/stock-pool-YYYY-MM-DD.json`、`src/data/recommended-pool-latest.json` 和静态入口 `public/recommended-pool/`。
+
+确定性算法只生成数据、门禁和排序证据。研究结论来自与当前 `evidenceDigest` 匹配的外部 LLM Agent 产物；Codex、Claude Code 或其他能输出合同 JSON 的 Agent 均可接入。产物路径为 `src/data/recommended-pool-agent-review.json`，未提供或摘要不匹配时，页面明确显示待复核，不会由浏览器评分自动补写结论。手动重新生成可运行：
 
 ```bash
 pnpm run generate:recommended-pool

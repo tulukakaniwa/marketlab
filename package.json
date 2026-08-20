@@ -13,7 +13,7 @@
     "dev": "pnpm run generate:data && pnpm run generate:recommended-pool && vite",
     "build": "pnpm run generate:data && pnpm run generate:recommended-pool && pnpm run check:size && pnpm run check:domain-boundary && pnpm run check:data && pnpm run check:generated-data && pnpm run check:skill-runtime && pnpm run verify:domain && vite build",
     "generate:data": "node scripts/csv2js.mjs",
-    "generate:recommended-pool": "node scripts/generate-recommended-pool.mjs && node scripts/render-recommended-pool-page.mjs",
+    "generate:recommended-pool": "node scripts/generate-recommended-pool.mjs && node scripts/render-recommended-pool-page.mjs && node scripts/check-recommended-pool-report.mjs",
     "fetch:market-data": "python3 scripts/fetch-market-data.py --output data/workbooks/stocks_latest.xlsx",
     "fetch:lp-data": "node scripts/fetch-lp-pool-aggregate.mjs",
     "fetch:lp-uniswap-rpc": "node scripts/fetch-lp-onchain-data.mjs",

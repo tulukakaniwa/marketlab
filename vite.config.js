@@ -2,9 +2,25 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+const RECOMMENDED_POOL_ROUTE = '/recommended-pool/'
+const RECOMMENDED_POOL_ENTRY = '/recommended-pool/index.html'
+
+function recommendedPoolDevRoute() {
+  return {
+    name: 'market-lab-recommended-pool-route',
+    configureServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+        if (pathname === RECOMMENDED_POOL_ROUTE) request.url = RECOMMENDED_POOL_ENTRY
+        next()
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [recommendedPoolDevRoute(), vue()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

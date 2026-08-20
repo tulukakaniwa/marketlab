@@ -1,58 +1,36 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useBreakpoint } from '../composables/useBreakpoint.js'
 
-const { isMobile } = useBreakpoint()
-const mobileTab = ref('focus') // 'focus' | 'wait'
-
+const STATUS_ORDER = ['观察', '等待', '剔除', '需刷新数据']
 const pool = ref(null)
 const loading = ref(true)
 const error = ref('')
 
-const focusItems = computed(() => pool.value?.focusItems ?? [])
-const waitItems = computed(() => pool.value?.waitItems ?? [])
-const dimensions = computed(() => (pool.value?.dimensions ?? []).filter((item) => item.enabled))
+const groups = computed(() => {
+  const candidates = pool.value?.candidatesAll ?? []
+  const limit = pool.value?.topN ?? 10
+  return STATUS_ORDER.map((status) => ({
+    status,
+    total: candidates.filter((candidate) => candidate.candidateStatus === status).length,
+    items: candidates.filter((candidate) => candidate.candidateStatus === status).slice(0, limit),
+  }))
+})
 
 onMounted(async () => {
   try {
-    const res = await fetch('/recommended-pool/data.json', { cache: 'no-store' })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    pool.value = await res.json()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : String(err)
+    const response = await fetch('/recommended-pool/data.json', { cache: 'no-store' })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    pool.value = await response.json()
+  } catch (reason) {
+    error.value = reason instanceof Error ? reason.message : String(reason)
   } finally {
     loading.value = false
   }
 })
 
-function fmt(v, digits = 2) {
-  const n = Number(v)
-  return Number.isFinite(n) ? n.toFixed(digits) : '--'
-}
-
-function pct(v) {
-  const n = Number(v)
-  return Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : '--'
-}
-
-function dateText(v) {
-  return v ? String(v).slice(0, 10) : '--'
-}
-
-function tierTitle(kind) {
-  return kind === 'focus' ? '研究关注' : '等待观察'
-}
-
-function holdingHorizonText(metrics) {
-  const sessions = Number(metrics?.formulaHorizonSessions)
-  if (Number.isFinite(sessions) && sessions > 0) return `${Math.ceil(sessions)} 个交易会话*`
-  return (
-    {
-      'not-applicable': '当前结构不适用',
-      'model-gate-failed': '模型门禁失败',
-      'missing-input': '缺输入',
-    }[metrics?.holdingProjectionStatus] ?? '待公式推导'
-  )
+function formatNumber(value, digits = 2) {
+  const number = Number(value)
+  return Number.isFinite(number) ? number.toFixed(digits) : '—'
 }
 </script>
 
@@ -60,99 +38,65 @@ function holdingHorizonText(metrics) {
   <main class="pool-page">
     <header class="pool-header">
       <div>
-        <p class="pool-kicker">Market Lab</p>
-        <h1>研究观察池</h1>
+        <p>Market Lab · A股 · 严格门禁</p>
+        <h1>A股研究门禁报告</h1>
       </div>
-      <a class="pool-link" href="/">主工作台</a>
+      <a href="/recommended-pool/index.html">打开完整可配置报告</a>
     </header>
 
-    <section v-if="loading" class="pool-state">加载研究观察池数据...</section>
-    <section v-else-if="error" class="pool-state pool-error">研究观察池数据读取失败：{{ error }}</section>
+    <section v-if="loading" class="pool-state">正在读取研究证据…</section>
+    <section v-if="!loading && error" class="pool-state pool-error">报告读取失败：{{ error }}</section>
 
-    <template v-else>
+    <template v-if="!loading && !error">
       <section class="pool-summary">
-        <div>
-          <span>生成日期</span>
-          <strong>{{ dateText(pool.generatedAt) }}</strong>
-        </div>
-        <div>
-          <span>候选数</span>
-          <strong>{{ pool.totalCandidates }}</strong>
-        </div>
-        <div>
-          <span>研究关注</span>
-          <strong>{{ focusItems.length }}</strong>
-        </div>
-        <div>
-          <span>等待</span>
-          <strong>{{ waitItems.length }}</strong>
-        </div>
-      </section>
-
-      <section class="pool-dims">
-        <span>评分研究池 · 非执行建议</span>
-        <span v-for="dim in dimensions" :key="dim.id">{{ dim.label }} {{ dim.weight }}</span>
-      </section>
-
-      <div v-if="isMobile" class="pool-mobile-tabs">
-        <button
-          type="button"
-          class="pool-mobile-tab"
-          :class="{ 'is-active': mobileTab === 'focus' }"
-          @click="mobileTab = 'focus'"
-        >
-          研究关注
-        </button>
-        <button
-          type="button"
-          class="pool-mobile-tab"
-          :class="{ 'is-active': mobileTab === 'wait' }"
-          @click="mobileTab = 'wait'"
-        >
-          等待观察
-        </button>
-      </div>
-
-      <section class="pool-columns">
-        <article
-          v-for="group in [
-            { kind: 'focus', items: focusItems },
-            { kind: 'wait', items: waitItems },
-          ]"
-          v-show="!isMobile || mobileTab === group.kind"
-          :key="group.kind"
-          class="pool-group"
-        >
-          <h2>{{ tierTitle(group.kind) }}</h2>
-          <div class="pool-table">
-            <div class="pool-row pool-head">
-              <span>标的</span>
-              <span>得分</span>
-              <span>价格</span>
-              <span>几何代理P</span>
-              <span>Z</span>
-              <span>公式周期</span>
-            </div>
-            <div v-for="item in group.items" :key="item.symbol" class="pool-row">
-              <span>
-                <b>{{ item.label }}</b>
-                <small>{{ item.symbol }} · {{ item.market }}</small>
-              </span>
-              <span>{{ fmt(item.buyScore, 1) }}/{{ fmt(item.maxScore, 0) }}</span>
-              <span>{{ fmt(item.metrics?.price, 2) }}</span>
-              <span>{{ pct(item.metrics?.lpValuePercentile) }}</span>
-              <span>{{ fmt(item.metrics?.zScore, 2) }}σ</span>
-              <span>{{ holdingHorizonText(item.metrics) }}</span>
-            </div>
-          </div>
+        <article>
+          <span>筛选范围</span>
+          <strong>{{ pool.canonicalSummary.audit.considered }} → {{ pool.totalCandidates }}</strong>
+        </article>
+        <article v-for="status in STATUS_ORDER" :key="status">
+          <span>{{ status }}</span>
+          <strong>{{ pool.canonicalSummary.statusCounts[status] }}</strong>
+        </article>
+        <article>
+          <span>短持信号</span>
+          <strong>{{ pool.canonicalSummary.latestSignalCount }}</strong>
         </article>
       </section>
 
+      <section class="agent-review">
+        <p>LLM Agent 结论</p>
+        <h2>
+          {{ pool.agentReview.status === 'reviewed' ? `${pool.agentReview.agent.name} 已复核` : '待 Agent 复核' }}
+        </h2>
+        <p>{{ pool.agentReview.conclusion?.summary ?? pool.agentReview.message }}</p>
+      </section>
+
+      <section v-for="group in groups" :key="group.status" class="pool-group">
+        <header>
+          <h2>{{ group.status }}</h2>
+          <span>展示 {{ group.items.length }} / 共 {{ group.total }}</span>
+        </header>
+        <p v-if="!group.items.length" class="empty">本轮没有标的进入该状态。</p>
+        <div v-if="group.items.length" class="pool-table">
+          <div class="pool-row pool-head">
+            <span>标的</span><span>严格诊断分</span><span>状态</span><span>执行</span><span>数据截止</span>
+          </div>
+          <div v-for="item in group.items" :key="item.symbol" class="pool-row">
+            <span
+              ><b>{{ item.label }}</b
+              ><small>{{ item.symbol }} · {{ item.market }}</small></span
+            >
+            <span>{{ formatNumber(item.score, 0) }}</span>
+            <span>{{ item.candidateStatus }}</span>
+            <span>{{ item.executionStatus }}</span>
+            <span>{{ item.dataThrough }}</span>
+          </div>
+        </div>
+      </section>
+
       <section class="pool-notes">
-        <h2>策略说明</h2>
-        <p>{{ pool.logic }}</p>
-        <p>{{ pool.riskNote }}</p>
-        <p>* 公式周期以交易会话计，是结构目标、成本锚与 AR 半衰期共同推导的条件情景，不是持仓期预测。</p>
+        <strong>边界</strong>
+        <span>动态权重只能调整同一状态内的诊断排序；候选状态和执行门禁由 canonical 查询固定。</span>
       </section>
     </template>
   </main>
@@ -161,219 +105,129 @@ function holdingHorizonText(metrics) {
 <style scoped>
 .pool-page {
   min-height: 100vh;
-  background: #f7f4ec;
-  color: #171714;
   padding: 24px;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
+  background: #f7f9f7;
+  color: #172019;
+  font:
+    14px/1.6 system-ui,
     sans-serif;
 }
-
 .pool-header,
 .pool-summary,
 .pool-group,
+.agent-review,
 .pool-notes {
-  border: 1px solid #d9d2c2;
-  background: rgba(255, 253, 247, 0.88);
+  border: 1px solid #d8e0da;
+  border-radius: 12px;
+  background: #fff;
 }
-
 .pool-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
+  gap: 20px;
+  align-items: center;
+  padding: 18px;
 }
-
-.pool-kicker {
-  margin: 0 0 4px;
-  color: #08785f;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
+.pool-header p,
 h1,
-h2,
-p {
+h2 {
   margin: 0;
 }
-
-h1 {
-  font-size: 28px;
-  line-height: 1.15;
+.pool-header p {
+  color: #147a52;
+  font-size: 12px;
+  font-weight: 800;
 }
-
-h2 {
-  font-size: 18px;
-}
-
-.pool-link {
-  color: #08785f;
+.pool-header a {
+  color: #2469a9;
   font-weight: 700;
-  text-decoration: none;
 }
-
 .pool-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin-top: 16px;
+  overflow: hidden;
 }
-
-.pool-summary div {
-  padding: 14px 16px;
-  border-right: 1px solid #d9d2c2;
+.pool-summary article {
+  padding: 14px;
+  border-right: 1px solid #e4e9e5;
 }
-
-.pool-summary div:last-child {
-  border-right: 0;
-}
-
-.pool-summary span {
-  display: block;
-  color: #08785f;
-  font-size: 12px;
-  font-weight: 800;
-}
-
+.pool-summary span,
 .pool-summary strong {
   display: block;
-  margin-top: 4px;
-  font-size: 24px;
 }
-
-.pool-dims {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 16px 0;
-}
-
-.pool-dims span {
-  border: 1px solid #cfc5b1;
-  background: #fffdf7;
-  padding: 6px 9px;
+.pool-summary span {
+  color: #647169;
   font-size: 12px;
-  font-weight: 700;
 }
-
-.pool-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.pool-summary strong {
+  margin-top: 4px;
+  font-size: 20px;
 }
-
-.pool-group {
-  min-width: 0;
+.agent-review {
+  margin-top: 16px;
   padding: 16px;
+  border-left: 5px solid #147a52;
 }
-
+.agent-review p {
+  margin: 5px 0 0;
+}
+.pool-group {
+  margin-top: 16px;
+  overflow: hidden;
+}
+.pool-group > header {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e9e5;
+}
 .pool-table {
-  margin-top: 12px;
   overflow-x: auto;
 }
-
 .pool-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1.4fr) repeat(5, minmax(72px, 0.8fr));
-  gap: 10px;
+  grid-template-columns: 2fr repeat(4, 1fr);
+  min-width: 720px;
+  padding: 10px 14px;
+  border-top: 1px solid #eef1ef;
   align-items: center;
-  min-width: 660px;
-  padding: 10px 0;
-  border-top: 1px solid #e2dccf;
-  font-size: 14px;
 }
-
 .pool-head {
-  color: #08785f;
+  color: #647169;
   font-size: 12px;
   font-weight: 800;
 }
-
-.pool-row b,
 .pool-row small {
   display: block;
+  color: #647169;
 }
-
-.pool-row small {
-  margin-top: 2px;
-  color: #6d695f;
-  font-size: 12px;
+.empty {
+  padding: 22px;
+  text-align: center;
+  color: #647169;
 }
-
 .pool-notes {
+  display: flex;
+  gap: 12px;
   margin-top: 16px;
-  padding: 16px;
+  padding: 14px;
+  background: #fff9eb;
 }
-
-.pool-notes p {
-  margin-top: 8px;
-  color: #4b473f;
-  line-height: 1.55;
-}
-
 .pool-state {
   margin-top: 16px;
-  border: 1px solid #d9d2c2;
-  background: #fffdf7;
-  padding: 18px;
-  font-weight: 700;
+  padding: 20px;
 }
-
 .pool-error {
-  border-color: #b92d2d;
-  color: #9a1f1f;
+  color: #a33530;
 }
-
-@media (max-width: 768px) {
-  .pool-page {
-    padding: 12px;
-  }
-
-  .pool-header,
-  .pool-columns {
-    display: block;
-  }
-
+@media (max-width: 760px) {
   .pool-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
-
-  .pool-summary div:nth-child(2) {
-    border-right: 0;
-  }
-
-  .pool-group + .pool-group {
-    margin-top: 12px;
-  }
-
-  .pool-mobile-tabs {
-    display: flex;
-    gap: 8px;
-    margin: 12px 0;
-  }
-
-  .pool-mobile-tab {
-    flex: 1;
-    min-height: 36px;
-    border: 1px solid #d9d2c2;
-    border-radius: 6px;
-    background: #fffdf7;
-    color: #171714;
-    font-size: 0.84rem;
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  .pool-mobile-tab.is-active {
-    border-color: #08785f;
-    color: #08785f;
+  .pool-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>

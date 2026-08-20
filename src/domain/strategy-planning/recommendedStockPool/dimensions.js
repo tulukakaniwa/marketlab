@@ -40,10 +40,10 @@ function dim({ id, label, weight, enabled = true, requires = [], score, optional
 // 标准库：所有可勾选维度。RSI/KDJ 不进入该库，因此 UI / URL override
 // 也无法把它们重新启用为选股、评分或候选状态输入。
 export const DIMENSION_LIBRARY = [
-  // 1. lpValue 历史百分位（30）
+  // 1. 合成几何代理历史百分位（30）
   dim({
     id: 'lpValuePercentile',
-    label: '合成几何代理 1 年百分位',
+    label: '合成几何代理历史百分位',
     weight: 30,
     requires: ['lpValuePercentile'],
     score: (m) => inverseLinear(m.lpValuePercentile, 0.05, 0.5),
