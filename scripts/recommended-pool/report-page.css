@@ -190,17 +190,33 @@ h3 {
 
 .config {
   margin: 18px 0 24px;
-  border: 1px solid var(--line);
+  border: 1px solid #a9c8e8;
   border-radius: 12px;
   background: var(--surface);
+  box-shadow: 0 8px 24px rgb(36 105 169 / 8%);
 }
 .config summary {
   cursor: pointer;
-  padding: 12px 16px;
+  padding: 14px 16px;
+  color: var(--blue);
   font-weight: 800;
+}
+.config summary::marker {
+  color: var(--blue);
+}
+.config summary span,
+.config summary small {
+  display: block;
+}
+.config summary small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 .config[open] summary {
   border-bottom: 1px solid var(--line);
+  background: #f4f9ff;
 }
 .config-body {
   padding: 14px 16px 18px;

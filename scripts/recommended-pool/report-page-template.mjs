@@ -64,10 +64,11 @@ export function renderRecommendedPoolPage(report) {
     <span>静态研究白名单开启，并排除酒类、银行、地产与东北样本。白名单只表示当前研究范围命中，不证明机构仍在持仓。</span>
   </section>
 
-  ${renderAgentReview(report.agentReview, report.agentReviewRequest)}
-
-  <details class="config" id="config-panel">
-    <summary>动态排序配置</summary>
+  <details class="config" id="config-panel" open>
+    <summary>
+      <span>动态排序配置</span>
+      <small>${escapeHtml(report.rankingPolicy.dimensions.length)} 个诊断维度可调 · 默认展开，可折叠 · 仅同状态组内重排</small>
+    </summary>
     <div class="config-body">
       <p>默认沿用严格门禁原始顺序。自定义权重只在同一状态组内重排，不能改变候选状态、执行状态或固定计数。</p>
       <div class="config-toolbar">
@@ -90,6 +91,8 @@ export function renderRecommendedPoolPage(report) {
       <p class="config-state" id="config-state" aria-live="polite"></p>
     </div>
   </details>
+
+  ${renderAgentReview(report.agentReview, report.agentReviewRequest)}
 
   <div class="group-stack">${sections}</div>
 
