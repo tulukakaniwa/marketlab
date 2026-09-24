@@ -7,6 +7,7 @@ export function useMarketLabChartIndicators(props) {
       rows: props.rows,
       formulaPath: props.formulaPath,
       costPath: props.costPath,
+      causalPath: props.causalPath,
       overlays: props.overlays,
       entryPrice: props.entryPrice,
       position: props.position,

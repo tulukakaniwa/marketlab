@@ -36,6 +36,7 @@ export function useMainChartSeries({ getChart, getProps }) {
 
     // 蜡烛 + 量始终存在；其它项用 visibility 控制
     ensure('candle', () => chart.addSeries(CandlestickSeries, candleOptions()))
+    toggle('causalEquilibrium', overlayPlan.price.causalEquilibrium, () => addLine('causalEquilibrium'))
     toggle('cost', overlayPlan.price.costBand, () => addLine('cost'))
     toggle('costUpper', overlayPlan.price.costBand, () => addLine('costUpper'))
     toggle('costLower', overlayPlan.price.costBand, () => addLine('costLower'))

@@ -8,6 +8,7 @@
 import { MARKET_LAB_SERIES_STYLES } from '../domain/research-visualization/marketLabSeriesStyles.js'
 
 const GROUPS = {
+  causalEquilibrium: 'price',
   cost: 'price',
   costUpper: 'price',
   costLower: 'price',
@@ -81,6 +82,8 @@ export function latestFinitePathPoint(_rows, path, field) {
 export function fallbackValue(key, idx, ctx = {}) {
   const fp = pathRowAtObservation(ctx.formulaPath, idx, ctx.rows)
   switch (key) {
+    case 'causalEquilibrium':
+      return pathRowAtObservation(ctx.causalPath, idx, ctx.rows)?.equilibriumPrice
     case 'cost':
       return preferredPathValue(ctx, idx, 'costAnchor', 'anchor')
     case 'costUpper':

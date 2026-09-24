@@ -308,6 +308,7 @@ const rootStyle = computed(() => ({
           :source="lab.source"
           :cost-path="lab.costPath"
           :formula-path="lab.formulaPath"
+          :causal-path="lab.causalPath"
           :entry-price="lab.input.entryPrice"
           :replay="lab.replay"
           :market="lab.market"

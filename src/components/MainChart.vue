@@ -35,6 +35,7 @@ const props = defineProps({
   rows: { type: Array, required: true },
   costPath: { type: Array, required: true },
   formulaPath: { type: Array, required: true },
+  causalPath: { type: Array, default: () => [] },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
   market: { type: Object, default: null },
@@ -128,6 +129,7 @@ watch(
     props.drawingScope,
     props.costPath,
     props.formulaPath,
+    props.causalPath,
     props.entryPrice,
     props.replay,
     props.decision,
@@ -169,6 +171,7 @@ function syncChart() {
   series.candle.setData(
     props.rows.map((row) => ({ time: row.date, open: row.open, high: row.high, low: row.low, close: row.close })),
   )
+  if (series.causalEquilibrium) setPathLine('causalEquilibrium', props.causalPath, 'equilibriumPrice')
   if (series.cost) setPreferredPathLine('cost', 'costAnchor', 'anchor')
   if (series.costUpper) setPreferredPathLine('costUpper', 'costUpper', 'upper')
   if (series.costLower) setPreferredPathLine('costLower', 'costLower', 'lower')

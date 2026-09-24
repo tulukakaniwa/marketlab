@@ -56,6 +56,7 @@ vi.mock('../../composables/useMainChartSeries.js', () => ({
     series: {
       candle: mocks.candle,
       deltaUpper: {},
+      causalEquilibrium: {},
       mark: {},
       equity: {},
       kdjK: {},
@@ -153,7 +154,7 @@ describe('MainChart', () => {
     expect(mocks.chart.remove).toHaveBeenCalledTimes(1)
   })
 
-  it('把稀疏公式、权益和指标数据按连续有限区间交给 series 管理器', () => {
+  it('把稀疏公式、权益和指标数据按连续有限区间交给 series 管理器', async () => {
     const rows = makeManyRows(20)
     const wrapper = mount(MainChart, {
       props: {
@@ -164,6 +165,11 @@ describe('MainChart', () => {
             { date: rows[2].date, equity: 100_200 },
           ],
         },
+        causalPath: [
+          { date: rows[1].date, equilibriumPrice: 101 },
+          { date: rows[2].date, equilibriumPrice: null },
+          { date: rows[3].date, equilibriumPrice: 103 },
+        ],
         formulaPath: [
           { date: rows[0].date, deltaUpper: 110 },
           { date: rows[2].date, deltaUpper: 112 },
@@ -181,6 +187,12 @@ describe('MainChart', () => {
       },
     })
 
+    expect(lastSegments('causalEquilibrium')).toEqual([
+      [{ time: rows[1].date, value: 101 }],
+      [{ time: rows[3].date, value: 103 }],
+    ])
+    await wrapper.setProps({ causalPath: [] })
+    expect(lastSegments('causalEquilibrium')).toEqual([])
     expect(lastSegments('deltaUpper')).toEqual([
       [{ time: rows[0].date, value: 110 }],
       [{ time: rows[2].date, value: 112 }],

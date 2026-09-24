@@ -1,0 +1,44 @@
+.causal-model-panel {
+  display: grid;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface-alt);
+  min-width: 0;
+}
+.causal-model-source {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 8px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+}
+.causal-model-weights,
+.causal-model-probabilities {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+.causal-model-weights > div,
+.causal-model-probabilities > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.causal-model-weights span,
+.causal-model-probabilities span {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+.causal-model-weights strong,
+.causal-model-probabilities strong {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}

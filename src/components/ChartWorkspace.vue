@@ -9,6 +9,7 @@ defineProps({
   source: { type: Object, default: null },
   costPath: { type: Array, required: true },
   formulaPath: { type: Array, required: true },
+  causalPath: { type: Array, default: () => [] },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
   market: { type: Object, default: null },
@@ -59,6 +60,7 @@ function handleHqReady() {
       :rows="rows"
       :cost-path="costPath"
       :formula-path="formulaPath"
+      :causal-path="causalPath"
       :entry-price="entryPrice"
       :replay="replay"
       :market="market"
@@ -90,6 +92,7 @@ function handleHqReady() {
       :source="source"
       :cost-path="costPath"
       :formula-path="formulaPath"
+      :causal-path="causalPath"
       :entry-price="entryPrice"
       :replay="replay"
       :position="position"

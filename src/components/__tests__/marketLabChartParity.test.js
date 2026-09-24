@@ -79,6 +79,7 @@ const fixture = {
   rows,
   formulaPath,
   costPath: [],
+  causalPath: rows.map((row, index) => ({ date: row.date, equilibriumPrice: index > 7 ? 10 + index / 20 : null })),
   overlays: ALL_ON,
   entryPrice: 10.2,
   position: { targetPrice: 13, stopPrice: 9 },
@@ -136,6 +137,7 @@ describe('Market Lab Light / HQ chart parity', () => {
       'mark',
       'entry',
       'cost',
+      'causalEquilibrium',
       'costUpper',
       'costLower',
       'deltaUpper',
@@ -172,6 +174,35 @@ describe('Market Lab Light / HQ chart parity', () => {
       formulaPath[activeLength - 1].lpPoolTurnover24h,
     )
     expect(fallbackValue('lpPoolTurnover', rows.length - 1, activeFixture)).toBeNull()
+  })
+
+  it('causal line preserves gaps and the observation cutoff in both engines, with a shared toggle', () => {
+    const causalPath = fixture.causalPath
+      .slice(0, 16)
+      .map((point, i) => (i === 12 ? { ...point, equilibriumPrice: null } : point))
+    const props = { ...fixture, causalPath, overlays: { ...ALL_ON, causalEquilibrium: true } }
+    const chart = fakeChart()
+    const light = useMainChartSeries({ getChart: () => chart, getProps: () => props })
+    light.applyOverlays()
+    expect(light.series.causalEquilibrium).toBeDefined()
+    const model = queryMarketLabChartSeries(props)
+    const hq = toHqResearchIndexResponse(model, hqResearchApiId('price'))
+    const values = hq.outdata.outvar.find((item) => item.name === SERIES_META.causalEquilibrium.title).data
+    rows.forEach((row, index) => {
+      expect(values[index]).toBe(fallbackValue('causalEquilibrium', index, props) ?? null)
+    })
+    expect(values[12]).toBeNull()
+    expect(values.slice(16)).toEqual([null, null, null, null])
+    props.overlays.causalEquilibrium = false
+    light.applyOverlays()
+    expect(light.series.causalEquilibrium).toBeUndefined()
+    expect(findSeries(queryMarketLabChartSeries(props), 'causalEquilibrium')).toBeUndefined()
+    props.overlays.causalEquilibrium = true
+    light.applyOverlays()
+    expect(light.series.causalEquilibrium).toBeDefined()
+    expect(findSeries(queryMarketLabChartSeries(props), 'causalEquilibrium').points).toEqual(
+      findSeries(model, 'causalEquilibrium').points,
+    )
   })
 
   it('HQ responses preserve every active domain series name, color, render mode and aligned values', () => {

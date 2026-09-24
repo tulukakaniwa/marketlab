@@ -9,6 +9,7 @@ import { buildResearchSnapshot } from '../domain/formula-research/researchSnapsh
 import { buildDecisionGraph } from '../domain/strategy-planning/orderPlan.js'
 import { useDataLoader } from '../composables/useDataLoader.js'
 import { useMarketState } from '../composables/useMarketState.js'
+import { useCausalModel } from '../composables/useCausalModel.js'
 import { useReplay } from '../composables/useReplay.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
 import { useChartOverlays } from '../composables/useChartOverlays.js'
@@ -78,6 +79,8 @@ export const useLabStore = defineStore('lab', () => {
   // 5. 市场态只吃事实输入；不被回放或研究层反向污染。
   const marketState = useMarketState(rows, cursor, baseInput)
   const activeMarketStates = computed(() => marketState.marketStateActive.value)
+  const causalModel = useCausalModel(marketState.activeRows, effectiveTdpy, sourceKey)
+  const causalPath = computed(() => causalModel.snapshot.value?.chartPath ?? [])
 
   // 6. ReplayAccount 是显式开启的旁路查询；只有 replayAutoProfile 打开才参与 profile 选择。
   const replayLayer = useReplay(marketState.activeRows, input, baseInput, activeMarketStates, planning.featureFlags)
@@ -129,6 +132,8 @@ export const useLabStore = defineStore('lab', () => {
     ...planningGraph.value,
     ...(researchGraph.value ?? {}),
     research: researchGraph.value,
+    causalModel: causalModel.snapshot.value,
+    causalModelQuery: causalModel.queryState.value,
   }))
 
   const executionBrief = computed(() => buildExecutionBrief(graph.value))
@@ -297,6 +302,7 @@ export const useLabStore = defineStore('lab', () => {
     market: marketState.market,
     costPath: marketState.costPath,
     formulaPath: marketState.formulaPath,
+    causalPath,
     dynamicHoldingGate,
 
     // 决策层

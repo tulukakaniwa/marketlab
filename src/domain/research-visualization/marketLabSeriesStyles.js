@@ -5,6 +5,7 @@
  * 数值仍来自各自明确的 domain 输出字段；本文件不做业务计算。
  */
 export const MARKET_LAB_SERIES_STYLES = Object.freeze({
+  causalEquilibrium: style('动态均衡 · 因果模型', 'price', '#a855f7', 2),
   cost: style('成本锚', 'price', '#0e7558', 2),
   costUpper: style('成本上沿', 'price', '#8b5a16', 1, 'dashed'),
   costLower: style('成本下沿', 'price', '#274f9f', 1, 'dashed'),

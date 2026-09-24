@@ -27,6 +27,7 @@ const props = defineProps({
   source: { type: Object, default: null },
   costPath: { type: Array, required: true },
   formulaPath: { type: Array, required: true },
+  causalPath: { type: Array, default: () => [] },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
   position: { type: Object, default: null },

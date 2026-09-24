@@ -9,6 +9,7 @@ import DisclosureSection from './DisclosureSection.vue'
 import OrderTable from './OrderTable.vue'
 import ReplayPanel from './ReplayPanel.vue'
 import TraderChecklist from './TraderChecklist.vue'
+import CausalModelPanel from './CausalModelPanel.vue'
 
 const props = defineProps({
   graph: { type: Object, required: true },
@@ -32,6 +33,7 @@ const DEFAULT_SECTION_ORDER = [
   'sample',
   'account',
   'facts',
+  'causal-model',
   'triggers',
   'orders',
   'replay',
@@ -245,6 +247,20 @@ function moveSection(id, delta) {
         </p>
         <p v-else class="dd-empty-note">未生成模拟挂单。当前只展示价格位置和触发状态，不显示名义、风险预算或目标价。</p>
       </article>
+    </DisclosureSection>
+
+    <DisclosureSection
+      title="因果模型"
+      meta="历史前缀"
+      tone="research"
+      movable
+      :can-move-up="canMoveSection('causal-model', -1)"
+      :can-move-down="canMoveSection('causal-model', 1)"
+      :style="sectionStyle('causal-model')"
+      @move-up="moveSection('causal-model', -1)"
+      @move-down="moveSection('causal-model', 1)"
+    >
+      <CausalModelPanel :snapshot="graph?.causalModel" :query-state="graph?.causalModelQuery" />
     </DisclosureSection>
 
     <DisclosureSection
