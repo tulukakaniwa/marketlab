@@ -16,6 +16,20 @@ export const MARKET_LAB_CHART_INDICATOR_GROUPS = Object.freeze([
 ])
 
 const DEFINITIONS = Object.freeze([
+  pathIndicator(
+    'causalEquilibrium',
+    '动态均衡 · 因果模型',
+    'price',
+    'price',
+    '#a855f7',
+    'main',
+    'price.causalEquilibrium',
+    'equilibriumPrice',
+    {
+      source: 'causalPath',
+      controls: ['causalEquilibrium'],
+    },
+  ),
   pathIndicator('cost', '成本锚', 'price', 'price', '#0e7558', 'main', 'price.costBand', 'costAnchor', {
     fallback: ['costPath', 'anchor'],
     controls: ['priceBands', 'costBand'],
@@ -205,12 +219,13 @@ export function queryMarketLabChartSeries({
   rows = [],
   formulaPath = [],
   costPath = [],
+  causalPath = [],
   overlays = {},
   entryPrice = null,
   position = null,
   replay = null,
 } = {}) {
-  const context = buildContext({ rows, formulaPath, costPath, entryPrice, position, replay })
+  const context = buildContext({ rows, formulaPath, costPath, causalPath, entryPrice, position, replay })
   const plan = resolveChartOverlayPlan({ overlays, formulaPath: context.formulaPath })
   const candidates = DEFINITIONS.map((definition) => materialize(definition, context, plan))
   const groups = MARKET_LAB_CHART_INDICATOR_GROUPS.map((meta) => buildGroup(meta, candidates, context.rows)).map(
@@ -233,12 +248,13 @@ export function queryMarketLabChartSeries({
   }
 }
 
-function buildContext({ rows, formulaPath, costPath, entryPrice, position, replay }) {
+function buildContext({ rows, formulaPath, costPath, causalPath, entryPrice, position, replay }) {
   const safeRows = Array.isArray(rows) ? rows : []
   return {
     rows: safeRows,
     formulaPath: Array.isArray(formulaPath) ? formulaPath : [],
     costPath: Array.isArray(costPath) ? costPath : [],
+    causalPath: Array.isArray(causalPath) ? causalPath : [],
     entryPrice,
     position: position && typeof position === 'object' ? position : {},
     replay: replay && typeof replay === 'object' ? replay : {},
@@ -289,7 +305,7 @@ function buildPoints(definition, selected, context) {
   if (definition.kind === 'kdj-j') return derivedPoints(context.kdj, (row) => row?.j)
   if (definition.kind === 'rsi') return derivedPoints(context.rsi, (row) => row?.custom)
 
-  const path = selected.source === 'costPath' ? context.costPath : context.formulaPath
+  const path = context[selected.source]
   if (definition.pointMode === 'latest') {
     const index = path.length - 1
     return pathPoint(index, selected.field, path)
@@ -310,7 +326,7 @@ function selectSource(definition, context) {
   }
   if (definition.kind !== 'path') return definition.sources[0]
   for (const source of definition.sources) {
-    const path = source.source === 'costPath' ? context.costPath : context.formulaPath
+    const path = context[source.source]
     if (path.some((row) => Number.isFinite(row?.[source.field]))) return source
   }
   return definition.sources[0]
@@ -344,7 +360,7 @@ function derivedPoints(path, valueAt) {
 }
 
 function pathIndicator(id, label, unit, groupId, color, pane, gate, field, options = {}) {
-  const sources = [{ source: 'formulaPath', field }]
+  const sources = [{ source: options.source ?? 'formulaPath', field }]
   if (options.fallback) sources.push({ source: options.fallback[0], field: options.fallback[1] })
   return definition({ id, label, unit, groupId, color, pane, gate, sources, ...options, kind: 'path' })
 }

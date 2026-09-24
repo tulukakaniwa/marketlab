@@ -17,6 +17,7 @@ Market Lab is not a blog, an auto-trading bot, or financial advice. It is a rese
 - Candidate order planning that consumes explicit domain outputs: cost state, formula bands, account inputs, and strategy profile.
 - Research-only visualization for option Greeks, LP inventory, funding, AMM geometry, portfolio curves, and liquidity fingerprinting.
 - Explicit spot path replay side channel; research metrics do not silently become default trading conclusions.
+- Causal core-model panel: forward-filtered equilibrium, online regime weights, conditional volatility, and bounded session-close first-passage estimates using only the observation prefix. See [the model contract](./docs/development/causal-core-model.md).
 
 中文辅助：主界面是工作台，不是文章页；默认计划只能消费经过 domain 明确建模的结果。
 

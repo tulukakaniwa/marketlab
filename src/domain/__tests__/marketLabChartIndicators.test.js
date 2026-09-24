@@ -74,7 +74,7 @@ function fullQuery(overlays = ALL_ON) {
 }
 
 describe('Market Lab chart indicator catalog', () => {
-  it('覆盖 19 条 formula 曲线及执行、权益和 Lab 技术曲线', () => {
+  it('覆盖因果均衡、19 条 formula 曲线及执行、权益和 Lab 技术曲线', () => {
     expect(MARKET_LAB_CHART_INDICATOR_GROUPS.map((group) => group.id)).toEqual([
       'price',
       'greeks',
@@ -84,8 +84,8 @@ describe('Market Lab chart indicator catalog', () => {
       'kdj',
       'rsi',
     ])
-    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(27)
-    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(27)
+    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(28)
+    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(28)
     expect(
       MARKET_LAB_CHART_INDICATOR_CATALOG.filter((item) => item.source === 'formulaPath')
         .map((item) => item.field)
@@ -377,6 +377,7 @@ describe('queryMarketLabChartSeries', () => {
     expect(Object.keys(model.controls)).toEqual([
       'priceBands',
       'costBand',
+      'causalEquilibrium',
       'volBand',
       'lpBand',
       'entryLine',

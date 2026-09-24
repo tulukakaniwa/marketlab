@@ -8,9 +8,9 @@ import {
 } from '../mainChartLegendMeta.js'
 
 describe('SERIES_META', () => {
-  it('包含全部 27 个 series key 且每个都含 title/color/unit/group', () => {
+  it('包含全部 28 个 series key 且每个都含 title/color/unit/group', () => {
     const keys = Object.keys(SERIES_META)
-    expect(keys).toHaveLength(27)
+    expect(keys).toHaveLength(28)
     for (const k of keys) {
       const meta = SERIES_META[k]
       expect(typeof meta.title).toBe('string')

@@ -16,6 +16,7 @@ const DEFAULTS = {
   executionMarkers: true,
   researchMarkers: true,
   costBand: true,
+  causalEquilibrium: true,
   entryLine: true,
   volBand: true,
   lpBand: true,

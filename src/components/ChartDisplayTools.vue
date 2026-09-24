@@ -14,7 +14,7 @@ function toggle(key, available = true) {
 </script>
 
 <template>
-  <div class="chart-display-tools" role="toolbar" aria-label="成交与筹码显示工具">
+  <div class="chart-display-tools" role="toolbar" aria-label="图表显示工具">
     <span class="chart-display-tools-label">显示</span>
     <button
       type="button"
@@ -36,6 +36,16 @@ function toggle(key, available = true) {
       @click="toggle('stockChipProfile', chipAvailable)"
     >
       筹码
+    </button>
+    <button
+      type="button"
+      :class="{ active: overlays.causalEquilibrium !== false }"
+      :aria-pressed="overlays.causalEquilibrium !== false"
+      :disabled="!ready"
+      title="动态均衡 · 因果模型；仅使用当时及之前的已收盘数据，预热与缺失处留空"
+      @click="toggle('causalEquilibrium')"
+    >
+      <span style="color: #a855f7" aria-hidden="true">━</span> 因果均衡
     </button>
     <span class="chart-scale-badge" title="主图价格轴默认使用对数坐标">主图 Log</span>
   </div>

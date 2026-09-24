@@ -1,6 +1,7 @@
 const CONTROL_KEYS = Object.freeze([
   'priceBands',
   'costBand',
+  'causalEquilibrium',
   'volBand',
   'lpBand',
   'entryLine',
@@ -88,6 +89,7 @@ function stateReason(state) {
 
 function controlActive(key, overlays, plan) {
   if (key === 'priceBands') return overlays?.priceBands !== false
+  if (key === 'causalEquilibrium') return plan.price.causalEquilibrium
   if (key === 'costBand') return plan.price.costBand
   if (key === 'volBand') return plan.price.deltaBand
   if (key === 'lpBand') return plan.price.lpBand
