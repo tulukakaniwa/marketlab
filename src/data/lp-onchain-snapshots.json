@@ -3,7 +3,7 @@
   "source": "geckoterminal-pool-aggregate",
   "apiBase": "https://api.geckoterminal.com/api/v2",
   "network": "eth",
-  "fetchedAt": "2026-10-03T07:49:02.306Z",
+  "fetchedAt": "2026-10-06T08:55:31.166Z",
   "blockNumber": null,
   "pools": [
     {
@@ -20,10 +20,10 @@
       "fee": 3000,
       "tickSpacing": 60,
       "status": "ok",
-      "price1Per0": 2685.228341831,
-      "reserveUsd": 110400790.7441,
-      "volumeUsd24h": 33938295.8553958,
-      "transactions24h": 549,
+      "price1Per0": 2716.545855692,
+      "reserveUsd": 111740913.5665,
+      "volumeUsd24h": 16877644.1127455,
+      "transactions24h": 579,
       "poolCreatedAt": "2021-12-29T12:36:12Z"
     },
     {
@@ -40,10 +40,10 @@
       "fee": 500,
       "tickSpacing": 10,
       "status": "ok",
-      "price1Per0": 2682.123463436,
-      "reserveUsd": 98445974.7663,
-      "volumeUsd24h": 34956657.2036557,
-      "transactions24h": 4531,
+      "price1Per0": 2713.351212121,
+      "reserveUsd": 98111630.1555,
+      "volumeUsd24h": 22504520.597716,
+      "transactions24h": 8175,
       "poolCreatedAt": "2021-12-29T12:35:14Z"
     },
     {
@@ -60,10 +60,10 @@
       "fee": 3000,
       "tickSpacing": 60,
       "status": "ok",
-      "price1Per0": 0.0003727241085,
-      "reserveUsd": 46877056.171,
-      "volumeUsd24h": 9219267.3263501,
-      "transactions24h": 455,
+      "price1Per0": 0.0003681796049,
+      "reserveUsd": 47087833.6719,
+      "volumeUsd24h": 4423545.81467676,
+      "transactions24h": 967,
       "poolCreatedAt": "2021-12-29T13:21:42Z"
     },
     {
@@ -80,10 +80,10 @@
       "fee": 3000,
       "tickSpacing": 60,
       "status": "ok",
-      "price1Per0": 31.465158636,
-      "reserveUsd": 44419908.0839,
-      "volumeUsd24h": 623805.421353411,
-      "transactions24h": 139,
+      "price1Per0": 31.5313830305,
+      "reserveUsd": 44961617.5925,
+      "volumeUsd24h": 116862.461171962,
+      "transactions24h": 26,
       "poolCreatedAt": "2021-12-29T13:39:18Z"
     },
     {
@@ -100,10 +100,10 @@
       "fee": 500,
       "tickSpacing": 10,
       "status": "ok",
-      "price1Per0": 31.465158636,
-      "reserveUsd": 41368625.109,
-      "volumeUsd24h": 15679118.0505325,
-      "transactions24h": 1090,
+      "price1Per0": 31.517871628,
+      "reserveUsd": 41298879.2361,
+      "volumeUsd24h": 8514061.17950057,
+      "transactions24h": 669,
       "poolCreatedAt": "2021-12-29T12:36:14Z"
     },
     {
@@ -120,10 +120,10 @@
       "fee": 500,
       "tickSpacing": 10,
       "status": "ok",
-      "price1Per0": 84642.1548444257,
-      "reserveUsd": 28610340.1477,
-      "volumeUsd24h": 33840726.360111,
-      "transactions24h": 1417,
+      "price1Per0": 85619.7435514097,
+      "reserveUsd": 26641315.3459,
+      "volumeUsd24h": 23973693.1164304,
+      "transactions24h": 1101,
       "poolCreatedAt": "2022-05-22T19:13:52Z"
     },
     {
@@ -140,10 +140,10 @@
       "fee": 3000,
       "tickSpacing": 60,
       "status": "ok",
-      "price1Per0": 84667.6886639058,
-      "reserveUsd": 25345159.6268,
-      "volumeUsd24h": 2095319.48415008,
-      "transactions24h": 154,
+      "price1Per0": 85619.7435514097,
+      "reserveUsd": 25395501.9254,
+      "volumeUsd24h": 1543983.41672901,
+      "transactions24h": 104,
       "poolCreatedAt": "2021-12-29T13:55:13Z"
     },
     {
@@ -160,10 +160,10 @@
       "fee": 3000,
       "tickSpacing": 60,
       "status": "ok",
-      "price1Per0": 84344.8364902999,
-      "reserveUsd": 22413257.111,
-      "volumeUsd24h": 1705683.07631608,
-      "transactions24h": 157,
+      "price1Per0": 85511.4113056674,
+      "reserveUsd": 22583369.976,
+      "volumeUsd24h": 1347813.36327398,
+      "transactions24h": 122,
       "poolCreatedAt": "2021-12-29T12:45:39Z"
     },
     {
@@ -180,10 +180,10 @@
       "fee": null,
       "tickSpacing": null,
       "status": "ok",
-      "price1Per0": 0.0000118124327,
-      "reserveUsd": 14372175.3589,
-      "volumeUsd24h": 422416.5635954602,
-      "transactions24h": 159,
+      "price1Per0": 0.00001167954911,
+      "reserveUsd": 14496878.1928,
+      "volumeUsd24h": 412385.2887265436,
+      "transactions24h": 124,
       "poolCreatedAt": "2023-09-19T13:38:20Z"
     },
     {
@@ -200,10 +200,10 @@
       "fee": null,
       "tickSpacing": null,
       "status": "ok",
-      "price1Per0": 0.00001181348897,
-      "reserveUsd": 12066426.8789,
-      "volumeUsd24h": 1100627.511302362,
-      "transactions24h": 500,
+      "price1Per0": 0.00001167954911,
+      "reserveUsd": 12171257.87,
+      "volumeUsd24h": 1811796.498451259,
+      "transactions24h": 565,
       "poolCreatedAt": "2022-07-13T11:48:12Z"
     },
     {
@@ -221,9 +221,9 @@
       "tickSpacing": 60,
       "status": "ok",
       "price1Per0": 0.00001213727609,
-      "reserveUsd": 10704048.9244,
-      "volumeUsd24h": 2088446.24672162,
-      "transactions24h": 142,
+      "reserveUsd": 10896410.7835,
+      "volumeUsd24h": 1930671.56873281,
+      "transactions24h": 99,
       "poolCreatedAt": "2025-02-01T16:49:47Z"
     },
     {
@@ -240,10 +240,10 @@
       "fee": 500,
       "tickSpacing": 10,
       "status": "ok",
-      "price1Per0": 2685.228341831,
-      "reserveUsd": 10013164.9482,
-      "volumeUsd24h": 13213568.6401387,
-      "transactions24h": 2814,
+      "price1Per0": 2716.545855692,
+      "reserveUsd": 10405475.1131,
+      "volumeUsd24h": 6556870.86522412,
+      "transactions24h": 2030,
       "poolCreatedAt": "2021-12-29T12:35:27Z"
     },
     {
@@ -261,9 +261,9 @@
       "tickSpacing": 60,
       "status": "ok",
       "price1Per0": 0.00001207392073,
-      "reserveUsd": 9173498.0885,
-      "volumeUsd24h": 762328.836245137,
-      "transactions24h": 111,
+      "reserveUsd": 9303134.3376,
+      "volumeUsd24h": 588764.267884958,
+      "transactions24h": 81,
       "poolCreatedAt": "2025-01-30T06:25:35Z"
     },
     {
@@ -280,10 +280,10 @@
       "fee": 100,
       "tickSpacing": 1,
       "status": "ok",
-      "price1Per0": 0.000373217126,
-      "reserveUsd": 6532808.8969,
-      "volumeUsd24h": 52548856.5202705,
-      "transactions24h": 19321,
+      "price1Per0": 0.0003685504352,
+      "reserveUsd": 6945432.5148,
+      "volumeUsd24h": 61427367.012012,
+      "transactions24h": 22722,
       "poolCreatedAt": "2021-12-30T20:32:10Z"
     },
     {
@@ -300,10 +300,10 @@
       "fee": 100,
       "tickSpacing": 1,
       "status": "ok",
-      "price1Per0": 2685.228341831,
-      "reserveUsd": 3900140.0002,
-      "volumeUsd24h": 11080159.8470835,
-      "transactions24h": 10422,
+      "price1Per0": 2700.2714307,
+      "reserveUsd": 3944243.7474,
+      "volumeUsd24h": 9782278.37957407,
+      "transactions24h": 8856,
       "poolCreatedAt": "2022-12-26T04:38:06Z"
     },
     {
@@ -321,9 +321,9 @@
       "tickSpacing": null,
       "status": "ok",
       "price1Per0": 0.0003742270389,
-      "reserveUsd": 3320696.6367,
-      "volumeUsd24h": 10272232.1334592,
-      "transactions24h": 3599,
+      "reserveUsd": 3363331.308,
+      "volumeUsd24h": 8611278.37630341,
+      "transactions24h": 3627,
       "poolCreatedAt": "2025-07-22T03:23:47Z"
     },
     {
@@ -341,10 +341,30 @@
       "tickSpacing": null,
       "status": "ok",
       "price1Per0": 0.0003750528595,
-      "reserveUsd": 2301255.7836,
-      "volumeUsd24h": 8803299.15287901,
-      "transactions24h": 3402,
+      "reserveUsd": 2331560.4685,
+      "volumeUsd24h": 7105586.19110426,
+      "transactions24h": 3292,
       "poolCreatedAt": "2025-07-22T03:23:47Z"
+    },
+    {
+      "id": "uniswap-v4-ethereum-0x4a24fcf3c1cbebd80d09537c7aa15adf2d228aa1b9ba1b0e5fb82e66dc96c0d2",
+      "label": "USDT / WBTC 0.05% · Uniswap V4 (Ethereum)",
+      "chainId": 1,
+      "protocol": "uniswap-v4-ethereum",
+      "source": "geckoterminal",
+      "address": "0x4a24fcf3c1cbebd80d09537c7aa15adf2d228aa1b9ba1b0e5fb82e66dc96c0d2",
+      "token0": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "token1": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+      "token0Symbol": "USDT",
+      "token1Symbol": "WBTC",
+      "fee": 500,
+      "tickSpacing": 10,
+      "status": "ok",
+      "price1Per0": 0.00001213728364,
+      "reserveUsd": 1518967.6587,
+      "volumeUsd24h": 1117112.76413373,
+      "transactions24h": 426,
+      "poolCreatedAt": "2025-03-01T16:12:47Z"
     }
   ],
   "positions": []
