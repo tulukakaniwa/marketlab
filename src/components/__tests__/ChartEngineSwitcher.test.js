@@ -12,10 +12,10 @@ describe('ChartEngineSwitcher', () => {
 
     expect(wrapper.get('section').attributes('aria-label')).toBe('图表引擎')
     expect(wrapper.get('[role="radiogroup"]').attributes('aria-label')).toBe('选择图表引擎')
-    expect(optionByLabel(wrapper, '研究图').attributes('aria-checked')).toBe('true')
-    expect(optionByLabel(wrapper, '研究图').classes()).toContain('active')
+    expect(optionByLabel(wrapper, 'Vela 研究图').attributes('aria-checked')).toBe('true')
+    expect(optionByLabel(wrapper, 'Vela 研究图').classes()).toContain('active')
     expect(optionByLabel(wrapper, 'HQ 终端').attributes('aria-checked')).toBe('false')
-    expect(wrapper.text()).toContain('只换图表工具，不改公式与结论。')
+    expect(wrapper.text()).toContain('研究副图按量级分窗；公式与手绘沿用原口径。')
   })
 
   it('切到 HQ 时说明双层指标和仍留在研究图的能力边界', () => {
@@ -24,12 +24,12 @@ describe('ChartEngineSwitcher', () => {
     expect(optionByLabel(wrapper, 'HQ 终端').attributes('aria-checked')).toBe('true')
     expect(wrapper.get('.chart-engine-boundary').attributes('aria-live')).toBe('polite')
     expect(wrapper.text()).toContain('Lab 自研指标 + HQ 通用工具')
-    expect(wrapper.get('.chart-engine-boundary').attributes('aria-label')).toContain('回放标记仍保留在研究图')
+    expect(wrapper.get('.chart-engine-boundary').attributes('aria-label')).toContain('回放标记仍保留在 Vela 研究图')
     expect(wrapper.get('.chart-engine-boundary').attributes('aria-label')).not.toContain('研究筹码')
   })
 
   it.each([
-    ['研究图', 'lightweight'],
+    ['Vela 研究图', 'vela'],
     ['HQ 终端', 'hqchart'],
   ])('点击 %s 发出 change(%s)', async (label, engine) => {
     const wrapper = mount(ChartEngineSwitcher)
@@ -42,7 +42,7 @@ describe('ChartEngineSwitcher', () => {
   it('加载 HQ 时只锁定 HQ 选项并显示进度', () => {
     const wrapper = mount(ChartEngineSwitcher, { props: { loading: true } })
 
-    expect(optionByLabel(wrapper, '研究图').attributes('disabled')).toBeUndefined()
+    expect(optionByLabel(wrapper, 'Vela 研究图').attributes('disabled')).toBeUndefined()
     expect(optionByLabel(wrapper, 'HQ 终端').attributes('disabled')).toBeDefined()
     expect(optionByLabel(wrapper, 'HQ 终端').text()).toContain('加载中')
   })

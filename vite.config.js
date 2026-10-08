@@ -32,7 +32,8 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return
-          if (id.includes('lightweight-charts')) return 'vendor-charts-lw'
+          if (id.includes('/@luxalgo/vela/')) return 'vendor-charts-vela'
+          if (id.includes('/pinets/') || id.includes('/@luxalgo/vela-pinets/')) return 'vendor-pinets'
           if (id.includes('/hqchart/') || id.includes('/jquery/')) return 'vendor-charts-hq'
           if (id.includes('/vue/') || id.includes('@vue/') || id.includes('/pinia/')) return 'vendor-vue'
         },

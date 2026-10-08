@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildHqChartLegend } from '../hqChartLegendModel.js'
+import { buildResearchChartLegend } from '../researchChartLegendModel.js'
 
 describe('HQ shared hover legend model', () => {
   it('只读取 domain series，并生成与 Light 图例相同的 OHLC/指标结构', () => {
@@ -39,7 +39,7 @@ describe('HQ shared hover legend model', () => {
       ],
     }
 
-    const legend = buildHqChartLegend({ rows, model, index: 1 })
+    const legend = buildResearchChartLegend({ rows, model, index: 1 })
 
     expect(legend.ohlcv).toMatchObject({ close: 12, change: 2, changePct: 0.2, direction: 'up' })
     expect(legend.indicators.flatMap((group) => group.items)).toEqual([
@@ -51,7 +51,7 @@ describe('HQ shared hover legend model', () => {
 
   it('没有有效游标时回退到最后一根 K 线', () => {
     const rows = [{ date: '2026-08-07', open: 10, high: 11, low: 9, close: 10, volume: 1 }]
-    const legend = buildHqChartLegend({ rows, model: { groups: [] } })
+    const legend = buildResearchChartLegend({ rows, model: { groups: [] } })
     expect(legend.date).toBe('2026-08-07')
     expect(legend.asOf).toEqual({ kind: 'snapshot', label: '观察日快照' })
   })

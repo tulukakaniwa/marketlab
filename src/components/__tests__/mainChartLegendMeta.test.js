@@ -5,7 +5,7 @@ import {
   groupIndicators,
   latestFinitePathPoint,
   resolvePreferredPathValues,
-} from '../mainChartLegendMeta.js'
+} from '../researchChartLegendMeta.js'
 
 describe('SERIES_META', () => {
   it('包含全部 28 个 series key 且每个都含 title/color/unit/group', () => {

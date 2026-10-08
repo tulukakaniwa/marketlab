@@ -1,4 +1,4 @@
-/** 与 Light 图一致的副图参考线。它们只辅助读图，不计入业务指标数量。 */
+/** 研究副图的共享参考线。它们只辅助读图，不计入业务指标数量。 */
 export function buildMarketLabChartGuides(groupId, rows) {
   const guides = GUIDE_DEFINITIONS[groupId] ?? []
   return guides.map((guide) => ({

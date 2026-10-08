@@ -16,6 +16,7 @@ def node_summary() -> dict:
       import { readFile } from 'node:fs/promises'
       import { buildMarketState } from './src/domain/market-data/cost.js'
       import { FORMULA_PATH_FIELDS, buildFormulaPath } from './src/domain/market-data/formulaPath.js'
+      import { MARKET_LAB_CHART_INDICATOR_CATALOG } from './src/domain/research-visualization/marketLabChartIndicators.js'
       import { formulaEvidenceCatalog } from './src/domain/formulas/evidence.js'
       import { parseBinanceKlines } from './src/domain/market-data/ohlcv.js'
       const csv = await readFile('./public/data/btcusdt-1d-2017-2025.csv', 'utf8')
@@ -71,6 +72,7 @@ def node_summary() -> dict:
       }
       console.log(JSON.stringify({
         fields: FORMULA_PATH_FIELDS,
+        chartFields: MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.sourceField),
         evidenceIds: formulaEvidenceCatalog.map((entry) => entry.id),
         length: path.length,
         summary,
@@ -86,7 +88,7 @@ def main() -> int:
     failures = []
     fields = data["fields"]
     evidence_ids = set(data["evidenceIds"])
-    chart_source = (ROOT / "src/components/MainChart.vue").read_text()
+    chart_fields = set(data["chartFields"])
     if data["length"] <= 0:
         failures.append("formulaPath is empty")
     for field, meta in fields.items():
@@ -96,8 +98,8 @@ def main() -> int:
             failures.append(f"{field}: source {meta.get('source')} has no evidence entry")
         if meta.get("numeric", True) and data["summary"].get(field, 0) <= 0:
             failures.append(f"{field}: no finite chart data")
-        if meta.get("drawable") and field not in chart_source:
-            failures.append(f"{field}: MainChart does not consume formulaPath field")
+        if meta.get("drawable") and f"formulaPath.{field}" not in chart_fields:
+            failures.append(f"{field}: research domain catalog does not consume formulaPath field")
     for required_status in ["proxy-only", "research-only", "missing-input", "fallback-input"]:
         if required_status not in data["statuses"]:
             failures.append(f"status marker missing: {required_status}")

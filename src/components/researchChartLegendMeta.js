@@ -1,8 +1,8 @@
 /**
- * MainChart hover legend 域：series 展示元数据 + fallback 取值 + 分组排序
+ * 研究图 hover legend 域：series 展示元数据 + fallback 取值 + 分组排序
  *
  * 这层是纯视图配置（title/color/unit/group），不沾染 chart 实例或 Vue 响应式。
- * MainChart.vue 在 buildLegend 时把它当作只读字典查询。
+ * 图例视图把它当作只读字典查询。
  */
 
 import { MARKET_LAB_SERIES_STYLES } from '../domain/research-visualization/marketLabSeriesStyles.js'
@@ -38,7 +38,7 @@ const GROUPS = {
   rsi: 'rsi',
 }
 
-// Light 图例与两个图表引擎共用 domain 中的名称、颜色和单位。
+// 研究图例与两个图表引擎共用 domain 中的名称、颜色和单位。
 export const SERIES_META = Object.freeze(
   Object.fromEntries(
     Object.entries(MARKET_LAB_SERIES_STYLES).map(([key, item]) => [
@@ -74,7 +74,7 @@ export function latestFinitePathPoint(_rows, path, field) {
 
 /**
  * hover 时按 idx 从 formulaPath/costPath/entryPrice 反查某 series 的兜底值
- * （首选是 lightweight-charts 的 param.seriesData，失败时走这条路径）
+ * （按观察日读取已有路径，不插值、不重算公式）
  *
  * ctx 形如 `{ rows, formulaPath, costPath, entryPrice }`，可以直接传入 Vue 的 props（响应式 proxy 会自动 unwrap），
  * 或任意纯对象。存在带日期的 rows/path 时按日期关联；旧的无日期测试夹具才回退索引读取。

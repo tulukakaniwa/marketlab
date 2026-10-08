@@ -7,9 +7,10 @@ import {
 } from '../research-visualization/chartEngines.js'
 
 describe('chart engine profiles', () => {
-  it('非法或旧持久化值回退到 lightweight', () => {
-    expect(normalizeChartEngine('unknown')).toBe(CHART_ENGINE_IDS.LIGHTWEIGHT)
-    expect(getChartEngineProfile(null).label).toBe('研究图')
+  it('非法或旧持久化值迁移到 Vela', () => {
+    expect(normalizeChartEngine('lightweight')).toBe(CHART_ENGINE_IDS.VELA)
+    expect(normalizeChartEngine('unknown')).toBe(CHART_ENGINE_IDS.VELA)
+    expect(getChartEngineProfile(null).label).toBe('Vela 研究图')
   })
 
   it('HQ 模式接入自研指标并声明仍留在研究图的标记能力', () => {

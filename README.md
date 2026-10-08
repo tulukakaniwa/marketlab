@@ -51,7 +51,7 @@ pnpm run verify:pine
 
 - Vue 3 + JavaScript + Vite
 - Pinia as the ViewModel/state layer
-- lightweight-charts for the main chart
+- Vela for the research chart; HQChart for mainland formula syntax and tools
 - d3-dsv for CSV parsing
 - Vitest for domain and component tests
 - pnpm for package and script management

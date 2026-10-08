@@ -2,7 +2,7 @@
 
 ## 项目形态
 
-- 这是独立的纯静态 Market Lab，使用 Vue 3、JavaScript、Vite、Pinia、lightweight-charts 和 pnpm。
+- 这是独立的纯静态 Market Lab，使用 Vue 3、JavaScript、Vite、Pinia、Vela、HQChart 和 pnpm。
 - 保持静态部署：`pnpm run build`，发布 `dist/`。
 - 这不是 blog。长解释、研究笔记、公式文章和日志放回 blog。
 

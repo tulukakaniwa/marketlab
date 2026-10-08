@@ -19,11 +19,15 @@ const FORBIDDEN = [
   { pattern: /from\s+['"]pinia['"]/, label: 'pinia' },
   { pattern: /from\s+['"]lightweight-charts['"]/, label: 'lightweight-charts' },
   { pattern: /from\s+['"]hqchart(?:\/[^'"]*)?['"]/, label: 'hqchart' },
+  { pattern: /from\s+['"]@luxalgo\/vela(?:-pinets)?(?:\/[^'"]*)?['"]/, label: 'vela' },
+  { pattern: /from\s+['"]pinets(?:\/[^'"]*)?['"]/, label: 'pinets' },
   { pattern: /from\s+['"]jquery(?:\/[^'"]*)?['"]/, label: 'jquery' },
   { pattern: /import\(\s*['"]vue['"]\s*\)/, label: 'dynamic vue' },
   { pattern: /import\(\s*['"]pinia['"]\s*\)/, label: 'dynamic pinia' },
   { pattern: /import\(\s*['"]lightweight-charts['"]\s*\)/, label: 'dynamic lightweight-charts' },
   { pattern: /import\(\s*['"]hqchart['"]\s*\)/, label: 'dynamic hqchart' },
+  { pattern: /import\(\s*['"]@luxalgo\/vela(?:-pinets)?(?:\/[^'"]*)?['"]\s*\)/, label: 'dynamic vela' },
+  { pattern: /import\(\s*['"]pinets(?:\/[^'"]*)?['"]\s*\)/, label: 'dynamic pinets' },
   { pattern: /import\(\s*['"]jquery['"]\s*\)/, label: 'dynamic jquery' },
 ]
 

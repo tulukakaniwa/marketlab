@@ -1,10 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
-import MainChart from './MainChart.vue'
 import ChartEngineSwitcher from './ChartEngineSwitcher.vue'
 import { useChartWorkspace } from '../composables/useChartWorkspace.js'
 
-defineProps({
+const props = defineProps({
   rows: { type: Array, required: true },
   source: { type: Object, default: null },
   costPath: { type: Array, required: true },
@@ -24,97 +23,79 @@ defineProps({
 
 const emit = defineEmits(['cursor-change', 'param-change', 'set-overlay'])
 const workspace = useChartWorkspace()
-const hqRuntimeLoading = ref(false)
-const showHq = computed(
-  () => Boolean(workspace.hqComponent.value) && (workspace.isHq.value || workspace.isHqPending.value),
+const runtimeLoading = ref(false)
+const currentComponent = computed(() => workspace.activeComponent.value)
+const renderedEngine = computed(() => workspace.displayEngine.value)
+// The official unified history has no public clear API. Start fresh on a new
+// source so native Undo cannot revive drawings or indicators from another source.
+const engineKey = computed(() =>
+  renderedEngine.value === 'vela' ? `vela:${props.drawingScope}` : renderedEngine.value,
 )
-const switchLoading = computed(
-  () =>
-    workspace.isHqPending.value ||
-    (workspace.isHq.value && workspace.hqLoadState.value === 'loading') ||
-    hqRuntimeLoading.value,
-)
+const switchLoading = computed(() => workspace.loading.value || runtimeLoading.value)
 
 function changeEngine(engine) {
-  if (engine === workspace.engine.value && !workspace.isHqPending.value) return
+  if (engine === workspace.engine.value && !workspace.requestedEngine.value) return
   emit('cursor-change', null)
-  if (engine === 'lightweight') hqRuntimeLoading.value = false
+  runtimeLoading.value = false
   workspace.selectEngine(engine)
 }
-
-function handleHqFailure(error) {
-  hqRuntimeLoading.value = false
-  workspace.fallbackToLight(error)
+function handleFailure(error) {
+  runtimeLoading.value = false
+  workspace.fallback(error, renderedEngine.value)
 }
-
-function handleHqReady() {
-  hqRuntimeLoading.value = false
-  workspace.confirmHqReady()
+function handleReady() {
+  runtimeLoading.value = false
+  workspace.confirmReady(renderedEngine.value)
 }
 </script>
 
 <template>
   <div class="chart-workspace">
-    <MainChart
-      v-if="!showHq"
-      :rows="rows"
-      :cost-path="costPath"
-      :formula-path="formulaPath"
-      :causal-path="causalPath"
-      :entry-price="entryPrice"
-      :replay="replay"
-      :market="market"
-      :decision="decision"
-      :position="position"
-      :summary="summary"
-      :drawing-scope="drawingScope"
-      :overlays="overlays"
-      :input="input"
+    <component
+      :is="currentComponent"
+      v-if="currentComponent"
+      :key="engineKey"
+      v-bind="props"
       @param-change="(field, value) => emit('param-change', field, value)"
       @cursor-change="(index) => emit('cursor-change', index)"
       @set-overlay="(key, value) => emit('set-overlay', key, value)"
+      @loading-change="(value) => (runtimeLoading = value)"
+      @fatal-error="handleFailure"
+      @ready="handleReady"
     >
       <template #engine-switch>
         <ChartEngineSwitcher
-          :engine="workspace.engine.value"
+          :engine="renderedEngine"
           :loading="switchLoading"
+          :pending-engine="workspace.requestedEngine.value || workspace.engine.value"
           :error="workspace.fallbackError.value"
           @change="changeEngine"
-          @retry="workspace.retryHq"
-        />
-      </template>
-    </MainChart>
-
-    <component
-      :is="workspace.hqComponent.value"
-      v-else
-      :rows="rows"
-      :source="source"
-      :cost-path="costPath"
-      :formula-path="formulaPath"
-      :causal-path="causalPath"
-      :entry-price="entryPrice"
-      :replay="replay"
-      :position="position"
-      :overlays="overlays"
-      :drawing-scope="drawingScope"
-      :summary="summary"
-      :theme="theme"
-      @cursor-change="(index) => emit('cursor-change', index)"
-      @loading-change="(value) => (hqRuntimeLoading = value)"
-      @fatal-error="handleHqFailure"
-      @ready="handleHqReady"
-      @set-overlay="(key, value) => emit('set-overlay', key, value)"
-    >
-      <template #engine-switch>
-        <ChartEngineSwitcher
-          :engine="workspace.engine.value"
-          :loading="switchLoading"
-          :error="workspace.fallbackError.value"
-          @change="changeEngine"
-          @retry="workspace.retryHq"
+          @retry="workspace.retry"
         />
       </template>
     </component>
+    <section v-else class="main-chart-shell">
+      <div class="main-chart-chrome">
+        <ChartEngineSwitcher
+          :engine="renderedEngine"
+          :loading="switchLoading"
+          :pending-engine="workspace.requestedEngine.value || workspace.engine.value"
+          :error="workspace.fallbackError.value"
+          @change="changeEngine"
+          @retry="workspace.retry"
+        />
+      </div>
+      <div class="chart-workspace-state" role="status" :aria-busy="switchLoading">
+        {{ switchLoading ? '正在加载图表引擎' : '图表未就绪，可重试或切换引擎' }}
+      </div>
+    </section>
   </div>
 </template>
+
+<style scoped>
+.chart-workspace-state {
+  display: grid;
+  place-content: center;
+  color: var(--muted);
+}
+</style>

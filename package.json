@@ -23,6 +23,7 @@
     "audit:formulas": "uv run --no-project --with poetry poetry check && uv run --no-project python scripts/source_coverage_audit.py && uv run --no-project python scripts/formula_inventory_audit.py && uv run --no-project python scripts/formula_wiring_audit.py && uv run --no-project python scripts/chart_formula_audit.py && uv run --no-project python scripts/formula_audit.py",
     "verify:pine": "node scripts/verify-pine.mjs && pnpm run verify:pine-equivalence",
     "verify:pine-equivalence": "vitest run src/test/pine-equivalence.test.js",
+    "verify:pinets": "node scripts/verify-pinets-runtime.mjs",
     "check:data": "node scripts/check-data-index.mjs",
     "check:generated-data": "node scripts/check-generated-data.mjs",
     "check:size": "node scripts/check-file-size.mjs",
@@ -48,11 +49,13 @@
     ]
   },
   "dependencies": {
+    "@luxalgo/vela": "0.8.3",
+    "@luxalgo/vela-pinets": "0.2.15",
     "d3-dsv": "^3.0.1",
     "hqchart": "^1.1.15912",
     "jquery": "^3.7.1",
-    "lightweight-charts": "^5.2.0",
     "lucide-vue-next": "^1.0.0",
+    "pinets": "0.11.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.34"
   },

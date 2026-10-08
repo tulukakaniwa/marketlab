@@ -4,7 +4,7 @@ Market Lab 的公式层要从“公式展示”升级成“公式证据编排”
 
 ## 目标
 
-- 保持 Market Lab 是纯静态工作台：运行时仍是 Vue + Vite + Pinia + lightweight-charts。
+- 保持 Market Lab 是纯静态工作台：运行时使用 Vue + Vite + Pinia + Vela / HQChart。
 - 公式必须先进入 `src/domain/`，再由 store/composable 映射到 UI。
 - 默认挂单只消费经过 domain 明确建模的执行查询结果。
 - 研究层公式可以展示在 K 线上，但必须带来源、状态和缺失条件。

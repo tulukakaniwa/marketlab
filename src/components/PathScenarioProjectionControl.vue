@@ -18,7 +18,7 @@ const emit = defineEmits(['change'])
       />
       <span>
         <strong>投影到历史主图</strong>
-        <small>将本次期限、行权价和情景 σ 用于 Light / HQ 历史路径</small>
+        <small>将本次期限、行权价和情景 σ 用于 Vela / HQ 历史路径</small>
       </span>
       <em>{{ enabled ? '已启用' : '默认关闭' }}</em>
     </label>
