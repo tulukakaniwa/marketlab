@@ -76,7 +76,7 @@ Put deeper explanation in `docs/` or a separate blog.
 
 ## Chart and Layout Notes
 
-- `lightweight-charts` belongs to UI components, not domain.
+- Vela and HQChart belong to infrastructure/view adapters, not domain.
 - Research panes should consume `src/domain/research-visualization/` models.
 - Stable control dimensions matter; chart controls should not resize on hover or dynamic state text.
 - Keep cards for repeated items, modal-like surfaces, or genuinely framed tools; avoid nested card composition.

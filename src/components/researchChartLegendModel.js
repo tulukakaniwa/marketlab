@@ -1,10 +1,10 @@
-import { groupIndicators } from './mainChartLegendMeta.js'
+import { groupIndicators } from './researchChartLegendMeta.js'
 
 /**
- * HQ 与 Light 共用同一套图例 shape 和格式化组件。
+ * Vela 与 HQ 共用同一套图例 shape 和格式化组件。
  * 这里仅把已查询好的 domain series 映射到当前 K 线，不重新计算指标。
  */
-export function buildHqChartLegend({ rows = [], model = null, index = null } = {}) {
+export function buildResearchChartLegend({ rows = [], model = null, index = null } = {}) {
   const isCrosshair = Number.isInteger(index) && index >= 0 && index < rows.length
   const resolvedIndex = isCrosshair ? index : rows.length - 1
   const row = rows[resolvedIndex]

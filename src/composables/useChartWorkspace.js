@@ -1,97 +1,107 @@
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
 import { CHART_ENGINE_IDS, normalizeChartEngine } from '../domain/research-visualization/chartEngines.js'
 import { persistedRef } from './usePersisted.js'
 
-export function useChartWorkspace({ loadHqComponent = () => import('../components/HqChartTerminal.vue') } = {}) {
-  const storedEngine = persistedRef('lab.chartEngine.v1', CHART_ENGINE_IDS.LIGHTWEIGHT)
-  const hqComponent = shallowRef(null)
-  const hqLoadState = ref('idle')
+export function useChartWorkspace({
+  loadHqComponent = () => import('../components/HqChartTerminal.vue'),
+  loadVelaComponent = () => import('../components/VelaChart.vue'),
+} = {}) {
+  const storedEngine = persistedRef('lab.chartEngine.v1', CHART_ENGINE_IDS.VELA)
+  const components = shallowRef({})
+  const states = ref({})
   const fallbackError = ref('')
   const requestedEngine = ref(null)
-  let loadGeneration = 0
-
+  const failedEngine = ref(null)
+  const loaders = { hqchart: loadHqComponent, vela: loadVelaComponent }
+  const generations = { hqchart: 0, vela: 0 }
+  let requestSequence = 0
+  let lastReady = null
+  onScopeDispose(() => {
+    requestSequence++
+    for (const id of Object.keys(generations)) generations[id]++
+  })
   const engine = computed(() => normalizeChartEngine(storedEngine.value))
-  const isHq = computed(() => engine.value === CHART_ENGINE_IDS.HQCHART)
-  const isHqPending = computed(() => requestedEngine.value === CHART_ENGINE_IDS.HQCHART)
+  const displayEngine = computed(() => {
+    const candidate = requestedEngine.value ?? engine.value
+    return components.value[candidate] ? candidate : components.value[engine.value] ? engine.value : candidate
+  })
+  const activeComponent = computed(() => components.value[displayEngine.value] ?? null)
+  const loading = computed(() => Boolean(requestedEngine.value) || states.value[engine.value] === 'loading')
 
   watch(
     engine,
     (next) => {
       if (storedEngine.value !== next) storedEngine.value = next
-      if (next === CHART_ENGINE_IDS.HQCHART) ensureHqComponent()
+      if (!components.value[next] && states.value[next] !== 'error') selectEngine(next)
     },
     { immediate: true },
   )
 
-  function selectEngine(next) {
-    const normalized = normalizeChartEngine(next)
+  async function selectEngine(next, { force = false } = {}) {
+    const id = normalizeChartEngine(next)
+    const request = ++requestSequence
     fallbackError.value = ''
-    if (normalized === CHART_ENGINE_IDS.LIGHTWEIGHT) {
+    if (engine.value === id && components.value[id] && !force) {
       requestedEngine.value = null
-      storedEngine.value = normalized
-      return null
+      return components.value[id]
     }
-    if (isHq.value && !isHqPending.value) return hqComponent.value
-    requestedEngine.value = CHART_ENGINE_IDS.HQCHART
-    return ensureHqComponent()
-  }
-
-  async function ensureHqComponent({ force = false } = {}) {
-    if (hqComponent.value && !force) return hqComponent.value
-    if (hqLoadState.value === 'loading' && !force) return null
-    const generation = ++loadGeneration
-    hqLoadState.value = 'loading'
-    fallbackError.value = ''
+    requestedEngine.value = id
+    if (components.value[id] && !force) return components.value[id]
+    const generation = ++generations[id]
+    states.value[id] = 'loading'
     try {
-      const module = await loadHqComponent()
-      if (generation !== loadGeneration) return null
+      const module = await loaders[id]()
+      if (generation !== generations[id]) return null
       const component = module?.default ?? module
-      if (!component) throw new Error('HQChart 组件未导出')
-      hqComponent.value = component
-      hqLoadState.value = 'ready'
+      if (!component) throw new Error('图表组件未导出')
+      components.value = { ...components.value, [id]: component }
+      states.value[id] = 'ready'
       return component
-    } catch (caught) {
-      if (generation !== loadGeneration) return null
-      hqComponent.value = null
-      hqLoadState.value = 'error'
-      fallbackToLight(caught)
+    } catch (error) {
+      if (generation !== generations[id]) return null
+      states.value[id] = 'error'
+      if (request === requestSequence) fallback(error, id)
       return null
     }
   }
 
-  function fallbackToLight(error) {
-    fallbackError.value = readableError(error)
+  function fallback(error, id = requestedEngine.value ?? engine.value) {
+    failedEngine.value = id
+    const message = error instanceof Error ? error.message : String(error ?? '')
+    fallbackError.value = `${id === 'vela' ? 'Vela 研究图' : 'HQ 专业图'}启动失败：${message}`
+    const next = { ...components.value }
+    delete next[id]
+    components.value = next
+    states.value[id] = 'error'
     requestedEngine.value = null
-    storedEngine.value = CHART_ENGINE_IDS.LIGHTWEIGHT
+    if (lastReady && lastReady !== id) storedEngine.value = lastReady
+    else if (lastReady === id) lastReady = null
   }
-
-  function retryHq() {
-    fallbackError.value = ''
-    requestedEngine.value = CHART_ENGINE_IDS.HQCHART
-    return ensureHqComponent({ force: true })
-  }
-
-  function confirmHqReady() {
-    fallbackError.value = ''
+  function confirmReady(id) {
+    if (id !== (requestedEngine.value ?? engine.value)) return
+    if (failedEngine.value === id) {
+      fallbackError.value = ''
+      failedEngine.value = null
+    }
     requestedEngine.value = null
-    storedEngine.value = CHART_ENGINE_IDS.HQCHART
+    lastReady = id
+    storedEngine.value = id
+  }
+  function retry() {
+    return selectEngine(failedEngine.value ?? engine.value, { force: true })
   }
 
   return {
     engine,
-    isHq,
-    isHqPending,
-    hqComponent,
-    hqLoadState,
+    displayEngine,
+    activeComponent,
+    loading,
+    requestedEngine,
+    failedEngine,
     fallbackError,
     selectEngine,
-    retryHq,
-    fallbackToLight,
-    confirmHqReady,
+    fallback,
+    confirmReady,
+    retry,
   }
-}
-
-function readableError(error) {
-  const message = error instanceof Error ? error.message : String(error ?? '')
-  return message ? `HQ 专业图启动失败：${message}` : 'HQ 专业图启动失败，已继续使用研究图。'
 }

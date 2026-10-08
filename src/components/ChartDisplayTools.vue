@@ -3,6 +3,7 @@ const props = defineProps({
   overlays: { type: Object, required: true },
   ready: { type: Boolean, default: true },
   chipAvailable: { type: Boolean, default: true },
+  chipSource: { type: String, default: '成交量按价格分布代理' },
 })
 
 const emit = defineEmits(['set-overlay'])
@@ -32,7 +33,7 @@ function toggle(key, available = true) {
       :class="{ active: overlays.stockChipProfile !== false }"
       :aria-pressed="overlays.stockChipProfile !== false"
       :disabled="!ready || !chipAvailable"
-      :title="chipAvailable ? '显示或隐藏成交量按价格分布代理' : '筹码图在桌面宽度显示'"
+      :title="chipAvailable ? `显示或隐藏${chipSource}` : '筹码图在桌面宽度显示'"
       @click="toggle('stockChipProfile', chipAvailable)"
     >
       筹码

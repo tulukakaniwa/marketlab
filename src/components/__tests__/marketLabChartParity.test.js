@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fallbackValue, latestFinitePathPoint, SERIES_META } from '../mainChartLegendMeta.js'
-import { useMainChartSeries } from '../../composables/useMainChartSeries.js'
+import { describe, expect, it } from 'vitest'
+import { buildVelaResearchGroups, velaSeriesTitle } from '../../infrastructure/charting/velaResearchAdapter.js'
+import { fallbackValue, latestFinitePathPoint, SERIES_META } from '../researchChartLegendMeta.js'
 import {
   MARKET_LAB_CHART_INDICATOR_CATALOG,
   queryMarketLabChartSeries,
@@ -11,14 +11,6 @@ import {
   toHqColor,
   toHqResearchIndexResponse,
 } from '../../infrastructure/charting/hqChartResearchAdapter.js'
-
-vi.mock('lightweight-charts', () => ({
-  CandlestickSeries: 'candlestick',
-  HistogramSeries: 'histogram',
-  LineSeries: 'line',
-  LineStyle: { Solid: 0, Dotted: 1, Dashed: 2 },
-  createSeriesMarkers: vi.fn(() => ({ setMarkers: vi.fn() })),
-}))
 
 const ALL_ON = {
   priceBands: true,
@@ -86,33 +78,40 @@ const fixture = {
   replay: { equityCurve: rows.map((row, index) => ({ date: row.date, equity: 100_000 + index * 100 })) },
 }
 
-describe('Market Lab Light / HQ chart parity', () => {
-  it('Light series inventory and legend metadata share the domain catalog contract', () => {
-    const chart = fakeChart()
-    const light = useMainChartSeries({ getChart: () => chart, getProps: () => fixture })
-    light.applyOverlays()
-
-    const catalogIds = MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id).sort()
-    expect(Object.keys(light.seriesMeta).sort()).toEqual(catalogIds)
-
+describe('Market Lab Vela / HQ chart parity', () => {
+  it('Vela preserves every active domain series, gaps, latest-only points and styles', () => {
+    const model = queryMarketLabChartSeries(fixture)
+    const output = buildVelaResearchGroups(model, 'test')
+    const rendered = output.flatMap((group) => group.output.series)
     for (const definition of MARKET_LAB_CHART_INDICATOR_CATALOG) {
-      const meta = SERIES_META[definition.id]
-      expect(meta).toMatchObject({
-        title: definition.label,
+      if (definition.id === 'mark') continue // Vela's native current-price line owns the latest close.
+      const input = model.groups.flatMap((group) => group.series).find((series) => series.id === definition.id)
+      const series = rendered.find((series) => series.id === `test:${definition.id}`)
+      expect(series, definition.id).toBeDefined()
+      expect(series.style).toEqual({
         color: definition.color,
-        unit: definition.unit,
-        group: definition.group,
+        width: definition.lineWidth,
+        lineStyle: definition.lineStyle,
       })
-      expect(light.series[definition.id].options).toMatchObject({
-        title: definition.label,
-        color: definition.color,
-        lineWidth: definition.lineWidth,
-        lineStyle: lightLineStyle(definition.lineStyle),
-      })
+      expect(series.title).toBe(velaSeriesTitle(definition))
+      const expected = new Map(input.points.map((point) => [point.time, point.value]))
+      expect(series.points).toEqual(
+        rows.map((row) => ({
+          time: Date.parse(`${row.date}T00:00:00Z`),
+          value: expected.get(row.date) ?? null,
+        })),
+      )
     }
+    const causal = rendered.find((series) => series.id === 'test:causalEquilibrium')
+    expect(causal.points.slice(0, 8).every((point) => point.value === null)).toBe(true)
+    const latest = rendered.find((series) => series.id === 'test:lpPoolTurnover')
+    expect(latest.kind).toBe('circles')
+    expect(latest.points.filter((point) => point.value !== null)).toHaveLength(1)
+    expect(output.filter((group) => group.groupId === 'greeks')).toHaveLength(3)
+    expect(output.filter((group) => group.groupId === 'lp')).toHaveLength(3)
   })
 
-  it('Light hover fallback and the domain envelope read identical formula/constant values', () => {
+  it('Historical legend values and the domain envelope read identical formula/constant values', () => {
     const model = queryMarketLabChartSeries(fixture)
     const comparableIds = MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id).filter(
       (id) => !['equity', 'kdjK', 'kdjJ', 'rsi'].includes(id),
@@ -130,11 +129,7 @@ describe('Market Lab Light / HQ chart parity', () => {
 
   it('现价、入场、成本、GetDelta 与 LP 区间始终共用主 K 线价格轴', () => {
     const model = queryMarketLabChartSeries(fixture)
-    const chart = fakeChart()
-    const light = useMainChartSeries({ getChart: () => chart, getProps: () => fixture })
-    light.applyOverlays()
     const required = [
-      'mark',
       'entry',
       'cost',
       'causalEquilibrium',
@@ -149,10 +144,11 @@ describe('Market Lab Light / HQ chart parity', () => {
     expect(model.groups.find((group) => group.id === 'price').series.map((series) => series.id)).toEqual(
       expect.arrayContaining(required),
     )
-    for (const id of required) {
-      expect(light.series[id].pane).toBe(0)
-      expect(light.series[id].options.priceScaleId).toBeUndefined()
-    }
+    const velaPrice = buildVelaResearchGroups(model, 'price-test').filter((group) => group.overlay)
+    expect(velaPrice.every((group) => group.overlay)).toBe(true)
+    expect(velaPrice.flatMap((group) => group.output.series).map((series) => series.id)).toEqual(
+      expect.arrayContaining(required.map((id) => `price-test:${id}`)),
+    )
     expect(buildHqResearchChartConfig(model).overlayIndex[0]).toMatchObject({ Windows: 0, IsShareY: true })
   })
 
@@ -181,10 +177,6 @@ describe('Market Lab Light / HQ chart parity', () => {
       .slice(0, 16)
       .map((point, i) => (i === 12 ? { ...point, equilibriumPrice: null } : point))
     const props = { ...fixture, causalPath, overlays: { ...ALL_ON, causalEquilibrium: true } }
-    const chart = fakeChart()
-    const light = useMainChartSeries({ getChart: () => chart, getProps: () => props })
-    light.applyOverlays()
-    expect(light.series.causalEquilibrium).toBeDefined()
     const model = queryMarketLabChartSeries(props)
     const hq = toHqResearchIndexResponse(model, hqResearchApiId('price'))
     const values = hq.outdata.outvar.find((item) => item.name === SERIES_META.causalEquilibrium.title).data
@@ -194,12 +186,18 @@ describe('Market Lab Light / HQ chart parity', () => {
     expect(values[12]).toBeNull()
     expect(values.slice(16)).toEqual([null, null, null, null])
     props.overlays.causalEquilibrium = false
-    light.applyOverlays()
-    expect(light.series.causalEquilibrium).toBeUndefined()
+    expect(
+      buildVelaResearchGroups(queryMarketLabChartSeries(props), 'lab')
+        .flatMap((group) => group.output.series)
+        .find((series) => series.id === 'lab:causalEquilibrium'),
+    ).toBeUndefined()
     expect(findSeries(queryMarketLabChartSeries(props), 'causalEquilibrium')).toBeUndefined()
     props.overlays.causalEquilibrium = true
-    light.applyOverlays()
-    expect(light.series.causalEquilibrium).toBeDefined()
+    expect(
+      buildVelaResearchGroups(queryMarketLabChartSeries(props), 'lab')
+        .flatMap((group) => group.output.series)
+        .find((series) => series.id === 'lab:causalEquilibrium'),
+    ).toBeDefined()
     expect(findSeries(queryMarketLabChartSeries(props), 'causalEquilibrium').points).toEqual(
       findSeries(model, 'causalEquilibrium').points,
     )
@@ -221,33 +219,12 @@ describe('Market Lab Light / HQ chart parity', () => {
   })
 })
 
-function fakeChart() {
-  const panes = Array.from({ length: 8 }, () => ({ setStretchFactor: vi.fn() }))
-  return {
-    addSeries: vi.fn((type, options, pane = 0) => ({
-      type,
-      options,
-      pane,
-      createPriceLine: vi.fn(),
-      priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
-    })),
-    removeSeries: vi.fn(),
-    panes: vi.fn(() => panes),
-  }
-}
-
 function findSeries(model, id) {
   return model.groups.flatMap((group) => group.series).find((series) => series.id === id)
 }
 
 function compactDate(value) {
   return Number(String(value).replaceAll('-', ''))
-}
-
-function lightLineStyle(value) {
-  if (value === 'dashed') return 2
-  if (value === 'dotted') return 1
-  return 0
 }
 
 function expectedHqOutVar(series, dates) {

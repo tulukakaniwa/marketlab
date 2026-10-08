@@ -211,7 +211,7 @@ export const MARKET_LAB_CHART_INDICATOR_CATALOG = Object.freeze(
 )
 
 /**
- * 构建可供 Lightweight Charts、HQChart 或其它视图适配器消费的稳定查询结果。
+ * 构建可供 Vela、HQChart 或其它视图适配器消费的稳定查询结果。
  * points 只包含带日期的有限数值；关闭的 overlay 仍保留组和 availability，
  * 但不会出现在组的 active series 中。
  */

@@ -9,7 +9,7 @@ import WorkbenchSummary from './WorkbenchSummary.vue'
 import HqChartToolbar from './HqChartToolbar.vue'
 import MainChartHoverLegend from './MainChartHoverLegend.vue'
 import StockChipProfileOverlay from './StockChipProfileOverlay.vue'
-import { buildHqChartLegend } from './hqChartLegendModel.js'
+import { buildResearchChartLegend } from './researchChartLegendModel.js'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
 import { useMarketLabChartIndicators } from '../composables/useMarketLabChartIndicators.js'
 import { persistedReactive } from '../composables/usePersisted.js'
@@ -50,7 +50,7 @@ const { isMobile } = useBreakpoint()
 const researchModel = useMarketLabChartIndicators(props)
 const cursorIndex = ref(null)
 const hoverLegend = computed(() =>
-  buildHqChartLegend({ rows: props.rows, model: researchModel.value, index: cursorIndex.value }),
+  buildResearchChartLegend({ rows: props.rows, model: researchModel.value, index: cursorIndex.value }),
 )
 const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== false && !isMobile.value)
 const stockChipViewport = ref(null)

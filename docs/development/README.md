@@ -76,3 +76,4 @@ docs/                      developer docs, formula evidence, handoffs
 5. [Quality Gates](./quality-gates.md)
 6. [Troubleshooting](./troubleshooting.md)
 7. [Release and GitFlow](./release-gitflow.md)
+8. [LuxAlgo Integration](./luxalgo-integration.md)

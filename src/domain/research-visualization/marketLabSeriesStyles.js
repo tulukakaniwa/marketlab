@@ -1,7 +1,7 @@
 /**
  * Market Lab 图表序列的唯一展示口径。
  *
- * Light 与 HQ 适配器只能消费这里的名称、颜色和线型，不能各自复制一套。
+ * Vela 与 HQ 适配器只能消费这里的名称、颜色和线型，不能各自复制一套。
  * 数值仍来自各自明确的 domain 输出字段；本文件不做业务计算。
  */
 export const MARKET_LAB_SERIES_STYLES = Object.freeze({

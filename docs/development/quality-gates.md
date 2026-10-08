@@ -61,6 +61,14 @@ pnpm run verify:pine
 
 Run this when any Pine file or Pine-related output changes.
 
+## PineTS Runtime Gate
+
+```bash
+pnpm run verify:pinets
+```
+
+Executes the canonical Pine source in the pinned PineTS runtime over four local market samples. Checks numeric outputs against the independent JS twin and re-executes historical prefixes to detect future-dependent values or signals. This supplements `verify:pine`; it does not verify TradingView execution or rendering. See [LuxAlgo Integration](./luxalgo-integration.md).
+
 ## Formula Audit
 
 ```bash

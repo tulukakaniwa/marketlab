@@ -1,16 +1,26 @@
 export const CHART_ENGINE_IDS = Object.freeze({
-  LIGHTWEIGHT: 'lightweight',
   HQCHART: 'hqchart',
+  VELA: 'vela',
 })
 
 export const CHART_ENGINE_PROFILES = Object.freeze({
-  [CHART_ENGINE_IDS.LIGHTWEIGHT]: Object.freeze({
-    id: CHART_ENGINE_IDS.LIGHTWEIGHT,
-    label: '研究图',
-    shortLabel: 'Light',
+  [CHART_ENGINE_IDS.VELA]: Object.freeze({
+    id: CHART_ENGINE_IDS.VELA,
+    label: 'Vela 研究图',
+    shortLabel: 'Vela',
     description: '公式 / 成本 / 回放',
-    status: '完整研究叠加',
-    capabilities: Object.freeze(['公式带', '成本锚', '回放标记', '研究筹码', '轻量手绘']),
+    status: '领域研究图',
+    capabilities: Object.freeze([
+      '公式带',
+      '成本锚',
+      '回放标记',
+      '研究副图',
+      '原生成交量 / 筹码',
+      '原生画线',
+      '原生指标 / 图表样式',
+      '原生数据窗口 / 对象树',
+      '原生设置 / 截图',
+    ]),
     unavailable: Object.freeze([]),
   }),
   [CHART_ENGINE_IDS.HQCHART]: Object.freeze({
@@ -35,7 +45,7 @@ export const CHART_ENGINE_PROFILES = Object.freeze({
 })
 
 export function normalizeChartEngine(value) {
-  return Object.hasOwn(CHART_ENGINE_PROFILES, value) ? value : CHART_ENGINE_IDS.LIGHTWEIGHT
+  return Object.hasOwn(CHART_ENGINE_PROFILES, value) ? value : CHART_ENGINE_IDS.VELA
 }
 
 export function getChartEngineProfile(value) {
@@ -45,5 +55,5 @@ export function getChartEngineProfile(value) {
 export function getChartEngineNotice(value) {
   const profile = getChartEngineProfile(value)
   if (!profile.unavailable.length) return ''
-  return `${profile.unavailable.join('、')}仍保留在研究图，切换不会删除状态。`
+  return `${profile.unavailable.join('、')}仍保留在 Vela 研究图，切换不会删除状态。`
 }
