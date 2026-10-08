@@ -77,3 +77,4 @@ docs/                      developer docs, formula evidence, handoffs
 6. [Troubleshooting](./troubleshooting.md)
 7. [Release and GitFlow](./release-gitflow.md)
 8. [LuxAlgo Integration](./luxalgo-integration.md)
+9. [Independent Market Center Formulas](./market-center-formulas.md)

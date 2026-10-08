@@ -223,6 +223,7 @@ export function parseOhlcv(rows) {
     .map((row) => {
       const rawDate = pick(row, ['date', 'time', 'datetime', 'timestamp', 'Date', 'Time', 'Datetime'])
       const timestamp = parseTimestamp(rawDate)
+      const amountKey = ['amount', 'Amount', '成交额'].find((key) => Object.hasOwn(row, key))
       return {
         date: Number.isFinite(timestamp) ? new Date(timestamp).toISOString().slice(0, 10) : String(rawDate ?? ''),
         timestamp,
@@ -231,6 +232,8 @@ export function parseOhlcv(rows) {
         low: numberValue(pick(row, ['low', 'Low', 'l'])),
         close: numberValue(pick(row, ['close', 'Close', 'c', 'adj close', 'Adj Close'])),
         volume: numberValue(pick(row, ['volume', 'Volume', 'vol', 'v'])),
+        // Optional notional is research input; a declared empty column stays missing.
+        ...(amountKey ? { amount: numberValue(row[amountKey]) } : {}),
       }
     })
     .filter(isValidOhlcv)

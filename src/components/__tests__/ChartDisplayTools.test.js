@@ -23,11 +23,11 @@ describe('ChartDisplayTools', () => {
     ])
   })
 
-  it('提供因果均衡线的独立开关', async () => {
+  it('保留价格滤波参考的独立开关且不再声称因果均衡', async () => {
     const wrapper = mount(ChartDisplayTools, {
       props: { overlays: { causalEquilibrium: true } },
     })
-    const button = wrapper.findAll('button').find((item) => item.text().includes('因果均衡'))
+    const button = wrapper.findAll('button').find((item) => item.text().includes('滤波参考'))
     expect(button.attributes('aria-pressed')).toBe('true')
     await button.trigger('click')
     expect(wrapper.emitted('set-overlay')).toEqual([['causalEquilibrium', false]])

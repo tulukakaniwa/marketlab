@@ -26,6 +26,12 @@ describe('useChartOverlays', () => {
     for (const key of CHART_OVERLAY_KEYS) {
       expect(Object.keys(CHART_OVERLAY_DEFAULTS)).toContain(key)
     }
+    expect(o.statisticalCenter).toBe(true)
+    expect(o.vwapCost).toBe(true)
+    expect(o.cohortCost).toBe(false)
+    expect(o.supplyDemand).toBe(false)
+    expect(o.fundamental).toBe(false)
+    expect(o.causalEquilibrium).toBe(false)
     expect(o.priceBands).toBe(true)
     expect(o.greeksPane).toBe(false)
     expect(o.lpPane).toBe(false)
@@ -57,6 +63,9 @@ describe('useChartOverlays', () => {
     // 写入只含部分字段的旧数据
     window.localStorage.setItem('lab.chartOverlays.v9', JSON.stringify({ costBand: false, greeksPane: true }))
     const o = useChartOverlays()
+    expect(o.statisticalCenter).toBe(true) // 新独立公式默认开启
+    expect(o.vwapCost).toBe(true)
+    expect(o.supplyDemand).toBe(false)
     expect(o.costBand).toBe(false) // 旧值保留
     expect(o.greeksPane).toBe(true) // 旧值保留
     expect(o.entryLine).toBe(true) // 缺字段回退默认

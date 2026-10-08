@@ -19,7 +19,7 @@ const ready = computed(() => props.snapshot?.status === 'ready')
 const passage = computed(() => props.snapshot?.passage)
 const passageReady = computed(() => passage.value?.status === 'ready')
 const passageLabel = computed(() => {
-  if (passage.value?.reason === 'at-equilibrium') return '已处均衡附近，未构造双边触达'
+  if (passage.value?.reason === 'at-equilibrium') return '已处参考点附近，未构造双边触达'
   return '当前状态未形成双边触达估计'
 })
 function price(value) {
@@ -34,7 +34,7 @@ function sessions(value) {
 </script>
 
 <template>
-  <article class="causal-model-panel" aria-label="因果模型估计">
+  <article class="causal-model-panel" aria-label="旧版价格滤波估计">
     <div class="causal-model-source">
       <span>截至 {{ snapshot?.asOfDate || queryState?.asOfDate || '—' }}</span>
       <span>仅历史前缀 · 模型估计</span>
@@ -43,7 +43,7 @@ function sessions(value) {
     <template v-else>
       <div class="dd-action-grid">
         <div>
-          <span title="经过滤波估计的价格中枢，不是真实持仓成本">动态均衡锚</span
+          <span title="收盘价的在线滤波水平，不代表收益动力学的均衡或真实持仓成本">价格滤波参考</span
           ><strong>{{ price(snapshot.state?.equilibrium?.price) }}</strong>
         </div>
         <div>
@@ -58,15 +58,15 @@ function sessions(value) {
       </div>
       <template v-if="passageReady">
         <div class="causal-model-source">
-          <span>{{ passage.side === 'long' ? '向上修复' : '向下修复' }}</span>
+          <span>{{ passage.side === 'long' ? '向上触达参考点' : '向下触达参考点' }}</span>
           <span>扩散尺度窗口 {{ sessions(passage.computedHorizonSessions ?? passage.horizonSessions) }}</span>
         </div>
         <div class="dd-action-grid">
           <div>
-            <span>模型目标</span><strong>{{ price(passage.targetPrice) }}</strong>
+            <span>冻结参考点</span><strong>{{ price(passage.targetPrice) }}</strong>
           </div>
           <div>
-            <span>模型风险边界</span><strong>{{ price(passage.riskPrice) }}</strong>
+            <span>反向对称边界</span><strong>{{ price(passage.riskPrice) }}</strong>
           </div>
         </div>
         <div class="causal-model-probabilities" aria-label="期限内首次触达概率">
@@ -96,7 +96,7 @@ function sessions(value) {
         <p v-if="passage.numerical?.resolutionStatus === 'coarse-relative-to-transition-scale'" class="dd-empty-note">
           网格分辨率不足 · 概率近似较粗
         </p>
-        <p class="dd-empty-note">会话收盘触达 · 目标为当前均衡锚 · 风险线为反向等幅对数偏离</p>
+        <p class="dd-empty-note">会话收盘触达 · 冻结滤波参考点 · 对侧为等幅对数偏离</p>
       </template>
       <p v-else class="dd-empty-note">{{ passageLabel }}</p>
       <p class="dd-empty-note">冻结观察日参数 · 模型概率未校准</p>

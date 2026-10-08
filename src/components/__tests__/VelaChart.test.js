@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import VelaChart from '../VelaChart.vue'
 const mocks = vi.hoisted(() => ({
+  options: null,
   chart: {
     resize: vi.fn(),
     setTheme: vi.fn(),
@@ -19,7 +20,12 @@ const mocks = vi.hoisted(() => ({
   importDrawings: vi.fn(),
   painted: Promise.resolve(true),
 }))
-vi.mock('../../infrastructure/charting/velaChartAdapter.js', () => ({ createVelaChartAdapter: async () => mocks }))
+vi.mock('../../infrastructure/charting/velaChartAdapter.js', () => ({
+  createVelaChartAdapter: async (options) => {
+    mocks.options = options
+    return mocks
+  },
+}))
 vi.mock('../../composables/useBreakpoint.js', () => ({ useBreakpoint: () => ({ isMobile: { value: false } }) }))
 class FakeObserver {
   observe = vi.fn()
@@ -41,6 +47,30 @@ const stubs = {
 }
 
 describe('Vela research view', () => {
+  it('forwards center settings as source-scoped commands and syncs their domain values without refitting', async () => {
+    const rows = makeRows()
+    const change = vi.fn()
+    const config = { statisticalCenter: { lookback: 120, minObservations: 60 }, vwapCost: { lookback: 120 } }
+    const path = [{ date: rows[0].date, vwapCostPrice: 99, centerStates: { vwapCost: { status: 'ready' } } }]
+    const wrapper = mount(VelaChart, {
+      props: { ...makeProps(rows), centerPath: path, centerConfig: config, onCenterInputChange: change },
+      global: { stubs },
+    })
+    await flushPromises()
+    expect(points('vwapCost')).toEqual([{ time: rows[0].date, value: 99 }])
+    expect(mocks.sync.mock.calls.at(-1)[1].centerConfig).toEqual(config)
+    const nativeChange = mocks.options.onCenterInputChange
+    nativeChange({ formula: 'vwapCost', key: 'lookback', value: 90 })
+    expect(wrapper.emitted('center-input-change')).toEqual([
+      [{ formula: 'vwapCost', key: 'lookback', value: 90, sourceKey: 'scope-a' }],
+    ])
+    await wrapper.setProps({ centerConfig: { ...config, vwapCost: { lookback: 90 } } })
+    expect(mocks.sync.mock.calls.at(-1)[1].centerConfig.vwapCost.lookback).toBe(90)
+    expect(mocks.fit).toHaveBeenCalledOnce()
+    wrapper.unmount()
+    nativeChange({ formula: 'vwapCost', key: 'lookback', value: 60 })
+    expect(change).toHaveBeenCalledOnce()
+  })
   it('reports synchronous renderer failures from overlay commands for workspace recovery', async () => {
     const wrapper = mount(VelaChart, { props: makeProps(makeRows()), global: { stubs } })
     await flushPromises()

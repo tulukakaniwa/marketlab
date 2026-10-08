@@ -62,10 +62,11 @@ vi.mock('../velaWorkspaceShell.js', () => {
     indicators() {
       return this.handles.filter((handle) => !handle.removed)
     }
-    addNativeIndicator(type) {
+    addNativeIndicator(type, options = {}) {
       const descriptor = state.descriptors.get(type)
       const native = descriptor.create()
       const events = new Map()
+      let inputs = { ...descriptor.defaultInputs?.(), ...options.inputs }
       const handle = {
         id: `native-${this.handles.length}`,
         type,
@@ -79,7 +80,12 @@ vi.mock('../velaWorkspaceShell.js', () => {
           events.get(event).add(callback)
           return () => events.get(event).delete(callback)
         },
-        setInputs: vi.fn((values) => native.setInputs?.(values)),
+        inputValues: () => ({ ...inputs }),
+        setInputs: vi.fn((values) => {
+          inputs = { ...inputs, ...values }
+          native.setInputs?.(inputs)
+          this.emit('indicator:inputs', { id: handle.id })
+        }),
         moveTo: vi.fn((target) => {
           // Real Vela ignores this until the first model exists.
           if (!handle.mounted) return
@@ -111,7 +117,7 @@ vi.mock('../velaWorkspaceShell.js', () => {
       this.handles.push(handle)
       // Match the library's await readyPromise before native start / pane creation.
       Promise.resolve(this.ready()).then(() => {
-        if (!handle.removed) native.start(context, {})
+        if (!handle.removed) native.start(context, inputs)
       })
       return handle
     }
@@ -297,7 +303,7 @@ describe('Vela asynchronous lifecycle and host/native consistency', () => {
     const view = await adapter({ onOverlayChange: change })
     const chart = state.charts[0]
     const cost = { ...priceGroup.series[0], controls: ['priceBands', 'costBand'] }
-    const causal = { ...cost, id: 'causal', label: '因果均衡', controls: ['causalEquilibrium'] }
+    const causal = { ...cost, id: 'causal', label: '价格滤波参考', controls: ['causalEquilibrium'] }
     const entry = { ...cost, id: 'entry', label: '入场', controls: ['entryLine'] }
     const query = { ...model, groups: [{ ...priceGroup, overlayKey: 'priceBands', series: [cost, causal, entry] }] }
     await view.sync(query, { ...input, overlays: { volume: false, stockChipProfile: false } })
@@ -318,6 +324,104 @@ describe('Vela asynchronous lifecycle and host/native consistency', () => {
     expect(chart.silently).toHaveBeenCalled()
     expect(change).not.toHaveBeenCalled()
     expect(chart.indicators().filter((handle) => handle.type.includes('price.'))).toHaveLength(2)
+    view.destroy()
+  })
+  it('offers disabled independent formulas in the scoped native picker without resetting saved windows on add', async () => {
+    const settings = vi.fn(),
+      visibility = vi.fn()
+    const view = await adapter({ onCenterInputChange: settings, onOverlayChange: visibility })
+    const chart = state.charts[0]
+    const ids = ['statisticalCenter', 'vwapCost', 'cohortCost', 'supplyDemand', 'fundamental']
+    const catalog = ids.map((id) => ({
+      ...priceGroup.series[0],
+      id,
+      centerFormula: id,
+      controls: [id],
+      active: false,
+      points: [],
+    }))
+    await view.sync(
+      { ...model, groups: [], centerDescriptors: catalog },
+      {
+        ...input,
+        overlays: { volume: false, stockChipProfile: false },
+        centerConfig: { statisticalCenter: { lookback: 90, minObservations: 30 }, vwapCost: { lookback: 80 } },
+      },
+    )
+    expect(chart.handles).toHaveLength(1) // Host markers only: disabled types cost no native instance.
+    const types = [...state.descriptors.values()].filter(({ type }) => type.includes('-price.'))
+    expect(types).toHaveLength(5)
+    const statistical = types.find(({ type }) => type.endsWith('statisticalCenter'))
+    expect(statistical.isSupported('LOCAL', chart.data)).toBe(true)
+    expect(statistical.isSupported('LOCAL', {})).toBe(false)
+    expect(statistical.defaultInputs()).toEqual({ lookback: 90, minObservations: 30 })
+    expect(statistical.inputsSchema().map(({ defval }) => defval)).toEqual([120, 60])
+    const scenario = types.find(({ type }) => type.endsWith('supplyDemand'))
+    expect(scenario.defaultInputs()).toEqual({ enabled: false, a: '', b: '', c: '', d: '' })
+    const native = chart.addNativeIndicator(statistical.type)
+    await Promise.resolve()
+    expect(native.inputValues()).toEqual({ lookback: 90, minObservations: 30 })
+    expect(settings).not.toHaveBeenCalled()
+    expect(visibility).toHaveBeenCalledExactlyOnceWith('statisticalCenter', true)
+    expect(native.output.series[0].points[0].value).toBeNull()
+    view.destroy()
+    native.setInputs({ lookback: 60 })
+    expect(settings).not.toHaveBeenCalled()
+  })
+  it('opens native center settings even for unidentified windows and bridges edits without feedback', async () => {
+    const change = vi.fn()
+    const view = await adapter({ onCenterInputChange: change })
+    const chart = state.charts[0]
+    const series = {
+      ...priceGroup.series[0],
+      id: 'statisticalCenter',
+      label: '统计回归中心',
+      centerFormula: 'statisticalCenter',
+      controls: ['statisticalCenter'],
+      points: [],
+    }
+    const query = { ...model, groups: [{ ...priceGroup, series: [series] }] }
+    const config = { statisticalCenter: { lookback: 120, minObservations: 60 } }
+    await view.sync(query, { ...input, centerConfig: config })
+    const native = chart.handles.find((handle) => handle.type.endsWith('price.statisticalCenter'))
+    const descriptor = state.descriptors.get(native.type)
+    expect(descriptor.inputsSchema().map(({ key, defval }) => [key, defval])).toEqual([
+      ['lookback', 120],
+      ['minObservations', 60],
+    ])
+    expect(native.output.series[0].points).toEqual([{ time: Date.UTC(2026, 9, 8), value: null }])
+    expect(change).not.toHaveBeenCalled()
+    native.setInputs({ lookback: 90 })
+    expect(change).toHaveBeenCalledExactlyOnceWith({ formula: 'statisticalCenter', key: 'lookback', value: 90 })
+    await view.sync(query, { ...input, centerConfig: { statisticalCenter: { lookback: 90, minObservations: 60 } } })
+    expect(native.inputValues()).toEqual({ lookback: 90, minObservations: 60 })
+    expect(change).toHaveBeenCalledTimes(1)
+    // Restoring native input values uses the same command boundary.
+    native.setInputs({ lookback: 120 })
+    expect(change).toHaveBeenLastCalledWith({ formula: 'statisticalCenter', key: 'lookback', value: 120 })
+    expect(change).toHaveBeenCalledTimes(2)
+    view.destroy()
+  })
+  it('adopts restored center inputs from native delete Undo before issuing host refresh', async () => {
+    const change = vi.fn()
+    const view = await adapter({ onCenterInputChange: change })
+    const chart = state.charts[0]
+    const series = {
+      ...priceGroup.series[0],
+      id: 'vwapCost',
+      label: 'HLC3 成交量重心代理',
+      centerFormula: 'vwapCost',
+      controls: ['vwapCost'],
+    }
+    const query = { ...model, groups: [{ ...priceGroup, series: [series] }] }
+    await view.sync(query, { ...input, centerConfig: { vwapCost: { lookback: 90 } } })
+    const native = chart.handles.find((handle) => handle.type.endsWith('price.vwapCost'))
+    native.remove()
+    await view.sync({ ...model, groups: [] }, input)
+    const restored = chart.addNativeIndicator(native.type, { inputs: { lookback: 70 } })
+    await Promise.resolve()
+    expect(change).toHaveBeenCalledExactlyOnceWith({ formula: 'vwapCost', key: 'lookback', value: 70 })
+    expect(restored.output.series[0].points[0].value).toBeNull()
     view.destroy()
   })
   it('cancels a running shell without treating teardown as user overlay commands', async () => {
