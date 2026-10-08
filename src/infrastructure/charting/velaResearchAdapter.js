@@ -42,7 +42,11 @@ export function buildVelaResearchGroups(model, prefix) {
       for (const series of [...group.series, ...(group.guides ?? [])]) {
         // The renderer's current-price line already owns the latest close and its axis label.
         if (group.id === 'price' && series.id === 'mark') continue
-        if (series.active === false || !series.points?.some((point) => Number.isFinite(point.value))) continue
+        if (
+          series.active === false ||
+          (!series.centerFormula && !series.points?.some((point) => Number.isFinite(point.value)))
+        )
+          continue
         // Each price legend owns its actual host command, not the unrelated master band switch.
         const scale = group.id === 'price' ? (series.controls?.at(-1) ?? 'price') : seriesScale(group.id, series)
         if (!buckets.has(scale)) buckets.set(scale, [])
@@ -59,6 +63,8 @@ export function buildVelaResearchGroups(model, prefix) {
               ? group.label
               : `${group.label} · ${scaleLabel(scale)}`,
         overlay: group.id === 'price',
+        centerFormula:
+          group.id === 'price' ? group.series.find((item) => item.centerFormula === scale)?.centerFormula : null,
         output: { series },
       }))
     })
@@ -120,7 +126,12 @@ function priceLabel(control, fallback) {
       costBand: '成本带',
       volBand: 'GetDelta 价格带',
       lpBand: 'LP 价格带',
-      causalEquilibrium: '动态均衡 · 因果模型',
+      causalEquilibrium: '价格滤波参考',
+      statisticalCenter: '统计回归中心',
+      vwapCost: '成交量加权重心（研究）',
+      cohortCost: '随机换手存续成本代理',
+      supplyDemand: '供需均衡（参数场景）',
+      fundamental: '基本面估值（参数场景）',
       entryLine: '入场价',
       executionMarkers: '目标 / 失效',
     }[control] ?? fallback

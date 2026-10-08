@@ -9,6 +9,14 @@ import { waitForChartOperation } from './chartOperation.js'
 import { mapDrawingPanes } from './velaDrawingPersistence.js'
 import { createVelaNativeStudies } from './velaNativeStudies.js'
 import { createVelaWorkspaceShell } from './velaWorkspaceShell.js'
+import {
+  velaCenterInputsSchema,
+  velaCenterDefaultInputs,
+  velaCenterInputValues,
+  velaCenterInputChanges,
+  velaCenterRejectedInputKeys,
+} from './velaCenterInputs.js'
+import { createVelaCenterInputHistory } from './velaCenterInputHistory.js'
 
 let sequence = 0
 
@@ -20,6 +28,7 @@ export async function createVelaChartAdapter({
   theme,
   onCursor,
   onOverlayChange,
+  onCenterInputChange,
   onError,
   signal,
 }) {
@@ -38,6 +47,13 @@ export async function createVelaChartAdapter({
     syncGeneration = 0,
     latestSync = Promise.resolve()
   let frameSequence = 0
+  let observationDate = null
+  const recordInputHistory = createVelaCenterInputHistory({
+    getHistory: () => shell?.workspace?.active?.history,
+    getRecord: (type) => [...records.values()].find((record) => record.type === type),
+    getObservationDate: () => observationDate,
+    isLive: () => !destroyed,
+  })
   const paneKeys = new Map([['price', 'price']])
   let unsubscribe = null
   let resolvePaint
@@ -99,24 +115,47 @@ export async function createVelaChartAdapter({
     }
   }
 
-  function ensureRecord(group) {
+  function notifyCenterInputs(record, remember = true) {
+    if (!record?.centerFormula) return
+    const previous = { ...record.inputValues }
+    let current = record.handle.inputValues()
+    const rejected = velaCenterRejectedInputKeys(record.centerFormula, current)
+    if (rejected.length) {
+      mutate(() => record.handle.setInputs(Object.fromEntries(rejected.map((key) => [key, previous[key]]))))
+      current = record.handle.inputValues()
+    }
+    const changes = velaCenterInputChanges(record.centerFormula, current, record.inputValues)
+    record.inputValues = { ...current }
+    if (remember && changes.length)
+      recordInputHistory({ type: record.type, formula: record.centerFormula, previous, current: { ...current } })
+    changes.forEach((command) => onCenterInputChange?.(command))
+  }
+
+  function ensureRecord(group, config, active = true) {
+    const desired = velaCenterInputValues(group.centerFormula, config)
+    if (!active && registered.has(group.id)) {
+      registered.get(group.id).inputValues = desired
+      return registered.get(group.id)
+    }
     let record = records.get(group.id)
     if (record) {
       record.output = group.output
+      record.inputValues = desired
       if (record.userHidden) {
         record.userHidden = false
         mutate(() => record.handle.setVisible(true))
       }
       // Vela's value patch omits markers, backgrounds and series schema. An input command
       // marks the output structural before our native instance emits the domain snapshot.
-      if (record.context) mutate(() => record.handle.setInputs({}))
+      if (record.context) mutate(() => record.handle.setInputs(desired))
       return record
     }
     record = registered.get(group.id)
     if (record) {
       record.output = group.output
+      record.inputValues = desired
       records.set(group.id, record)
-      record.handle = mutate(() => chart.addNativeIndicator(record.type))
+      record.handle = mutate(() => chart.addNativeIndicator(record.type, { inputs: desired }))
       record.offError = record.handle.on('error', ({ error }) => record.rejectStarted?.(error))
       return record
     }
@@ -126,9 +165,11 @@ export async function createVelaChartAdapter({
       handle: null,
       type: `${prefix}-${group.id}`,
       overlayKey: group.overlayKey,
+      centerFormula: group.centerFormula,
+      inputValues: desired,
       removed: false,
     }
-    records.set(group.id, record)
+    if (active) records.set(group.id, record)
     registered.set(group.id, record)
     registerNativeIndicator({
       type: record.type,
@@ -137,8 +178,8 @@ export async function createVelaChartAdapter({
       overlay: group.overlay,
       legend: group.id !== 'host',
       isSupported: (_symbol, data) => group.id !== 'host' && data === chart.data,
-      inputsSchema: () => [],
-      defaultInputs: () => ({}),
+      inputsSchema: () => velaCenterInputsSchema(record.centerFormula),
+      defaultInputs: () => (record.centerFormula ? { ...record.inputValues } : velaCenterDefaultInputs(null)),
       create: () => {
         const controller = new AbortController()
         let resolveStarted
@@ -183,15 +224,35 @@ export async function createVelaChartAdapter({
         }
       },
     })
-    record.handle = mutate(() => chart.addNativeIndicator(record.type))
-    record.offError = record.handle.on('error', ({ error }) => record.rejectStarted?.(error))
+    if (active) {
+      record.handle = mutate(() => chart.addNativeIndicator(record.type, { inputs: desired }))
+      record.offError = record.handle.on('error', ({ error }) => record.rejectStarted?.(error))
+    }
     return record
   }
 
   function sync(model, input) {
     if (destroyed) return Promise.resolve()
     const generation = ++syncGeneration
+    observationDate = input.rows?.at(-1)?.date ?? null
     const groups = buildVelaResearchGroups(model, prefix)
+    // Register all independent formulas for the native picker, without creating
+    // disabled instances. A native add will enable the corresponding host overlay.
+    const centerCatalog = buildVelaResearchGroups(
+      {
+        dates: model.dates,
+        groups: [
+          {
+            id: 'price',
+            active: true,
+            series: (model.centerDescriptors ?? []).map((series) => ({ ...series, active: true })),
+          },
+        ],
+      },
+      prefix,
+    )
+    centerCatalog.forEach((group) => ensureRecord(group, input.centerConfig, false))
+
     groups.push({ id: 'host', title: '研究标记', overlay: true, output: buildVelaHostOutput(input, prefix) })
     const ids = new Set(groups.map((group) => group.id))
     for (const [id, record] of registered) {
@@ -214,7 +275,7 @@ export async function createVelaChartAdapter({
         records.delete(id)
       }
     const pending = groups.map((group) => {
-      const record = ensureRecord(group)
+      const record = ensureRecord(group, input.centerConfig)
       const signal = record.controller.signal
       return waitForChartOperation(record.ready, { signal, label: `Vela ${group.title}` }).catch((error) => {
         if (!signal.aborted) throw error
@@ -305,6 +366,7 @@ export async function createVelaChartAdapter({
         record.userHidden = false
         record.offError = handle.on('error', ({ error }) => record.rejectStarted?.(error))
         records.set(key, record)
+        notifyCenterInputs(record, false)
         if (record.overlayKey) onOverlayChange?.(record.overlayKey, true)
         record.ready
           .then(() => {
@@ -316,6 +378,13 @@ export async function createVelaChartAdapter({
           .catch((error) => {
             if (!destroyed) onError?.(error)
           })
+      }),
+    )
+    subscriptions.push(
+      chart.on('indicator:inputs', ({ id }) => {
+        if (internal || destroyed) return
+        const record = [...records.values()].find((record) => record.handle?.id === id)
+        notifyCenterInputs(record)
       }),
     )
     subscriptions.push(chart.on('indicator:moved', rememberPanes))

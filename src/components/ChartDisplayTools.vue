@@ -7,6 +7,21 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['set-overlay'])
+const centerTools = [
+  {
+    key: 'statisticalCenter',
+    label: '统计中心',
+    title: '统计回归中心；仅在窗口可识别时显示，可在 Vela 原生设置调整窗口',
+  },
+  {
+    key: 'vwapCost',
+    label: '成交重心',
+    title: 'HLC3 成交量重心代理；不代表持仓者的真实成本，可在 Vela 原生设置调整窗口',
+  },
+  { key: 'cohortCost', label: '存续成本', title: '随机换手存续成本代理；不含未知初始持仓，缺已知流通数据时不生成数值' },
+  { key: 'supplyDemand', label: '供需场景', title: '供需均衡参数场景；仅标当前观察点，需填写独立场景参数' },
+  { key: 'fundamental', label: '估值场景', title: '基本面估值参数场景；仅标当前观察点，需填写独立场景参数' },
+]
 
 function toggle(key, available = true) {
   if (!props.ready || !available || !Object.hasOwn(props.overlays, key)) return
@@ -43,10 +58,22 @@ function toggle(key, available = true) {
       :class="{ active: overlays.causalEquilibrium !== false }"
       :aria-pressed="overlays.causalEquilibrium !== false"
       :disabled="!ready"
-      title="动态均衡 · 因果模型；仅使用当时及之前的已收盘数据，预热与缺失处留空"
+      title="价格滤波参考；历史局部趋势滤波值，不代表因果均衡或回归目标"
       @click="toggle('causalEquilibrium')"
     >
-      <span style="color: #a855f7" aria-hidden="true">━</span> 因果均衡
+      <span style="color: #a855f7" aria-hidden="true">━</span> 滤波参考
+    </button>
+    <button
+      v-for="tool in centerTools"
+      :key="tool.key"
+      type="button"
+      :class="{ active: Boolean(overlays[tool.key]) }"
+      :aria-pressed="Boolean(overlays[tool.key])"
+      :disabled="!ready"
+      :title="tool.title"
+      @click="toggle(tool.key)"
+    >
+      {{ tool.label }}
     </button>
     <span class="chart-scale-badge" title="主图价格轴默认使用对数坐标">主图 Log</span>
   </div>
@@ -54,11 +81,12 @@ function toggle(key, available = true) {
 
 <style>
 .chart-display-tools {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   display: flex;
   gap: 3px;
   align-items: center;
-  min-width: max-content;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .chart-display-tools-label {
   color: var(--muted);

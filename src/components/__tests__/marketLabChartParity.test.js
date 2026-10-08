@@ -13,6 +13,11 @@ import {
 } from '../../infrastructure/charting/hqChartResearchAdapter.js'
 
 const ALL_ON = {
+  statisticalCenter: true,
+  vwapCost: true,
+  cohortCost: true,
+  supplyDemand: true,
+  fundamental: true,
   priceBands: true,
   costBand: true,
   volBand: true,
@@ -72,6 +77,18 @@ const fixture = {
   formulaPath,
   costPath: [],
   causalPath: rows.map((row, index) => ({ date: row.date, equilibriumPrice: index > 7 ? 10 + index / 20 : null })),
+  centerPath: rows.map((row, index) => ({
+    date: row.date,
+    statisticalCenterPrice: index > 7 ? 10 + index / 30 : null,
+    vwapCostPrice: 10 + index / 50,
+    cohortCostPrice: 10 + index / 40,
+    supplyDemandPrice: 11,
+    fundamentalPrice: 12,
+    centerStates: {
+      statisticalCenter: { status: index > 7 ? 'ready' : 'warming-up' },
+      vwapCost: { status: 'ready', source: { kind: 'hlc3-volume' } },
+    },
+  })),
   overlays: ALL_ON,
   entryPrice: 10.2,
   position: { targetPrice: 13, stopPrice: 9 },

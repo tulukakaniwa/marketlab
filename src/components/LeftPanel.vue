@@ -13,6 +13,7 @@ const props = defineProps({
   // 整体 lab 引用，避免大量 props 透传
   lab: { type: Object, required: true },
   theme: { type: String, default: 'light' },
+  nativeCenterSettings: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -97,6 +98,10 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           :replay-enabled="lab.featureFlags.replayAccount"
           :profile-list="lab.strategyProfileList"
           :input="lab.input"
+          :center-config="lab.centerConfig"
+          :source-key="lab.sourceKey"
+          :native-center-settings="nativeCenterSettings"
+          @center-input-change="lab.setCenterInput"
           @set-profile="(id) => emit('set-profile', id)"
           @set-auto-profile="(v) => emit('set-auto-profile', v)"
         />

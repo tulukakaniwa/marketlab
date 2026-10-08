@@ -10,6 +10,7 @@ import OrderTable from './OrderTable.vue'
 import ReplayPanel from './ReplayPanel.vue'
 import TraderChecklist from './TraderChecklist.vue'
 import CausalModelPanel from './CausalModelPanel.vue'
+import MarketCentersPanel from './MarketCentersPanel.vue'
 
 const props = defineProps({
   graph: { type: Object, required: true },
@@ -25,9 +26,12 @@ const props = defineProps({
   portfolioEnabled: { type: Boolean, default: false },
   profileList: { type: Array, required: true },
   input: { type: Object, default: () => ({}) },
+  centerConfig: { type: Object, default: () => ({}) },
+  sourceKey: { type: String, default: '' },
+  nativeCenterSettings: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['set-profile', 'set-auto-profile'])
+const emit = defineEmits(['set-profile', 'set-auto-profile', 'center-input-change'])
 
 const DEFAULT_SECTION_ORDER = [
   'sample',
@@ -250,7 +254,7 @@ function moveSection(id, delta) {
     </DisclosureSection>
 
     <DisclosureSection
-      title="因果模型"
+      title="中枢公式"
       meta="历史前缀"
       tone="research"
       movable
@@ -260,7 +264,18 @@ function moveSection(id, delta) {
       @move-up="moveSection('causal-model', -1)"
       @move-down="moveSection('causal-model', 1)"
     >
-      <CausalModelPanel :snapshot="graph?.causalModel" :query-state="graph?.causalModelQuery" />
+      <MarketCentersPanel
+        :snapshot="graph?.marketCenters"
+        :query-state="graph?.marketCentersQuery"
+        :config="centerConfig"
+        :source-key="sourceKey"
+        :native-settings="nativeCenterSettings"
+        @center-input-change="emit('center-input-change', $event)"
+      />
+      <details>
+        <summary>旧版价格滤波参考</summary>
+        <CausalModelPanel :snapshot="graph?.causalModel" :query-state="graph?.causalModelQuery" />
+      </details>
     </DisclosureSection>
 
     <DisclosureSection

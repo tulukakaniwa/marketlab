@@ -9,6 +9,8 @@ const props = defineProps({
   costPath: { type: Array, required: true },
   formulaPath: { type: Array, required: true },
   causalPath: { type: Array, default: () => [] },
+  centerPath: { type: Array, default: () => [] },
+  centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
   market: { type: Object, default: null },
@@ -21,7 +23,13 @@ const props = defineProps({
   theme: { type: String, default: 'light' },
 })
 
-const emit = defineEmits(['cursor-change', 'param-change', 'set-overlay'])
+const emit = defineEmits([
+  'cursor-change',
+  'param-change',
+  'center-input-change',
+  'set-overlay',
+  'native-settings-change',
+])
 const workspace = useChartWorkspace()
 const runtimeLoading = ref(false)
 const currentComponent = computed(() => workspace.activeComponent.value)
@@ -37,15 +45,22 @@ function changeEngine(engine) {
   if (engine === workspace.engine.value && !workspace.requestedEngine.value) return
   emit('cursor-change', null)
   runtimeLoading.value = false
+  emit('native-settings-change', false)
   workspace.selectEngine(engine)
 }
 function handleFailure(error) {
   runtimeLoading.value = false
+  emit('native-settings-change', false)
   workspace.fallback(error, renderedEngine.value)
 }
 function handleReady() {
   runtimeLoading.value = false
   workspace.confirmReady(renderedEngine.value)
+  emit('native-settings-change', renderedEngine.value === 'vela')
+}
+function handleLoading(value) {
+  runtimeLoading.value = value
+  if (value) emit('native-settings-change', false)
 }
 </script>
 
@@ -57,9 +72,10 @@ function handleReady() {
       :key="engineKey"
       v-bind="props"
       @param-change="(field, value) => emit('param-change', field, value)"
+      @center-input-change="(command) => emit('center-input-change', command)"
       @cursor-change="(index) => emit('cursor-change', index)"
       @set-overlay="(key, value) => emit('set-overlay', key, value)"
-      @loading-change="(value) => (runtimeLoading = value)"
+      @loading-change="handleLoading"
       @fatal-error="handleFailure"
       @ready="handleReady"
     >

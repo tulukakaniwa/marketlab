@@ -19,6 +19,11 @@ const rows = Array.from({ length: 20 }, (_, index) => {
 })
 
 const ALL_ON = {
+  statisticalCenter: false,
+  vwapCost: false,
+  cohortCost: false,
+  supplyDemand: false,
+  fundamental: false,
   priceBands: true,
   costBand: true,
   volBand: true,
@@ -74,7 +79,7 @@ function fullQuery(overlays = ALL_ON) {
 }
 
 describe('Market Lab chart indicator catalog', () => {
-  it('覆盖因果均衡、19 条 formula 曲线及执行、权益和 Lab 技术曲线', () => {
+  it('覆盖独立中枢、价格滤波参考、19 条 formula 曲线及执行、权益和 Lab 技术曲线', () => {
     expect(MARKET_LAB_CHART_INDICATOR_GROUPS.map((group) => group.id)).toEqual([
       'price',
       'greeks',
@@ -84,8 +89,8 @@ describe('Market Lab chart indicator catalog', () => {
       'kdj',
       'rsi',
     ])
-    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(28)
-    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(28)
+    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(33)
+    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(33)
     expect(
       MARKET_LAB_CHART_INDICATOR_CATALOG.filter((item) => item.source === 'formulaPath')
         .map((item) => item.field)
@@ -177,7 +182,10 @@ describe('queryMarketLabChartSeries', () => {
     for (const group of model.groups.slice(1)) {
       expect(group.active).toBe(false)
       expect(group.reason).toBe('overlay-disabled')
-      expect(group.series).toEqual([])
+      if (group.id === 'price') {
+        expect(group.series.map(({ id }) => id)).toEqual(['statisticalCenter', 'vwapCost'])
+        expect(group.series.every(({ points }) => points.length === 0)).toBe(true)
+      } else expect(group.series).toEqual([])
     }
     expect(model.controls.greeksPane).toEqual({
       state: 'estimated',
@@ -372,12 +380,20 @@ describe('queryMarketLabChartSeries', () => {
     for (const group of model.groups) {
       expect(group.state).toBe('missing-input')
       expect(group.reason).toBe('no-finite-output')
-      expect(group.series).toEqual([])
+      if (group.id === 'price') {
+        expect(group.series.map(({ id }) => id)).toEqual(['statisticalCenter', 'vwapCost'])
+        expect(group.series.every(({ points }) => points.length === 0)).toBe(true)
+      } else expect(group.series).toEqual([])
     }
     expect(Object.keys(model.controls)).toEqual([
       'priceBands',
       'costBand',
       'causalEquilibrium',
+      'statisticalCenter',
+      'vwapCost',
+      'cohortCost',
+      'supplyDemand',
+      'fundamental',
       'volBand',
       'lpBand',
       'entryLine',

@@ -15,6 +15,7 @@ const lab = useLabStore()
 const { isCompact } = useBreakpoint()
 const mobileLeftOpen = ref(false)
 const mobileRightOpen = ref(false)
+const nativeCenterSettings = ref(false)
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
 const recommendedPoolMode = ref(isRecommendedPoolPath())
 
@@ -277,6 +278,7 @@ const rootStyle = computed(() => ({
         :active-tab="lab.activeLeftTab"
         :lab="lab"
         :theme="theme"
+        :native-center-settings="nativeCenterSettings"
         @toggle="toggleLeftPanel"
         @set-tab="(name) => (lab.activeLeftTab = name)"
         @set-profile="onSetProfile"
@@ -309,19 +311,23 @@ const rootStyle = computed(() => ({
           :cost-path="lab.costPath"
           :formula-path="lab.formulaPath"
           :causal-path="lab.causalPath"
+          :center-path="lab.centerPath"
+          :center-config="lab.centerConfig"
           :entry-price="lab.input.entryPrice"
           :replay="lab.replay"
           :market="lab.market"
           :decision="lab.graph?.decision"
           :position="lab.graph?.position"
           :summary="lab.workbenchSummary"
-          :drawing-scope="lab.source?.id ?? lab.source?.symbol ?? ''"
+          :drawing-scope="lab.sourceKey"
           :overlays="lab.chartOverlays"
           :input="lab.input"
           :theme="theme"
           @param-change="onParamChange"
           @cursor-change="lab.setHoverIndex"
           @set-overlay="lab.setChartOverlay"
+          @center-input-change="lab.setCenterInput"
+          @native-settings-change="(enabled) => (nativeCenterSettings = enabled)"
         />
         <div v-else class="empty-state">
           <Activity :size="36" />

@@ -77,6 +77,15 @@ pnpm run audit:formulas
 
 Use this when formula evidence, source status, formula wiring, or chart coverage changes. It depends on the Python audit toolchain declared in the repository.
 
+Independent market centers have additional domain and integration tests:
+fixed-prefix AR(1) estimation with an external statsmodels fixture, residual
+diagnostics and nonstationary/trend rejection; amount-column preservation and
+explicit price-unit conversion; same-day observed float and unknown initial
+inventory; current-observation supply/dividend scenarios; source-scoped command
+isolation and discarded asynchronous results. Their chart parity tests require
+Vela and HQ to consume the same values and gaps. These tests do not establish
+economic causation or live TradingView parity. See [Market Center Formulas](./market-center-formulas.md).
+
 ## Test Placement
 
 - Pure math and planning behavior: `src/domain/__tests__/` or a focused domain test directory.

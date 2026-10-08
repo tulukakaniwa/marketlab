@@ -5,7 +5,12 @@
  * 数值仍来自各自明确的 domain 输出字段；本文件不做业务计算。
  */
 export const MARKET_LAB_SERIES_STYLES = Object.freeze({
-  causalEquilibrium: style('动态均衡 · 因果模型', 'price', '#a855f7', 2),
+  causalEquilibrium: style('价格滤波参考', 'price', '#a855f7', 1, 'dotted'),
+  statisticalCenter: style('统计回归中心', 'price', '#7c3aed', 2),
+  vwapCost: style('HLC3 成交量重心代理', 'price', '#0891b2', 2),
+  cohortCost: style('随机换手存续成本代理', 'price', '#b45309', 2),
+  supplyDemand: style('供需均衡（参数场景）', 'price', '#db2777', 2, 'dashed'),
+  fundamental: style('基本面估值（参数场景）', 'price', '#4f46e5', 2, 'dashed'),
   cost: style('成本锚', 'price', '#0e7558', 2),
   costUpper: style('成本上沿', 'price', '#8b5a16', 1, 'dashed'),
   costLower: style('成本下沿', 'price', '#274f9f', 1, 'dashed'),

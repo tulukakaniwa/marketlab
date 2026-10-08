@@ -21,6 +21,11 @@ export function resolveChartOverlayPlan({ overlays, formulaPath }) {
   return {
     price: {
       causalEquilibrium: overlayOn(overlays, 'causalEquilibrium'),
+      statisticalCenter: overlayOn(overlays, 'statisticalCenter'),
+      vwapCost: overlayOn(overlays, 'vwapCost'),
+      cohortCost: overlays?.cohortCost === true,
+      supplyDemand: overlays?.supplyDemand === true,
+      fundamental: overlays?.fundamental === true,
       costBand: priceBands && overlayOn(overlays, 'costBand'),
       deltaBand:
         priceBands && overlayOn(overlays, 'volBand') && hasAllPathData(formulaPath, ['deltaUpper', 'deltaLower']),

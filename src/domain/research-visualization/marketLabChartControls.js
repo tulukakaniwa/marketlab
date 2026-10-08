@@ -2,6 +2,11 @@ const CONTROL_KEYS = Object.freeze([
   'priceBands',
   'costBand',
   'causalEquilibrium',
+  'statisticalCenter',
+  'vwapCost',
+  'cohortCost',
+  'supplyDemand',
+  'fundamental',
   'volBand',
   'lpBand',
   'entryLine',
@@ -22,6 +27,19 @@ export function buildMarketLabChartControls({ candidates, context, overlays, pla
     const related = candidates.filter((candidate) => candidate.controls.includes(key))
     const available = related.filter((candidate) => candidate.points.length)
     const missing = related.filter((candidate) => !candidate.points.length).map((candidate) => candidate.missingSource)
+    if (related[0]?.centerFormula) {
+      const current = related[0]
+      controls[key] = {
+        state: current.currentFinite ? current.state : current.currentState,
+        reason: active ? current.reason : 'overlay-disabled',
+        missing: current.currentFinite ? [] : [current.missingSource],
+        outputCount: available.length,
+        historicalOutputCount: available.length,
+        active,
+        current: true,
+      }
+      continue
+    }
     if (key === 'volume') {
       const hasVolume = context.rows.some((row) => Number.isFinite(row?.volume))
       controls[key] = controlState({
@@ -89,7 +107,8 @@ function stateReason(state) {
 
 function controlActive(key, overlays, plan) {
   if (key === 'priceBands') return overlays?.priceBands !== false
-  if (key === 'causalEquilibrium') return plan.price.causalEquilibrium
+  if (['causalEquilibrium', 'statisticalCenter', 'vwapCost', 'cohortCost', 'supplyDemand', 'fundamental'].includes(key))
+    return plan.price[key]
   if (key === 'costBand') return plan.price.costBand
   if (key === 'volBand') return plan.price.deltaBand
   if (key === 'lpBand') return plan.price.lpBand

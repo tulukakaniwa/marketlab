@@ -4,6 +4,7 @@ import { resolveChartOverlayPlan } from './chartPaneLayout.js'
 import { buildMarketLabChartControls } from './marketLabChartControls.js'
 import { buildMarketLabChartGuides } from './marketLabChartGuides.js'
 import { getMarketLabSeriesStyle } from './marketLabSeriesStyles.js'
+import { CENTER_SERIES_CATALOG, materializeCenterSeries } from './marketLabCenterSeries.js'
 
 export const MARKET_LAB_CHART_INDICATOR_GROUPS = Object.freeze([
   group('price', '价格层', 'main', 'priceBands'),
@@ -18,7 +19,7 @@ export const MARKET_LAB_CHART_INDICATOR_GROUPS = Object.freeze([
 const DEFINITIONS = Object.freeze([
   pathIndicator(
     'causalEquilibrium',
-    '动态均衡 · 因果模型',
+    '价格滤波参考',
     'price',
     'price',
     '#a855f7',
@@ -206,9 +207,10 @@ const DEFINITIONS = Object.freeze([
   }),
 ])
 
-export const MARKET_LAB_CHART_INDICATOR_CATALOG = Object.freeze(
-  DEFINITIONS.map((definition) => Object.freeze(publicMeta(definition, definition.sources[0]))),
-)
+export const MARKET_LAB_CHART_INDICATOR_CATALOG = Object.freeze([
+  ...CENTER_SERIES_CATALOG,
+  ...DEFINITIONS.map((definition) => Object.freeze(publicMeta(definition, definition.sources[0]))),
+])
 
 /**
  * 构建可供 Vela、HQChart 或其它视图适配器消费的稳定查询结果。
@@ -220,14 +222,18 @@ export function queryMarketLabChartSeries({
   formulaPath = [],
   costPath = [],
   causalPath = [],
+  centerPath = [],
   overlays = {},
   entryPrice = null,
   position = null,
   replay = null,
 } = {}) {
-  const context = buildContext({ rows, formulaPath, costPath, causalPath, entryPrice, position, replay })
+  const context = buildContext({ rows, formulaPath, costPath, causalPath, centerPath, entryPrice, position, replay })
   const plan = resolveChartOverlayPlan({ overlays, formulaPath: context.formulaPath })
-  const candidates = DEFINITIONS.map((definition) => materialize(definition, context, plan))
+  const candidates = [
+    ...materializeCenterSeries(context, plan),
+    ...DEFINITIONS.map((definition) => materialize(definition, context, plan)),
+  ]
   const groups = MARKET_LAB_CHART_INDICATOR_GROUPS.map((meta) => buildGroup(meta, candidates, context.rows)).map(
     (item) => ({
       ...item,
@@ -240,6 +246,7 @@ export function queryMarketLabChartSeries({
 
   return {
     dates: context.rows.map((row) => row?.date).filter(validTime),
+    centerDescriptors: candidates.filter((candidate) => candidate.centerFormula),
     groups,
     controls,
     availability: controls,
@@ -248,13 +255,14 @@ export function queryMarketLabChartSeries({
   }
 }
 
-function buildContext({ rows, formulaPath, costPath, causalPath, entryPrice, position, replay }) {
+function buildContext({ rows, formulaPath, costPath, causalPath, centerPath, entryPrice, position, replay }) {
   const safeRows = Array.isArray(rows) ? rows : []
   return {
     rows: safeRows,
     formulaPath: Array.isArray(formulaPath) ? formulaPath : [],
     costPath: Array.isArray(costPath) ? costPath : [],
     causalPath: Array.isArray(causalPath) ? causalPath : [],
+    centerPath: Array.isArray(centerPath) ? centerPath : [],
     entryPrice,
     position: position && typeof position === 'object' ? position : {},
     replay: replay && typeof replay === 'object' ? replay : {},
@@ -280,7 +288,10 @@ function materialize(definition, context, plan) {
 function buildGroup(meta, candidates, rows) {
   const allSeries = candidates.filter((candidate) => candidate.group === meta.id)
   const available = allSeries.filter((candidate) => candidate.points.length)
-  const active = available.filter((candidate) => candidate.active)
+  // Empty centers still need a native legend/settings row; they emit null gaps.
+  const active = allSeries.filter(
+    (candidate) => candidate.active && (candidate.points.length || candidate.centerFormula),
+  )
   const state = aggregateState(available)
   const groupActive = allSeries.some((candidate) => candidate.active)
   return {
@@ -288,7 +299,7 @@ function buildGroup(meta, candidates, rows) {
     active: groupActive,
     state,
     reason: groupReason({ state, groupActive }),
-    activeSeriesCount: active.length,
+    activeSeriesCount: active.filter((candidate) => candidate.points.length).length,
     availableSeriesCount: available.length,
     guides: active.length ? buildMarketLabChartGuides(meta.id, rows) : [],
     series: active,

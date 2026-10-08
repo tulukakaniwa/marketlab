@@ -40,7 +40,7 @@ describe('CausalModelPanel', () => {
     expect(wrapper.text()).toContain('截至 2026-01-10')
     expect(wrapper.text()).toContain('模型估计')
     expect(wrapper.text()).toContain('回归')
-    expect(wrapper.text()).toContain('动态均衡锚')
+    expect(wrapper.text()).toContain('价格滤波参考')
     expect(wrapper.text()).toContain('103.5')
     expect(wrapper.text()).toContain('18.0%')
     expect(wrapper.text()).toContain('扩散尺度窗口 128 会话')
@@ -64,15 +64,15 @@ describe('CausalModelPanel', () => {
     const value = snapshot()
     value.passage = { status: 'unavailable', reason: 'at-equilibrium' }
     const wrapper = mount(CausalModelPanel, { props: { snapshot: value } })
-    expect(wrapper.text()).toContain('已处均衡附近')
-    expect(wrapper.text()).toContain('动态均衡锚')
+    expect(wrapper.text()).toContain('已处参考点附近')
+    expect(wrapper.text()).toContain('价格滤波参考')
     expect(wrapper.find('[aria-label="期限内首次触达概率"]').exists()).toBe(false)
   })
 
   it('已保存旧版区块顺序的工作台仍显示并展开新区块', () => {
     localStorage.setItem('lab.decisionSectionOrder.v2', JSON.stringify(['sample', 'facts', 'orders']))
     const wrapper = mount(DecisionDrawer, { props: { graph: {}, replay: {}, profileList: [] } })
-    const section = wrapper.findAll('details').find((item) => item.find('summary').text().includes('因果模型'))
+    const section = wrapper.findAll('details').find((item) => item.find('summary').text().includes('中枢公式'))
     expect(section).toBeDefined()
     expect(section.attributes('open')).toBeDefined()
     expect(wrapper.findComponent(CausalModelPanel).exists()).toBe(true)

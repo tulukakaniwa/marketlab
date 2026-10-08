@@ -2,7 +2,9 @@
 
 The workbench exposes a separate `graph.causalModel` query. Its pure domain owner
 is `src/domain/market-model/`; `useCausalModel` schedules the query and the
-"因果模型" disclosure presents its results. It has no order execution authority.
+legacy price-filter disclosure presents its results. It has no order execution authority.
+Independent statistical, cost, clearing and dividend formulas now live in
+[`market-center-formulas.md`](./market-center-formulas.md).
 
 ## Information boundary
 
@@ -26,8 +28,11 @@ is `src/domain/market-model/`; `useCausalModel` schedules the query and the
 
 The forward Kalman filter estimates a local linear log-price level and drift.
 Its process and observation noise use the previous session's innovation variance.
-`equilibrium.price` is a statistical equilibrium proxy, distinct from observed
-`markPrice`, rolling `costAnchor`, and position `entryPrice`.
+`equilibrium.price` is the retained API name for the filtered price-level proxy,
+distinct from observed `markPrice`, rolling `costAnchor`, and position `entryPrice`.
+It is not generally a zero-drift point of the return ensemble: at this level,
+the trend expert can still supply a nonzero mean return. The legacy query does
+not identify an economic equilibrium or a structural causal effect.
 
 Three conditional Gaussian experts represent reversion toward that filtered
 level, a learned return drift, and a zero-drift high-variance shock. Forward
@@ -49,7 +54,7 @@ facts. `ready` indicates input readiness, not statistical certainty.
 
 ## First-passage query
 
-The target is the current equilibrium estimate. The opposite boundary is the
+The target is the current filtered reference point. The opposite boundary is the
 same log-distance from the observed price. Both are research query boundaries,
 not an entry, stop-loss, or automatically selected optimal exit.
 
@@ -97,8 +102,9 @@ choices; they are not claimed to be those libraries' fitted models.
 
 ## K 线展示
 
-主图默认显示紫色「动态均衡 · 因果模型」，通过「显示 → 因果均衡」独立切换。
-Light 与 HQ 共用名称、颜色、日期和值。`chartPath` 复用本次前缀滤波的历史状态，
+旧紫线现标「价格滤波参考」，保留独立开关和旧存储键；新工作台默认关闭此旧层。
+Vela 与 HQ 共用名称、颜色、日期和值。`chartPath` 复用本次前缀滤波的历史状态，
 不逐根求解首达概率；每个点使用该日及之前的已收盘数据，预热或无效段留空，
 观察日之后没有延长线。切换观察日或标的时立即清空旧路径，待新查询完成再显示。
 此线属于研究估计，不是实际持仓成本，也不直接生成挂单。
+双边查询的文案为冻结参考点的条件触达，不再把它解释为价格应当修复的均衡。

@@ -17,6 +17,8 @@ const props = defineProps({
   costPath: { type: Array, required: true },
   formulaPath: { type: Array, required: true },
   causalPath: { type: Array, default: () => [] },
+  centerPath: { type: Array, default: () => [] },
+  centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
   market: { type: Object, default: null },
@@ -28,7 +30,14 @@ const props = defineProps({
   input: { type: Object, required: true },
   theme: { type: String, default: 'light' },
 })
-const emit = defineEmits(['cursor-change', 'param-change', 'set-overlay', 'ready', 'fatal-error'])
+const emit = defineEmits([
+  'cursor-change',
+  'param-change',
+  'center-input-change',
+  'set-overlay',
+  'ready',
+  'fatal-error',
+])
 const el = ref(null),
   loading = ref(true)
 const { isMobile } = useBreakpoint()
@@ -52,6 +61,7 @@ onMounted(async () => {
   try {
     const initialRows = props.rows
     const initialSource = props.source
+    const initialScope = props.drawingScope
     const next = await createVelaChartAdapter({
       element: el.value,
       rows: props.rows,
@@ -59,6 +69,9 @@ onMounted(async () => {
       theme: props.theme,
       onCursor: handleCursor,
       onOverlayChange: (key, value) => emit('set-overlay', key, value),
+      onCenterInputChange: (command) => {
+        if (!disposed) emit('center-input-change', { ...command, sourceKey: initialScope })
+      },
       onError: handleFailure,
       signal: controller.signal,
     })
@@ -100,7 +113,7 @@ onBeforeUnmount(() => {
   adapter?.destroy()
 })
 watch(
-  () => [model.value, props.decision, props.replay, props.overlays],
+  () => [model.value, props.decision, props.replay, props.overlays, props.centerConfig],
   () => sync().catch(handleFailure),
   { deep: true },
 )
@@ -132,6 +145,7 @@ async function sync() {
   await adapter.sync(model.value, {
     rows: props.rows,
     costPath: props.costPath,
+    centerConfig: props.centerConfig,
     overlays: props.overlays,
     profilePaintEnabled: !isMobile.value,
     markers: buildChartMarkers({

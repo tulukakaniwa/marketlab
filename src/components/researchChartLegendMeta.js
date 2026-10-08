@@ -9,6 +9,11 @@ import { MARKET_LAB_SERIES_STYLES } from '../domain/research-visualization/marke
 
 const GROUPS = {
   causalEquilibrium: 'price',
+  statisticalCenter: 'price',
+  vwapCost: 'price',
+  cohortCost: 'price',
+  supplyDemand: 'price',
+  fundamental: 'price',
   cost: 'price',
   costUpper: 'price',
   costLower: 'price',
@@ -80,6 +85,12 @@ export function latestFinitePathPoint(_rows, path, field) {
  * 或任意纯对象。存在带日期的 rows/path 时按日期关联；旧的无日期测试夹具才回退索引读取。
  */
 export function fallbackValue(key, idx, ctx = {}) {
+  if (['statisticalCenter', 'vwapCost', 'cohortCost', 'supplyDemand', 'fundamental'].includes(key)) {
+    const row = pathRowAtObservation(ctx.centerPath, idx, ctx.rows)
+    if (key === 'statisticalCenter' && row?.centerStates?.statisticalCenter?.status !== 'ready') return null
+    if (['supplyDemand', 'fundamental'].includes(key) && row !== ctx.centerPath?.at(-1)) return null
+    return row?.[`${key}Price`]
+  }
   const fp = pathRowAtObservation(ctx.formulaPath, idx, ctx.rows)
   switch (key) {
     case 'causalEquilibrium':

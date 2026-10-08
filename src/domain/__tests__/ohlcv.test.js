@@ -59,4 +59,17 @@ describe('assessOhlcvQuality', () => {
 
     expect(rows).toEqual([])
   })
+
+  it('preserves optional notional and distinguishes a missing declared amount from no amount column', () => {
+    for (const name of ['amount', 'Amount', '成交额']) {
+      const rows = parseCsvText(
+        `Date,Open,High,Low,Close,Volume,${name}\n2026-01-02,10,12,9,11,100,1050\n2026-01-03,11,12,9,10,100,`,
+      )
+      expect(rows[0].amount).toBe(1050)
+      expect(Number.isFinite(rows[1].amount)).toBe(false)
+      expect(Object.hasOwn(rows[1], 'amount')).toBe(true)
+    }
+    const rows = parseCsvText('Date,Open,High,Low,Close,Volume\n2026-01-02,10,12,9,11,100')
+    expect(Object.hasOwn(rows[0], 'amount')).toBe(false)
+  })
 })
