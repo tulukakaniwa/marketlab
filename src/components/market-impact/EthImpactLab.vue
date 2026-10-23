@@ -1,12 +1,15 @@
 <script setup>
-import { onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import '../../styles/eth-impact-research.css'
 import { useEthImpactResearchStore } from '../../stores/ethImpactResearchStore.js'
 import ResearchImport from './ResearchImport.vue'
 import LpResearchPanel from './LpResearchPanel.vue'
 import OptionsResearchPanel from './OptionsResearchPanel.vue'
+import ResearchMarketPreview from './ResearchMarketPreview.vue'
+defineEmits(['show-on-chart'])
 const store = useEthImpactResearchStore()
 const tab = ref('lp')
+const state = computed(() => store[tab.value])
 onUnmounted(() => store.cancelPending())
 </script>
 
@@ -19,16 +22,15 @@ onUnmounted(() => store.cancelPending())
       <button :aria-pressed="tab === 'options'" :class="{ active: tab === 'options' }" @click="tab = 'options'">
         <span>02</span>期权成交与对冲情景
       </button>
+      <button :aria-pressed="tab === 'market'" :class="{ active: tab === 'market' }" @click="tab = 'market'">
+        <span>03</span>对齐行情
+      </button>
       <span class="tabs-note">观测与假设分别标记</span>
     </nav>
-    <ResearchImport
-      :kind="tab"
-      :state="tab === 'lp' ? store.lp : store.options"
-      @import="store.importFile"
-      @clear="store.clear"
-    />
+    <ResearchImport :kind="tab" :state="state" @import="store.importFile" @clear="store.clear" />
+    <ResearchMarketPreview v-if="tab === 'market'" :state="state" @show-on-chart="$emit('show-on-chart')" />
     <LpResearchPanel
-      v-if="tab === 'lp' && store.lp.phase === 'ready'"
+      v-else-if="tab === 'lp' && store.lp.phase === 'ready'"
       :report="store.lp.report"
       :selected="store.selectedAction"
       :action="store.activeAction"
@@ -40,21 +42,13 @@ onUnmounted(() => store.cancelPending())
       :scenario="store.optionScenario"
       @scenario="store.setOptionScenario"
     />
-    <section
-      v-else
-      class="welcome-workspace"
-      :aria-busy="['verifying', 'computing'].includes((tab === 'lp' ? store.lp : store.options).phase)"
-    >
+    <section v-else class="welcome-workspace" :aria-busy="['verifying', 'computing'].includes(state.phase)">
       <div class="welcome-copy">
         <span class="eyebrow">{{
           tab === 'lp' ? 'OBSERVED LIQUIDITY / CONDITIONAL IMPACT' : 'OBSERVED TRADES / EXPLICIT ASSUMPTION'
         }}</span>
         <h2>
-          {{
-            ['verifying', 'computing'].includes((tab === 'lp' ? store.lp : store.options).phase)
-              ? '正在核验与计算…'
-              : '从一份可核验的数据开始'
-          }}
+          {{ ['verifying', 'computing'].includes(state.phase) ? '正在核验与计算…' : '从一份可核验的数据开始' }}
         </h2>
         <p>
           {{

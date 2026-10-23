@@ -1,0 +1,59 @@
+.aligned-impact-toolbar,
+.aligned-impact-clock {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.aligned-impact-toolbar strong {
+  margin-right: auto;
+  color: var(--ink);
+  font-size: 13px;
+}
+.aligned-impact-toolbar button {
+  min-height: 32px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+}
+.aligned-impact-toolbar button[aria-pressed='true'] {
+  border-color: var(--green);
+  background: var(--green-dim);
+  color: var(--green);
+}
+.aligned-impact-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.aligned-impact-toolbar button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.aligned-impact-clock {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.aligned-impact-message {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  margin: 0;
+  padding: 16px;
+  background: var(--panel);
+  color: var(--muted);
+}
+.aligned-impact-range-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 640px) {
+  .aligned-impact-toolbar button {
+    min-height: 40px;
+  }
+}

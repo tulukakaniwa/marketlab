@@ -11,11 +11,13 @@ const makeWorker = () =>
 export function createEthImpactResearchController({ workerFactory = makeWorker } = {}) {
   const lp = shallowRef(empty())
   const options = shallowRef(empty())
+  const market = shallowRef(empty())
   const selectedAction = ref(0)
   const optionScenario = ref(defaultScenario())
   const lanes = {
     lp: { state: lp, file: null, worker: null, ticket: 0 },
     options: { state: options, file: null, worker: null, ticket: 0 },
+    market: { state: market, file: null, worker: null, ticket: 0 },
   }
   const activeAction = computed(() => lp.value.report?.actions?.[selectedAction.value] ?? null)
   let disposed = false
@@ -120,6 +122,7 @@ export function createEthImpactResearchController({ workerFactory = makeWorker }
   return {
     lp,
     options,
+    market,
     selectedAction,
     activeAction,
     optionScenario,

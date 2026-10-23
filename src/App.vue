@@ -9,11 +9,15 @@ import RecommendedPoolPage from './components/RecommendedPoolPage.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
 import { useBreakpoint } from './composables/useBreakpoint.js'
+import { useAlignedImpactView } from './composables/useAlignedImpactView.js'
+import ResearchObservationControl from './components/market-impact/ResearchObservationControl.vue'
 import { useImpactChartOverlay } from './composables/useImpactChartOverlay.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
 const impactMap = useImpactChartOverlay(lab)
+const aligned = useAlignedImpactView()
+const AlignedImpactChart = defineAsyncComponent(() => import('./components/market-impact/AlignedImpactChart.vue'))
 const { isCompact } = useBreakpoint()
 const mobileLeftOpen = ref(false)
 const mobileRightOpen = ref(false)
@@ -116,8 +120,12 @@ onBeforeUnmount(() => {
   if (chordTimer) clearTimeout(chordTimer)
 })
 
-const effectiveLeftOpen = computed(() => (isCompact.value ? mobileLeftOpen.value : lab.leftPanelOpen))
-const effectiveRightOpen = computed(() => (isCompact.value ? mobileRightOpen.value : lab.rightPanelOpen))
+const effectiveLeftOpen = computed(
+  () => !aligned.active.value && (isCompact.value ? mobileLeftOpen.value : lab.leftPanelOpen),
+)
+const effectiveRightOpen = computed(
+  () => !aligned.active.value && (isCompact.value ? mobileRightOpen.value : lab.rightPanelOpen),
+)
 
 // 合并 marketSamples + stockIndex 给搜索
 const allSamples = computed(() => {
@@ -147,12 +155,14 @@ function onSetAutoProfile(v) {
 }
 
 function selectSample(sample) {
+  aligned.close()
   lastSampleId.value = sample.id
   lab.loadSample(sample)
   if (isCompact.value) closeMobileDrawers()
 }
 
 function toggleLeftPanel() {
+  aligned.close()
   if (isCompact.value) {
     mobileLeftOpen.value = !mobileLeftOpen.value
     if (mobileLeftOpen.value) mobileRightOpen.value = false
@@ -162,6 +172,7 @@ function toggleLeftPanel() {
 }
 
 function toggleRightPanel() {
+  aligned.close()
   if (isCompact.value) {
     mobileRightOpen.value = !mobileRightOpen.value
     if (mobileRightOpen.value) mobileLeftOpen.value = false
@@ -171,11 +182,13 @@ function toggleRightPanel() {
 }
 
 function openMobileLeft() {
+  aligned.close()
   mobileLeftOpen.value = true
   mobileRightOpen.value = false
 }
 
 function openMobileRight() {
+  aligned.close()
   mobileRightOpen.value = true
   mobileLeftOpen.value = false
 }
@@ -192,6 +205,11 @@ function openImpactResearch() {
 }
 
 function showImpactOnChart() {
+  if (aligned.show()) {
+    closeMobileDrawers()
+    impactResearchOpen.value = false
+    return
+  }
   lab.setChartOverlay('impactReferenceMap', true)
   if (!['ETH', 'WETH'].includes(impactMap.value?.asset)) {
     const sample = allSamples.value.find((item) => item.symbol === 'ETHUSDT')
@@ -262,10 +280,11 @@ const rootStyle = computed(() => ({
     :style="rootStyle"
   >
     <TopBar
-      :source="lab.source"
-      :market="lab.market"
-      :rows="lab.rows"
-      :decision="lab.graph?.decision"
+      :source="aligned.active.value ? aligned.source.value : lab.source"
+      :market="aligned.active.value ? { markPrice: aligned.rows.value.at(-1)?.close } : lab.market"
+      :rows="aligned.active.value ? aligned.rows.value : lab.rows"
+      :research-only="aligned.active.value"
+      :decision="aligned.active.value ? null : lab.graph?.decision"
       :extremeness="briefExtremeness"
       :profile-id="lab.input.strategyProfile"
       :auto-profile="lab.featureFlags.replayAutoProfile"
@@ -297,6 +316,7 @@ const rootStyle = computed(() => ({
 
     <div class="cols">
       <LeftPanel
+        v-show="!aligned.active.value"
         :open="effectiveLeftOpen"
         :active-tab="lab.activeLeftTab"
         :lab="lab"
@@ -327,8 +347,24 @@ const rootStyle = computed(() => ({
       />
 
       <main class="app-main">
+        <ResearchObservationControl
+          v-if="aligned.active.value"
+          :rows="aligned.allRows.value"
+          :cursor="aligned.cursor.value"
+          @cursor-change="aligned.setCursor"
+        />
+        <AlignedImpactChart
+          v-if="aligned.active.value"
+          :rows="aligned.rows.value"
+          :source="aligned.source.value"
+          :impact-map="aligned.impactMap.value"
+          :theme="theme"
+          @open-research="openImpactResearch"
+          @return-daily="aligned.close"
+        />
         <ChartWorkspace
           v-if="lab.activeRows.length"
+          v-show="!aligned.active.value"
           :rows="lab.activeRows"
           :source="lab.source"
           :cost-path="lab.costPath"
@@ -356,7 +392,7 @@ const rootStyle = computed(() => ({
           @native-settings-change="(enabled) => (nativeCenterSettings = enabled)"
           @open-market-impact="openImpactResearch"
         />
-        <div v-else class="empty-state">
+        <div v-else-if="!aligned.active.value" class="empty-state">
           <Activity :size="36" />
           <strong>Market Lab</strong>
           <small v-if="lab.loading">加载中…{{ lab.loadingSampleId ? ' ' + lab.loadingSampleId : '' }}</small>
@@ -373,6 +409,7 @@ const rootStyle = computed(() => ({
       />
 
       <RightPanel
+        v-show="!aligned.active.value"
         :open="effectiveRightOpen"
         :samples="allSamples"
         :current-source="lab.source"

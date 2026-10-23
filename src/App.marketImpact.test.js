@@ -1,7 +1,9 @@
 import { defineComponent, onMounted, onUnmounted, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { expect, it, vi } from 'vitest'
+import { createPinia } from 'pinia'
 import App from './App.vue'
+import { useEthImpactResearchStore } from './stores/ethImpactResearchStore.js'
 
 const { lab } = vi.hoisted(() => ({
   lab: {
@@ -39,11 +41,19 @@ it('keeps the same chart mounted and planning inputs unchanged across research o
     template: '<div data-test="chart"><input aria-label="chart-state" /></div>',
   })
   const beforeInput = { ...lab.input }
+  const beforeRows = lab.activeRows
+  const pinia = createPinia()
   const wrapper = mount(App, {
     global: {
+      plugins: [pinia],
       stubs: {
         TopBar: { template: '<button @click="$emit(\'open-market-impact\')">研究</button>' },
         ChartWorkspace: chart,
+        AlignedImpactChart: {
+          name: 'AlignedImpactChart',
+          props: ['rows', 'source', 'impactMap'],
+          template: '<button data-test="daily" @click="$emit(\'return-daily\')">日线</button>',
+        },
         LeftPanel: true,
         RightPanel: true,
         RecommendedPoolPage: true,
@@ -74,6 +84,32 @@ it('keeps the same chart mounted and planning inputs unchanged across research o
     expect(lab.setChartOverlay).toHaveBeenCalledWith('impactReferenceMap', true)
     expect(lab.loadSample).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'ETHUSDT' }))
     expect(lab.input).toEqual(beforeInput)
+
+    const research = useEthImpactResearchStore(pinia)
+    const minuteRows = [0, 1].map((index) => ({
+      date: new Date(Date.UTC(2026, 9, 23, 12, 40 + index * 5)).toISOString(),
+      closeTime: Date.UTC(2026, 9, 23, 12, 45 + index * 5),
+      open: 2400,
+      high: 2410,
+      low: 2390,
+      close: 2405,
+      volume: 10,
+      isClosed: true,
+    }))
+    research.market = { phase: 'ready', report: { source: { symbol: 'ETHUSDT', timeframe: '5m' }, rows: minuteRows } }
+    await wrapper.get('button').trigger('click')
+    await wrapper.get('[data-test="chart-link"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="chart"]').element.style.display).toBe('none')
+    expect(wrapper.findComponent({ name: 'AlignedImpactChart' }).props('rows')).toEqual(minuteRows)
+    expect(lab.activeRows).toBe(beforeRows)
+    expect(lab.input).toEqual(beforeInput)
+    expect(unmounted).not.toHaveBeenCalled()
+    await wrapper.get('[data-test="daily"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-test="chart"]').element.style.display).not.toBe('none')
+    expect(input.element.value).toBe('zoom and drawing state')
+    expect(mounted).toHaveBeenCalledTimes(1)
   } finally {
     wrapper.unmount()
   }

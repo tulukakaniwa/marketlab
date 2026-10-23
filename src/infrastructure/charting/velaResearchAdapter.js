@@ -4,7 +4,21 @@ export function toVelaTime(time) {
   if (time && typeof time === 'object') {
     return Date.UTC(time.year, time.month - 1, time.day)
   }
-  return Date.parse(`${time}T00:00:00Z`)
+  if (typeof time !== 'string') return NaN
+  if (/^\d{4}-\d\d-\d\d$/.test(time)) return Date.parse(`${time}T00:00:00Z`)
+  // Research intraday rows already carry their UTC instant. Never let the
+  // browser's local zone interpret a timestamp without an explicit offset.
+  return /^\d{4}-\d\d-\d\dT\d\d:\d\d.*(?:Z|[+-]\d\d:\d\d)$/.test(time) ? Date.parse(time) : NaN
+}
+
+/** Vela intraday resolutions are minutes; the existing daily source stays 1D. */
+export function toVelaTimeframe(value) {
+  if (value === undefined || value === null || value === '') return '1D'
+  const timeframe = String(value).trim()
+  if (['1d', '1D', 'D', 'day', 'daily', '1日'].includes(timeframe)) return '1D'
+  const intraday = /^([1-9]\d*)(m|h)?$/.exec(timeframe)
+  if (intraday) return String(Number(intraday[1]) * (intraday[2] === 'h' ? 60 : 1))
+  throw new Error(`不支持的本地行情周期：${timeframe}`)
 }
 
 export function toVelaBars(rows) {
@@ -70,7 +84,7 @@ export function buildVelaResearchGroups(model, prefix) {
     })
 }
 
-export function buildVelaHostOutput({ rows, markers, costPath, overlays }, prefix) {
+export function buildVelaHostOutput({ rows, markers, costPath, overlays, priceScaleHints = [] }, prefix) {
   const costByDate = new Map(costPath.map((point) => [point.date, point]))
   const backgrounds = overlays.regime
     ? rows.flatMap((row, index) => {
@@ -103,8 +117,28 @@ export function buildVelaHostOutput({ rows, markers, costPath, overlays }, prefi
         kind: 'markers',
         markers: markers.map((marker) => ({ ...marker, time: toVelaTime(marker.time), size: 'small' })),
       },
+      ...priceScaleSeries(rows, priceScaleHints, prefix),
     ],
   }
+}
+
+/** Public per-surface display keeps actual research levels in view without
+ * drawing another line or adding fake OHLC data. Missing dates stay null. */
+function priceScaleSeries(rows, hints, prefix) {
+  if (!hints.length) return []
+  const byDate = new Map(hints.map((hint) => [hint.date, hint]))
+  return ['min', 'max'].map((field) => ({
+    id: `${prefix}:research-viewport:${field}`,
+    title: '研究价位视窗',
+    paneId: '',
+    kind: 'line',
+    display: { pane: false, priceScale: true, legend: false, dataWindow: false },
+    style: { color: 'transparent', width: 0 },
+    points: rows.map((row) => ({
+      time: toVelaTime(row.date),
+      value: finiteOrNull(byDate.get(row.date)?.[field]),
+    })),
+  }))
 }
 
 function seriesScale(group, series) {

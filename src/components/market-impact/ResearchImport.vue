@@ -1,6 +1,11 @@
 <script setup>
 const props = defineProps({ state: { type: Object, required: true }, kind: { type: String, required: true } })
 const emit = defineEmits(['import', 'clear'])
+const names = {
+  lp: ['ETHEREUM / UNISWAP V3', '导入 LP 研究包'],
+  options: ['DERIBIT / ETH OPTIONS', '导入期权研究包'],
+  market: ['BINANCE / ETHUSDT · UTC', '导入对齐行情包'],
+}
 const labels = {
   idle: '等待导入',
   verifying: '校验 SHA256',
@@ -18,7 +23,7 @@ function read(event) {
 <template>
   <section class="source-strip" :aria-busy="['verifying', 'computing'].includes(state.phase)">
     <div class="source-identity">
-      <span class="eyebrow">{{ kind === 'lp' ? 'ETHEREUM / UNISWAP V3' : 'DERIBIT / ETH OPTIONS' }}</span>
+      <span class="eyebrow">{{ names[kind]?.[0] }}</span>
       <strong class="source-name" :title="state.filename">{{ state.filename || '导入本地研究包' }}</strong>
       <span class="muted small">本地读取 · 不上传 · 上限 100 MiB</span>
     </div>
@@ -27,11 +32,7 @@ function read(event) {
       <span v-if="state.hashVerified" class="hash-tag">SHA256 ✓</span>
       <label class="button import-button"
         >{{ state.filename ? '更换文件' : '选择 JSON 文件'
-        }}<input
-          type="file"
-          accept=".json,application/json"
-          :aria-label="kind === 'lp' ? '导入 LP 研究包' : '导入期权研究包'"
-          @change="read"
+        }}<input type="file" accept=".json,application/json" :aria-label="names[kind]?.[1]" @change="read"
       /></label>
       <button v-if="state.filename" class="text-button" @click="emit('clear', kind)">清除</button>
     </div>

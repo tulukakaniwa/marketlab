@@ -26,6 +26,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
 const props = defineProps({
   source: { type: Object, default: null },
+  researchOnly: { type: Boolean, default: false },
   market: { type: Object, default: null },
   rows: { type: Array, default: () => [] },
   decision: { type: Object, default: null },
@@ -132,7 +133,7 @@ function pctSign(v) {
         <strong>{{ money(market.markPrice) }}</strong>
         <em :class="{ up: (dailyChange ?? 0) >= 0, down: (dailyChange ?? 0) < 0 }">{{ pctSign(dailyChange) }}</em>
       </div>
-      <div class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
+      <div v-if="!researchOnly" class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
       <div v-if="recommendation" class="tb-segment tb-action">
         <span>市场结构</span>
         <strong>{{ recommendation }}</strong>
@@ -143,6 +144,7 @@ function pctSign(v) {
     <div class="tb-actions tb-desktop-only">
       <button class="tb-reset" type="button" @click="openImpactResearch">市场冲击研究</button>
       <ProfileChip
+        v-if="!researchOnly"
         :profile-id="profileId"
         :auto-profile="autoProfile"
         :profile-list="profileList"
@@ -173,20 +175,22 @@ function pctSign(v) {
           切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
         </button>
         <button class="tb-overflow-item" @click="resetFromOverflow">重置工作台</button>
-        <div class="tb-overflow-section">策略 Profile</div>
-        <button
-          v-for="p in profileList"
-          :key="p.id"
-          class="tb-overflow-item"
-          :class="{ 'is-active': p.id === profileId && !autoProfile }"
-          @click="setProfileFromOverflow(p.id)"
-        >
-          {{ p.label || p.id }}
-          <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
-        </button>
-        <button class="tb-overflow-item" :class="{ 'is-active': autoProfile }" @click="toggleAutoProfileFromOverflow">
-          自动跟随回放：{{ autoProfile ? '开' : '关' }}
-        </button>
+        <template v-if="!researchOnly">
+          <div class="tb-overflow-section">策略 Profile</div>
+          <button
+            v-for="p in profileList"
+            :key="p.id"
+            class="tb-overflow-item"
+            :class="{ 'is-active': p.id === profileId && !autoProfile }"
+            @click="setProfileFromOverflow(p.id)"
+          >
+            {{ p.label || p.id }}
+            <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
+          </button>
+          <button class="tb-overflow-item" :class="{ 'is-active': autoProfile }" @click="toggleAutoProfileFromOverflow">
+            自动跟随回放：{{ autoProfile ? '开' : '关' }}
+          </button>
+        </template>
       </div>
     </div>
     <button
