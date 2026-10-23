@@ -2,10 +2,10 @@ import { VelaWorkspace } from '@luxalgo/vela/workspace'
 import { Statusline } from '@luxalgo/vela/widget'
 import { applyPlotOverlayTokens } from '@luxalgo/vela/ui'
 import { resolveTheme } from '@luxalgo/vela'
-import { toVelaBars } from './velaResearchAdapter.js'
+import { toVelaBars, toVelaTimeframe } from './velaResearchAdapter.js'
 import { waitForChartOperation } from './chartOperation.js'
 
-/** The native shell owns chart UI; the Lab owns the offline source and daily timeframe. */
+/** The native shell owns chart UI; the Lab owns the offline source and its timeframe. */
 export async function createVelaWorkspaceShell({ element, rows = [], source, theme = 'light', signal } = {}) {
   if (signal?.aborted) throw abortError()
   let workspace,
@@ -37,7 +37,7 @@ export async function createVelaWorkspaceShell({ element, rows = [], source, the
   }
   function bindStatusline() {
     statusline.setSymbol(sourceSymbol(currentSource))
-    statusline.setMeta('1D', '本地')
+    statusline.setMeta(sourceTimeframe(currentSource), '本地')
     // Static series loads have no `bar` event. Seed only this official UI subscriber;
     // the real chart event bus, indicator execution and replay receive no synthetic tick.
     statusline.onChart({
@@ -87,7 +87,7 @@ export async function createVelaWorkspaceShell({ element, rows = [], source, the
       })
     }
     const applyRange = cell.applyRange
-    cell.applyRange = (preset) => applyRange.call(cell, { ...preset, tf: '1D' })
+    cell.applyRange = (preset) => applyRange.call(cell, { ...preset, tf: sourceTimeframe(currentSource) })
     restoreCommands.push(() => {
       cell.applyRange = applyRange
     })
@@ -97,8 +97,14 @@ export async function createVelaWorkspaceShell({ element, rows = [], source, the
     const ticket = ++generation
     const next = Array.isArray(nextRows) ? nextRows : []
     await waitForChartOperation(
-      silently(() => chart.setMarket({ data: toVelaBars(next), symbol: sourceSymbol(nextSource), timeframe: '1D' })),
-      { signal, label: 'Vela 本地日线' },
+      silently(() =>
+        chart.setMarket({
+          data: toVelaBars(next),
+          symbol: sourceSymbol(nextSource),
+          timeframe: sourceTimeframe(nextSource),
+        }),
+      ),
+      { signal, label: 'Vela 本地行情' },
     )
     assertLive()
     if (ticket !== generation) return
@@ -124,8 +130,8 @@ export async function createVelaWorkspaceShell({ element, rows = [], source, the
       persist: false,
       data: toVelaBars(rows),
       symbol: sourceSymbol(source),
-      timeframe: '1D',
-      timeframes: ['1D'],
+      timeframe: sourceTimeframe(source),
+      timeframes: [sourceTimeframe(source)],
       theme,
       live: false,
       logScale: true,
@@ -190,6 +196,9 @@ export async function createVelaWorkspaceShell({ element, rows = [], source, the
 
 function sourceSymbol(source) {
   return String(source?.symbol || source?.id || source?.label || '本地数据')
+}
+function sourceTimeframe(source) {
+  return toVelaTimeframe(source?.timeframe ?? source?.interval)
 }
 function abortError() {
   return new DOMException('图表初始化已取消', 'AbortError')

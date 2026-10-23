@@ -22,6 +22,24 @@ function harness() {
 const ready = (id) => ({ hashVerified: true, report: { status: 'verified', id, actions: [{ id }] }, issues: [] })
 
 describe('ETH impact research ViewModel lifecycle', () => {
+  it('invalidates market candles immediately and ignores stale results without touching LP/options', async () => {
+    const { controller, workers } = harness()
+    await controller.importFile('lp', file('lp.json'))
+    workers[0].reply(ready('lp'))
+    await controller.importFile('market', file('old-market.json'))
+    workers[1].reply({ hashVerified: true, report: { status: 'ready', rows: [{ close: 2400 }] }, issues: [] })
+    expect(controller.market.value.report.rows).toHaveLength(1)
+    await controller.importFile('market', file('new-market.json'))
+    expect(controller.market.value).toMatchObject({ phase: 'verifying', report: null })
+    workers[1].reply(ready('stale'))
+    expect(controller.market.value.report).toBeNull()
+    controller.clear('market')
+    workers[2].reply(ready('cleared'))
+    expect(controller.market.value).toMatchObject({ phase: 'idle', report: null })
+    expect(controller.lp.value.report.id).toBe('lp')
+    expect(controller.options.value.phase).toBe('idle')
+  })
+
   it('ignores an old worker result after a newer file import', async () => {
     const { controller, workers } = harness()
     await controller.importFile('lp', file('old.json'))

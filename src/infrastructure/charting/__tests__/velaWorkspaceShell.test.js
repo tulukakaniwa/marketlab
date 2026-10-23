@@ -209,6 +209,31 @@ describe('native Vela workspace shell', () => {
     shell.destroy()
   })
 
+  it('keeps intraday bars, statusline, and native range commands on the supplied source period', async () => {
+    const intraday = [{ ...rows[0], date: '2026-10-23T12:45:00.000Z' }]
+    const shell = await createVelaWorkspaceShell({
+      element: {},
+      rows: intraday,
+      source: { symbol: 'ETHUSDT', timeframe: '5m' },
+    })
+    const workspace = shell.workspace
+    expect(workspace.options).toMatchObject({ timeframe: '5', timeframes: ['5'] })
+    expect(workspace.options.data[0].time).toBe(Date.UTC(2026, 9, 23, 12, 45))
+    expect(state.statuslines[0].meta.timeframe).toBe('5')
+    workspace.active.applyRange({ id: '1D', tf: '1D', preset: '1D' })
+    expect(workspace.originalCommands.applyRange).toHaveBeenLastCalledWith({ id: '1D', tf: '5', preset: '1D' })
+    await shell.setRows(intraday, { symbol: 'ETHUSDT', interval: '1h' })
+    expect(shell.chart.setMarket).toHaveBeenLastCalledWith({
+      data: expect.any(Array),
+      symbol: 'ETHUSDT',
+      timeframe: '60',
+    })
+    expect(state.statuslines[0].meta.timeframe).toBe('60')
+    workspace.active.applyRange({ id: '1W', tf: '1D', preset: '1W' })
+    expect(workspace.originalCommands.applyRange).toHaveBeenLastCalledWith({ id: '1W', tf: '60', preset: '1W' })
+    shell.destroy()
+  })
+
   it('destroys the workspace and its official statusline when startup is aborted', async () => {
     state.ready = new Promise(() => {})
     const controller = new AbortController()

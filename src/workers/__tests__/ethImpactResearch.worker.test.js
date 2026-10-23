@@ -4,12 +4,16 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { runEthImpactJob } from '../ethImpactResearch.worker.js'
 import { analyzeEthLpBundle } from '../../domain/market-impact/ethLpResearch.js'
 import { analyzeEthOptionsBundle } from '../../domain/market-impact/ethOptionsResearch.js'
+import { analyzeEthMarketBundle } from '../../domain/market-impact/ethMarketSnapshot.js'
 
 vi.mock('../../domain/market-impact/ethLpResearch.js', () => ({
   analyzeEthLpBundle: vi.fn(() => ({ status: 'verified', issues: [] })),
 }))
 vi.mock('../../domain/market-impact/ethOptionsResearch.js', () => ({
   analyzeEthOptionsBundle: vi.fn(() => ({ status: 'ready', issues: [], scenario: { status: 'disabled' } })),
+}))
+vi.mock('../../domain/market-impact/ethMarketSnapshot.js', () => ({
+  analyzeEthMarketBundle: vi.fn(() => ({ status: 'ready', rows: [{ close: 2400 }], issues: [] })),
 }))
 const digest = async (text) => createHash('sha256').update(text).digest('hex')
 const encode = (value) => new TextEncoder().encode(JSON.stringify(value)).buffer
@@ -19,6 +23,19 @@ async function envelope(kind, bundle = { source: 'test' }) {
 beforeEach(() => vi.clearAllMocks())
 
 describe('research import integrity boundary', () => {
+  it('checks the market envelope before the isolated raw candle analyzer', async () => {
+    const input = await envelope('market', { rawKlines: [] })
+    const result = await runEthImpactJob({ kind: 'market', buffer: encode(input) }, { digest })
+    expect(result).toMatchObject({ hashVerified: true, report: { status: 'ready' } })
+    expect(analyzeEthMarketBundle).toHaveBeenCalledWith(input.bundle)
+    expect(analyzeEthOptionsBundle).not.toHaveBeenCalled()
+    input.bundle.rawKlines.push('altered')
+    analyzeEthMarketBundle.mockClear()
+    const modified = await runEthImpactJob({ kind: 'market', buffer: encode(input) }, { digest })
+    expect(modified).toMatchObject({ hashVerified: false, report: null })
+    expect(analyzeEthMarketBundle).not.toHaveBeenCalled()
+  })
+
   it('blocks a modified payload before domain computation or verified notification', async () => {
     const input = await envelope('lp')
     input.bundle.source = 'changed'

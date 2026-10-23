@@ -30,7 +30,7 @@ watch(() => props.open, syncOpen)
       <button type="button" @click="emit('show-on-chart')">叠加到 ETH K 线</button>
       <button type="button" autofocus @click="emit('close')">返回行情图</button>
     </header>
-    <EthImpactLab />
+    <EthImpactLab @show-on-chart="emit('show-on-chart')" />
   </dialog>
 </template>
 
