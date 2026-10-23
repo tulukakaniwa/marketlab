@@ -7,6 +7,9 @@ export function useImpactChartOverlay(lab) {
   const research = useEthImpactResearchStore()
   return computed(() =>
     buildImpactChartOverlay({
+      ...(research.liveSelected
+        ? { lpHistory: research.live.lpHistory, optionsHistory: research.live.optionsHistory }
+        : {}),
       lp: research.lp,
       options: research.options,
       source: lab.source,

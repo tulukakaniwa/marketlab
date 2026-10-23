@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { researchLiveDevGuard, researchLiveProxy } from './scripts/research-live-proxy.mjs'
 
 const RECOMMENDED_POOL_ROUTE = '/recommended-pool/'
 const RECOMMENDED_POOL_ENTRY = '/recommended-pool/index.html'
@@ -20,8 +21,9 @@ function recommendedPoolDevRoute() {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [recommendedPoolDevRoute(), vue()],
+  plugins: [recommendedPoolDevRoute(), researchLiveDevGuard(), vue()],
   server: {
+    proxy: { '/api/research-live': researchLiveProxy },
     fs: {
       deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/data/local-research/**'],
     },

@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AlignedImpactChart from '../AlignedImpactChart.vue'
@@ -23,6 +24,7 @@ vi.mock('../../../infrastructure/charting/velaChartAdapter.js', () => ({
 
 let wrapper
 beforeEach(() => {
+  setActivePinia(createPinia())
   vi.clearAllMocks()
   state.create = null
   state.resizeObservers.length = 0

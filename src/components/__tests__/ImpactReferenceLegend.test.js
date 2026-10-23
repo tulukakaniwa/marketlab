@@ -35,4 +35,33 @@ describe('impact level legend', () => {
     expect(wrapper.find('details').exists()).toBe(false)
     wrapper.unmount()
   })
+  it('labels minute evidence with the completed time rather than the candle open time', () => {
+    const date = '2026-10-23T12:00:00.000Z'
+    const completedAt = '2026-10-23T12:05:00.000Z'
+    const result = buildImpactChartOverlay({
+      source: { symbol: 'ETHUSDT', timeframe: '5m' },
+      options: analyzeEthOptionsBundle(makeOptionsFixture()),
+      rows: [{ date, close: 2000, completedAt }],
+    })
+    const wrapper = mount(ImpactReferenceLegend, { props: { snapshot: result, date } })
+    expect(wrapper.get('summary time').text()).toBe(`收盘 ${completedAt}`)
+    expect(wrapper.get('caption').text()).toContain(completedAt)
+    wrapper.unmount()
+  })
+  it('labels expired continuous evidence and its first received time instead of showing stale values', () => {
+    const report = analyzeEthOptionsBundle(makeOptionsFixture())
+    const date = '2026-10-23T12:20:00.000Z'
+    const result = buildImpactChartOverlay({
+      source: { symbol: 'ETHUSDT', timeframe: '5m' },
+      optionsHistory: [
+        { id: 'test', availableAt: report.summary.availableAt, receivedAt: '2026-10-23T12:01:00.000Z', report },
+      ],
+      rows: [{ date, close: 2000, closeTime: Date.parse('2026-10-23T12:25:00.000Z') }],
+    })
+    const wrapper = mount(ImpactReferenceLegend, { props: { snapshot: result, date } })
+    expect(wrapper.text()).toContain('快照已过期')
+    expect(wrapper.text()).toContain('首次接入 2026-10-23T12:01:00.000Z')
+    expect(wrapper.find('table').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })

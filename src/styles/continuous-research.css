@@ -1,0 +1,48 @@
+.continuous-research {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.continuous-research-actions,
+.continuous-research-lanes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+.continuous-research-actions strong {
+  color: var(--ink);
+}
+.continuous-research-actions button {
+  padding: 5px 8px;
+  min-height: 30px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.continuous-research-actions button[aria-pressed='true'] {
+  border-color: var(--green);
+  color: var(--green);
+}
+.continuous-research-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.continuous-research-actions button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.continuous-research-lanes {
+  margin-top: 5px;
+}
+.continuous-research-lanes .stale {
+  color: var(--orange, #b46b21);
+}
+.continuous-research p {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+}

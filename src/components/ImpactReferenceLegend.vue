@@ -8,6 +8,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['open-research'])
 const point = computed(() => props.snapshot?.path?.find((item) => item.date === props.date))
+const observationTime = computed(() => point.value?.completedAt ?? props.date)
 const nodes = computed(() => (point.value?.status === 'ready' ? point.value.nodes : []))
 const sources = computed(() => Object.values(point.value?.sourceStatus ?? props.snapshot?.sourceStatus ?? {}))
 const hasSample = computed(() => sources.value.some((source) => source.reason !== 'no-sample'))
@@ -24,6 +25,8 @@ const reasons = {
   'no-observations': '无有效价位',
   'no-unexpired-observations': '合约已到期',
   'unknown-completion-time': '缺收盘时间',
+  'snapshot-expired': '快照已过期',
+  'invalid-history': '时间线不可用',
 }
 const reason = (source) => (source.status === 'ready' ? '已知快照' : (reasons[source.reason] ?? '暂不可叠加'))
 const price = (value) => (Number.isFinite(value) ? value.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—')
@@ -37,7 +40,7 @@ const origin = (value) =>
     <summary>
       <strong>研究价位</strong>
       <span>美元近似 · 未换汇</span>
-      <time>{{ date }}</time>
+      <time>收盘 {{ observationTime }}</time>
       <span v-for="source in sources" :key="source.kind">
         {{ source.kind === 'lp' ? '● LP' : '◆ 期权' }} · {{ reason(source) }}
       </span>
@@ -45,7 +48,7 @@ const origin = (value) =>
     </summary>
     <div class="impact-reference-details">
       <p>● LP 区间中点 / |ΔL| · ◆ 行权价 / 样本 OI · 点面积＝各来源内相对强度</p>
-      <p>只延用已知快照；不回贴到采集前，不代表实时深度、支撑阻力或净 Gamma。</p>
+      <p>每根 K 线只读取当时已知快照；不回贴新数据，不代表实时深度、支撑阻力或净 Gamma。</p>
       <div
         v-for="source in sources.filter((item) => item.availableAt)"
         :key="source.kind"
@@ -56,11 +59,14 @@ const origin = (value) =>
           {{ source.quoteCurrency }}</span
         >
         <time>可用时间 {{ source.availableAt }}</time>
+        <time v-if="source.effectiveAvailableAt && source.effectiveAvailableAt !== source.availableAt">
+          首次接入 {{ source.effectiveAvailableAt }}
+        </time>
       </div>
       <table v-if="nodes.length">
         <caption>
           {{
-            date
+            observationTime
           }}
           收盘时已知的研究价位
         </caption>

@@ -102,14 +102,36 @@ it('keeps the same chart mounted and planning inputs unchanged across research o
     await flushPromises()
     expect(wrapper.get('[data-test="chart"]').element.style.display).toBe('none')
     expect(wrapper.findComponent({ name: 'AlignedImpactChart' }).props('rows')).toEqual(minuteRows)
+    expect(wrapper.get('.cols').classes()).toContain('aligned-layout')
     expect(lab.activeRows).toBe(beforeRows)
     expect(lab.input).toEqual(beforeInput)
     expect(unmounted).not.toHaveBeenCalled()
     await wrapper.get('[data-test="daily"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-test="chart"]').element.style.display).not.toBe('none')
+    expect(wrapper.get('.cols').classes()).not.toContain('aligned-layout')
     expect(input.element.value).toBe('zoom and drawing state')
     expect(mounted).toHaveBeenCalledTimes(1)
+
+    // Explicit live activation opens the aligned view once; later updates keep
+    // both the existing chart instance and any chosen daily view intact.
+    research.liveSelected = true
+    research.live.activation = 1
+    research.live.marketSource = research.market.report.source
+    research.live.marketHistory = [{ report: research.market.report }]
+    research.live.marketRows = minuteRows
+    await flushPromises()
+    const liveChart = wrapper.findComponent({ name: 'AlignedImpactChart' }).vm
+    research.live.marketRows = [...minuteRows, { ...minuteRows[1], date: '2026-10-23T12:50:00.000Z' }]
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'AlignedImpactChart' }).vm).toBe(liveChart)
+    expect(lab.activeRows).toBe(beforeRows)
+    expect(lab.input).toEqual(beforeInput)
+    await wrapper.get('[data-test="daily"]').trigger('click')
+    research.live.marketRows = [...research.live.marketRows, { ...minuteRows[1], date: '2026-10-23T12:55:00.000Z' }]
+    await flushPromises()
+    expect(wrapper.findComponent({ name: 'AlignedImpactChart' }).exists()).toBe(false)
+    expect(unmounted).not.toHaveBeenCalled()
   } finally {
     wrapper.unmount()
   }
