@@ -1,0 +1,19 @@
+Uniswap V3 Core
+Copyright (c) 2021 Uniswap Labs
+
+src/domain/market-impact/uniswapV3Math.js adapts TickMath.sol,
+SqrtPriceMath.sol and SwapMath.sol to JavaScript BigInt for bounded,
+exact-input research queries. The surrounding quote/replay/collector
+code is part of Market Lab. uniswapV3Quote.js also adapts swap traversal
+from UniswapV3Pool.sol and TickBitmap.sol. This is not the official Uniswap SDK.
+
+Source: https://github.com/Uniswap/v3-core
+TickMath.sol is marked GPL-2.0-or-later. The v3-core Business Source
+License 1.1 changed to GPL-2.0-or-later on 2023-04-01. The original
+license and its change-license parameters are included in
+ORIGINAL-LICENSE; GPL version 2 is reproduced in LICENSE. Later GPL
+versions are permitted by the upstream notice.
+
+Changes: bounded JavaScript BigInt arithmetic; binary-search inverse
+tick lookup; exact-input-only swap steps; no EVM storage or token transfers.
+No warranty. No affiliation with or endorsement by Uniswap Labs.

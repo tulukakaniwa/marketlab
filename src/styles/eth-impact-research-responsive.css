@@ -1,0 +1,157 @@
+@media (min-width: 1450px) {
+  .impact-lab .lp-workspace {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+}
+@media (max-width: 1150px) {
+  .impact-lab .lp-workspace {
+    grid-template-columns: 245px minmax(0, 1fr);
+  }
+  .impact-lab .metrics-strip > div {
+    padding: 17px;
+  }
+  .impact-lab .quote-grid {
+    grid-template-columns: 1fr;
+  }
+  .impact-lab .quote-block + .quote-block {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .impact-lab .options-workspace {
+    grid-template-columns: minmax(0, 1fr) 290px;
+  }
+  .impact-lab .hash-tag {
+    display: none;
+  }
+}
+@media (max-width: 850px) {
+  .impact-lab .metrics-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+  .impact-lab .metrics-strip > div:nth-child(2) {
+    border-right: 0;
+  }
+  .impact-lab .metrics-strip > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+  .impact-lab .tabs-note {
+    display: none;
+  }
+  .impact-lab .source-strip {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .impact-lab .source-name {
+    max-width: 80vw;
+  }
+  .impact-lab .lp-workspace,
+  .impact-lab .options-workspace {
+    grid-template-columns: 1fr;
+  }
+  .impact-lab .event-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .impact-lab .event-table-wrap {
+    max-height: 200px;
+  }
+  .impact-lab .event-select {
+    grid-template-columns: 40px 100px 60px;
+  }
+  .impact-lab .event-select small {
+    grid-column: auto;
+  }
+  .impact-lab .scenario-pane {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .impact-lab .welcome-workspace {
+    grid-template-columns: 1fr 0.65fr;
+  }
+  .impact-lab .welcome-copy {
+    padding: 30px 22px;
+  }
+  .impact-lab .empty-grid {
+    margin-right: 22px;
+  }
+  .impact-lab .empty-grid-label {
+    font-size: 8px;
+    max-width: 90px;
+    line-height: 1.7;
+  }
+  .impact-lab .evidence-footer,
+  .impact-lab .bottom-boundary {
+    flex-direction: column;
+    gap: 8px;
+    line-height: 1.6;
+  }
+}
+@media (max-width: 520px) {
+  .impact-lab .research-tabs button {
+    font-size: 10px;
+    padding-right: 5px;
+    margin-right: 16px;
+  }
+  .impact-lab .research-tabs button span {
+    margin-right: 6px;
+  }
+  .impact-lab .source-actions {
+    gap: 9px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .impact-lab .metrics-strip > div {
+    min-height: 90px;
+    padding: 14px;
+  }
+  .impact-lab .metrics-strip .medium-number {
+    font-size: 11px;
+  }
+  .impact-lab .section-heading {
+    padding: 20px 15px;
+  }
+  .impact-lab .section-heading h2 {
+    font-size: 14px;
+  }
+  .impact-lab .liquidity-ribbon {
+    margin: 0 15px;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+  .impact-lab .liquidity-ribbon strong {
+    font-size: 13px;
+  }
+  .impact-lab .liquidity-ribbon .small {
+    width: 100%;
+  }
+  .impact-lab .action-meta {
+    padding-inline: 15px;
+  }
+  .impact-lab .impact-figure {
+    margin-inline: 15px;
+  }
+  .impact-lab .impact-figure figcaption {
+    font-size: 9px;
+    align-items: flex-start;
+  }
+  .impact-lab .chart-note {
+    gap: 9px;
+    font-size: 8px;
+  }
+  .impact-lab .quote-block {
+    padding: 17px 15px;
+  }
+  .impact-lab .welcome-workspace {
+    display: block;
+    min-height: auto;
+  }
+  .impact-lab .welcome-copy {
+    padding: 35px 22px;
+  }
+  .impact-lab .empty-grid {
+    display: none;
+  }
+  .impact-lab .welcome-copy h2 {
+    font-size: 20px;
+  }
+}
