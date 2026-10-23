@@ -1,4 +1,5 @@
-import { computed, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef } from 'vue'
+import { createContinuousImpactFeed, livePreference } from '../composables/useContinuousImpactFeed.js'
 import { defineStore } from 'pinia'
 
 export const ETH_IMPACT_FILE_LIMIT = 100 * 1024 * 1024
@@ -8,7 +9,18 @@ const makeWorker = () =>
   new Worker(new URL('../workers/ethImpactResearch.worker.js', import.meta.url), { type: 'module' })
 
 /** ViewModel commands own file access and worker lifecycle; domain stays browser-free. */
-export function createEthImpactResearchController({ workerFactory = makeWorker } = {}) {
+export function createEthImpactResearchController({ workerFactory = makeWorker, liveOptions = {} } = {}) {
+  const live = reactive(createContinuousImpactFeed({ workerFactory, ...liveOptions }))
+  const liveSelected = ref(false)
+  if (live.supported && livePreference())
+    queueMicrotask(() => {
+      if (!disposed) startContinuous()
+    })
+  function startContinuous() {
+    if (!live.supported) return false
+    liveSelected.value = true
+    return live.start()
+  }
   const lp = shallowRef(empty())
   const options = shallowRef(empty())
   const market = shallowRef(empty())
@@ -80,6 +92,7 @@ export function createEthImpactResearchController({ workerFactory = makeWorker }
 
   function importFile(kind, file) {
     if (disposed || !lanes[kind] || !file) return
+    liveSelected.value = false
     lanes[kind].file = file
     if (kind === 'lp') selectedAction.value = 0
     if (kind === 'options') optionScenario.value = defaultScenario()
@@ -116,10 +129,14 @@ export function createEthImpactResearchController({ workerFactory = makeWorker }
 
   function dispose() {
     disposed = true
+    live.dispose()
     cancelPending()
   }
 
   return {
+    live,
+    liveSelected,
+    startContinuous,
     lp,
     options,
     market,

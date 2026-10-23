@@ -60,3 +60,53 @@ describe('aligned research view', () => {
     scope.stop()
   })
 })
+
+describe('continuous research observation cursor', () => {
+  it('opens once on explicit start, follows newest candles, and preserves a historical date during updates', () => {
+    setActivePinia(createPinia())
+    const scope = effectScope()
+    const view = scope.run(useAlignedImpactView)
+    const research = useEthImpactResearchStore()
+    const report = ready().report
+    research.liveSelected = true
+    research.live.activation = 1
+    research.live.marketSource = report.source
+    research.live.marketHistory = [{ report }]
+    research.live.marketRows = report.rows
+    expect(view.active.value).toBe(true)
+    expect(view.cursor.value).toBe(2)
+    const extra = {
+      ...report.rows.at(-1),
+      date: '2026-10-23T12:10:00.000Z',
+      closeTime: Date.parse('2026-10-23T12:15:00Z'),
+    }
+    research.live.marketRows = [...report.rows, extra]
+    expect(view.cursor.value).toBe(3)
+    view.setCursor(1)
+    const historical = view.rows.value.at(-1).date
+    research.live.marketRows = [...research.live.marketRows, { ...extra, date: '2026-10-23T12:15:00.000Z' }]
+    expect(view.rows.value.at(-1).date).toBe(historical)
+    view.close()
+    research.live.marketRows = [...research.live.marketRows, { ...extra, date: '2026-10-23T12:20:00.000Z' }]
+    expect(view.active.value).toBe(false)
+    expect(research.market.report).toBeNull()
+    scope.stop()
+  })
+  it('announces when a selected historical date falls outside the retained window', () => {
+    setActivePinia(createPinia())
+    const scope = effectScope()
+    const view = scope.run(useAlignedImpactView)
+    const research = useEthImpactResearchStore()
+    const report = ready().report
+    research.liveSelected = true
+    research.live.marketSource = report.source
+    research.live.marketHistory = [{ report }]
+    research.live.marketRows = report.rows
+    view.show()
+    view.setCursor(0)
+    research.live.marketRows = report.rows.slice(1)
+    expect(view.cursor.value).toBe(0)
+    expect(view.retentionNotice.value).toContain('超出保留窗口')
+    scope.stop()
+  })
+})

@@ -17,6 +17,7 @@ Market Lab is not a blog, an auto-trading bot, or financial advice. It is a rese
 - Candidate order planning that consumes explicit domain outputs: cost state, formula bands, account inputs, and strategy profile.
 - Research-only visualization for option Greeks, LP inventory, funding, AMM geometry, portfolio curves, and liquidity fingerprinting.
 - Price reference map on Vela and HQ: historical OHLCV density nodes with POC rings and cost-band shading, computed from each closed-session prefix. See [the chart contract](./docs/development/price-reference-map.md).
+- Optional local ETH feed: continuously collect closed 5-minute candles, options samples and finalized LP observations; overlay capture-time price levels and relative strength without rewriting earlier chart points. See [continuous research collection](./docs/development/continuous-impact-feed.md).
 - Explicit spot path replay side channel; research metrics do not silently become default trading conclusions.
 - Causal core-model panel: forward-filtered equilibrium, online regime weights, conditional volatility, and bounded session-close first-passage estimates using only the observation prefix. See [the model contract](./docs/development/causal-core-model.md).
 
@@ -40,6 +41,7 @@ pnpm run check:data    # Check static data index consistency
 pnpm run check:size    # Enforce src file size limits
 pnpm run build         # Full static production build into dist/
 pnpm run preview       # Preview the built dist/ output locally
+pnpm research:live     # Optional loopback collector for the local dev workbench
 ```
 
 When Pine-related files are changed, also run:

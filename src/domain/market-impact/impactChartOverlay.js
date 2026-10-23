@@ -1,5 +1,6 @@
 import { buildLpChartNodes, buildOptionsChartNodes } from './impactChartNodes.js'
 import { chartIdentity, completedBarTime, instant } from './impactChartTime.js'
+import { appendResearchSnapshots, DEFAULT_SNAPSHOT_AGE_MS } from './researchTimeline.js'
 
 const META = Object.freeze({
   modelVersion: 'impact-chart-overlay-v1',
@@ -19,12 +20,27 @@ const META = Object.freeze({
  * this query. USD/USDC/USDT use an explicitly labelled dollar approximation
  * requested by the workbench; displayed prices are not converted FX quotes.
  */
-export function buildImpactChartOverlay({ lp, options, source, rows } = {}) {
+export function buildImpactChartOverlay({
+  lp,
+  options,
+  lpHistory,
+  optionsHistory,
+  source,
+  rows,
+  maxSnapshotAgeMs,
+} = {}) {
   const identity = chartIdentity(source)
+  const histories = { lp: lpHistory, options: optionsHistory }
   const sources = {
     lp: prepareSource('lp', lp, identity),
     options: prepareSource('options', options, identity),
   }
+  const timelines = Object.fromEntries(
+    Object.entries(histories)
+      .filter(([, history]) => history !== undefined)
+      .map(([kind, history]) => [kind, prepareTimeline(kind, history, identity)]),
+  )
+  const ttl = Number.isFinite(maxSnapshotAgeMs) && maxSnapshotAgeMs >= 0 ? maxSnapshotAgeMs : DEFAULT_SNAPSHOT_AGE_MS
   let previousDate = null
   let previousClose = null
   const path = (Array.isArray(rows) ? rows : []).map((row, index) => {
@@ -38,7 +54,12 @@ export function buildImpactChartOverlay({ lp, options, source, rows } = {}) {
     if (completion.time !== null && (previousClose === null || completion.time > previousClose))
       previousClose = completion.time
     const pointSources = Object.fromEntries(
-      Object.entries(sources).map(([kind, prepared]) => [kind, sourceAt(prepared, reason ? null : completion.time)]),
+      Object.entries(sources).map(([kind, prepared]) => [
+        kind,
+        timelines[kind]
+          ? timelineAt(timelines[kind], reason ? null : completion.time, ttl)
+          : sourceAt(prepared, reason ? null : completion.time),
+      ]),
     )
     const nodes = reason ? [] : Object.values(pointSources).flatMap((value) => value.nodes)
     const state = combinedState(pointSources, nodes)
@@ -60,11 +81,52 @@ export function buildImpactChartOverlay({ lp, options, source, rows } = {}) {
     sourceStatus: latest?.sourceStatus ?? withoutNodes(sources),
     asset: identity.baseAsset,
     quoteCurrency: identity.quoteCurrency,
-    quoteApproximation: Object.values(sources).some((value) => value.quoteApproximation),
+    quoteApproximation: Object.values(latest?.sourceStatus ?? sources).some((value) => value.quoteApproximation),
     asOfDate: latest?.date ?? null,
     completedAt: latest?.completedAt ?? null,
+    ...(Object.keys(timelines).length
+      ? {
+          historyIssues: Object.fromEntries(Object.entries(timelines).map(([kind, value]) => [kind, value.issues])),
+          maxSnapshotAgeMs: ttl,
+        }
+      : {}),
     path,
   }
+}
+
+function prepareTimeline(kind, history, identity) {
+  const { snapshots, issues } = appendResearchSnapshots(history, [])
+  return {
+    fallback: prepareSource(kind, null, identity),
+    issues,
+    snapshots: snapshots.map((snapshot) => {
+      const prepared = prepareSource(kind, snapshot.report, identity)
+      const matches = instant(prepared.availableAt) === instant(snapshot.availableAt)
+      return {
+        ...prepared,
+        ...(matches ? {} : { status: 'blocked', reason: 'snapshot-availability-mismatch', nodes: [] }),
+        snapshotId: snapshot.id,
+        receivedAt: snapshot.receivedAt,
+        effectiveAvailableAt: snapshot.effectiveAvailableAt,
+        effectiveAvailableMs: instant(snapshot.effectiveAvailableAt),
+      }
+    }),
+  }
+}
+
+function timelineAt(timeline, completedMs, maxAgeMs) {
+  // Before the first accepted snapshot, return the same empty state regardless
+  // of snapshots learned later. Future metadata must not rewrite old points.
+  if (completedMs === null) return timeline.fallback
+  let selected = null
+  for (const snapshot of timeline.snapshots) {
+    if (snapshot.effectiveAvailableMs > completedMs) break
+    selected = snapshot
+  }
+  if (!selected) return timeline.fallback
+  const age = completedMs - instant(selected.availableAt)
+  if (age > maxAgeMs) return { ...selected, status: 'stale', reason: 'snapshot-expired', nodes: [], snapshotAgeMs: age }
+  return sourceAt(selected, completedMs)
 }
 
 function laneReport(lane) {
@@ -176,6 +238,13 @@ function normalizeNodes(candidates, source) {
       priceBasis: META.priceBasis,
       intensity: Number(node.rawValue) / maximum,
       availableAt: source.availableAt,
+      ...(source.snapshotId
+        ? {
+            snapshotId: source.snapshotId,
+            receivedAt: source.receivedAt,
+            effectiveAvailableAt: source.effectiveAvailableAt,
+          }
+        : {}),
       dataOrigin: source.dataOrigin,
       temporalBasis: META.temporalBasis,
       intensityBasis: source.intensityBasis,

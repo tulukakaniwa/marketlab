@@ -6,6 +6,7 @@ import ResearchImport from './ResearchImport.vue'
 import LpResearchPanel from './LpResearchPanel.vue'
 import OptionsResearchPanel from './OptionsResearchPanel.vue'
 import ResearchMarketPreview from './ResearchMarketPreview.vue'
+import ContinuousResearchControls from './ContinuousResearchControls.vue'
 defineEmits(['show-on-chart'])
 const store = useEthImpactResearchStore()
 const tab = ref('lp')
@@ -15,6 +16,8 @@ onUnmounted(() => store.cancelPending())
 
 <template>
   <section class="impact-lab" aria-label="ETH 市场动作研究">
+    <ContinuousResearchControls @show-on-chart="$emit('show-on-chart')" />
+    <p v-if="store.liveSelected" class="bottom-boundary">下方为手动样本分析；持续快照与价位在主图更新。</p>
     <nav class="research-tabs" aria-label="研究市场">
       <button :aria-pressed="tab === 'lp'" :class="{ active: tab === 'lp' }" @click="tab = 'lp'">
         <span>01</span>LP 动作与承接深度

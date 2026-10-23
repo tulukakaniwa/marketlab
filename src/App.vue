@@ -24,6 +24,9 @@ const mobileRightOpen = ref(false)
 const nativeCenterSettings = ref(false)
 const impactResearchOpen = ref(false)
 const impactResearchVisited = ref(false)
+watch(aligned.active, (active) => {
+  if (active && aligned.live.value) impactResearchOpen.value = false
+})
 const MarketImpactResearchDialog = defineAsyncComponent(
   () => import('./components/market-impact/MarketImpactResearchDialog.vue'),
 )
@@ -314,7 +317,7 @@ const rootStyle = computed(() => ({
       <button class="err-btn err-dismiss" @click="lab.dismissError()">关闭</button>
     </p>
 
-    <div class="cols">
+    <div class="cols" :class="{ 'aligned-layout': aligned.active.value }">
       <LeftPanel
         v-show="!aligned.active.value"
         :open="effectiveLeftOpen"
@@ -347,6 +350,9 @@ const rootStyle = computed(() => ({
       />
 
       <main class="app-main">
+        <p v-if="aligned.active.value && aligned.retentionNotice.value" class="bottom-boundary" role="status">
+          {{ aligned.retentionNotice.value }}
+        </p>
         <ResearchObservationControl
           v-if="aligned.active.value"
           :rows="aligned.allRows.value"

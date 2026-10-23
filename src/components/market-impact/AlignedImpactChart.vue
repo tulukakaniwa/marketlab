@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import ImpactReferenceLegend from '../ImpactReferenceLegend.vue'
+import ContinuousResearchControls from './ContinuousResearchControls.vue'
 import { createVelaChartAdapter } from '../../infrastructure/charting/velaChartAdapter.js'
 import { toVelaTime } from '../../infrastructure/charting/velaResearchAdapter.js'
 import { waitForChartOperation } from '../../infrastructure/charting/chartOperation.js'
@@ -194,6 +195,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="main-chart-shell aligned-impact-chart" :aria-busy="loading" aria-label="时间对齐研究行情">
     <div class="main-chart-chrome">
+      <ContinuousResearchControls @show-on-chart="focusLatest" />
       <div class="aligned-impact-toolbar">
         <strong>{{ source.symbol }} · {{ source.timeframe }} 研究行情</strong>
         <button type="button" @click="emit('return-daily')">返回日线工作台</button>
