@@ -1,9 +1,11 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { paintPriceReferenceMap } from '../infrastructure/charting/priceReferencePainter.js'
+import { paintImpactReferenceMap } from '../infrastructure/charting/impactReferencePainter.js'
 
 const props = defineProps({
   snapshot: { type: Object, default: null },
+  impactSnapshot: { type: Object, default: null },
   viewport: { type: Object, required: true },
   costPath: { type: Array, default: () => [] },
   dark: { type: Boolean, default: false },
@@ -21,8 +23,20 @@ function paint() {
   // invalid daily points as gaps, even when they are not period endpoints.
   const path = (props.snapshot?.path ?? []).filter((point) => point.status !== 'ready' || view.hasDate(point.date))
   paintPriceReferenceMap(ctx, { ...view, path, costPath: props.costPath, dark: props.dark })
+  // Non-endpoint sessions remain breaks: a weekly/monthly line must not bridge
+  // a node that disappeared within its aggregated candle.
+  const impactPath = (props.impactSnapshot?.path ?? []).map((point) =>
+    view.hasDate(point.date) ? point : { ...point, status: 'unmapped-period', nodes: [] },
+  )
+  paintImpactReferenceMap(ctx, {
+    ...view,
+    snapshot: props.impactSnapshot ? { ...props.impactSnapshot, path: impactPath } : null,
+    dark: props.dark,
+  })
 }
-watch(() => [props.snapshot, props.viewport, props.costPath, props.dark], paint, { flush: 'post' })
+watch(() => [props.snapshot, props.impactSnapshot, props.viewport, props.costPath, props.dark], paint, {
+  flush: 'post',
+})
 onMounted(paint)
 </script>
 

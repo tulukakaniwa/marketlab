@@ -17,6 +17,7 @@ const DEFAULTS = {
   researchMarkers: true,
   costBand: true,
   priceReferenceMap: true,
+  impactReferenceMap: true,
   causalEquilibrium: false,
   statisticalCenter: true,
   vwapCost: true,

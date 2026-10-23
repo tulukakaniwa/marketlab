@@ -3,7 +3,7 @@ import { onMounted, ref, watch } from 'vue'
 import EthImpactLab from './EthImpactLab.vue'
 
 const props = defineProps({ open: { type: Boolean, default: false } })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'show-on-chart'])
 const dialog = ref(null)
 function syncOpen() {
   if (!dialog.value) return
@@ -27,6 +27,7 @@ watch(() => props.open, syncOpen)
         <h2 id="market-impact-title">市场冲击研究</h2>
         <span>ETH · 本地数据</span>
       </div>
+      <button type="button" @click="emit('show-on-chart')">叠加到 ETH K 线</button>
       <button type="button" autofocus @click="emit('close')">返回行情图</button>
     </header>
     <EthImpactLab />

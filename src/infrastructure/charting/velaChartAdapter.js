@@ -222,6 +222,8 @@ export async function createVelaChartAdapter({
     const generation = ++syncGeneration
     referenceInput = {
       referenceMap: input.referenceMap,
+      impactMap: input.impactMap,
+      impactEnabled: input.overlays.impactReferenceMap !== false,
       costPath: input.overlays.priceBands !== false && input.overlays.costBand !== false ? input.costPath : [],
       enabled: input.overlays.priceReferenceMap !== false,
     }

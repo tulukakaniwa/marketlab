@@ -74,6 +74,16 @@ function toggle(key, available = true) {
       量价地图
     </button>
     <button
+      type="button"
+      :class="{ active: overlays.impactReferenceMap !== false }"
+      :aria-pressed="overlays.impactReferenceMap !== false"
+      :disabled="!ready"
+      title="导入研究价位：LP 动作区间与期权 OI；仅在标的、报价和可用时间匹配时显示"
+      @click="toggle('impactReferenceMap')"
+    >
+      研究价位
+    </button>
+    <button
       v-for="tool in centerTools"
       :key="tool.key"
       type="button"

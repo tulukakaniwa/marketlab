@@ -9,9 +9,11 @@ import RecommendedPoolPage from './components/RecommendedPoolPage.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
 import { useBreakpoint } from './composables/useBreakpoint.js'
+import { useImpactChartOverlay } from './composables/useImpactChartOverlay.js'
 import stockIndex from './data/stock-index.json'
 
 const lab = useLabStore()
+const impactMap = useImpactChartOverlay(lab)
 const { isCompact } = useBreakpoint()
 const mobileLeftOpen = ref(false)
 const mobileRightOpen = ref(false)
@@ -189,6 +191,15 @@ function openImpactResearch() {
   impactResearchOpen.value = true
 }
 
+function showImpactOnChart() {
+  lab.setChartOverlay('impactReferenceMap', true)
+  if (!['ETH', 'WETH'].includes(impactMap.value?.asset)) {
+    const sample = allSamples.value.find((item) => item.symbol === 'ETHUSDT')
+    if (sample) selectSample(sample)
+  }
+  impactResearchOpen.value = false
+}
+
 // 拖宽逻辑（v3.2）
 let dragging = null
 let pendingW = 0
@@ -326,6 +337,7 @@ const rootStyle = computed(() => ({
           :center-path="lab.centerPath"
           :reference-map="lab.priceReferenceMap"
           :reference-query="lab.priceReferenceQuery"
+          :impact-map="impactMap"
           :center-config="lab.centerConfig"
           :entry-price="lab.input.entryPrice"
           :replay="lab.replay"
@@ -342,6 +354,7 @@ const rootStyle = computed(() => ({
           @set-overlay="lab.setChartOverlay"
           @center-input-change="lab.setCenterInput"
           @native-settings-change="(enabled) => (nativeCenterSettings = enabled)"
+          @open-market-impact="openImpactResearch"
         />
         <div v-else class="empty-state">
           <Activity :size="36" />
@@ -372,6 +385,7 @@ const rootStyle = computed(() => ({
       v-if="impactResearchVisited"
       :open="impactResearchOpen"
       @close="impactResearchOpen = false"
+      @show-on-chart="showImpactOnChart"
     />
   </div>
 </template>

@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import VelaChart from '../VelaChart.vue'
 import PriceReferenceLegend from '../PriceReferenceLegend.vue'
+import ImpactReferenceLegend from '../ImpactReferenceLegend.vue'
 const mocks = vi.hoisted(() => ({
   options: null,
   chart: {
@@ -48,6 +49,22 @@ const stubs = {
 }
 
 describe('Vela research view', () => {
+  it('syncs imported impact snapshots, hover date and clear without resetting the chart', async () => {
+    const rows = makeRows()
+    const impactMap = { path: rows.map((row) => ({ date: row.date, status: 'ready', nodes: [] })) }
+    const wrapper = mount(VelaChart, { props: { ...makeProps(rows), impactMap }, global: { stubs } })
+    await flushPromises()
+    expect(mocks.sync.mock.calls.at(-1)[1].impactMap).toEqual(impactMap)
+    mocks.options.onCursor(Date.UTC(2026, 0, 1))
+    await flushPromises()
+    expect(wrapper.getComponent(ImpactReferenceLegend).props('date')).toBe(rows[0].date)
+    await wrapper.setProps({ impactMap: null })
+    expect(mocks.sync.mock.calls.at(-1)[1].impactMap).toBeNull()
+    await wrapper.setProps({ overlays: { impactReferenceMap: false } })
+    expect(wrapper.findComponent(ImpactReferenceLegend).exists()).toBe(false)
+    expect(mocks.fit).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
   it('syncs reference snapshots and overlay commands without refitting, with date-correct hover details', async () => {
     const rows = makeRows()
     const referenceMap = {

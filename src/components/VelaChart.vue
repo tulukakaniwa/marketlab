@@ -4,6 +4,7 @@ import ChartStatusBar from './ChartStatusBar.vue'
 import ChartDisplayTools from './ChartDisplayTools.vue'
 import WorkbenchSummary from './WorkbenchSummary.vue'
 import PriceReferenceLegend from './PriceReferenceLegend.vue'
+import ImpactReferenceLegend from './ImpactReferenceLegend.vue'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
 import { toVelaTime } from '../infrastructure/charting/velaResearchAdapter.js'
 import { createVelaChartAdapter } from '../infrastructure/charting/velaChartAdapter.js'
@@ -21,6 +22,7 @@ const props = defineProps({
   centerPath: { type: Array, default: () => [] },
   referenceMap: { type: Object, default: null },
   referenceQuery: { type: Object, default: null },
+  impactMap: { type: Object, default: null },
   centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
@@ -40,6 +42,7 @@ const emit = defineEmits([
   'set-overlay',
   'ready',
   'fatal-error',
+  'open-market-impact',
 ])
 const el = ref(null),
   loading = ref(true)
@@ -117,7 +120,15 @@ onBeforeUnmount(() => {
   adapter?.destroy()
 })
 watch(
-  () => [model.value, props.decision, props.replay, props.overlays, props.centerConfig, props.referenceMap],
+  () => [
+    model.value,
+    props.decision,
+    props.replay,
+    props.overlays,
+    props.centerConfig,
+    props.referenceMap,
+    props.impactMap,
+  ],
   () => sync().catch(handleFailure),
   { deep: true },
 )
@@ -151,6 +162,7 @@ async function sync() {
     rows: props.rows,
     costPath: props.costPath,
     referenceMap: props.referenceMap,
+    impactMap: props.impactMap,
     centerConfig: props.centerConfig,
     overlays: props.overlays,
     profilePaintEnabled: !isMobile.value,
@@ -203,6 +215,12 @@ function handleCursor(time) {
         :query="referenceQuery"
         :date="rows[cursorIndex ?? rows.length - 1]?.date"
         :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
+      />
+      <ImpactReferenceLegend
+        v-if="overlays.impactReferenceMap !== false"
+        :snapshot="impactMap"
+        :date="rows[cursorIndex ?? rows.length - 1]?.date"
+        @open-research="emit('open-market-impact')"
       />
     </div>
     <div class="main-chart-stage">

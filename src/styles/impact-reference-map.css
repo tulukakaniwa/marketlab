@@ -1,0 +1,75 @@
+.impact-reference-legend {
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.impact-reference-legend summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  padding: 7px 2px;
+  cursor: pointer;
+}
+.impact-reference-legend summary strong,
+.impact-reference-legend summary b {
+  color: var(--ink);
+}
+.impact-reference-legend summary::before {
+  content: '▸';
+}
+.impact-reference-legend[open] summary::before {
+  content: '▾';
+}
+.impact-reference-details {
+  padding: 4px 10px 10px;
+  overflow-x: auto;
+  max-height: 260px;
+}
+.impact-reference-details p {
+  margin: 4px 0 8px;
+}
+.impact-reference-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 6px;
+}
+.impact-reference-details table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ink);
+}
+.impact-reference-details th,
+.impact-reference-details td {
+  text-align: right;
+  padding: 5px;
+  border-bottom: 1px solid var(--line);
+}
+.impact-reference-details th:first-child,
+.impact-reference-details td:first-child {
+  text-align: left;
+}
+.impact-reference-details caption {
+  text-align: left;
+  padding: 7px 0;
+  color: var(--muted);
+}
+.impact-reference-details small {
+  display: block;
+  color: var(--muted);
+}
+.impact-reference-details button {
+  margin-top: 8px;
+  min-height: 32px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+}
+.impact-reference-legend :focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}

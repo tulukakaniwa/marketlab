@@ -14,6 +14,7 @@ vi.mock('../../infrastructure/charting/hqChartAdapter.js', () => ({
   },
 }))
 vi.mock('../../infrastructure/charting/priceReferencePainter.js', () => ({ paintPriceReferenceMap: vi.fn() }))
+vi.mock('../../infrastructure/charting/impactReferencePainter.js', () => ({ paintImpactReferenceMap: vi.fn() }))
 vi.mock('../../composables/useBreakpoint.js', () => ({ useBreakpoint: () => ({ isMobile: { value: false } }) }))
 
 const rows = [
@@ -123,6 +124,20 @@ async function renderViewportFrame() {
 }
 
 describe('HQ reference-map component integration', () => {
+  it('keeps the research viewport active independently of the OHLCV reference toggle', async () => {
+    const impactMap = { path: rows.map((row) => ({ date: row.date, status: 'ready', nodes: [] })) }
+    const wrapper = mountTerminal({
+      impactMap,
+      overlays: { priceReferenceMap: false, stockChipProfile: false, impactReferenceMap: true },
+    })
+    await renderViewportFrame()
+    expect(wrapper.getComponent(PriceReferenceCanvas).props('impactSnapshot')).toEqual(impactMap)
+    expect(wrapper.getComponent(PriceReferenceCanvas).props('snapshot')).toBeNull()
+    await wrapper.setProps({ overlays: { ...wrapper.props('overlays'), impactReferenceMap: false } })
+    await renderViewportFrame()
+    expect(wrapper.findComponent(PriceReferenceCanvas).exists()).toBe(false)
+    expect(frames.size).toBe(0)
+  })
   it('mounts the shared canvas after readiness and forwards the historical snapshot and native viewport', async () => {
     const wrapper = mountTerminal()
     expect(wrapper.findComponent(PriceReferenceCanvas).exists()).toBe(false)
