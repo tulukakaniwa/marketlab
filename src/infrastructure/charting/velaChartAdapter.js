@@ -17,6 +17,7 @@ import {
   velaCenterRejectedInputKeys,
 } from './velaCenterInputs.js'
 import { createVelaCenterInputHistory } from './velaCenterInputHistory.js'
+import { createVelaPriceReferenceLayer } from './velaPriceReferenceLayer.js'
 
 let sequence = 0
 
@@ -47,6 +48,7 @@ export async function createVelaChartAdapter({
     syncGeneration = 0,
     latestSync = Promise.resolve()
   let frameSequence = 0
+  let referenceInput = null
   let observationDate = null
   const recordInputHistory = createVelaCenterInputHistory({
     getHistory: () => shell?.workspace?.active?.history,
@@ -61,25 +63,9 @@ export async function createVelaChartAdapter({
     resolvePaint = resolve
   })
 
-  registerRendererLayer({
-    id: hostType,
-    placement: 'above-data',
-    create() {
-      let canvas
-      return {
-        mount(value) {
-          canvas = value
-        },
-        render(args) {
-          if (destroyed || !args.data) return
-          const context = canvas.getContext('2d')
-          context.setTransform(1, 0, 0, 1, 0, 0)
-          context.clearRect(0, 0, canvas.width, canvas.height)
-          resolvePaint(true)
-        },
-      }
-    },
-  })
+  registerRendererLayer(
+    createVelaPriceReferenceLayer({ id: hostType, isDestroyed: () => destroyed, onPaint: () => resolvePaint(true) }),
+  )
 
   function rememberPanes() {
     for (const [key, record] of records) {
@@ -203,7 +189,7 @@ export async function createVelaChartAdapter({
             resolveStarted()
             if (group.id === 'host') {
               hostContext = context
-              context.pushData({ frame: ++frameSequence })
+              repaint()
             }
           },
           onBars() {
@@ -234,6 +220,12 @@ export async function createVelaChartAdapter({
   function sync(model, input) {
     if (destroyed) return Promise.resolve()
     const generation = ++syncGeneration
+    referenceInput = {
+      referenceMap: input.referenceMap,
+      costPath: input.overlays.priceBands !== false && input.overlays.costBand !== false ? input.costPath : [],
+      enabled: input.overlays.priceReferenceMap !== false,
+    }
+    repaint()
     observationDate = input.rows?.at(-1)?.date ?? null
     const groups = buildVelaResearchGroups(model, prefix)
     // Register all independent formulas for the native picker, without creating
@@ -306,11 +298,17 @@ export async function createVelaChartAdapter({
   }
 
   function repaint() {
-    hostContext?.pushData({ frame: ++frameSequence })
+    hostContext?.pushData({ frame: ++frameSequence, ...referenceInput })
+  }
+  function setRows(nextRows, nextSource) {
+    referenceInput = null
+    repaint()
+    return shell.setRows(nextRows, nextSource)
   }
   function destroy() {
     if (destroyed) return
     destroyed = true
+    referenceInput = null
     resolvePaint(false)
     signal?.removeEventListener('abort', destroy)
     unsubscribe?.()
@@ -424,7 +422,7 @@ export async function createVelaChartAdapter({
         rememberPanes()
         chart.drawings.fromJSON(mappedDocument(document))
       },
-      setRows: shell.setRows,
+      setRows,
       setTheme: shell.setTheme,
       resize: shell.resize,
       fit: shell.fit,

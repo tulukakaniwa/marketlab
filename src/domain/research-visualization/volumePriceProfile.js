@@ -15,9 +15,10 @@ export function buildVolumePriceProfile({
   const windowRows = safeRows.slice(start, end).filter(validRow)
   if (!windowRows.length) return emptyProfile()
 
-  const range = priceRange(windowRows)
-  if (!range) return emptyProfile()
   const count = normalizeBinCount(binCount)
+  const range = priceRange(windowRows, count)
+  if (!range) return emptyProfile()
+  if (!Number.isFinite(range.upper) || !(range.upper > range.lower)) return emptyProfile(range)
   const step = (range.upper - range.lower) / count
   const bins = Array.from({ length: count }, (_, i) => {
     const lower = range.lower + step * i
@@ -126,7 +127,7 @@ function buildValueArea(bins, totalVolume, pocIndex) {
   return { lowerIndex, upperIndex, share: totalVolume > 0 ? acc / totalVolume : 0 }
 }
 
-function priceRange(rows) {
+function priceRange(rows, binCount) {
   const lows = rows.map((row) => row.low).filter((value) => Number.isFinite(value) && value > 0)
   const highs = rows.map((row) => row.high).filter((value) => Number.isFinite(value) && value > 0)
   if (!lows.length || !highs.length) return null
@@ -134,10 +135,18 @@ function priceRange(rows) {
   const upper = Math.max(...highs)
   if (upper <= lower) {
     const basis = upper || lower || 1
-    return { lower: basis * 0.99, upper: basis * 1.01 }
+    return positiveRange(basis * 0.99, basis * 1.01, binCount)
   }
   const pad = Math.max((upper - lower) * 0.02, upper * 0.001)
-  return { lower: Math.max(0.0001, lower - pad), upper: upper + pad }
+  return positiveRange(lower - pad, upper + pad, binCount)
+}
+
+function positiveRange(lower, upper, binCount) {
+  // A fixed currency floor would exclude legitimate low-price instruments.
+  // At subnormal magnitudes, reserve one representable increment per bin so
+  // both the range and its bin width remain positive instead of underflowing.
+  const positiveLower = Math.max(Number.MIN_VALUE, lower)
+  return { lower: positiveLower, upper: Math.max(upper, positiveLower + Number.MIN_VALUE * binCount) }
 }
 
 function validRow(row) {

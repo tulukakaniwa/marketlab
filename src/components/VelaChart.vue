@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChartStatusBar from './ChartStatusBar.vue'
 import ChartDisplayTools from './ChartDisplayTools.vue'
 import WorkbenchSummary from './WorkbenchSummary.vue'
+import PriceReferenceLegend from './PriceReferenceLegend.vue'
 import { buildChartMarkers } from '../domain/research-visualization/chartMarkers.js'
 import { toVelaTime } from '../infrastructure/charting/velaResearchAdapter.js'
 import { createVelaChartAdapter } from '../infrastructure/charting/velaChartAdapter.js'
@@ -18,6 +19,8 @@ const props = defineProps({
   formulaPath: { type: Array, required: true },
   causalPath: { type: Array, default: () => [] },
   centerPath: { type: Array, default: () => [] },
+  referenceMap: { type: Object, default: null },
+  referenceQuery: { type: Object, default: null },
   centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
@@ -43,6 +46,7 @@ const el = ref(null),
 const { isMobile } = useBreakpoint()
 const showProfile = computed(() => props.overlays.stockChipProfile !== false && !isMobile.value)
 const model = useMarketLabChartIndicators(props)
+const cursorIndex = ref(null)
 let adapter = null,
   disposed = false,
   observer = null,
@@ -113,7 +117,7 @@ onBeforeUnmount(() => {
   adapter?.destroy()
 })
 watch(
-  () => [model.value, props.decision, props.replay, props.overlays, props.centerConfig],
+  () => [model.value, props.decision, props.replay, props.overlays, props.centerConfig, props.referenceMap],
   () => sync().catch(handleFailure),
   { deep: true },
 )
@@ -121,6 +125,7 @@ watch(
   () => [props.rows, props.drawingScope, props.source?.symbol],
   async () => {
     const generation = ++rowGeneration
+    cursorIndex.value = null
     emit('cursor-change', null)
     if (!adapter) return
     try {
@@ -145,6 +150,7 @@ async function sync() {
   await adapter.sync(model.value, {
     rows: props.rows,
     costPath: props.costPath,
+    referenceMap: props.referenceMap,
     centerConfig: props.centerConfig,
     overlays: props.overlays,
     profilePaintEnabled: !isMobile.value,
@@ -169,7 +175,8 @@ function syncTheme() {
 }
 function handleCursor(time) {
   const index = time === null ? -1 : props.rows.findIndex((row) => toVelaTime(row.date) === time)
-  emit('cursor-change', index < 0 ? null : index)
+  cursorIndex.value = index < 0 ? null : index
+  emit('cursor-change', cursorIndex.value)
 }
 </script>
 
@@ -190,6 +197,13 @@ function handleCursor(time) {
         />
         <ChartStatusBar :input="input" @change="(field, value) => emit('param-change', field, value)" />
       </div>
+      <PriceReferenceLegend
+        v-if="overlays.priceReferenceMap !== false"
+        :snapshot="referenceMap"
+        :query="referenceQuery"
+        :date="rows[cursorIndex ?? rows.length - 1]?.date"
+        :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
+      />
     </div>
     <div class="main-chart-stage">
       <div ref="el" class="main-chart-canvas" />

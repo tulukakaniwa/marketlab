@@ -6,6 +6,8 @@ import 'hqchart/src/jscommon/umychart.resource/css/umychart.popmenu.css'
 import 'hqchart/src/jscommon/umychart.resource/font/iconfont.css'
 import 'hqchart/src/jscommon/umychart.resource/font/drawtool/iconfont.css'
 import WorkbenchSummary from './WorkbenchSummary.vue'
+import PriceReferenceLegend from './PriceReferenceLegend.vue'
+import PriceReferenceCanvas from './PriceReferenceCanvas.vue'
 import HqChartToolbar from './HqChartToolbar.vue'
 import MainChartHoverLegend from './MainChartHoverLegend.vue'
 import StockChipProfileOverlay from './StockChipProfileOverlay.vue'
@@ -29,6 +31,8 @@ const props = defineProps({
   formulaPath: { type: Array, required: true },
   causalPath: { type: Array, default: () => [] },
   centerPath: { type: Array, default: () => [] },
+  referenceMap: { type: Object, default: null },
+  referenceQuery: { type: Object, default: null },
   centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
@@ -56,6 +60,9 @@ const hoverLegend = computed(() =>
 )
 const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== false && !isMobile.value)
 const stockChipViewport = ref(null)
+const referenceViewport = ref(null)
+const showReferenceMap = computed(() => props.overlays.priceReferenceMap !== false)
+const monitorViewport = computed(() => showStockChipProfile.value || showReferenceMap.value)
 // v4 intentionally drops the old BOLL/MACD defaults. Drawing storage uses a
 // separate key, so this reset only affects HQ display preferences.
 const preferences = persistedReactive('lab.chartState.hqchart.v4', {
@@ -74,6 +81,7 @@ let initController = null
 let generation = 0
 let stockChipFrame = 0
 let stockChipSignature = ''
+let referenceSignature = ''
 
 onMounted(async () => {
   document.addEventListener('keydown', onTerminalKeydown)
@@ -103,7 +111,7 @@ watch(
 
 watch(loading, (value) => emit('loading-change', value), { immediate: true })
 watch(
-  () => [ready.value, showStockChipProfile.value],
+  () => [ready.value, monitorViewport.value],
   ([isReady, show]) => {
     if (isReady && show) startStockChipMonitor()
     else stopStockChipMonitor()
@@ -119,6 +127,7 @@ async function rebuildChart() {
   loading.value = true
   error.value = ''
   warning.value = ''
+  cursorIndex.value = null
   stopStockChipMonitor()
   adapter?.destroy()
   adapter = null
@@ -173,15 +182,20 @@ async function rebuildChart() {
 }
 
 function startStockChipMonitor() {
-  if (stockChipFrame || !ready.value || !showStockChipProfile.value) return
+  if (stockChipFrame || !ready.value || !monitorViewport.value) return
   const tick = () => {
     stockChipFrame = 0
-    if (!ready.value || !showStockChipProfile.value || !adapter) return
+    if (!ready.value || !monitorViewport.value || !adapter) return
     const next = adapter.getStockChipViewport?.() ?? null
     const signature = next?.signature ?? 'null'
     if (signature !== stockChipSignature) {
       stockChipSignature = signature
       stockChipViewport.value = next
+    }
+    const reference = adapter.getPriceReferenceViewport?.() ?? null
+    if ((reference?.signature ?? 'null') !== referenceSignature) {
+      referenceSignature = reference?.signature ?? 'null'
+      referenceViewport.value = reference
     }
     stockChipFrame = requestAnimationFrame(tick)
   }
@@ -193,6 +207,8 @@ function stopStockChipMonitor() {
   stockChipFrame = 0
   stockChipSignature = ''
   stockChipViewport.value = null
+  referenceSignature = ''
+  referenceViewport.value = null
 }
 
 function setPeriod(value) {
@@ -296,10 +312,24 @@ function normalizePreferences(state) {
         @fullscreen="requestFullscreen"
         @set-overlay="(key, value) => emit('set-overlay', key, value)"
       />
+      <PriceReferenceLegend
+        v-if="overlays.priceReferenceMap !== false"
+        :snapshot="referenceMap"
+        :query="referenceQuery"
+        :date="rows[cursorIndex ?? rows.length - 1]?.date"
+        :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
+      />
       <p v-if="warning" class="hq-terminal-warning" role="status">{{ warning }}</p>
     </div>
     <div ref="stage" class="hq-terminal-stage">
       <div ref="chartElement" class="hq-chart-canvas" />
+      <PriceReferenceCanvas
+        v-if="showReferenceMap && referenceViewport"
+        :snapshot="referenceMap"
+        :viewport="referenceViewport"
+        :cost-path="overlays.priceBands !== false && overlays.costBand !== false ? costPath : []"
+        :dark="theme === 'dark'"
+      />
       <MainChartHoverLegend :legend="hoverLegend" />
       <StockChipProfileOverlay
         v-if="showStockChipProfile && stockChipViewport"

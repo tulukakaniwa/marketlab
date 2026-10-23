@@ -1,0 +1,204 @@
+.impact-lab .options-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 315px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.impact-lab .observations-pane {
+  min-width: 0;
+}
+.impact-lab .observations-table-wrap {
+  overflow: auto;
+  max-height: 520px;
+}
+.impact-lab .observations-table th {
+  padding: 13px 12px;
+  background: var(--surface-alt);
+  border-block: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+.impact-lab .observations-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.impact-lab .instrument-name {
+  display: block;
+  font-weight: 500;
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+.impact-lab .trade-side {
+  color: var(--red);
+  font-size: 9px;
+}
+.impact-lab .trade-side[data-side='buy'] {
+  color: var(--green);
+}
+.impact-lab .time-cell span {
+  display: block;
+  color: var(--muted);
+  font-size: 8px;
+  margin-bottom: 5px;
+}
+.impact-lab .observations-table details {
+  margin-top: 8px;
+  font-family: inherit;
+  max-width: 150px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.impact-lab .observations-table details span {
+  display: block;
+  line-height: 1.5;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.impact-lab .scenario-pane {
+  border-left: 1px solid var(--line);
+  padding: 0 22px 24px;
+}
+.impact-lab .scenario-pane .section-heading {
+  padding: 22px 0;
+}
+.impact-lab .scenario-pane h2 {
+  margin-top: 4px;
+}
+.impact-lab .scenario-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+.impact-lab .scenario-toggle input {
+  margin: 3px 0 0;
+  min-width: 16px;
+  height: 16px;
+}
+.impact-lab .scenario-toggle small {
+  display: block;
+  color: var(--muted);
+  margin-top: 5px;
+  font-size: 10px;
+}
+.impact-lab .scenario-fields {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 12px;
+  margin: 22px 0 17px;
+}
+.impact-lab .scenario-fields label {
+  font-size: 10px;
+  color: var(--muted);
+}
+.impact-lab .scenario-fields small {
+  display: block;
+  margin: 4px 0 10px;
+  font-size: 8px;
+}
+.impact-lab .scenario-fields input {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+.impact-lab .scenario-fields input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.impact-lab .scenario-demand {
+  display: grid;
+  gap: 10px;
+  margin: 25px 0;
+}
+.impact-lab .scenario-demand > span:first-child {
+  color: var(--muted);
+  font-size: 11px;
+}
+.impact-lab .scenario-demand strong {
+  color: var(--impact-accent);
+  font-family: var(--mono);
+  font-size: 27px;
+  font-weight: 400;
+}
+.impact-lab .scenario-demand strong small {
+  font-size: 12px;
+}
+.impact-lab .execution-details {
+  margin: 0;
+}
+.impact-lab .execution-details > div {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+}
+.impact-lab .execution-details dt {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.impact-lab .execution-details dd {
+  margin: 0;
+  text-align: right;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.impact-lab .scenario-disclaimer {
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 14px 0;
+}
+.impact-lab .scenario-off {
+  display: grid;
+  text-align: center;
+  gap: 10px;
+  padding: 25px 0;
+  margin: 15px 0;
+  border-block: 1px solid var(--line);
+}
+.impact-lab .off-icon {
+  font-size: 30px;
+  color: var(--muted);
+}
+.impact-lab .scenario-off strong {
+  font-size: 12px;
+  font-weight: 400;
+}
+.impact-lab .scenario-off p {
+  font-size: 10px;
+  color: var(--muted);
+}
+.impact-lab .scenario-issues {
+  display: grid;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--impact-accent);
+  overflow-wrap: anywhere;
+  margin-top: 15px;
+}
+.impact-lab .unknowns {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.8;
+  margin-top: 20px;
+}
+.impact-lab .unknowns ul {
+  padding-left: 16px;
+}

@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import VelaChart from '../VelaChart.vue'
+import PriceReferenceLegend from '../PriceReferenceLegend.vue'
 const mocks = vi.hoisted(() => ({
   options: null,
   chart: {
@@ -47,6 +48,42 @@ const stubs = {
 }
 
 describe('Vela research view', () => {
+  it('syncs reference snapshots and overlay commands without refitting, with date-correct hover details', async () => {
+    const rows = makeRows()
+    const referenceMap = {
+      sourceKey: 'scope-a',
+      asOfDate: rows[1].date,
+      path: rows.map((row, index) => ({
+        date: row.date,
+        status: 'ready',
+        sampleSize: 8 + index,
+        nodes: [{ price: 90 + index, share: 0.25, intensity: 1, side: 'below', isPoc: true }],
+      })),
+    }
+    const props = {
+      ...makeProps(rows),
+      referenceMap,
+      referenceQuery: { status: 'ready', sourceKey: 'scope-a', asOfDate: rows[1].date },
+    }
+    const wrapper = mount(VelaChart, { props, global: { stubs } })
+    await flushPromises()
+    expect(mocks.sync.mock.calls.at(-1)[1].referenceMap).toEqual(referenceMap)
+    expect(wrapper.findComponent(PriceReferenceLegend).props('date')).toBe(rows[1].date)
+    mocks.options.onCursor(Date.UTC(2026, 0, 1))
+    await flushPromises()
+    expect(wrapper.findComponent(PriceReferenceLegend).props('date')).toBe(rows[0].date)
+    expect(wrapper.find('.price-reference-node b').text()).toBe('90')
+    await wrapper.setProps({ referenceMap: null, referenceQuery: { ...props.referenceQuery, status: 'computing' } })
+    await flushPromises()
+    expect(mocks.sync.mock.calls.at(-1)[1].referenceMap).toBeNull()
+    expect(wrapper.findAll('.price-reference-node')).toHaveLength(0)
+    expect(wrapper.findComponent(PriceReferenceLegend).text()).toContain('计算中')
+    await wrapper.setProps({ overlays: { ...props.overlays, priceReferenceMap: false } })
+    expect(mocks.sync.mock.calls.at(-1)[1].overlays.priceReferenceMap).toBe(false)
+    expect(wrapper.findComponent(PriceReferenceLegend).exists()).toBe(false)
+    expect(mocks.fit).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
   it('forwards center settings as source-scoped commands and syncs their domain values without refitting', async () => {
     const rows = makeRows()
     const change = vi.fn()

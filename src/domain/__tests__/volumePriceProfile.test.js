@@ -58,4 +58,50 @@ describe('buildVolumePriceProfile', () => {
     expect(profile.status).toBe('empty')
     expect(profile.bins).toEqual([])
   })
+
+  it('保留低于 0.0001 的正价格范围和全部成交量', () => {
+    const rows = Array.from({ length: 8 }, (_, index) => row(`2024-01-0${index + 1}`, 1e-6, 1.1e-6, 0.9e-6, 1e-6, 1000))
+    const profile = buildVolumePriceProfile({ rows })
+    expect(profile.status).toBe('proxy-only')
+    expect(profile.totalVolume).toBeCloseTo(8000, 8)
+    expect(profile.range.lower).toBeGreaterThan(0)
+    expect(profile.range.lower).toBeLessThan(0.9e-6)
+    expect(profile.range.upper).toBeGreaterThan(1.1e-6)
+    expect(profile.poc.mid).toBeGreaterThan(0.9e-6)
+    expect(profile.poc.mid).toBeLessThan(1.1e-6)
+  })
+
+  it('相同数据更换价格单位不改变成交量分布', () => {
+    const rows = [row('2024-01-01', 90, 90, 90, 90, 100), row('2024-01-02', 110, 110, 110, 110, 500)]
+    const regular = buildVolumePriceProfile({ rows })
+    const lowPrice = buildVolumePriceProfile({
+      rows: rows.map((item) => ({
+        ...item,
+        open: item.open * 1e-8,
+        high: item.high * 1e-8,
+        low: item.low * 1e-8,
+        close: item.close * 1e-8,
+      })),
+    })
+    expect(lowPrice.status).toBe('proxy-only')
+    expect(lowPrice.totalVolume).toBe(regular.totalVolume)
+    expect(lowPrice.bins.map((bin) => [bin.volume, bin.share, bin.intensity])).toEqual(
+      regular.bins.map((bin) => [bin.volume, bin.share, bin.intensity]),
+    )
+    expect(lowPrice.range.lower / regular.range.lower).toBeCloseTo(1e-8, 14)
+    expect(lowPrice.range.upper / regular.range.upper).toBeCloseTo(1e-8, 14)
+  })
+
+  it.each([12, 36, 80])('最小正浮点价的 %i 个 bins 不因范围或步长下溢而丢失成交量', (binCount) => {
+    const price = Number.MIN_VALUE
+    const profile = buildVolumePriceProfile({ rows: [row('2024-01-01', price, price, price, price, 1000)], binCount })
+    expect(profile.status).toBe('proxy-only')
+    expect(profile.range.lower).toBe(price)
+    expect(profile.range.upper).toBeGreaterThan(profile.range.lower)
+    expect(profile.bins).toHaveLength(binCount)
+    expect(profile.bins.every((bin) => bin.upper > bin.lower && bin.mid > 0)).toBe(true)
+    expect(profile.totalVolume).toBe(1000)
+    expect(profile.poc.intensity).toBe(1)
+    expect(profile.poc.share).toBe(1)
+  })
 })

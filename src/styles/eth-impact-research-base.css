@@ -1,0 +1,267 @@
+.impact-lab {
+  padding: 18px;
+  min-width: 0;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  font-synthesis: none;
+  --impact-accent: var(--blue);
+  --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+.impact-lab * {
+  box-sizing: border-box;
+}
+.impact-lab button,
+.impact-lab input {
+  font: inherit;
+}
+.impact-lab button,
+.impact-lab a,
+.impact-lab input,
+.impact-lab summary {
+  -webkit-tap-highlight-color: transparent;
+}
+.impact-lab button,
+.impact-lab summary {
+  cursor: pointer;
+}
+.impact-lab button {
+  color: inherit;
+}
+.impact-lab button:focus-visible,
+.impact-lab a:focus-visible,
+.impact-lab summary:focus-visible,
+.impact-lab input:focus-visible {
+  outline: 2px solid var(--impact-accent);
+  outline-offset: 4px;
+}
+.impact-lab input[type='checkbox'] {
+  accent-color: var(--impact-accent);
+}
+.impact-lab a {
+  color: inherit;
+}
+.impact-lab h2,
+.impact-lab h3,
+.impact-lab p {
+  margin: 0;
+}
+.impact-lab h2 {
+  font-size: 17px;
+  font-weight: 550;
+  letter-spacing: -0.03em;
+}
+.impact-lab h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.impact-lab small {
+  font-size: 10px;
+  font-weight: 400;
+}
+.impact-lab .muted {
+  color: var(--muted);
+}
+.impact-lab .small {
+  font-size: 11px;
+}
+.impact-lab .mono {
+  font-family: var(--mono);
+}
+.impact-lab .amber {
+  color: var(--red);
+}
+.impact-lab .good-text {
+  color: var(--green);
+}
+.impact-lab .eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  font-family: var(--mono);
+  letter-spacing: 0.13em;
+  line-height: 1.6;
+}
+.impact-lab .research-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  align-items: stretch;
+  min-height: 48px;
+}
+.impact-lab .research-tabs button {
+  background: none;
+  border: 0;
+  padding: 12px 26px 15px 0;
+  margin-right: 20px;
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+}
+.impact-lab .research-tabs button span {
+  font-family: var(--mono);
+  font-size: 10px;
+  margin-right: 12px;
+  color: var(--muted);
+}
+.impact-lab .research-tabs button.active {
+  border-color: var(--impact-accent);
+  color: var(--ink);
+}
+.impact-lab .research-tabs button.active span {
+  color: var(--impact-accent);
+}
+.impact-lab .tabs-note {
+  font-size: 10px;
+  color: var(--muted);
+  margin-left: auto;
+  align-self: center;
+}
+.impact-lab .source-strip {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 0;
+}
+.impact-lab .source-identity {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.impact-lab .source-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 55vw;
+}
+.impact-lab .source-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.impact-lab .button {
+  min-height: 36px;
+  background: var(--ink);
+  color: var(--panel);
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+.impact-lab .import-button {
+  position: relative;
+  overflow: hidden;
+}
+.impact-lab .import-button:focus-within {
+  outline: 2px solid var(--impact-accent);
+  outline-offset: 4px;
+}
+.impact-lab .import-button input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.impact-lab .text-button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  padding: 8px 0;
+  font-size: 10px;
+}
+.impact-lab .state-tag {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+.impact-lab .state-tag[data-state='ready'] {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
+  background: var(--green-dim);
+}
+.impact-lab .state-tag[data-state='blocked'] {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, var(--line));
+  background: var(--red-dim);
+}
+.impact-lab .state-tag[data-state='computing'],
+.impact-lab .state-tag[data-state='verifying'] {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+.impact-lab .hash-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--green);
+}
+.impact-lab .blocked-strip {
+  padding: 14px 18px;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, var(--line));
+  background: var(--red-dim);
+  display: grid;
+  gap: 7px;
+  color: var(--red);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.impact-lab .blocked-strip strong {
+  font-size: 12px;
+}
+.impact-lab .metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin-bottom: 22px;
+}
+.impact-lab .metrics-strip > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 99px;
+  padding: 18px 22px;
+  border-right: 1px solid var(--line);
+}
+.impact-lab .metrics-strip > div:last-child {
+  border-right: 0;
+}
+.impact-lab .metrics-strip > div > span {
+  color: var(--muted);
+  font-size: 10px;
+}
+.impact-lab .metrics-strip strong {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.impact-lab .metrics-strip strong small {
+  color: var(--muted);
+}
+.impact-lab .metrics-strip .medium-number {
+  font-size: 14px;
+}
+.impact-lab .metric-separator {
+  margin: 0 6px;
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 400;
+}

@@ -1,5 +1,6 @@
 import { createHqNetworkFilter, dateNumber, toHqSymbol } from './hqChartDataAdapter.js'
 import { HQ_PERIODS } from './hqChartCatalog.js'
+import { readHqPriceReferenceViewport } from './hqPriceReferenceViewport.js'
 import {
   applyHqResearchSeriesStyle,
   buildHqResearchChartConfig,
@@ -178,6 +179,9 @@ export async function createHqChartAdapter({
     },
     getStockChipViewport() {
       return destroyed ? null : readHqStockChipViewport(chart)
+    },
+    getPriceReferenceViewport() {
+      return destroyed ? null : readHqPriceReferenceViewport(chart)
     },
     destroy() {
       if (destroyed) return
