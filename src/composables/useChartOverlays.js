@@ -16,6 +16,7 @@ const DEFAULTS = {
   executionMarkers: true,
   researchMarkers: true,
   costBand: true,
+  priceReferenceMap: true,
   causalEquilibrium: false,
   statisticalCenter: true,
   vwapCost: true,

@@ -64,6 +64,16 @@ function toggle(key, available = true) {
       <span style="color: #a855f7" aria-hidden="true">━</span> 滤波参考
     </button>
     <button
+      type="button"
+      :class="{ active: overlays.priceReferenceMap !== false }"
+      :aria-pressed="overlays.priceReferenceMap !== false"
+      :disabled="!ready"
+      title="量价地图：历史成交密度节点与成本带填色；点大小表示当日窗口内相对密度，OHLCV 代理"
+      @click="toggle('priceReferenceMap')"
+    >
+      量价地图
+    </button>
+    <button
       v-for="tool in centerTools"
       :key="tool.key"
       type="button"

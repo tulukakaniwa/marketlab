@@ -312,6 +312,8 @@ const rootStyle = computed(() => ({
           :formula-path="lab.formulaPath"
           :causal-path="lab.causalPath"
           :center-path="lab.centerPath"
+          :reference-map="lab.priceReferenceMap"
+          :reference-query="lab.priceReferenceQuery"
           :center-config="lab.centerConfig"
           :entry-price="lab.input.entryPrice"
           :replay="lab.replay"
