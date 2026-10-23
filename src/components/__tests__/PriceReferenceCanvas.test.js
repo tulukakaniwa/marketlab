@@ -2,8 +2,10 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PriceReferenceCanvas from '../PriceReferenceCanvas.vue'
 import { paintPriceReferenceMap } from '../../infrastructure/charting/priceReferencePainter.js'
+import { paintImpactReferenceMap } from '../../infrastructure/charting/impactReferencePainter.js'
 
 vi.mock('../../infrastructure/charting/priceReferencePainter.js', () => ({ paintPriceReferenceMap: vi.fn() }))
+vi.mock('../../infrastructure/charting/impactReferencePainter.js', () => ({ paintImpactReferenceMap: vi.fn() }))
 afterEach(() => vi.restoreAllMocks())
 
 it('draws the shared snapshot at period endpoints, retaining invalid gaps and clearing stale data', async () => {
@@ -33,5 +35,23 @@ it('draws the shared snapshot at period endpoints, retaining invalid gaps and cl
   expect(paintPriceReferenceMap).toHaveBeenLastCalledWith(ctx, expect.objectContaining({ path: [] }))
   await wrapper.setProps({ snapshot: { path }, dark: true })
   expect(paintPriceReferenceMap).toHaveBeenLastCalledWith(ctx, expect.objectContaining({ dark: true }))
+  wrapper.unmount()
+})
+
+it('preserves intraperiod breaks in impact levels and clears them independently', async () => {
+  const ctx = { setTransform: vi.fn() }
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx)
+  const path = ['2026-10-02', '2026-10-05', '2026-10-09'].map((date) => ({ date, status: 'ready', nodes: [] }))
+  const viewport = {
+    width: 800,
+    height: 400,
+    pixelRatio: 1,
+    hasDate: (date) => date !== '2026-10-05',
+  }
+  const wrapper = mount(PriceReferenceCanvas, { props: { impactSnapshot: { path }, viewport } })
+  const actual = paintImpactReferenceMap.mock.calls.at(-1)[1].snapshot.path
+  expect(actual).toEqual([path[0], { ...path[1], status: 'unmapped-period', nodes: [] }, path[2]])
+  await wrapper.setProps({ impactSnapshot: null })
+  expect(paintImpactReferenceMap.mock.calls.at(-1)[1].snapshot).toBeNull()
   wrapper.unmount()
 })

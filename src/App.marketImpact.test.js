@@ -16,9 +16,12 @@ const { lab } = vi.hoisted(() => ({
     leftPanelW: 300,
     rightPanelW: 300,
     activeLeftTab: 'compute',
+    setChartOverlay: vi.fn(),
+    loadSample: vi.fn(),
   },
 }))
 vi.mock('./stores/labStore.js', () => ({ useLabStore: () => lab }))
+vi.mock('./composables/useImpactChartOverlay.js', () => ({ useImpactChartOverlay: () => ref(null) }))
 vi.mock('./composables/useBreakpoint.js', () => ({ useBreakpoint: () => ({ isCompact: ref(false) }) }))
 vi.mock('./composables/usePersisted.js', () => ({
   persistedRef: (_key, value) => ref(value),
@@ -46,7 +49,8 @@ it('keeps the same chart mounted and planning inputs unchanged across research o
         RecommendedPoolPage: true,
         MarketImpactResearchDialog: {
           props: ['open'],
-          template: '<button v-show="open" data-test="return" @click="$emit(\'close\')">返回</button>',
+          template:
+            '<div v-show="open"><button data-test="return" @click="$emit(\'close\')">返回</button><button data-test="chart-link" @click="$emit(\'show-on-chart\')">主图</button></div>',
         },
       },
     },
@@ -59,11 +63,16 @@ it('keeps the same chart mounted and planning inputs unchanged across research o
     expect(wrapper.get('[data-test="return"]').isVisible()).toBe(true)
     await wrapper.get('[data-test="return"]').trigger('click')
     await flushPromises()
-    expect(wrapper.get('[data-test="return"]').element.style.display).toBe('none')
+    expect(wrapper.get('[data-test="return"]').element.parentElement.style.display).toBe('none')
     expect(mounted).toHaveBeenCalledTimes(1)
     expect(unmounted).not.toHaveBeenCalled()
     expect(wrapper.get('input').element).toBe(input.element)
     expect(input.element.value).toBe('zoom and drawing state')
+    expect(lab.input).toEqual(beforeInput)
+    await wrapper.get('button').trigger('click')
+    await wrapper.get('[data-test="chart-link"]').trigger('click')
+    expect(lab.setChartOverlay).toHaveBeenCalledWith('impactReferenceMap', true)
+    expect(lab.loadSample).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'ETHUSDT' }))
     expect(lab.input).toEqual(beforeInput)
   } finally {
     wrapper.unmount()

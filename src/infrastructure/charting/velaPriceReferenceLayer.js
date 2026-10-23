@@ -1,4 +1,5 @@
 import { paintPriceReferenceMap } from './priceReferencePainter.js'
+import { paintImpactReferenceMap } from './impactReferencePainter.js'
 import { toVelaTime } from './velaResearchAdapter.js'
 
 /** Channel payloads belong to one chart; a globally mounted layer with no payload stays empty. */
@@ -25,6 +26,15 @@ export function createVelaPriceReferenceLayer({ id, isDestroyed, onPaint }) {
               path: data.referenceMap?.path ?? [],
               costPath: data.costPath ?? [],
               enabled: data.enabled,
+              dark: isDarkBackground(theme?.background),
+              projectX: (date) => coords.timeToX(toVelaTime(date)),
+              projectY: (price) => coords.priceToY(price, scale, bounds),
+              bounds: { left: 0, top: bounds.top, width: coords.width, height: bounds.height },
+              barSpacing: coords.pxPerBar(),
+            })
+            paintImpactReferenceMap(ctx, {
+              snapshot: data.impactMap,
+              enabled: data.impactEnabled,
               dark: isDarkBackground(theme?.background),
               projectX: (date) => coords.timeToX(toVelaTime(date)),
               projectY: (price) => coords.priceToY(price, scale, bounds),

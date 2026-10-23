@@ -7,6 +7,7 @@ import 'hqchart/src/jscommon/umychart.resource/font/iconfont.css'
 import 'hqchart/src/jscommon/umychart.resource/font/drawtool/iconfont.css'
 import WorkbenchSummary from './WorkbenchSummary.vue'
 import PriceReferenceLegend from './PriceReferenceLegend.vue'
+import ImpactReferenceLegend from './ImpactReferenceLegend.vue'
 import PriceReferenceCanvas from './PriceReferenceCanvas.vue'
 import HqChartToolbar from './HqChartToolbar.vue'
 import MainChartHoverLegend from './MainChartHoverLegend.vue'
@@ -33,6 +34,7 @@ const props = defineProps({
   centerPath: { type: Array, default: () => [] },
   referenceMap: { type: Object, default: null },
   referenceQuery: { type: Object, default: null },
+  impactMap: { type: Object, default: null },
   centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
@@ -43,7 +45,14 @@ const props = defineProps({
   theme: { type: String, default: 'light' },
 })
 
-const emit = defineEmits(['cursor-change', 'fatal-error', 'loading-change', 'ready', 'set-overlay'])
+const emit = defineEmits([
+  'cursor-change',
+  'fatal-error',
+  'loading-change',
+  'ready',
+  'set-overlay',
+  'open-market-impact',
+])
 const terminal = ref(null)
 const stage = ref(null)
 const chartElement = ref(null)
@@ -62,7 +71,10 @@ const showStockChipProfile = computed(() => props.overlays.stockChipProfile !== 
 const stockChipViewport = ref(null)
 const referenceViewport = ref(null)
 const showReferenceMap = computed(() => props.overlays.priceReferenceMap !== false)
-const monitorViewport = computed(() => showStockChipProfile.value || showReferenceMap.value)
+const showImpactMap = computed(
+  () => props.overlays.impactReferenceMap !== false && Boolean(props.impactMap?.path?.length),
+)
+const monitorViewport = computed(() => showStockChipProfile.value || showReferenceMap.value || showImpactMap.value)
 // v4 intentionally drops the old BOLL/MACD defaults. Drawing storage uses a
 // separate key, so this reset only affects HQ display preferences.
 const preferences = persistedReactive('lab.chartState.hqchart.v4', {
@@ -320,12 +332,19 @@ function normalizePreferences(state) {
         :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
       />
       <p v-if="warning" class="hq-terminal-warning" role="status">{{ warning }}</p>
+      <ImpactReferenceLegend
+        v-if="overlays.impactReferenceMap !== false"
+        :snapshot="impactMap"
+        :date="rows[cursorIndex ?? rows.length - 1]?.date"
+        @open-research="emit('open-market-impact')"
+      />
     </div>
     <div ref="stage" class="hq-terminal-stage">
       <div ref="chartElement" class="hq-chart-canvas" />
       <PriceReferenceCanvas
-        v-if="showReferenceMap && referenceViewport"
-        :snapshot="referenceMap"
+        v-if="(showReferenceMap || showImpactMap) && referenceViewport"
+        :snapshot="showReferenceMap ? referenceMap : null"
+        :impact-snapshot="showImpactMap ? impactMap : null"
         :viewport="referenceViewport"
         :cost-path="overlays.priceBands !== false && overlays.costBand !== false ? costPath : []"
         :dark="theme === 'dark'"

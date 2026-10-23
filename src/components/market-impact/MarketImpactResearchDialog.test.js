@@ -33,7 +33,10 @@ describe('embedded market impact research', () => {
     const input = wrapper.get('input')
     await input.setValue('retained state')
     expect(dialog.open).toBe(true)
-    await wrapper.get('button').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '返回行情图')
+      .trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
     await wrapper.setProps({ open: false })
     expect(dialog.open).toBe(false)
@@ -49,5 +52,15 @@ describe('embedded market impact research', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
     await wrapper.setProps({ open: false })
     expect(wrapper.get('dialog').element.open).toBe(false)
+  })
+
+  it('requests chart overlay without changing imported data', async () => {
+    wrapper = mount(MarketImpactResearchDialog, { props: { open: true } })
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '叠加到 ETH K 线')
+      .trigger('click')
+    expect(wrapper.emitted('show-on-chart')).toHaveLength(1)
+    expect(wrapper.emitted('close')).toBeUndefined()
   })
 })

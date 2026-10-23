@@ -12,6 +12,7 @@ const props = defineProps({
   centerPath: { type: Array, default: () => [] },
   referenceMap: { type: Object, default: null },
   referenceQuery: { type: Object, default: null },
+  impactMap: { type: Object, default: null },
   centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },
@@ -31,6 +32,7 @@ const emit = defineEmits([
   'center-input-change',
   'set-overlay',
   'native-settings-change',
+  'open-market-impact',
 ])
 const workspace = useChartWorkspace()
 const runtimeLoading = ref(false)
@@ -80,6 +82,7 @@ function handleLoading(value) {
       @loading-change="handleLoading"
       @fatal-error="handleFailure"
       @ready="handleReady"
+      @open-market-impact="emit('open-market-impact')"
     >
       <template #engine-switch>
         <ChartEngineSwitcher
