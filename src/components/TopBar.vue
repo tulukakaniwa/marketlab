@@ -44,7 +44,13 @@ const emit = defineEmits([
   'reset',
   'mobile-open-left',
   'mobile-open-right',
+  'open-market-impact',
 ])
+
+function openImpactResearch() {
+  emit('open-market-impact')
+  closeOverflow()
+}
 
 function toggleThemeFromOverflow() {
   emit('toggle-theme')
@@ -135,6 +141,7 @@ function pctSign(v) {
     </div>
 
     <div class="tb-actions tb-desktop-only">
+      <button class="tb-reset" type="button" @click="openImpactResearch">市场冲击研究</button>
       <ProfileChip
         :profile-id="profileId"
         :auto-profile="autoProfile"
@@ -161,6 +168,7 @@ function pctSign(v) {
         <MoreHorizontal :size="20" />
       </button>
       <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
+        <button class="tb-overflow-item" @click="openImpactResearch">市场冲击研究</button>
         <button class="tb-overflow-item" @click="toggleThemeFromOverflow">
           切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
         </button>

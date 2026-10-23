@@ -21,6 +21,11 @@ function recommendedPoolDevRoute() {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [recommendedPoolDevRoute(), vue()],
+  server: {
+    fs: {
+      deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/data/local-research/**'],
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

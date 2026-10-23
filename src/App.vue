@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Activity } from 'lucide-vue-next'
 import TopBar from './components/TopBar.vue'
 import ChartWorkspace from './components/ChartWorkspace.vue'
@@ -16,6 +16,11 @@ const { isCompact } = useBreakpoint()
 const mobileLeftOpen = ref(false)
 const mobileRightOpen = ref(false)
 const nativeCenterSettings = ref(false)
+const impactResearchOpen = ref(false)
+const impactResearchVisited = ref(false)
+const MarketImpactResearchDialog = defineAsyncComponent(
+  () => import('./components/market-impact/MarketImpactResearchDialog.vue'),
+)
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
 const recommendedPoolMode = ref(isRecommendedPoolPath())
 
@@ -178,6 +183,12 @@ function closeMobileDrawers() {
   mobileRightOpen.value = false
 }
 
+function openImpactResearch() {
+  closeMobileDrawers()
+  impactResearchVisited.value = true
+  impactResearchOpen.value = true
+}
+
 // 拖宽逻辑（v3.2）
 let dragging = null
 let pendingW = 0
@@ -256,6 +267,7 @@ const rootStyle = computed(() => ({
       @reset="resetWorkbench"
       @mobile-open-left="openMobileLeft"
       @mobile-open-right="openMobileRight"
+      @open-market-impact="openImpactResearch"
     />
 
     <div
@@ -356,5 +368,10 @@ const rootStyle = computed(() => ({
         @select-sample="selectSample"
       />
     </div>
+    <MarketImpactResearchDialog
+      v-if="impactResearchVisited"
+      :open="impactResearchOpen"
+      @close="impactResearchOpen = false"
+    />
   </div>
 </template>
