@@ -10,6 +10,8 @@ const props = defineProps({
   formulaPath: { type: Array, required: true },
   causalPath: { type: Array, default: () => [] },
   centerPath: { type: Array, default: () => [] },
+  referenceMap: { type: Object, default: null },
+  referenceQuery: { type: Object, default: null },
   centerConfig: { type: Object, default: () => ({}) },
   entryPrice: { type: Number, required: true },
   replay: { type: Object, required: true },

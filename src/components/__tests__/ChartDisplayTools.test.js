@@ -47,4 +47,22 @@ describe('ChartDisplayTools', () => {
     await buttons[1].trigger('click')
     expect(wrapper.emitted('set-overlay')).toBeUndefined()
   })
+
+  it('量价地图独立切换且等待图表准备后才发出命令', async () => {
+    const overlays = { priceReferenceMap: true, costBand: true, stockChipProfile: true }
+    const wrapper = mount(ChartDisplayTools, { props: { overlays, ready: false } })
+    const button = wrapper.findAll('button').find((item) => item.text() === '量价地图')
+    expect(button.attributes('aria-pressed')).toBe('true')
+    expect(button.attributes('title')).toContain('OHLCV 代理')
+    await button.trigger('click')
+    expect(wrapper.emitted('set-overlay')).toBeUndefined()
+    await wrapper.setProps({ ready: true })
+    await button.trigger('click')
+    expect(wrapper.emitted('set-overlay')).toEqual([['priceReferenceMap', false]])
+    expect(overlays).toEqual({ priceReferenceMap: true, costBand: true, stockChipProfile: true })
+    await wrapper.setProps({ overlays: { ...overlays, priceReferenceMap: false } })
+    expect(button.attributes('aria-pressed')).toBe('false')
+    await button.trigger('click')
+    expect(wrapper.emitted('set-overlay').at(-1)).toEqual(['priceReferenceMap', true])
+  })
 })

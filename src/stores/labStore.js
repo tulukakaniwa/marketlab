@@ -10,6 +10,7 @@ import { buildDecisionGraph } from '../domain/strategy-planning/orderPlan.js'
 import { useDataLoader } from '../composables/useDataLoader.js'
 import { useMarketState } from '../composables/useMarketState.js'
 import { useCausalModel } from '../composables/useCausalModel.js'
+import { usePriceReferenceMap } from '../composables/usePriceReferenceMap.js'
 import { useMarketCenters } from '../composables/useMarketCenters.js'
 import { useReplay } from '../composables/useReplay.js'
 import { usePlanning, buildExecutionBrief } from '../composables/usePlanning.js'
@@ -207,6 +208,11 @@ export const useLabStore = defineStore('lab', () => {
 
   // chartOverlays 在 store 顶层初始化一次（同一份在所有组件间共享）
   const chartOverlays = useChartOverlays()
+  const priceReference = usePriceReferenceMap(
+    marketState.activeRows,
+    sourceKey,
+    computed(() => chartOverlays.priceReferenceMap !== false),
+  )
 
   function setChartOverlay(key, value) {
     if (!Object.hasOwn(chartOverlays, key)) return
@@ -310,6 +316,8 @@ export const useLabStore = defineStore('lab', () => {
     formulaPath: marketState.formulaPath,
     causalPath,
     centerPath,
+    priceReferenceMap: priceReference.snapshot,
+    priceReferenceQuery: priceReference.queryState,
     centerConfig: marketCenters.config,
     setCenterInput: marketCenters.setInput,
     dynamicHoldingGate,

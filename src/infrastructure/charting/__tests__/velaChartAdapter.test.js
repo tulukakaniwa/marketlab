@@ -231,6 +231,21 @@ describe('Vela asynchronous lifecycle and host/native consistency', () => {
     expect(state.descriptors.get(host.type).legend).toBe(false)
     expect(host.setInputs).toHaveBeenCalledWith({})
     expect(host.output.series[0].markers[0].text).toBe('B')
+    const referenceMap = { path: [{ date: rows[0].date, status: 'ready', nodes: [] }] }
+    await view.sync(changed, { ...input, referenceMap })
+    expect(host.context.pushData).toHaveBeenLastCalledWith(
+      expect.objectContaining({ referenceMap, costPath: [], enabled: true }),
+    )
+    await view.sync(changed, {
+      ...input,
+      referenceMap: null,
+      overlays: { ...input.overlays, priceReferenceMap: false },
+    })
+    expect(host.context.pushData).toHaveBeenLastCalledWith(
+      expect.objectContaining({ referenceMap: null, enabled: false }),
+    )
+    await view.setRows(rows, { symbol: 'NEXT' })
+    expect(host.context.pushData.mock.calls.at(-1)[0]).toEqual({ frame: expect.any(Number) })
     expect(volume.remove).toHaveBeenCalledOnce()
     view.destroy()
     view.destroy()
