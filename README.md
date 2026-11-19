@@ -18,6 +18,7 @@ Market Lab is not a blog, an auto-trading bot, or financial advice. It is a rese
 - Research-only visualization for option Greeks, LP inventory, funding, AMM geometry, portfolio curves, and liquidity fingerprinting.
 - Price reference map on Vela and HQ: historical OHLCV density nodes with POC rings and cost-band shading, computed from each closed-session prefix. See [the chart contract](./docs/development/price-reference-map.md).
 - Optional local ETH feed: continuously collect closed 5-minute candles, options samples and finalized LP observations; overlay capture-time price levels and relative strength without rewriting earlier chart points. See [continuous research collection](./docs/development/continuous-impact-feed.md).
+- ETH 决策回放可从工作台顶栏打开（手机在“更多”菜单）。日期与时间轴同步显示日线费后空间、五池同价深度、主动成交、现货与永续价格，以及截至该分钟的现货账本。
 - Explicit spot path replay side channel; research metrics do not silently become default trading conclusions.
 - Causal core-model panel: forward-filtered equilibrium, online regime weights, conditional volatility, and bounded session-close first-passage estimates using only the observation prefix. See [the model contract](./docs/development/causal-core-model.md).
 

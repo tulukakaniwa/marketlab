@@ -142,6 +142,7 @@ function pctSign(v) {
     </div>
 
     <div class="tb-actions tb-desktop-only">
+      <a class="eth-replay-link" href="?view=eth-replay">ETH 决策回放</a>
       <button class="tb-reset" type="button" @click="openImpactResearch">市场冲击研究</button>
       <ProfileChip
         v-if="!researchOnly"
@@ -170,6 +171,7 @@ function pctSign(v) {
         <MoreHorizontal :size="20" />
       </button>
       <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
+        <a class="eth-replay-link" href="?view=eth-replay">ETH 决策回放</a>
         <button class="tb-overflow-item" @click="openImpactResearch">市场冲击研究</button>
         <button class="tb-overflow-item" @click="toggleThemeFromOverflow">
           切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
@@ -206,6 +208,13 @@ function pctSign(v) {
 </template>
 
 <style>
+.eth-replay-link {
+  color: var(--green);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 6px;
+}
 .topbar {
   display: grid;
   grid-template-columns: auto 1fr auto;

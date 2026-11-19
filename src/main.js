@@ -1,6 +1,5 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import App from './App.vue'
 import './styles/base.css'
 import './styles/app-shell.css'
 import './styles/chart.css'
@@ -12,4 +11,8 @@ import './styles/decision.css'
 import './styles/replay.css'
 import './styles/status.css'
 
-createApp(App).use(createPinia()).mount('#app')
+const entry =
+  new URLSearchParams(location.search).get('view') === 'eth-replay'
+    ? import('./components/eth-replay/EthDecisionReplay.vue')
+    : import('./App.vue')
+entry.then(({ default: page }) => createApp(page).use(createPinia()).mount('#app'))
