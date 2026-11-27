@@ -6,6 +6,7 @@ import {
   getFormulaStage,
 } from '../domain/formulas/registry.js'
 import { strategyProfileList } from '../domain/strategy-planning/orderPlan.js'
+import { CHART_STRATEGY_CATALOG, normalizeChartStrategyId } from '../domain/strategy-planning/chartStrategyEngine.js'
 import { persistedReactive, persistedRef } from './usePersisted.js'
 
 /**
@@ -105,6 +106,12 @@ export function usePlanning() {
 
   const activeFormulaId = persistedRef('lab.activeFormulaId.v1', 'delta-band')
   const activeCapabilityId = persistedRef('lab.activeCapabilityId.v1', 'move-derivative')
+  const chartStrategyId = persistedRef('lab.chartStrategyId.v1', 'off')
+  chartStrategyId.value = normalizeChartStrategyId(chartStrategyId.value)
+
+  function setChartStrategy(id) {
+    chartStrategyId.value = normalizeChartStrategyId(id)
+  }
   activeFormulaId.value = normalizeFormulaId(activeFormulaId.value)
   activeCapabilityId.value = capabilityForFormula(activeFormulaId.value)?.id ?? 'move-derivative'
   const activeCapability = computed(() => getFormulaCapability(activeCapabilityId.value))
@@ -184,6 +191,9 @@ export function usePlanning() {
     activeFormula,
     formulaCapabilities,
     strategyProfileList,
+    chartStrategyId,
+    chartStrategyCatalog: CHART_STRATEGY_CATALOG,
+    setChartStrategy,
     selectCapability,
     selectFormula,
     leftPanelOpen,

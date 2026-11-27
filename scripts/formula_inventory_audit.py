@@ -27,6 +27,8 @@ SOURCE_FILES = [
     "src/domain/formulas/shortHold.js",
     "src/domain/market-data/cost.js",
     "src/domain/formula-research/path/formulaPath.js",
+    "src/domain/strategy-planning/chartStrategyEngine.js",
+    "src/domain/strategy-planning/chartStrategySignals.js",
     "src/domain/strategy-planning/orderLadderDiagnostics.js",
     "src/domain/strategy-planning/orderPlan.js",
     "src/domain/strategy-planning/recommendedStockPool.js",

@@ -133,28 +133,29 @@
 
 ## Strategy / Execution Formulas
 
-| Function                          | Formula / meaning                                                                | Status                                      |
-| --------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
-| `resolveProfile`                  | choose conservative / balanced / aggressive / custom profile                     | implemented                                 |
-| `resolveExecutableProfile`        | profile plus market-scaled thresholds                                            | implemented                                 |
-| `buildCustomProfile`              | clamp user profile fields to bounded ranges                                      | implemented                                 |
-| `scaleProfileToMarket`            | ATR/vol-scaled edge, momentum, risk, exposure, cooldown thresholds               | implemented                                 |
-| `buildDecisionGraph`              | execution query combining market, GetDelta, account and profile                  | implemented                                 |
-| `buildEntryTiming`                | cost band + GetDelta band + momentum/cost-slope trigger logic                    | implemented                                 |
-| `signalStrength`                  | `1 - 2*(1-Phi(abs(z)))` normal-reference extremeness from z-score                | implemented; not confidence/win probability |
-| `minEdge`                         | `max(atr*edgeAtr, profile.minEdge)`                                              | implemented                                 |
-| `buyEdge` / `sellEdge`            | relative distance from cost anchor to mark                                       | implemented                                 |
-| `buildPositionPlan`               | risk budget, exposure cap, first notional, stop/target                           | simulation-only                             |
-| `riskBudget`                      | `equity*riskBudgetPct`                                                           | simulation-only                             |
-| `riskBudgetPct`                   | linear interpolation from `riskMin` to `riskMax` by normal-reference extremeness | simulation-only heuristic                   |
-| `exposureCap`                     | equity-scaled exposure bound                                                     | simulation-only                             |
-| `maxNotional`                     | min cash/exposure/risk for buy; min base value/exposure for sell                 | simulation-only                             |
-| `buildExecutionPlan`              | three-level ladder using `LADDER_WEIGHTS=[0.2,0.3,0.5]`                          | simulation-only                             |
-| `orderTargetPrice`                | buy target max of reference and `price*(1+exitTargetReturn)`                     | implemented                                 |
-| `expectedProfit`                  | buy `(target-price)*amount`, sell `(price-target)*amount`                        | scenario arithmetic, not expectancy         |
-| `buildFormulaStrategyComposition` | explanation model for executable formula chain                                   | implemented                                 |
-| `buildFormulaBasis`               | GetDelta variable basis for UI/audit                                             | implemented                                 |
-| `evaluateOrderLadderDiagnostics`  | sqrt(P)-geometric ladder rungs and absorbing first-passage fill diagnostics      | research-only query                         |
+| Function                                                                                                | Formula / meaning                                                                                                       | Status                                      |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `resolveProfile`                                                                                        | choose conservative / balanced / aggressive / custom profile                                                            | implemented                                 |
+| `resolveExecutableProfile`                                                                              | profile plus market-scaled thresholds                                                                                   | implemented                                 |
+| `buildCustomProfile`                                                                                    | clamp user profile fields to bounded ranges                                                                             | implemented                                 |
+| `scaleProfileToMarket`                                                                                  | ATR/vol-scaled edge, momentum, risk, exposure, cooldown thresholds                                                      | implemented                                 |
+| `buildDecisionGraph`                                                                                    | execution query combining market, GetDelta, account and profile                                                         | implemented                                 |
+| `buildEntryTiming`                                                                                      | cost band + GetDelta band + momentum/cost-slope trigger logic                                                           | implemented                                 |
+| `signalStrength`                                                                                        | `1 - 2*(1-Phi(abs(z)))` normal-reference extremeness from z-score                                                       | implemented; not confidence/win probability |
+| `minEdge`                                                                                               | `max(atr*edgeAtr, profile.minEdge)`                                                                                     | implemented                                 |
+| `buyEdge` / `sellEdge`                                                                                  | relative distance from cost anchor to mark                                                                              | implemented                                 |
+| `buildPositionPlan`                                                                                     | risk budget, exposure cap, first notional, stop/target                                                                  | simulation-only                             |
+| `riskBudget`                                                                                            | `equity*riskBudgetPct`                                                                                                  | simulation-only                             |
+| `riskBudgetPct`                                                                                         | linear interpolation from `riskMin` to `riskMax` by normal-reference extremeness                                        | simulation-only heuristic                   |
+| `exposureCap`                                                                                           | equity-scaled exposure bound                                                                                            | simulation-only                             |
+| `maxNotional`                                                                                           | min cash/exposure/risk for buy; min base value/exposure for sell                                                        | simulation-only                             |
+| `buildExecutionPlan`                                                                                    | three-level ladder using `LADDER_WEIGHTS=[0.2,0.3,0.5]`                                                                 | simulation-only                             |
+| `orderTargetPrice`                                                                                      | buy target max of reference and `price*(1+exitTargetReturn)`                                                            | implemented                                 |
+| `expectedProfit`                                                                                        | buy `(target-price)*amount`, sell `(price-target)*amount`                                                               | scenario arithmetic, not expectancy         |
+| `buildFormulaStrategyComposition`                                                                       | explanation model for executable formula chain                                                                          | implemented                                 |
+| `buildFormulaBasis`                                                                                     | GetDelta variable basis for UI/audit                                                                                    | implemented                                 |
+| `evaluateOrderLadderDiagnostics`                                                                        | sqrt(P)-geometric ladder rungs and absorbing first-passage fill diagnostics                                             | research-only query                         |
+| `evaluateChartStrategy`, `detectStrategySignalAt`, `normalizeChartStrategyId`, `CHART_STRATEGY_CATALOG` | prefix-causal multi-strategy chart evaluator (structural repair, compressed breakout, overextension fade, regime combo) | simulation-only query                       |
 
 ## Replay / Account Simulation
 

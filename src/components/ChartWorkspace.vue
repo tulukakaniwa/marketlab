@@ -22,6 +22,9 @@ const props = defineProps({
   drawingScope: { type: String, default: '' },
   overlays: { type: Object, required: true },
   input: { type: Object, required: true },
+  chartStrategy: { type: Object, default: null },
+  chartStrategyId: { type: String, default: 'off' },
+  chartStrategyCatalog: { type: Array, default: () => [] },
   theme: { type: String, default: 'light' },
 })
 
@@ -30,6 +33,7 @@ const emit = defineEmits([
   'param-change',
   'center-input-change',
   'set-overlay',
+  'set-chart-strategy',
   'native-settings-change',
   'open-market-impact',
 ])
@@ -66,6 +70,7 @@ function handleLoading(value) {
       @center-input-change="(command) => emit('center-input-change', command)"
       @cursor-change="(index) => emit('cursor-change', index)"
       @set-overlay="(key, value) => emit('set-overlay', key, value)"
+      @set-chart-strategy="(id) => emit('set-chart-strategy', id)"
       @loading-change="handleLoading"
       @fatal-error="handleFailure"
       @ready="handleReady"

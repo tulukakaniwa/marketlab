@@ -24,13 +24,28 @@ export function queryMarketLabChartSeries({
   costPath = [],
   causalPath = [],
   centerPath = [],
+  strategyPath = [],
   overlays = {},
   entryPrice = null,
   position = null,
   replay = null,
 } = {}) {
-  const context = buildContext({ rows, formulaPath, costPath, causalPath, centerPath, entryPrice, position, replay })
-  const plan = resolveChartOverlayPlan({ overlays, formulaPath: context.formulaPath })
+  const context = buildContext({
+    rows,
+    formulaPath,
+    costPath,
+    causalPath,
+    centerPath,
+    strategyPath,
+    entryPrice,
+    position,
+    replay,
+  })
+  const plan = resolveChartOverlayPlan({
+    overlays,
+    formulaPath: context.formulaPath,
+    strategyPath: context.strategyPath,
+  })
   const candidates = [
     ...materializeCenterSeries(context, plan),
     ...DEFINITIONS.map((definition) => materialize(definition, context, plan)),
@@ -56,7 +71,17 @@ export function queryMarketLabChartSeries({
   }
 }
 
-function buildContext({ rows, formulaPath, costPath, causalPath, centerPath, entryPrice, position, replay }) {
+function buildContext({
+  rows,
+  formulaPath,
+  costPath,
+  causalPath,
+  centerPath,
+  strategyPath,
+  entryPrice,
+  position,
+  replay,
+}) {
   const safeRows = Array.isArray(rows) ? rows : []
   return {
     rows: safeRows,
@@ -64,6 +89,7 @@ function buildContext({ rows, formulaPath, costPath, causalPath, centerPath, ent
     costPath: Array.isArray(costPath) ? costPath : [],
     causalPath: Array.isArray(causalPath) ? causalPath : [],
     centerPath: Array.isArray(centerPath) ? centerPath : [],
+    strategyPath: Array.isArray(strategyPath) ? strategyPath : [],
     entryPrice,
     position: position && typeof position === 'object' ? position : {},
     replay: replay && typeof replay === 'object' ? replay : {},

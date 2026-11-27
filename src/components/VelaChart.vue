@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChartStatusBar from './ChartStatusBar.vue'
 import ChartDisplayTools from './ChartDisplayTools.vue'
+import ChartStrategyBar from './ChartStrategyBar.vue'
 import WorkbenchSummary from './WorkbenchSummary.vue'
 import PriceReferenceLegend from './PriceReferenceLegend.vue'
 import ImpactReferenceLegend from './ImpactReferenceLegend.vue'
@@ -33,6 +34,9 @@ const props = defineProps({
   drawingScope: { type: String, default: '' },
   overlays: { type: Object, required: true },
   input: { type: Object, required: true },
+  chartStrategy: { type: Object, default: null },
+  chartStrategyId: { type: String, default: 'off' },
+  chartStrategyCatalog: { type: Array, default: () => [] },
   theme: { type: String, default: 'light' },
 })
 const emit = defineEmits([
@@ -40,6 +44,7 @@ const emit = defineEmits([
   'param-change',
   'center-input-change',
   'set-overlay',
+  'set-chart-strategy',
   'ready',
   'fatal-error',
   'open-market-impact',
@@ -124,6 +129,7 @@ watch(
     model.value,
     props.decision,
     props.replay,
+    props.chartStrategy,
     props.overlays,
     props.centerConfig,
     props.referenceMap,
@@ -172,6 +178,7 @@ async function sync() {
       decision: props.decision,
       overlays: props.overlays,
       formulaPath: props.formulaPath,
+      strategyMarkers: props.chartStrategy?.markers ?? [],
     }),
   })
   await adapter.whenReady()
@@ -205,6 +212,15 @@ function handleCursor(time) {
         />
         <ChartStatusBar :input="input" @change="(field, value) => emit('param-change', field, value)" />
       </div>
+
+      <ChartStrategyBar
+        v-if="chartStrategyCatalog.length"
+        :strategy-id="chartStrategyId"
+        :catalog="chartStrategyCatalog"
+        :strategy="chartStrategy"
+        :ready="!loading"
+        @select="(id) => emit('set-chart-strategy', id)"
+      />
 
       <div
         v-if="summary || overlays.priceReferenceMap !== false || overlays.impactReferenceMap !== false"

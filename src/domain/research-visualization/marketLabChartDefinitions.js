@@ -104,6 +104,34 @@ export const DEFINITIONS = Object.freeze([
     'stopPrice',
     { controls: ['executionMarkers'] },
   ),
+  pathIndicator(
+    'strategyStop',
+    '策略防守轨',
+    'price',
+    'price',
+    '#ef4444',
+    'main',
+    'price.strategyOverlay',
+    'strategyStop',
+    {
+      source: 'strategyPath',
+      controls: ['strategyOverlay'],
+    },
+  ),
+  pathIndicator(
+    'strategyTarget',
+    '策略目标轨',
+    'price',
+    'price',
+    '#10b981',
+    'main',
+    'price.strategyOverlay',
+    'strategyTarget',
+    {
+      source: 'strategyPath',
+      controls: ['strategyOverlay'],
+    },
+  ),
 
   pathIndicator('bsDelta', '期权 Delta', 'num', 'greeks', '#a93226', 'greeks', 'paneOn.greeks', 'optionDelta', {
     controls: ['greeksPane'],

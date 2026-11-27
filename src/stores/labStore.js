@@ -19,6 +19,7 @@ import { persistedReactive } from '../composables/usePersisted.js'
 import { buildWorkbenchSummary } from '../domain/workbench/workbenchSummary.js'
 import { buildDynamicHoldingGate } from '../domain/strategy-planning/dynamicHoldingGate.js'
 import { evaluateOrderLadderDiagnostics } from '../domain/strategy-planning/orderLadderDiagnostics.js'
+import { evaluateChartStrategy } from '../domain/strategy-planning/chartStrategyEngine.js'
 
 const LP_SCENARIO_FIELDS = new Set([
   'lpScenarioEnabled',
@@ -164,6 +165,17 @@ export const useLabStore = defineStore('lab', () => {
   }))
 
   const executionBrief = computed(() => buildExecutionBrief(graph.value))
+  const chartStrategy = computed(() =>
+    evaluateChartStrategy({
+      strategyId: planning.chartStrategyId.value,
+      rows: marketState.activeRows.value,
+      costPath: marketState.costPath.value.slice(0, marketState.activeRows.value.length),
+      formulaPath: marketState.formulaPath.value,
+      marketStates: activeMarketStates.value,
+      tradingDaysPerYear: effectiveTdpy.value,
+      feeRate: Number.isFinite(input.replayFeeRate) && input.replayFeeRate >= 0 ? input.replayFeeRate : 0.001,
+    }),
+  )
   const workbenchSummary = computed(() =>
     buildWorkbenchSummary({
       source: data.source.value,
@@ -361,6 +373,10 @@ export const useLabStore = defineStore('lab', () => {
     activeCapabilityStages: planning.activeCapabilityStages,
     formulaCapabilities: planning.formulaCapabilities,
     strategyProfileList: planning.strategyProfileList,
+    chartStrategyId: planning.chartStrategyId,
+    chartStrategyCatalog: planning.chartStrategyCatalog,
+    setChartStrategy: planning.setChartStrategy,
+    chartStrategy,
     selectCapability: planning.selectCapability,
     selectFormula: planning.selectFormula,
 

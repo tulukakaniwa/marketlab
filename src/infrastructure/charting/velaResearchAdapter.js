@@ -167,6 +167,7 @@ function priceLabel(control, fallback) {
       supplyDemand: '供需均衡（参数场景）',
       fundamental: '基本面估值（参数场景）',
       entryLine: '入场价',
+      strategyOverlay: '策略防守 / 目标轨',
       executionMarkers: '目标 / 失效',
     }[control] ?? fallback
   )

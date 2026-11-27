@@ -89,8 +89,8 @@ describe('Market Lab chart indicator catalog', () => {
       'kdj',
       'rsi',
     ])
-    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(33)
-    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(33)
+    expect(MARKET_LAB_CHART_INDICATOR_CATALOG).toHaveLength(35)
+    expect(new Set(MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id)).size).toBe(35)
     expect(
       MARKET_LAB_CHART_INDICATOR_CATALOG.filter((item) => item.source === 'formulaPath')
         .map((item) => item.field)

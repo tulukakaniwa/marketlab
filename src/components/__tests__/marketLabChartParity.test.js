@@ -76,6 +76,11 @@ const fixture = {
   formulaPath,
   costPath: [],
   causalPath: rows.map((row, index) => ({ date: row.date, equilibriumPrice: index > 7 ? 10 + index / 20 : null })),
+  strategyPath: rows.map((row, index) => ({
+    date: row.date,
+    strategyStop: index > 5 ? 9.4 + index / 25 : null,
+    strategyTarget: index > 5 ? 11.6 + index / 25 : null,
+  })),
   centerPath: rows.map((row, index) => ({
     date: row.date,
     statisticalCenterPrice: index > 7 ? 10 + index / 30 : null,
