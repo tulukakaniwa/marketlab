@@ -24,7 +24,7 @@ SOURCE_FILES = [
     "src/domain/formulas/probability.js",
     "src/domain/formulas/shortHold.js",
     "src/domain/market-data/cost.js",
-    "src/domain/market-data/formulaPath.js",
+    "src/domain/formula-research/path/formulaPath.js",
     "src/domain/strategy-planning/orderPlan.js",
     "src/domain/strategy-planning/recommendedStockPool.js",
     "src/domain/strategy-planning/strategyProfile.js",

@@ -1,136 +1,66 @@
 <script setup>
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { Activity } from 'lucide-vue-next'
 import TopBar from './components/TopBar.vue'
 import ChartWorkspace from './components/ChartWorkspace.vue'
 import LeftPanel from './components/LeftPanel.vue'
 import RightPanel from './components/RightPanel.vue'
-import RecommendedPoolPage from './components/RecommendedPoolPage.vue'
+import ResearchObservationControl from './components/market-impact/ResearchObservationControl.vue'
 import { useLabStore } from './stores/labStore.js'
 import { clearPersistedLab, persistedRef } from './composables/usePersisted.js'
 import { useBreakpoint } from './composables/useBreakpoint.js'
 import { useAlignedImpactView } from './composables/useAlignedImpactView.js'
-import ResearchObservationControl from './components/market-impact/ResearchObservationControl.vue'
 import { useImpactChartOverlay } from './composables/useImpactChartOverlay.js'
+import { APP_SURFACES, useAppSurface } from './composables/useAppSurface.js'
+import { useTheme } from './composables/useTheme.js'
+import { usePanelResize } from './composables/usePanelResize.js'
 import stockIndex from './data/stock-index.json'
+
+const RecommendedPoolPage = defineAsyncComponent(() => import('./components/RecommendedPoolPage.vue'))
+const EthDecisionReplay = defineAsyncComponent(() => import('./components/eth-replay/EthDecisionReplay.vue'))
+const AlignedImpactChart = defineAsyncComponent(() => import('./components/market-impact/AlignedImpactChart.vue'))
+const MarketImpactResearchDialog = defineAsyncComponent(
+  () => import('./components/market-impact/MarketImpactResearchDialog.vue'),
+)
 
 const lab = useLabStore()
 const impactMap = useImpactChartOverlay(lab)
 const aligned = useAlignedImpactView()
-const AlignedImpactChart = defineAsyncComponent(() => import('./components/market-impact/AlignedImpactChart.vue'))
 const { isCompact } = useBreakpoint()
+const { theme, toggleTheme, setTheme } = useTheme()
+const { rootStyle, onResizerMouseDown, onResizerDblclick } = usePanelResize(lab)
+
 const mobileLeftOpen = ref(false)
 const mobileRightOpen = ref(false)
 const nativeCenterSettings = ref(false)
-const impactResearchOpen = ref(false)
-const impactResearchVisited = ref(false)
-watch(aligned.active, (active) => {
-  if (active && aligned.live.value) impactResearchOpen.value = false
-})
-const MarketImpactResearchDialog = defineAsyncComponent(
-  () => import('./components/market-impact/MarketImpactResearchDialog.vue'),
-)
 const lastSampleId = persistedRef('lab.lastSampleId.v1', '')
-const recommendedPoolMode = ref(isRecommendedPoolPath())
 
-// 主题持久化
-const theme = persistedRef('lab.theme.v1', 'light')
-function applyTheme(t) {
-  if (typeof document === 'undefined') return
-  document.documentElement.classList.toggle('dark', t === 'dark')
-}
-applyTheme(theme.value)
-watch(theme, applyTheme)
-function toggleTheme() {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+function closeMobileDrawers() {
+  mobileLeftOpen.value = false
+  mobileRightOpen.value = false
 }
 
-function resetWorkbench() {
-  if (!confirm('清空所有持久化参数（输入、UI 状态、主题）并刷新？')) return
-  clearPersistedLab()
-  window.location.reload()
-}
-
-// 隐藏入口：连按 g p / Alt+P / 访问 #pool / 访问 ?pool=1 → 跳到推荐池静态页
-const HIDDEN_POOL_PATH = '/recommended-pool/'
-let chordTimer = null
-let chordPrev = ''
-function openRecommendedPool() {
-  if (typeof window === 'undefined') return
-  window.location.assign(HIDDEN_POOL_PATH)
-}
-function onHiddenKey(e) {
-  if (e.key === 'Escape' && isCompact.value && (mobileLeftOpen.value || mobileRightOpen.value)) {
-    closeMobileDrawers()
-    return
-  }
-  // 在 input/textarea/contenteditable 中不响应
-  const t = e.target
-  const tag = t?.tagName?.toLowerCase()
-  if (tag === 'input' || tag === 'textarea' || t?.isContentEditable) return
-  // Alt + P
-  if (e.altKey && (e.key === 'p' || e.key === 'P')) {
-    e.preventDefault()
-    openRecommendedPool()
-    return
-  }
-  // 连按 g 然后 p
-  const k = e.key?.toLowerCase()
-  if (k === 'g') {
-    chordPrev = 'g'
-    clearTimeout(chordTimer)
-    chordTimer = setTimeout(() => {
-      chordPrev = ''
-    }, 800)
-    return
-  }
-  if (k === 'p' && chordPrev === 'g') {
-    chordPrev = ''
-    clearTimeout(chordTimer)
-    openRecommendedPool()
-    return
-  }
-  chordPrev = ''
-}
-function checkHiddenUrlEntry() {
-  if (typeof window === 'undefined') return
-  const hash = (window.location.hash || '').toLowerCase()
-  const search = new URLSearchParams(window.location.search || '')
-  if (hash === '#pool' || hash === '#recommended-pool' || search.get('pool') === '1') {
-    openRecommendedPool()
-  }
-}
-
-function isRecommendedPoolPath() {
-  if (typeof window === 'undefined') return false
-  return window.location.pathname.replace(/\/+$/, '').startsWith('/recommended-pool')
-}
-
-onMounted(() => {
-  if (lastSampleId.value && !lab.rows.length) {
-    const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
-    if (sample) lab.loadSample(sample)
-  }
-  if (typeof window !== 'undefined') {
-    window.addEventListener('keydown', onHiddenKey)
-    checkHiddenUrlEntry()
-  }
-})
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('keydown', onHiddenKey)
-  }
-  if (chordTimer) clearTimeout(chordTimer)
+const {
+  surface,
+  navigateSurface,
+  impactResearchOpen,
+  impactResearchVisited,
+  openImpactResearch: openImpactDialog,
+  closeImpactResearch,
+} = useAppSurface({
+  onEscapeCompact: () => {
+    if (isCompact.value && (mobileLeftOpen.value || mobileRightOpen.value)) {
+      closeMobileDrawers()
+      return true
+    }
+    return false
+  },
 })
 
-const effectiveLeftOpen = computed(
-  () => !aligned.active.value && (isCompact.value ? mobileLeftOpen.value : lab.leftPanelOpen),
-)
-const effectiveRightOpen = computed(
-  () => !aligned.active.value && (isCompact.value ? mobileRightOpen.value : lab.rightPanelOpen),
-)
+watch(aligned.active, (active) => {
+  if (active && aligned.live.value) closeImpactResearch()
+})
 
-// 合并 marketSamples + stockIndex 给搜索
 const allSamples = computed(() => {
   const curated = new Map(lab.marketSamples.map((s) => [s.symbol, s]))
   for (const s of stockIndex) {
@@ -139,22 +69,46 @@ const allSamples = computed(() => {
   return [...curated.values()]
 })
 
-// 决策摘要派生
+onMounted(() => {
+  if (lastSampleId.value && !lab.rows.length) {
+    const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
+    if (sample) lab.loadSample(sample)
+  }
+})
+
+const effectiveLeftOpen = computed(
+  () => !aligned.active.value && (isCompact.value ? mobileLeftOpen.value : lab.leftPanelOpen),
+)
+const effectiveRightOpen = computed(
+  () => !aligned.active.value && (isCompact.value ? mobileRightOpen.value : lab.rightPanelOpen),
+)
 const briefExtremeness = computed(() => lab.graph?.decision?.signalStrength ?? 0)
+const topBarMarket = computed(() =>
+  aligned.active.value ? { markPrice: aligned.rows.value.at(-1)?.close ?? null } : lab.market,
+)
+
+function resetWorkbench() {
+  if (!confirm('清空所有持久化参数（输入、UI 状态、主题）并刷新？')) return
+  clearPersistedLab()
+  window.location.reload()
+}
 
 function onParamChange(field, value) {
-  if (lab.input && field in lab.input) {
+  if (typeof lab.setInputField === 'function') {
+    lab.setInputField(field, value)
+  } else if (lab.input && field in lab.input) {
     lab.input[field] = value
   }
 }
 
 function onSetProfile(id) {
   lab.featureFlags.replayAutoProfile = false
-  lab.input.strategyProfile = id
+  onParamChange('strategyProfile', id)
 }
-function onSetAutoProfile(v) {
-  lab.featureFlags.replayAutoProfile = v
-  if (v) lab.featureFlags.replayAccount = true
+
+function onSetAutoProfile(enabled) {
+  lab.featureFlags.replayAutoProfile = Boolean(enabled)
+  if (enabled) lab.featureFlags.replayAccount = true
 }
 
 function selectSample(sample) {
@@ -196,21 +150,15 @@ function openMobileRight() {
   mobileLeftOpen.value = false
 }
 
-function closeMobileDrawers() {
-  mobileLeftOpen.value = false
-  mobileRightOpen.value = false
-}
-
 function openImpactResearch() {
   closeMobileDrawers()
-  impactResearchVisited.value = true
-  impactResearchOpen.value = true
+  openImpactDialog()
 }
 
 function showImpactOnChart() {
   if (aligned.show()) {
     closeMobileDrawers()
-    impactResearchOpen.value = false
+    closeImpactResearch()
     return
   }
   lab.setChartOverlay('impactReferenceMap', true)
@@ -218,61 +166,13 @@ function showImpactOnChart() {
     const sample = allSamples.value.find((item) => item.symbol === 'ETHUSDT')
     if (sample) selectSample(sample)
   }
-  impactResearchOpen.value = false
+  closeImpactResearch()
 }
-
-// 拖宽逻辑（v3.2）
-let dragging = null
-let pendingW = 0
-let rafId = null
-
-function onResizerMouseDown(side, e) {
-  dragging = side
-  e.preventDefault()
-  document.addEventListener('mousemove', onResizerMouseMove)
-  document.addEventListener('mouseup', onResizerMouseUp)
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
-}
-
-function onResizerMouseMove(e) {
-  if (!dragging) return
-  pendingW = dragging === 'left' ? e.clientX : window.innerWidth - e.clientX
-  if (rafId) return
-  rafId = requestAnimationFrame(flushW)
-}
-
-function flushW() {
-  if (dragging === 'left') lab.setLeftPanelW(pendingW)
-  if (dragging === 'right') lab.setRightPanelW(pendingW)
-  rafId = null
-}
-
-function onResizerMouseUp() {
-  dragging = null
-  document.removeEventListener('mousemove', onResizerMouseMove)
-  document.removeEventListener('mouseup', onResizerMouseUp)
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-  if (rafId) {
-    cancelAnimationFrame(rafId)
-    rafId = null
-  }
-}
-
-function onResizerDblclick(side) {
-  side === 'left' ? lab.resetLeftPanelW() : lab.resetRightPanelW()
-}
-
-const rootStyle = computed(() => ({
-  // 公式研究包含图形、输入输出与研究边界；桌面端至少保留可读宽度。
-  '--left-w': `${lab.activeLeftTab === 'compute' ? Math.max(lab.leftPanelW, 360) : lab.leftPanelW}px`,
-  '--right-w': `${lab.rightPanelW}px`,
-}))
 </script>
 
 <template>
-  <RecommendedPoolPage v-if="recommendedPoolMode" />
+  <RecommendedPoolPage v-if="surface === APP_SURFACES.RECOMMENDED_POOL" />
+  <EthDecisionReplay v-else-if="surface === APP_SURFACES.ETH_REPLAY" @back="navigateSurface(APP_SURFACES.WORKBENCH)" />
   <div
     v-else
     class="app-root"
@@ -284,7 +184,7 @@ const rootStyle = computed(() => ({
   >
     <TopBar
       :source="aligned.active.value ? aligned.source.value : lab.source"
-      :market="aligned.active.value ? { markPrice: aligned.rows.value.at(-1)?.close } : lab.market"
+      :market="topBarMarket"
       :rows="aligned.active.value ? aligned.rows.value : lab.rows"
       :research-only="aligned.active.value"
       :decision="aligned.active.value ? null : lab.graph?.decision"
@@ -301,6 +201,7 @@ const rootStyle = computed(() => ({
       @mobile-open-left="openMobileLeft"
       @mobile-open-right="openMobileRight"
       @open-market-impact="openImpactResearch"
+      @open-eth-replay="navigateSurface(APP_SURFACES.ETH_REPLAY)"
     />
 
     <div
@@ -332,11 +233,7 @@ const rootStyle = computed(() => ({
         @select-formula="lab.selectFormula"
         @override-tdpy="(sym, val) => lab.setTdpyOverride(sym, val)"
         @reset-tdpy="(sym) => lab.clearTdpyOverride(sym)"
-        @set-theme="
-          (t) => {
-            theme.value = t
-          }
-        "
+        @set-theme="setTheme"
         @set-overlay="lab.setChartOverlay"
         @reset-all="resetWorkbench"
       />
@@ -427,7 +324,7 @@ const rootStyle = computed(() => ({
     <MarketImpactResearchDialog
       v-if="impactResearchVisited"
       :open="impactResearchOpen"
-      @close="impactResearchOpen = false"
+      @close="closeImpactResearch"
       @show-on-chart="showImpactOnChart"
     />
   </div>

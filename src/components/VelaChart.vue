@@ -197,7 +197,6 @@ function handleCursor(time) {
     <div class="main-chart-chrome">
       <div class="chart-context-rail">
         <WorkbenchSummary :model="summary" compact />
-        <slot name="engine-switch" />
       </div>
       <div class="chart-control-deck">
         <ChartDisplayTools
@@ -209,19 +208,24 @@ function handleCursor(time) {
         />
         <ChartStatusBar :input="input" @change="(field, value) => emit('param-change', field, value)" />
       </div>
-      <PriceReferenceLegend
-        v-if="overlays.priceReferenceMap !== false"
-        :snapshot="referenceMap"
-        :query="referenceQuery"
-        :date="rows[cursorIndex ?? rows.length - 1]?.date"
-        :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
-      />
-      <ImpactReferenceLegend
-        v-if="overlays.impactReferenceMap !== false"
-        :snapshot="impactMap"
-        :date="rows[cursorIndex ?? rows.length - 1]?.date"
-        @open-research="emit('open-market-impact')"
-      />
+      <div
+        v-if="overlays.priceReferenceMap !== false || overlays.impactReferenceMap !== false"
+        class="chart-legends-row"
+      >
+        <PriceReferenceLegend
+          v-if="overlays.priceReferenceMap !== false"
+          :snapshot="referenceMap"
+          :query="referenceQuery"
+          :date="rows[cursorIndex ?? rows.length - 1]?.date"
+          :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
+        />
+        <ImpactReferenceLegend
+          v-if="overlays.impactReferenceMap !== false"
+          :snapshot="impactMap"
+          :date="rows[cursorIndex ?? rows.length - 1]?.date"
+          @open-research="emit('open-market-impact')"
+        />
+      </div>
     </div>
     <div class="main-chart-stage">
       <div ref="el" class="main-chart-canvas" />

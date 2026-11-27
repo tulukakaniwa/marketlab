@@ -33,6 +33,8 @@ const emit = defineEmits([
   'set-overlay',
   'set-path-scenario',
   'set-lp-scenario-field',
+  'patch-input',
+  'set-feature-flag',
 ])
 </script>
 
@@ -44,6 +46,9 @@ const emit = defineEmits([
       :overlays="overlays"
       :rows="rows"
       :cursor="cursor"
+      @patch-input="(patch) => emit('patch-input', patch)"
+      @set-feature-flag="(flag, value) => emit('set-feature-flag', flag, value)"
+      @set-overlay="(key, value) => emit('set-overlay', key, value)"
     />
 
     <section class="sd-section">
@@ -59,18 +64,24 @@ const emit = defineEmits([
 
     <section class="sd-section">
       <h3 class="sd-h">模拟参数</h3>
-      <SimulationInputs :input="input" :graph="graph" />
+      <SimulationInputs :input="input" :graph="graph" @patch-input="(patch) => emit('patch-input', patch)" />
     </section>
 
     <section class="sd-section">
       <h3 class="sd-h">执行规则</h3>
-      <StrategyProfileInputs :input="input" :profile-list="profileList" :graph="graph" />
+      <StrategyProfileInputs
+        :input="input"
+        :profile-list="profileList"
+        :graph="graph"
+        @patch-input="(patch) => emit('patch-input', patch)"
+      />
     </section>
 
     <section class="sd-section">
       <h3 class="sd-h">期权组合研究</h3>
       <OptionPortfolioInputs
         :input="input"
+        @patch-input="(patch) => emit('patch-input', patch)"
         @set-path-scenario="(value) => emit('set-path-scenario', value)"
         @set-lp-scenario-field="(field, value) => emit('set-lp-scenario-field', field, value)"
       />

@@ -9,7 +9,7 @@ const PRODUCTION_FILES = [
   'src/composables/useMarketState.js',
   'src/domain/formula-research/researchSnapshot.js',
   'src/domain/market-data/cost.js',
-  'src/domain/market-data/formulaPath.js',
+  'src/domain/formula-research/path/formulaPath.js',
   'src/domain/market-data/tdpy.js',
   'src/domain/strategy-planning/orderPlanTiming.js',
   'src/domain/strategy-planning/orderPlanContext.js',

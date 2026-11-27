@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FORMULA_PATH_CURVES } from '../market-data/formulaPath.js'
+import { FORMULA_PATH_CURVES } from '../formula-research/path/formulaPath.js'
 import {
   MARKET_LAB_CHART_INDICATOR_CATALOG,
   MARKET_LAB_CHART_INDICATOR_GROUPS,

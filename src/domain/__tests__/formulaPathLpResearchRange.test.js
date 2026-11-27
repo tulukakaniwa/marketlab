@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveFormulaPathLpResearchRange } from '../market-data/formulaPathLpResearchRange.js'
+import { deriveFormulaPathLpResearchRange } from '../formula-research/path/formulaPathLpResearchRange.js'
 
 describe('deriveFormulaPathLpResearchRange', () => {
   it('从 GetDelta 的动态 r(T) 在 sqrt-price 空间推导研究区间', () => {

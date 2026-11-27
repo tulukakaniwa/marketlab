@@ -6,7 +6,8 @@ const props = defineProps({
   graph: { type: Object, default: null },
 })
 
-// 百分号转换：输入 0.05（5%）→ 显示 5；输入 5 → 存储 0.05
+const emit = defineEmits(['patch-input'])
+
 function pctIn(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n / 100 : 0
@@ -15,26 +16,10 @@ function pctOut(v) {
   return Number.isFinite(v) ? Number((v * 100).toFixed(2)) : 0
 }
 
-// 波动率、GetDelta 目标增量、退出目标 三个百分号字段
-const ivP = computed({
-  get: () => pctOut(props.input.iv),
-  set: (v) => {
-    props.input.iv = pctIn(v)
-    props.input.ivSource = 'manual-scenario'
-  },
-})
-const deltaSlopeP = computed({
-  get: () => pctOut(props.input.deltaSlope),
-  set: (v) => {
-    props.input.deltaSlope = pctIn(v)
-  },
-})
-const exitTargetP = computed({
-  get: () => pctOut(props.input.exitTargetReturn),
-  set: (v) => {
-    props.input.exitTargetReturn = pctIn(v)
-  },
-})
+function numIn(raw, fallback = 0) {
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : fallback
+}
 
 const bandText = computed(() => {
   const band = props.graph?.deltaBands?.long
@@ -60,13 +45,46 @@ function fmt(value) {
     </div>
 
     <div class="si-form">
-      <label><span>入场价</span><input v-model.number="input.entryPrice" type="number" step="0.01" /></label>
-      <label
-        ><span>公式周期</span><output>{{ horizonText }}</output></label
-      >
-      <label><span>情景 σ%</span><input v-model.number="ivP" type="number" step="0.5" /></label>
-      <label><span>目标增量 d%</span><input v-model.number="deltaSlopeP" type="number" step="0.5" /></label>
-      <label><span>退出目标%</span><input v-model.number="exitTargetP" type="number" step="0.5" /></label>
+      <label>
+        <span>入场价</span>
+        <input
+          :value="input.entryPrice"
+          type="number"
+          step="0.01"
+          @input="emit('patch-input', { entryPrice: numIn($event.target.value, input.entryPrice) })"
+        />
+      </label>
+      <label>
+        <span>公式周期</span>
+        <output>{{ horizonText }}</output>
+      </label>
+      <label>
+        <span>情景 σ%</span>
+        <input
+          :value="pctOut(input.iv)"
+          type="number"
+          step="0.5"
+          @input="emit('patch-input', { iv: pctIn($event.target.value), ivSource: 'manual-scenario' })"
+        />
+      </label>
+      <label>
+        <span>目标增量 d%</span>
+        <input
+          :value="pctOut(input.deltaSlope)"
+          type="number"
+          step="0.5"
+          @input="emit('patch-input', { deltaSlope: pctIn($event.target.value) })"
+        />
+      </label>
+      <label>
+        <span>退出目标%</span>
+        <input
+          :value="pctOut(input.exitTargetReturn)"
+          type="number"
+          step="0.5"
+          @input="emit('patch-input', { exitTargetReturn: pctIn($event.target.value) })"
+        />
+      </label>
     </div>
     <p class="si-link">多头低/成本/高：{{ bandText }}。模拟挂单继续叠加成本带、策略档位和账户权益。</p>
   </div>

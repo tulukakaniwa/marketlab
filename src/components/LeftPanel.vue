@@ -102,6 +102,7 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           :source-key="lab.sourceKey"
           :native-center-settings="nativeCenterSettings"
           @center-input-change="lab.setCenterInput"
+          @patch-input="lab.patchInput"
           @set-profile="(id) => emit('set-profile', id)"
           @set-auto-profile="(v) => emit('set-auto-profile', v)"
         />
@@ -143,6 +144,8 @@ const collapsedLabel = computed(() => TAB_LABELS[props.activeTab] || '面板')
           @set-overlay="(key, value) => emit('set-overlay', key, value)"
           @set-path-scenario="lab.setPathUsesScenarioInputs"
           @set-lp-scenario-field="lab.setLpScenarioField"
+          @patch-input="lab.patchInput"
+          @set-feature-flag="lab.setFeatureFlag"
           @reset-all="emit('reset-all')"
           @set-observation-date="(date) => lab.setObservationDate(date)"
           @latest-observation="lab.useLatestObservation"

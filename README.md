@@ -55,7 +55,7 @@ pnpm run verify:pine
 
 - Vue 3 + JavaScript + Vite
 - Pinia as the ViewModel/state layer
-- Vela for the research chart; HQChart for mainland formula syntax and tools
+- Vela as the sole main K-line & research chart engine; HQChart lazy-loaded exclusively for Option Greeks & payoff research
 - d3-dsv for CSV parsing
 - Vitest for domain and component tests
 - pnpm for package and script management
@@ -81,7 +81,6 @@ src/
   composables/             # UI commands, persistence, data loading, replay, overlays
   components/              # Workbench components
   styles/                  # CSS split by interface domain
-  canvas/                  # Formula graph canvas
   data/                    # Instrument index
 
 public/data/               # Static CSV datasets

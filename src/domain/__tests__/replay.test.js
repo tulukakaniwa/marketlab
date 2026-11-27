@@ -9,7 +9,7 @@ import {
   summarizeReplay,
 } from '../replay/dailyReplay.js'
 import { initialExitPlan, orderExitPlan } from '../replay/dailyReplayExecution.js'
-import { strategyProfileList } from '../planning/orderPlan.js'
+import { strategyProfileList } from '../strategy-planning/orderPlan.js'
 
 function makeRows(n, gen) {
   return Array.from({ length: n }, (_, i) => {

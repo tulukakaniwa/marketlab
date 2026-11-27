@@ -1,0 +1,137 @@
+.opi-card {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+.opi-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: end;
+}
+.opi-head div {
+  display: grid;
+  gap: 1px;
+}
+.opi-head span {
+  color: var(--green);
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.opi-head strong {
+  font-size: 0.95rem;
+}
+.opi-head small {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-align: right;
+}
+.opi-strategies,
+.opi-controls,
+.opi-segment,
+.opi-widths {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.opi-strategies button,
+.opi-controls button,
+.opi-widths button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 0.72rem;
+}
+.opi-strategies button.active,
+.opi-segment button.active {
+  border-color: var(--green);
+  background: var(--surface-active);
+  color: var(--green);
+}
+.opi-summary {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.opi-summary b {
+  font-size: 0.78rem;
+}
+.opi-summary span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+.opi-controls {
+  align-items: center;
+}
+.opi-segment {
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+}
+.opi-segment button {
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+}
+.opi-ghost {
+  margin-left: auto;
+}
+.opi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.opi-grid label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.opi-grid span {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.opi-grid input {
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.opi-advanced {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+.opi-advanced summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.opi-advanced[open] {
+  display: grid;
+  gap: 8px;
+}
+.opi-widths button {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+}

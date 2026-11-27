@@ -1,10 +1,23 @@
 .dd-drawer {
   display: grid;
-  gap: 0;
+  gap: 10px;
   min-width: 0;
 }
 .dd-drawer > * {
   min-width: 0;
+}
+.dd-tier-group {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.dd-tier-label {
+  padding: 2px 2px 0;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .dd-reason-text {
   margin: 0;

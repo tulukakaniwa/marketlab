@@ -46,10 +46,16 @@ const emit = defineEmits([
   'mobile-open-left',
   'mobile-open-right',
   'open-market-impact',
+  'open-eth-replay',
 ])
 
 function openImpactResearch() {
   emit('open-market-impact')
+  closeOverflow()
+}
+
+function openEthReplay() {
+  emit('open-eth-replay')
   closeOverflow()
 }
 
@@ -94,11 +100,7 @@ const narrativeText = computed(() => {
   })
 })
 
-const recommendation = computed(() => {
-  const d = props.decision
-  if (!d) return null
-  return d.state || null
-})
+const recommendation = computed(() => props.decision?.state || null)
 
 function money(v) {
   return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—'
@@ -135,15 +137,17 @@ function pctSign(v) {
       </div>
       <div v-if="!researchOnly" class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
       <div v-if="recommendation" class="tb-segment tb-action">
-        <span>市场结构</span>
+        <span>结构</span>
         <strong>{{ recommendation }}</strong>
-        <em title="正态参考下的偏离极端度，不是胜率">偏离极端度 {{ Math.round(extremeness * 100) }}%</em>
+        <em title="正态参考下的偏离极端度，不是胜率">偏离 {{ Math.round(extremeness * 100) }}%</em>
       </div>
     </div>
 
     <div class="tb-actions tb-desktop-only">
-      <a class="eth-replay-link" href="?view=eth-replay">ETH 决策回放</a>
-      <button class="tb-reset" type="button" @click="openImpactResearch">市场冲击研究</button>
+      <nav class="tb-nav-pills" aria-label="专项研究入口">
+        <button class="tb-nav-pill" type="button" @click="openImpactResearch">冲击研究</button>
+        <a class="tb-nav-pill" href="?view=eth-replay" @click.prevent="openEthReplay">ETH 决策回放</a>
+      </nav>
       <ProfileChip
         v-if="!researchOnly"
         :profile-id="profileId"
@@ -159,6 +163,7 @@ function pctSign(v) {
       </button>
       <button class="tb-reset" type="button" title="清空持久化参数" @click="$emit('reset')">重置</button>
     </div>
+
     <div v-if="isCompact" class="tb-overflow-wrap">
       <button
         class="tb-mobile-btn tb-overflow-btn"
@@ -171,17 +176,20 @@ function pctSign(v) {
         <MoreHorizontal :size="20" />
       </button>
       <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
-        <a class="eth-replay-link" href="?view=eth-replay">ETH 决策回放</a>
-        <button class="tb-overflow-item" @click="openImpactResearch">市场冲击研究</button>
-        <button class="tb-overflow-item" @click="toggleThemeFromOverflow">
+        <div class="tb-overflow-section">研究表面</div>
+        <button class="tb-overflow-item" type="button" @click="openImpactResearch">ETH 市场冲击研究</button>
+        <a class="tb-overflow-item" href="?view=eth-replay" @click.prevent="openEthReplay">ETH 分钟决策回放</a>
+        <div class="tb-overflow-section">全局控制</div>
+        <button class="tb-overflow-item" type="button" @click="toggleThemeFromOverflow">
           切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
         </button>
-        <button class="tb-overflow-item" @click="resetFromOverflow">重置工作台</button>
+        <button class="tb-overflow-item" type="button" @click="resetFromOverflow">重置工作台</button>
         <template v-if="!researchOnly">
-          <div class="tb-overflow-section">策略 Profile</div>
+          <div class="tb-overflow-section">策略档位</div>
           <button
             v-for="p in profileList"
             :key="p.id"
+            type="button"
             class="tb-overflow-item"
             :class="{ 'is-active': p.id === profileId && !autoProfile }"
             @click="setProfileFromOverflow(p.id)"
@@ -189,12 +197,18 @@ function pctSign(v) {
             {{ p.label || p.id }}
             <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
           </button>
-          <button class="tb-overflow-item" :class="{ 'is-active': autoProfile }" @click="toggleAutoProfileFromOverflow">
+          <button
+            type="button"
+            class="tb-overflow-item"
+            :class="{ 'is-active': autoProfile }"
+            @click="toggleAutoProfileFromOverflow"
+          >
             自动跟随回放：{{ autoProfile ? '开' : '关' }}
           </button>
         </template>
       </div>
     </div>
+
     <button
       v-if="isCompact"
       class="tb-mobile-btn tb-mobile-right"
@@ -207,243 +221,4 @@ function pctSign(v) {
   </header>
 </template>
 
-<style>
-.eth-replay-link {
-  color: var(--green);
-  font-size: 0.8rem;
-  font-weight: 700;
-  white-space: nowrap;
-  padding: 6px;
-}
-.topbar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: center;
-  padding: 7px 14px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  flex-shrink: 0;
-}
-.tb-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.tb-brand span {
-  color: var(--green);
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-.tb-brand span em {
-  color: var(--muted);
-  font-style: normal;
-  letter-spacing: 0.03em;
-}
-.tb-brand h1 {
-  margin: 0;
-  font-size: 0.96rem;
-  line-height: 1;
-}
-.tb-summary {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-}
-.tb-segment {
-  display: inline-flex;
-  gap: 5px;
-  align-items: baseline;
-  padding: 0 10px;
-  border-left: 1px solid var(--line);
-  white-space: nowrap;
-}
-.tb-segment:first-child {
-  border-left: none;
-  padding-left: 0;
-}
-.tb-price strong {
-  font-size: 1rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-}
-.tb-price em {
-  font-style: normal;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.tb-price em.up {
-  color: var(--green);
-}
-.tb-price em.down {
-  color: var(--red);
-}
-.tb-narrative {
-  color: var(--ink);
-  font-size: 0.85rem;
-  line-height: 1.3;
-  max-width: 360px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tb-action span {
-  color: var(--muted);
-  font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.tb-action strong {
-  font-size: 0.86rem;
-  font-weight: 800;
-}
-.tb-action em {
-  font-style: normal;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-.tb-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.tb-theme {
-  min-width: 28px;
-  min-height: 28px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--ink);
-  cursor: pointer;
-}
-.tb-theme:hover {
-  border-color: var(--green);
-}
-.tb-reset {
-  min-height: 26px;
-  padding: 1px 9px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.66rem;
-  cursor: pointer;
-  opacity: 0.7;
-}
-.tb-reset:hover {
-  opacity: 1;
-  border-color: var(--green);
-}
-
-@media (max-width: 1024px) {
-  .tb-summary .tb-action {
-    display: none;
-  }
-}
-@media (max-width: 1279px) {
-  .tb-summary .tb-narrative,
-  .tb-summary .tb-action {
-    display: none;
-  }
-}
-
-.tb-mobile-btn {
-  display: none;
-}
-@media (max-width: 1279px) {
-  /* mobile 下 topbar 子节点变多（左按钮 / brand / summary / actions / 右按钮），
-     扩到 5 列 grid 避免 implicit row 自动换行；summary 仍是唯一弹性轨道 */
-  .topbar {
-    grid-template-columns: auto auto 1fr auto auto;
-    gap: 8px;
-    padding: 7px 10px;
-  }
-  .tb-brand {
-    min-width: 0;
-  }
-  .tb-brand h1 {
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tb-mobile-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--ink);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .tb-mobile-btn:hover {
-    border-color: var(--green);
-  }
-}
-
-@media (max-width: 1279px) {
-  .tb-desktop-only {
-    display: none !important;
-  }
-
-  .tb-overflow-wrap {
-    position: relative;
-  }
-  .tb-overflow-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 4px;
-    min-width: 220px;
-    max-width: 80vw;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    z-index: 60;
-    padding: 4px;
-  }
-  .tb-overflow-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 10px 12px;
-    border: none;
-    background: transparent;
-    color: var(--ink);
-    font-size: 0.82rem;
-    cursor: pointer;
-    border-radius: 6px;
-  }
-  .tb-overflow-item:hover {
-    background: var(--surface-alt);
-  }
-  .tb-overflow-item.is-active {
-    color: var(--green);
-    font-weight: 700;
-  }
-  .tb-overflow-section {
-    padding: 8px 12px 4px;
-    font-size: 0.66rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .tb-recommended {
-    margin-left: 6px;
-    font-size: 0.66rem;
-    color: var(--green);
-  }
-}
-</style>
+<style src="../styles/topbar.css"></style>

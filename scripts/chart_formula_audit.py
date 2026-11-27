@@ -15,7 +15,7 @@ def node_summary() -> dict:
     code = """
       import { readFile } from 'node:fs/promises'
       import { buildMarketState } from './src/domain/market-data/cost.js'
-      import { FORMULA_PATH_FIELDS, buildFormulaPath } from './src/domain/market-data/formulaPath.js'
+      import { FORMULA_PATH_FIELDS, buildFormulaPath } from './src/domain/formula-research/path/formulaPath.js'
       import { MARKET_LAB_CHART_INDICATOR_CATALOG } from './src/domain/research-visualization/marketLabChartIndicators.js'
       import { formulaEvidenceCatalog } from './src/domain/formulas/evidence.js'
       import { parseBinanceKlines } from './src/domain/market-data/ohlcv.js'

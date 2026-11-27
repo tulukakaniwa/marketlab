@@ -1,6 +1,6 @@
 import { buildMarketStatePath, isPrefixCausalMarketStatePath } from '../market-data/cost.js'
-import { buildFormulaPath } from '../market-data/formulaPath.js'
-import { buildDecisionGraph, resolveProfile } from '../planning/orderPlan.js'
+import { buildFormulaPath } from '../formula-research/path/formulaPath.js'
+import { buildDecisionGraph, resolveProfile } from '../strategy-planning/orderPlan.js'
 import { buildDynamicHoldingGate } from '../strategy-planning/dynamicHoldingGate.js'
 import {
   accountExit,

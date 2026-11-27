@@ -7,20 +7,19 @@ import {
 } from '../research-visualization/chartEngines.js'
 
 describe('chart engine profiles', () => {
-  it('非法或旧持久化值迁移到 Vela', () => {
+  it('主图历史持久化值（lightweight / hqchart / 未知）统一无损收敛到 Vela', () => {
     expect(normalizeChartEngine('lightweight')).toBe(CHART_ENGINE_IDS.VELA)
+    expect(normalizeChartEngine('hqchart')).toBe(CHART_ENGINE_IDS.VELA)
     expect(normalizeChartEngine('unknown')).toBe(CHART_ENGINE_IDS.VELA)
     expect(getChartEngineProfile(null).label).toBe('Vela 研究图')
   })
 
-  it('HQ 模式接入自研指标并声明仍留在研究图的标记能力', () => {
-    const profile = getChartEngineProfile(CHART_ENGINE_IDS.HQCHART)
-    const notice = getChartEngineNotice(CHART_ENGINE_IDS.HQCHART)
-    expect(profile.capabilities).toContain('Market Lab 公式带')
-    expect(profile.capabilities).toContain('自研副图')
-    expect(profile.capabilities).toContain('研究筹码')
-    expect(notice).toContain('回放标记')
-    expect(notice).not.toContain('研究筹码')
-    expect(notice).toContain('不会删除状态')
+  it('HQ 引擎专职期权研究模块，不再承担主图 K 线终端职责', () => {
+    const profile = getChartEngineProfile(CHART_ENGINE_IDS.HQCHART_OPTIONS)
+    const notice = getChartEngineNotice(CHART_ENGINE_IDS.HQCHART_OPTIONS)
+    expect(profile.scope).toBe('options-research')
+    expect(profile.capabilities).toContain('期权 Delta / Gamma / Theta 序列')
+    expect(notice).toContain('仅服务期权研究模块')
+    expect(notice).toContain('Vela')
   })
 })

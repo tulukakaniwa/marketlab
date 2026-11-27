@@ -82,6 +82,27 @@ export function usePlanning() {
     input.pathUsesScenarioInputs = value === true
   }
 
+  function setInputField(field, value) {
+    if (!field || !Object.hasOwn(input, field)) return
+    input[field] = value
+  }
+
+  function patchInput(patch) {
+    if (!patch || typeof patch !== 'object') return
+    for (const [field, value] of Object.entries(patch)) {
+      setInputField(field, value)
+    }
+  }
+
+  function setFeatureFlag(flag, value) {
+    if (!flag || !Object.hasOwn(featureFlags, flag)) return
+    const enabled = Boolean(value)
+    featureFlags[flag] = enabled
+    if (flag === 'replayAccount' && !enabled) {
+      featureFlags.replayAutoProfile = false
+    }
+  }
+
   const activeFormulaId = persistedRef('lab.activeFormulaId.v1', 'delta-band')
   const activeCapabilityId = persistedRef('lab.activeCapabilityId.v1', 'move-derivative')
   activeFormulaId.value = normalizeFormulaId(activeFormulaId.value)
@@ -153,6 +174,9 @@ export function usePlanning() {
     setTdpyOverride,
     clearTdpyOverride,
     setPathUsesScenarioInputs,
+    setInputField,
+    patchInput,
+    setFeatureFlag,
     activeCapabilityId,
     activeFormulaId,
     activeCapability,

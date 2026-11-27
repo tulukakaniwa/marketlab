@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildDailyReplay } from '../domain/replay/dailyReplay.js'
-import { buildFormulaPath } from '../domain/market-data/formulaPath.js'
+import { buildFormulaPath } from '../domain/formula-research/path/formulaPath.js'
 import { loadCsv } from './helpers/loadCsv.js'
 
 describe('dynamic candidate replay golden', () => {

@@ -5,6 +5,7 @@ import { useEthReplay } from '../../composables/useEthReplay.js'
 import MarketLines from './MarketLines.vue'
 import '../../styles/eth-decision.css'
 
+const emit = defineEmits(['back'])
 const { index, date, minute, playing, speed, view: v, jump, step, retry, error } = useEthReplay()
 const l = computed(() => v.value?.liquidity)
 const n = (value, places = 2) =>
@@ -31,7 +32,9 @@ onMounted(() => {
 
 <template>
   <main class="eth-replay">
-    <header class="eth-head"><a href="./">← Market Lab 工作台</a><span>历史回放 · UTC</span></header>
+    <header class="eth-head">
+      <a href="./" @click.prevent="emit('back')">← Market Lab 工作台</a><span>历史回放 · UTC</span>
+    </header>
     <div class="eth-heading">
       <div>
         <h1>ETH 决策回放</h1>

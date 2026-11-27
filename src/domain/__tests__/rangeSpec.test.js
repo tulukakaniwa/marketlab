@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildResearchSnapshot } from '../formula-research/researchSnapshot.js'
-import { buildFormulaPath } from '../market-data/formulaPath.js'
+import { buildFormulaPath } from '../formula-research/path/formulaPath.js'
 
 const rows = Array.from({ length: 40 }, (_, index) => {
   const close = 100 + Math.sin(index / 5)

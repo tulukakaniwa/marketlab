@@ -306,6 +306,9 @@ export const useLabStore = defineStore('lab', () => {
     setTdpyOverride: planning.setTdpyOverride,
     clearTdpyOverride: planning.clearTdpyOverride,
     setPathUsesScenarioInputs: planning.setPathUsesScenarioInputs,
+    setInputField: planning.setInputField,
+    patchInput: planning.patchInput,
+    setFeatureFlag: planning.setFeatureFlag,
     setLpScenarioField,
     tdpyOverride: planning.tdpyOverride,
 

@@ -71,7 +71,7 @@ It may read MarketData, FormulaResearch, and StrategyPlanning outputs, but it mu
 
 ### Workbench UI BC
 
-Paths: `src/components/`, `src/composables/`, `src/stores/`, `src/canvas/`
+Paths: `src/components/`, `src/composables/`, `src/stores/`, `src/infrastructure/`
 
 Owns Vue, Pinia, persistence, layout, controls, and interaction commands. It should compose query models from the domain BCs and avoid embedding formulas or trading rules.
 

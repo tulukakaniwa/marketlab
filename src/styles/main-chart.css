@@ -22,8 +22,25 @@
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(420px, 1fr) auto auto;
-  gap: 10px;
+  gap: 8px;
   align-items: end;
+}
+
+.chart-legends-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: start;
+  min-width: 0;
+}
+
+.chart-legends-row > details {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.chart-legends-row > details[open] {
+  flex-basis: 100%;
 }
 
 .main-chart-stage {

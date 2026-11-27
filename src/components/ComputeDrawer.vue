@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import MetricStrip from './MetricStrip.vue'
 import ChainFlow from './ChainFlow.vue'
 import FormulaDrawerContent from './FormulaDrawerContent.vue'
@@ -7,6 +7,9 @@ import FormulaChart from './FormulaChart.vue'
 import FormulaNav from './FormulaNav.vue'
 import WorkbenchSummary from './WorkbenchSummary.vue'
 import { resolveDisplayedDeltaBand } from '../domain/formula-research/formulaAvailability.js'
+import { isOptionResearchFormula } from '../domain/formula-research/optionGreeksSeries.js'
+
+const OptionHqChart = defineAsyncComponent(() => import('./OptionHqChart.vue'))
 
 const props = defineProps({
   graph: { type: Object, required: true },
@@ -152,6 +155,14 @@ function compactVolume(v) {
         :market="market"
         :rows="rows"
         :cost-path="costPath"
+        :formula-path="formulaPath"
+      />
+      <OptionHqChart
+        v-if="isOptionResearchFormula(activeFormulaId)"
+        :rows="rows"
+        :source-label="sourceLabel"
+        :market="market"
+        :graph="graph"
         :formula-path="formulaPath"
       />
       <details v-if="activeFormulaId" class="cd-detail">

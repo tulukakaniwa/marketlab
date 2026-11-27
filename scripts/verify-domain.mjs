@@ -12,9 +12,9 @@ import {
 } from '../src/domain/formulas/core.js'
 import { formulaStages } from '../src/domain/formulas/registry.js'
 import { buildMarketState, buildMarketStatePath } from '../src/domain/market-data/cost.js'
-import { buildFormulaPath } from '../src/domain/market-data/formulaPath.js'
+import { buildFormulaPath } from '../src/domain/formula-research/path/formulaPath.js'
 import { parseBinanceKlines, parseCsvText } from '../src/domain/market-data/ohlcv.js'
-import { buildDecisionGraph, strategyProfileList } from '../src/domain/planning/orderPlan.js'
+import { buildDecisionGraph, strategyProfileList } from '../src/domain/strategy-planning/orderPlan.js'
 
 const bands = getDeltaBands({
   entryPrice: 100,
