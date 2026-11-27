@@ -150,9 +150,9 @@ function greekTone(value) {
       <circle v-if="lpV3Curve" :cx="lpV3Marker?.cx" :cy="lpV3Marker?.cy" r="4" fill="var(--ink)" />
       <text v-if="lpV3Curve" :x="lpV3Marker?.cx + 8" :y="lpV3Marker?.cy - 6" class="fc-tick">入场</text>
       <!-- Real on-chain pool price marker -->
-      <line v-if="lpRealMarker" :x1="lpRealMarker.x" :x2="lpRealMarker.x" :y1="syH(1)" :y2="syH(0.08)" stroke="#8b5a16" stroke-width="1.6" stroke-dasharray="2,2" />
-      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.14)" class="fc-tick" fill="#8b5a16">链上 {{ fmt(lpRealMarker.price) }}</text>
-      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.23)" class="fc-tick" fill="#8b5a16">偏离 {{ pctFmt(lpRealMarker.divergence) }}</text>
+      <line v-if="lpRealMarker" :x1="lpRealMarker.x" :x2="lpRealMarker.x" :y1="syH(1)" :y2="syH(0.08)" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="2,2" />
+      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.14)" class="fc-tick" fill="var(--amber)">链上 {{ fmt(lpRealMarker.price) }}</text>
+      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.23)" class="fc-tick" fill="var(--amber)">偏离 {{ pctFmt(lpRealMarker.divergence) }}</text>
       <!-- Range bounds -->
       <line v-if="lpV3Curve" :x1="lpV3Bounds?.loX" :x2="lpV3Bounds?.loX" :y1="syH(1)" :y2="syH(0.1)" stroke="var(--blue)" stroke-width="0.8" stroke-dasharray="3,3" />
       <line v-if="lpV3Curve" :x1="lpV3Bounds?.hiX" :x2="lpV3Bounds?.hiX" :y1="syH(1)" :y2="syH(0.1)" stroke="var(--red)" stroke-width="0.8" stroke-dasharray="3,3" />

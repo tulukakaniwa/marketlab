@@ -1,9 +1,18 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>市场路径实验台</title>
+    <title>Market Lab · 量化路径工作台</title>
+    <script>
+      try {
+        const raw = localStorage.getItem('lab.theme.v2')
+        const val = raw ? JSON.parse(raw) : 'dark'
+        document.documentElement.classList.toggle('dark', val !== 'light')
+      } catch {
+        document.documentElement.classList.add('dark')
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

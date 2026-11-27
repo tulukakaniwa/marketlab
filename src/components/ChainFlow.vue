@@ -10,10 +10,10 @@ const props = defineProps({
 const emit = defineEmits(['select'])
 
 const pipeline = computed(() => [
-  { id: 'path', label: '路径', val: props.market?.rows ? `${props.market.rows}条` : '—' },
+  { id: 'path', label: '样本', val: props.market?.rows ? `${props.market.rows}` : '—', sub: 'K线' },
   {
     id: 'cost',
-    label: '成本',
+    label: '成本锚',
     val: fmt(props.market?.costAnchor),
     sub: pctFmt(props.market?.costDistance),
     tone: (props.market?.costDistance ?? 0) < 0 ? 'lo' : 'hi',
@@ -33,44 +33,33 @@ const pipeline = computed(() => [
   },
   {
     id: 'order-plan',
-    label: '候选 / 执行',
+    label: '门禁',
     val: props.graph.plan?.primaryOrders?.length
-      ? `${props.graph.plan.primaryOrders.length} 档模拟`
-      : `候选${props.graph.decision?.candidateStatus ?? '等待'}`,
-    sub: `市场结构 ${props.graph.decision?.state ?? '等待'} · ${executionLabel(props.graph.decision?.executionStatus)}`,
+      ? `${props.graph.plan.primaryOrders.length}档`
+      : `${props.graph.decision?.candidateStatus ?? '等待'}`,
+    sub: executionLabel(props.graph.decision?.executionStatus),
   },
 ])
 
 function executionLabel(status) {
-  return status === 'simulation-only' ? '仅模拟' : '不可执行'
+  return status === 'simulation-only' ? '模拟' : '拦截'
 }
 
 function fmt(v) {
   return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—'
 }
 function pctFmt(v) {
-  return Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : '—'
+  return Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—'
 }
 
 function nClass(n) {
   if (!n.tone) return ''
-  return n.tone === 'lo'
-    ? 'cf-lo'
-    : n.tone === 'hi'
-      ? 'cf-hi'
-      : n.tone === 'up'
-        ? 'cf-up'
-        : n.tone === 'down'
-          ? 'cf-down'
-          : n.tone === 'band'
-            ? 'cf-band'
-            : ''
+  return `cf-${n.tone}`
 }
 </script>
 
 <template>
   <div class="cf-strip">
-    <span class="cf-layer-tag">事实链</span>
     <ol class="cf-layer">
       <li v-for="n in pipeline" :key="n.id" class="cf-step">
         <button
@@ -91,130 +80,82 @@ function nClass(n) {
 <style>
 .cf-strip {
   container-type: inline-size;
-  display: grid;
-  gap: 6px;
   min-width: 0;
-  padding: 6px 8px 8px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
 }
 .cf-layer {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 3px;
   min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
-.cf-layer-tag {
-  color: var(--green);
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-}
 .cf-step {
-  position: relative;
   min-width: 0;
-}
-.cf-step:not(:last-child)::after {
-  content: '›';
-  position: absolute;
-  top: 50%;
-  right: -8px;
-  color: var(--muted);
-  font-size: 0.86rem;
-  line-height: 1;
-  transform: translateY(-50%);
 }
 .cf-node {
   display: grid;
-  gap: 2px;
-  justify-items: center;
+  gap: 1px;
+  justify-items: start;
   width: 100%;
   min-width: 0;
-  min-height: 48px;
+  min-height: 44px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 5px 4px;
+  border-radius: var(--r-xs);
+  padding: 4px 5px;
   background: transparent;
   color: var(--ink);
-  cursor: pointer;
-  transition: background 0.1s;
+  text-align: left;
 }
 .cf-node:hover {
-  background: var(--surface-alt);
+  background: var(--surface-hover);
 }
 .cf-node.active {
-  border-color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 48%, transparent);
   background: var(--surface-active);
 }
-.cf-node:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 1px;
-}
-
 .cf-label {
-  min-width: 0;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+.cf-node.active .cf-label {
   color: var(--green);
-  font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.02em;
 }
 .cf-val {
   max-width: 100%;
-  overflow-wrap: anywhere;
-  font-size: 0.78rem;
-  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .cf-sub {
   max-width: 100%;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.6rem;
 }
-
-.cf-lo .cf-val {
-  color: var(--blue);
-}
-.cf-hi .cf-val {
-  color: var(--red);
-}
-.cf-up .cf-val {
-  color: var(--green);
-}
-.cf-down .cf-val {
-  color: var(--red);
-}
+.cf-lo .cf-val,
 .cf-band .cf-val {
   color: var(--blue);
 }
-
-@container (max-width: 339px) {
+.cf-hi .cf-val {
+  color: var(--amber);
+}
+@container (max-width: 280px) {
   .cf-layer {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .cf-step:not(:last-child)::after {
-    content: '↓';
-    top: auto;
-    right: auto;
-    bottom: -13px;
-    left: 18px;
-    transform: none;
-  }
-  .cf-node {
-    grid-template-columns: minmax(46px, auto) minmax(0, 1fr) minmax(0, auto);
-    align-items: baseline;
-    justify-items: start;
-    min-height: 40px;
-    padding: 7px 9px;
-    text-align: left;
-  }
-  .cf-sub {
-    justify-self: end;
-    text-align: right;
+    grid-template-columns: 1fr 1fr;
   }
 }
 </style>

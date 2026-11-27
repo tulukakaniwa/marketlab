@@ -1,8 +1,6 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { Moon, Sun, Menu, List, MoreHorizontal } from 'lucide-vue-next'
-import { summarizeRegime } from '../domain/decision/narrative.js'
-import { deriveWindows } from '../domain/market-data/cost.js'
+import { Moon, Sun, Menu, List, MoreHorizontal, RotateCcw, ChevronDown } from 'lucide-vue-next'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
 import ProfileChip from './ProfileChip.vue'
 
@@ -43,10 +41,12 @@ const emit = defineEmits([
   'set-auto-profile',
   'toggle-theme',
   'reset',
+  'toggle-right',
   'mobile-open-left',
   'mobile-open-right',
   'open-market-impact',
   'open-eth-replay',
+  'open-recommended-pool',
 ])
 
 function openImpactResearch() {
@@ -56,6 +56,11 @@ function openImpactResearch() {
 
 function openEthReplay() {
   emit('open-eth-replay')
+  closeOverflow()
+}
+
+function openRecommendedPool() {
+  emit('open-recommended-pool')
   closeOverflow()
 }
 
@@ -88,18 +93,6 @@ const dailyChange = computed(() => {
   return (last - prev) / prev
 })
 
-const narrativeText = computed(() => {
-  const m = props.market
-  if (!m) return '载入 K 线后判断'
-  const window = props.rows.length ? deriveWindows(props.rows.length).cost : null
-  return summarizeRegime({
-    markPrice: m.markPrice,
-    costAnchor: m.costAnchor,
-    costDistance: m.costDistance,
-    costWindow: window,
-  })
-})
-
 const recommendation = computed(() => props.decision?.state || null)
 
 function money(v) {
@@ -118,36 +111,60 @@ function pctSign(v) {
       v-if="isCompact"
       class="tb-mobile-btn tb-mobile-left"
       type="button"
-      aria-label="打开菜单"
+      aria-label="打开左侧工具面板"
       @click="$emit('mobile-open-left')"
     >
-      <Menu :size="20" />
+      <Menu :size="18" />
     </button>
-    <div class="tb-brand">
-      <span
-        >Market Lab <em v-if="source">{{ source.symbol }} · {{ source.interval }}</em></span
-      >
-      <h1>{{ source?.label ?? '行情研究台' }}</h1>
-    </div>
 
-    <div v-if="market" class="tb-summary">
-      <div class="tb-segment tb-price">
-        <strong>{{ money(market.markPrice) }}</strong>
-        <em :class="{ up: (dailyChange ?? 0) >= 0, down: (dailyChange ?? 0) < 0 }">{{ pctSign(dailyChange) }}</em>
+    <div class="tb-left">
+      <div class="tb-logo" aria-hidden="true">
+        <span class="tb-logo-dot" />
+        <span class="tb-logo-text">ML</span>
       </div>
-      <div v-if="!researchOnly" class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
-      <div v-if="recommendation" class="tb-segment tb-action">
-        <span>结构</span>
-        <strong>{{ recommendation }}</strong>
-        <em title="正态参考下的偏离极端度，不是胜率">偏离 {{ Math.round(extremeness * 100) }}%</em>
+
+      <button
+        type="button"
+        class="tb-symbol-btn"
+        title="切换市场标的"
+        @click="isCompact ? $emit('mobile-open-right') : $emit('toggle-right')"
+      >
+        <code v-if="source?.symbol" class="tb-ticker">{{ source.symbol }}</code>
+        <span class="tb-name">{{ source?.label ?? '选择标的' }}</span>
+        <span v-if="source?.interval" class="tb-interval">{{ source.interval }}</span>
+        <ChevronDown :size="13" class="tb-chevron" />
+      </button>
+
+      <div v-if="market" class="tb-telemetry">
+        <div class="tb-price">
+          <strong>{{ money(market.markPrice) }}</strong>
+          <em v-if="dailyChange !== null" :class="{ up: dailyChange >= 0, down: dailyChange < 0 }">
+            {{ pctSign(dailyChange) }}
+          </em>
+        </div>
+
+        <div v-if="!researchOnly && Number.isFinite(market.costAnchor)" class="tb-anchor-stat">
+          <span>成本锚</span>
+          <strong>{{ money(market.costAnchor) }}</strong>
+          <em :class="{ up: (market.costDistance ?? 0) >= 0, down: (market.costDistance ?? 0) < 0 }">
+            {{ pctSign(market.costDistance) }}
+          </em>
+        </div>
+
+        <div v-if="recommendation" class="tb-regime-badge">
+          <span class="tb-regime-state">{{ recommendation }}</span>
+          <em title="偏离度（非胜率）">偏离 {{ Math.round(extremeness * 100) }}%</em>
+        </div>
       </div>
     </div>
 
     <div class="tb-actions tb-desktop-only">
-      <nav class="tb-nav-pills" aria-label="专项研究入口">
+      <nav class="tb-nav-pills" aria-label="研究视图切换">
         <button class="tb-nav-pill" type="button" @click="openImpactResearch">冲击研究</button>
-        <a class="tb-nav-pill" href="?view=eth-replay" @click.prevent="openEthReplay">ETH 决策回放</a>
+        <a class="tb-nav-pill" href="?surface=eth-replay" @click.prevent="openEthReplay">ETH 回放</a>
+        <a class="tb-nav-pill" href="?surface=recommended-pool" @click.prevent="openRecommendedPool">A股门禁</a>
       </nav>
+
       <ProfileChip
         v-if="!researchOnly"
         :profile-id="profileId"
@@ -157,67 +174,79 @@ function pctSign(v) {
         @set="(id) => emit('set-profile', id)"
         @set-auto="(v) => emit('set-auto-profile', v)"
       />
-      <button class="tb-theme" type="button" title="切换主题" @click="$emit('toggle-theme')">
-        <Moon v-if="theme === 'light'" :size="14" />
-        <Sun v-else :size="14" />
-      </button>
-      <button class="tb-reset" type="button" title="清空持久化参数" @click="$emit('reset')">重置</button>
-    </div>
 
-    <div v-if="isCompact" class="tb-overflow-wrap">
       <button
-        class="tb-mobile-btn tb-overflow-btn"
+        class="tb-icon-btn"
         type="button"
-        aria-label="更多"
-        aria-haspopup="menu"
-        :aria-expanded="overflowOpen ? 'true' : 'false'"
-        @click="toggleOverflow"
+        :title="theme === 'dark' ? '切至亮色' : '切至暗色'"
+        @click="$emit('toggle-theme')"
       >
-        <MoreHorizontal :size="20" />
+        <Sun v-if="theme === 'dark'" :size="14" />
+        <Moon v-else :size="14" />
       </button>
-      <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
-        <div class="tb-overflow-section">研究表面</div>
-        <button class="tb-overflow-item" type="button" @click="openImpactResearch">ETH 市场冲击研究</button>
-        <a class="tb-overflow-item" href="?view=eth-replay" @click.prevent="openEthReplay">ETH 分钟决策回放</a>
-        <div class="tb-overflow-section">全局控制</div>
-        <button class="tb-overflow-item" type="button" @click="toggleThemeFromOverflow">
-          切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
-        </button>
-        <button class="tb-overflow-item" type="button" @click="resetFromOverflow">重置工作台</button>
-        <template v-if="!researchOnly">
-          <div class="tb-overflow-section">策略档位</div>
-          <button
-            v-for="p in profileList"
-            :key="p.id"
-            type="button"
-            class="tb-overflow-item"
-            :class="{ 'is-active': p.id === profileId && !autoProfile }"
-            @click="setProfileFromOverflow(p.id)"
-          >
-            {{ p.label || p.id }}
-            <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
-          </button>
-          <button
-            type="button"
-            class="tb-overflow-item"
-            :class="{ 'is-active': autoProfile }"
-            @click="toggleAutoProfileFromOverflow"
-          >
-            自动跟随回放：{{ autoProfile ? '开' : '关' }}
-          </button>
-        </template>
-      </div>
+      <button class="tb-icon-btn" type="button" title="重置默认参数" @click="$emit('reset')">
+        <RotateCcw :size="14" />
+      </button>
     </div>
 
-    <button
-      v-if="isCompact"
-      class="tb-mobile-btn tb-mobile-right"
-      type="button"
-      aria-label="打开标的列表"
-      @click="$emit('mobile-open-right')"
-    >
-      <List :size="20" />
-    </button>
+    <div v-if="isCompact" class="tb-mobile-actions">
+      <div class="tb-overflow-wrap">
+        <button
+          class="tb-mobile-btn tb-overflow-btn"
+          type="button"
+          aria-label="更多"
+          aria-haspopup="menu"
+          :aria-expanded="overflowOpen ? 'true' : 'false'"
+          @click="toggleOverflow"
+        >
+          <MoreHorizontal :size="18" />
+        </button>
+        <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
+          <div class="tb-overflow-section">专项视图</div>
+          <button class="tb-overflow-item" type="button" @click="openImpactResearch">ETH 市场冲击研究</button>
+          <a class="tb-overflow-item" href="?surface=eth-replay" @click.prevent="openEthReplay">ETH 分钟决策回放</a>
+          <a class="tb-overflow-item" href="?surface=recommended-pool" @click.prevent="openRecommendedPool">
+            A股研究门禁报告
+          </a>
+          <div class="tb-overflow-section">工作台</div>
+          <button class="tb-overflow-item" type="button" @click="toggleThemeFromOverflow">
+            切换主题（当前{{ theme === 'dark' ? '暗色' : '亮色' }}）
+          </button>
+          <button class="tb-overflow-item" type="button" @click="resetFromOverflow">重置默认参数</button>
+          <template v-if="!researchOnly">
+            <div class="tb-overflow-section">策略档位</div>
+            <button
+              v-for="p in profileList"
+              :key="p.id"
+              type="button"
+              class="tb-overflow-item"
+              :class="{ 'is-active': p.id === profileId && !autoProfile }"
+              @click="setProfileFromOverflow(p.id)"
+            >
+              {{ p.label || p.id }}
+              <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
+            </button>
+            <button
+              type="button"
+              class="tb-overflow-item"
+              :class="{ 'is-active': autoProfile }"
+              @click="toggleAutoProfileFromOverflow"
+            >
+              回放选档：{{ autoProfile ? '开' : '关' }}
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <button
+        class="tb-mobile-btn tb-mobile-right"
+        type="button"
+        aria-label="打开标的列表"
+        @click="$emit('mobile-open-right')"
+      >
+        <List :size="18" />
+      </button>
+    </div>
   </header>
 </template>
 

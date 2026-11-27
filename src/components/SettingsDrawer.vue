@@ -19,10 +19,9 @@ defineProps({
   effectiveTdpy: { type: Number, default: null },
   symbol: { type: String, default: '' },
   overlays: { type: Object, required: true },
-  theme: { type: String, default: 'light' },
+  theme: { type: String, default: 'dark' },
 })
 
-// 设置页只发命令事件；持久化状态由上层 ViewModel 修改。
 const emit = defineEmits([
   'override-tdpy',
   'reset-tdpy',
@@ -40,19 +39,8 @@ const emit = defineEmits([
 
 <template>
   <div class="sd-drawer">
-    <StartupConfigPanel
-      :input="input"
-      :feature-flags="featureFlags"
-      :overlays="overlays"
-      :rows="rows"
-      :cursor="cursor"
-      @patch-input="(patch) => emit('patch-input', patch)"
-      @set-feature-flag="(flag, value) => emit('set-feature-flag', flag, value)"
-      @set-overlay="(key, value) => emit('set-overlay', key, value)"
-    />
-
     <section class="sd-section">
-      <h3 class="sd-h">样本时间</h3>
+      <h3 class="sd-h">时间回拨</h3>
       <ObservationDateControl
         :rows="rows"
         :cursor="cursor"
@@ -63,12 +51,26 @@ const emit = defineEmits([
     </section>
 
     <section class="sd-section">
-      <h3 class="sd-h">模拟参数</h3>
+      <h3 class="sd-h">价格带引擎</h3>
       <SimulationInputs :input="input" :graph="graph" @patch-input="(patch) => emit('patch-input', patch)" />
     </section>
 
     <section class="sd-section">
-      <h3 class="sd-h">执行规则</h3>
+      <h3 class="sd-h">回放开关</h3>
+      <StartupConfigPanel
+        :input="input"
+        :feature-flags="featureFlags"
+        :overlays="overlays"
+        :rows="rows"
+        :cursor="cursor"
+        @patch-input="(patch) => emit('patch-input', patch)"
+        @set-feature-flag="(flag, value) => emit('set-feature-flag', flag, value)"
+        @set-overlay="(key, value) => emit('set-overlay', key, value)"
+      />
+    </section>
+
+    <section class="sd-section">
+      <h3 class="sd-h">档位校准</h3>
       <StrategyProfileInputs
         :input="input"
         :profile-list="profileList"
@@ -78,7 +80,7 @@ const emit = defineEmits([
     </section>
 
     <section class="sd-section">
-      <h3 class="sd-h">期权组合研究</h3>
+      <h3 class="sd-h">期权与 LP 情景</h3>
       <OptionPortfolioInputs
         :input="input"
         @patch-input="(patch) => emit('patch-input', patch)"
@@ -88,7 +90,7 @@ const emit = defineEmits([
     </section>
 
     <section class="sd-section">
-      <h3 class="sd-h">计算口径</h3>
+      <h3 class="sd-h">年化交易日口径</h3>
       <AdvancedSettingsContent
         :tdpy-meta="tdpyMeta"
         :effective-tdpy="effectiveTdpy"
@@ -99,21 +101,8 @@ const emit = defineEmits([
     </section>
 
     <section class="sd-section">
-      <h3 class="sd-h">主图叠加项</h3>
+      <h3 class="sd-h">全部叠加图层</h3>
       <ChartOverlayToggles :overlays="overlays" @change="(key, value) => emit('set-overlay', key, value)" />
-    </section>
-
-    <section class="sd-section">
-      <h3 class="sd-h">主题</h3>
-      <div class="sd-theme">
-        <button :class="{ active: theme === 'light' }" @click="emit('set-theme', 'light')">浅色</button>
-        <button :class="{ active: theme === 'dark' }" @click="emit('set-theme', 'dark')">深色</button>
-      </div>
-    </section>
-
-    <section class="sd-section">
-      <h3 class="sd-h">重置</h3>
-      <button class="sd-reset" type="button" @click="emit('reset-all')">清空所有持久化参数 + 刷新</button>
     </section>
   </div>
 </template>
@@ -121,7 +110,7 @@ const emit = defineEmits([
 <style>
 .sd-drawer {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
 .sd-drawer > * {
@@ -129,7 +118,7 @@ const emit = defineEmits([
 }
 .sd-section {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
   min-width: 0;
@@ -139,46 +128,8 @@ const emit = defineEmits([
 }
 .sd-h {
   margin: 0;
-  color: var(--green);
-  font-size: 0.66rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.sd-theme {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.sd-theme button {
-  min-height: 30px;
-  padding: 4px 14px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.sd-theme button.active {
-  border-color: var(--green);
-  background: var(--surface-active);
-}
-.sd-reset {
-  min-height: 32px;
-  padding: 5px 14px;
-  border: 1px solid #b8860b;
-  border-radius: 5px;
-  background: var(--bg);
-  color: #b8860b;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  overflow-wrap: anywhere;
-}
-.sd-reset:hover {
-  background: #b8860b;
-  color: #fff;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 </style>

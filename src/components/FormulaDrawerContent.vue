@@ -309,7 +309,7 @@ function pct(v) {
   color: var(--blue);
 }
 .fdc-availability.state-proxy {
-  color: #8b5a16;
+  color: var(--amber);
 }
 .fdc-availability.state-unverified,
 .fdc-availability.state-not-applicable {

@@ -140,7 +140,7 @@ function zoneLabel(zone) {
 }
 
 .tone-crowded header {
-  box-shadow: inset 3px 0 0 #8b5a16;
+  box-shadow: inset 3px 0 0 var(--amber);
 }
 
 .tone-pending header {

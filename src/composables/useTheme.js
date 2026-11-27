@@ -2,7 +2,7 @@ import { watch } from 'vue'
 import { persistedRef } from './usePersisted.js'
 
 export function useTheme() {
-  const theme = persistedRef('lab.theme.v1', 'light')
+  const theme = persistedRef('lab.theme.v2', 'dark')
 
   function applyTheme(next) {
     if (typeof document === 'undefined') return

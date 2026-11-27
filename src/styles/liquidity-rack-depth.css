@@ -68,19 +68,19 @@
 }
 
 .lf-real-signal rect {
-  fill: rgba(139, 90, 22, 0.16);
-  stroke: #8b5a16;
+  fill: var(--amber-dim);
+  stroke: var(--amber);
   stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
 }
 
 .lf-depth-wrap.mode-real .lf-real-signal rect {
-  fill: rgba(139, 90, 22, 0.34);
+  fill: color-mix(in srgb, var(--amber) 32%, transparent);
   stroke-width: 1.6;
 }
 
 .lf-depth-wrap.mode-compare .lf-real-signal rect {
-  fill: rgba(139, 90, 22, 0.16);
+  fill: var(--amber-dim);
   stroke-width: 1.2;
 }
 
@@ -109,10 +109,10 @@
   fill: var(--red);
 }
 .lf-components-track .is-range {
-  fill: #8b5a16;
+  fill: var(--amber);
 }
 .lf-components-track .is-real {
-  fill: #8b5a16;
+  fill: var(--amber);
 }
 
 .lf-markers line {

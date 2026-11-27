@@ -1,38 +1,38 @@
 .price-reference-legend {
-  --reference-above: #986208;
-  --reference-below: #087d91;
-  border-top: 1px solid var(--line);
+  --reference-above: var(--amber);
+  --reference-below: var(--blue);
   color: var(--muted);
-  font-size: 12px;
-}
-.dark .price-reference-legend {
-  --reference-above: #f4c45a;
-  --reference-below: #55c9df;
+  font-size: 0.7rem;
 }
 .price-reference-legend summary {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px 12px;
+  gap: 5px 10px;
   flex-wrap: wrap;
-  min-height: 34px;
-  padding: 5px 8px;
+  min-height: 24px;
+  padding: 2px 4px;
   cursor: pointer;
   list-style: none;
+}
+.price-reference-legend summary strong {
+  color: var(--ink-secondary);
+  font-weight: 600;
+}
+.price-reference-legend summary time {
+  font-family: var(--mono);
 }
 .price-reference-legend summary::-webkit-details-marker {
   display: none;
 }
-.price-reference-legend summary:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: -2px;
-}
 .price-reference-source {
-  padding: 1px 5px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  padding: 0 5px;
+  border-radius: var(--r-xs);
+  background: var(--surface-hover);
+  font-size: 0.64rem;
 }
 .price-reference-node {
   white-space: nowrap;
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .price-reference-node.above {
@@ -42,36 +42,39 @@
   color: var(--reference-below);
 }
 .price-reference-help {
-  margin-left: auto;
-  text-decoration: underline dotted;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+.price-reference-help:hover {
+  color: var(--green);
 }
 .price-reference-details {
-  padding: 0 10px 8px;
+  padding: 6px 8px 8px;
+  margin-top: 2px;
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  border: 1px solid var(--line);
 }
 .price-reference-details p {
-  margin: 5px 0;
+  margin: 3px 0;
+  font-size: 0.68rem;
 }
 .price-reference-details table {
   border-collapse: collapse;
   width: min(100%, 520px);
+  margin-top: 4px;
 }
 .price-reference-details caption {
   text-align: left;
-  margin: 5px 0;
+  margin: 4px 0;
+  font-weight: 600;
+  color: var(--ink-secondary);
 }
 .price-reference-details th,
 .price-reference-details td {
   padding: 4px 10px 4px 0;
   text-align: left;
   border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-}
-@media (max-width: 640px) {
-  .price-reference-legend summary {
-    min-height: 44px;
-    gap: 5px 9px;
-  }
-  .price-reference-help {
-    margin-left: 0;
-  }
 }

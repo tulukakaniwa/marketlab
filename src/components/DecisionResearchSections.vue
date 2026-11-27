@@ -26,9 +26,9 @@ const activeProfileLabel = computed(
   () => props.profileList.find((p) => p.id === props.activeProfileId)?.label ?? props.activeProfileId,
 )
 const replayMeta = computed(() => {
-  if (!props.replayEnabled) return '未启用'
+  if (!props.replayEnabled) return '关闭'
   if (['missing-account-input', 'missing-replay-fee-input'].includes(props.replay?.status)) return '缺输入'
-  return `${props.replay?.tradeCount ?? 0} 次`
+  return `${props.replay?.tradeCount ?? 0} 笔`
 })
 const hasRunnableProfileReplay = computed(
   () => props.replayEnabled && props.profileReplays.some((item) => !item.replay?.status),
@@ -44,7 +44,7 @@ function pct(v) {
 
 <template>
   <div class="dd-tier-group">
-    <div class="dd-tier-label">研究模型与回放旁路</div>
+    <div class="dd-tier-label"><span>中枢与回放</span></div>
 
     <DisclosureSection title="中枢公式" meta="历史前缀" tone="research">
       <MarketCentersPanel
@@ -55,22 +55,22 @@ function pct(v) {
         :native-settings="nativeCenterSettings"
         @center-input-change="emit('center-input-change', $event)"
       />
-      <details>
-        <summary>旧版价格滤波参考</summary>
+      <details class="dd-sub-details">
+        <summary>价格滤波与首达概率</summary>
         <CausalModelPanel :snapshot="graph?.causalModel" :query-state="graph?.causalModelQuery" />
       </details>
     </DisclosureSection>
 
     <DisclosureSection
       title="策略档位"
-      :meta="autoProfile ? '回放选档' : activeProfileLabel"
+      :meta="autoProfile ? '自动' : activeProfileLabel"
       :default-open="false"
       storage-key="decision.profile"
       tone="muted"
     >
       <div class="dd-profile-tabs">
         <button :class="{ active: autoProfile }" :disabled="!replayEnabled" @click="emit('set-auto-profile', true)">
-          回放选档
+          自动
         </button>
         <button
           v-for="p in profileList"
@@ -81,12 +81,8 @@ function pct(v) {
           {{ p.label }}
         </button>
       </div>
-      <p v-if="!replayEnabled" class="replay-empty">
-        现货路径回放未启用。策略档位只使用手动选择，不由回放结果反向改写信号条件。
-      </p>
-      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">
-        缺少账户资金或底仓名义，暂不显示策略档位路径评分。
-      </p>
+      <p v-if="!replayEnabled" class="replay-empty">未开启现货回放（可在「参数」页开启）</p>
+      <p v-else-if="!hasRunnableProfileReplay" class="replay-empty">填写可用现金或底仓后显示各档收益</p>
       <ul v-else class="dd-profile-grid">
         <li
           v-for="item in profileReplays"
@@ -95,7 +91,7 @@ function pct(v) {
         >
           <span>{{ item.profile.label }}</span>
           <strong>{{ pct(item.replay.returnOnUsedNotional) }}</strong>
-          <em>回撤 {{ money(item.replay.maxDrawdown) }} · {{ item.replay.tradeCount }} 次</em>
+          <em>回撤 {{ money(item.replay.maxDrawdown) }} · {{ item.replay.tradeCount }} 笔</em>
         </li>
       </ul>
     </DisclosureSection>
@@ -119,15 +115,31 @@ function pct(v) {
 
     <DisclosureSection
       v-if="portfolioEnabled"
-      title="组合研究"
+      title="组合估值"
       :default-open="false"
       storage-key="decision.portfolio"
       tone="research"
     >
       <div class="dd-risk-row">
-        <span>组合研究</span>
+        <span>组合净值</span>
         <strong :class="(graph?.portfolio ?? 0) >= 0 ? 'green' : 'red'">{{ money(graph?.portfolio) }}</strong>
       </div>
     </DisclosureSection>
   </div>
 </template>
+
+<style scoped>
+.dd-sub-details {
+  margin-top: 4px;
+  font-size: 0.72rem;
+}
+.dd-sub-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 2px;
+  font-weight: 600;
+}
+.dd-sub-details > summary:hover {
+  color: var(--ink);
+}
+</style>

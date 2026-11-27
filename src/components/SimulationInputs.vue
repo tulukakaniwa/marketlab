@@ -15,7 +15,6 @@ function pctIn(v) {
 function pctOut(v) {
   return Number.isFinite(v) ? Number((v * 100).toFixed(2)) : 0
 }
-
 function numIn(raw, fallback = 0) {
   const n = Number(raw)
   return Number.isFinite(n) ? n : fallback
@@ -23,12 +22,12 @@ function numIn(raw, fallback = 0) {
 
 const bandText = computed(() => {
   const band = props.graph?.deltaBands?.long
-  if (!band) return '等待市场样本'
-  return `${fmt(band.low)} / ${fmt(band.cost)} / ${fmt(band.high)}`
+  if (!band) return '等待样本'
+  return `${fmt(band.low)} · ${fmt(band.cost)} · ${fmt(band.high)}`
 })
 const horizonText = computed(() => {
   const days = props.graph?.inputs?.formulaHorizonSessions
-  return Number.isFinite(days) ? `${days} 个交易会话` : '等待结构目标'
+  return Number.isFinite(days) ? `${days} 会话` : '待推导'
 })
 
 function fmt(value) {
@@ -40,13 +39,13 @@ function fmt(value) {
 <template>
   <div class="si-card">
     <div class="si-card-head">
-      <strong>GetDelta 价格带</strong>
-      <small>P + H(q) + s + d</small>
+      <strong>GetDelta(P, T, σ, d)</strong>
+      <code>{{ bandText }}</code>
     </div>
 
     <div class="si-form">
       <label>
-        <span>入场价</span>
+        <span>入场价 P</span>
         <input
           :value="input.entryPrice"
           type="number"
@@ -55,11 +54,11 @@ function fmt(value) {
         />
       </label>
       <label>
-        <span>公式周期</span>
+        <span>周期 T</span>
         <output>{{ horizonText }}</output>
       </label>
       <label>
-        <span>情景 σ%</span>
+        <span>波动率 σ (%)</span>
         <input
           :value="pctOut(input.iv)"
           type="number"
@@ -68,7 +67,7 @@ function fmt(value) {
         />
       </label>
       <label>
-        <span>目标增量 d%</span>
+        <span>增量 d (%)</span>
         <input
           :value="pctOut(input.deltaSlope)"
           type="number"
@@ -77,7 +76,7 @@ function fmt(value) {
         />
       </label>
       <label>
-        <span>退出目标%</span>
+        <span>止盈目标 (%)</span>
         <input
           :value="pctOut(input.exitTargetReturn)"
           type="number"
@@ -86,7 +85,6 @@ function fmt(value) {
         />
       </label>
     </div>
-    <p class="si-link">多头低/成本/高：{{ bandText }}。模拟挂单继续叠加成本带、策略档位和账户权益。</p>
   </div>
 </template>
 
@@ -94,65 +92,57 @@ function fmt(value) {
 .si-card {
   display: grid;
   gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 9px 10px;
+  border-radius: var(--r-md);
   background: var(--surface-alt);
+  border: 1px solid var(--line);
 }
 .si-card-head {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  align-items: end;
+  align-items: baseline;
+  flex-wrap: wrap;
 }
 .si-card-head strong {
-  font-size: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink);
 }
-.si-card-head small {
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 700;
-  text-align: right;
+.si-card-head code {
+  font-family: var(--mono);
+  color: var(--green);
+  font-size: 0.68rem;
 }
 .si-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
 .si-form label {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 .si-form span {
   color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 0.64rem;
+  font-weight: 600;
 }
 .si-form input,
-.si-form output,
-.si-form select {
+.si-form output {
+  min-width: 0;
   min-height: 28px;
-  padding: 3px 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-size: 0.76rem;
 }
 .si-form output {
   display: flex;
   align-items: center;
-}
-.si-form select {
-  font-weight: 600;
-}
-.si-link {
-  margin: 0;
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 </style>

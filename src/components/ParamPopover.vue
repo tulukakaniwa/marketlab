@@ -1,21 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
-/**
- * 单字段编辑 popover
- *
- * field: 'entryPrice' | 'iv' | 'deltaSlope' | 'exitTargetReturn'
- *
- * 单位转换：
- *   - iv / deltaSlope / exitTargetReturn 内部存 0~5 浮点（0.4 = 40%），UI 显示 0~500 整数
- *   - entryPrice 直传
- *
- * 校验：
- *   - entryPrice > 0
- *   - iv: 1 ≤ ui ≤ 500（即 0.01 ≤ store ≤ 5）
- *   - deltaSlope: 1 ≤ ui ≤ 500，对应 GetDelta 里的目标增量 d
- *   - exitTargetReturn: 0 ≤ ui ≤ 500，对应执行退出收益目标
- */
 const props = defineProps({
   field: { type: String, required: true },
   value: { type: Number, required: true },
@@ -24,10 +9,10 @@ const props = defineProps({
 const emit = defineEmits(['confirm', 'cancel'])
 
 const META = {
-  entryPrice: { label: '入场价', unit: '', step: 0.01, min: 0.01, max: 1e9, scale: 1 },
-  iv: { label: '波动率', unit: '%', step: 0.5, min: 1, max: 500, scale: 0.01 },
+  entryPrice: { label: '入场价 P', unit: '', step: 0.01, min: 0.01, max: 1e9, scale: 1 },
+  iv: { label: '年化波动率 σ', unit: '%', step: 0.5, min: 1, max: 500, scale: 0.01 },
   deltaSlope: { label: '目标增量 d', unit: '%', step: 0.5, min: 1, max: 500, scale: 0.01 },
-  exitTargetReturn: { label: '退出目标', unit: '%', step: 0.5, min: 0, max: 500, scale: 0.01 },
+  exitTargetReturn: { label: '止盈目标', unit: '%', step: 0.5, min: 0, max: 500, scale: 0.01 },
 }
 
 const meta = computed(() => META[props.field] ?? META.entryPrice)
@@ -36,8 +21,7 @@ const inputValue = ref('')
 const inputEl = ref(null)
 
 onMounted(() => {
-  inputValue.value = String(props.value / meta.value.scale)
-  // 自动聚焦 + 全选
+  inputValue.value = String(Number((props.value / meta.value.scale).toFixed(4)))
   inputEl.value?.focus()
   inputEl.value?.select()
 })
@@ -80,52 +64,46 @@ function cancel() {
       <span v-if="meta.unit">{{ meta.unit }}</span>
     </label>
     <div class="pp-actions">
-      <button type="button" :disabled="!isValid" @click="confirm">应用</button>
       <button type="button" class="pp-cancel" @click="cancel">取消</button>
+      <button type="button" class="pp-apply" :disabled="!isValid" @click="confirm">应用</button>
     </div>
   </div>
 </template>
 
 <style>
 .param-popover {
-  width: 220px;
+  width: 210px;
   padding: 10px 12px;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-pop);
   display: grid;
   gap: 8px;
 }
 .param-popover header {
-  color: var(--green);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 .param-popover label {
   display: flex;
-  gap: 4px;
-  align-items: baseline;
+  gap: 5px;
+  align-items: center;
 }
 .param-popover input {
   flex: 1;
+  min-width: 0;
   min-height: 30px;
-  padding: 4px 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
 }
 .param-popover input.invalid {
-  border-color: #b8860b;
+  border-color: var(--amber);
 }
 .param-popover label span {
   color: var(--muted);
-  font-size: 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.74rem;
 }
 .pp-actions {
   display: flex;
@@ -134,23 +112,19 @@ function cancel() {
 }
 .pp-actions button {
   min-height: 26px;
-  padding: 1px 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.74rem;
-  font-weight: 800;
-  cursor: pointer;
+  padding: 2px 10px;
+  font-size: 0.72rem;
 }
-.pp-actions button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.pp-actions button:not(:disabled):not(.pp-cancel):hover {
+.pp-apply:not(:disabled) {
+  background: var(--green);
   border-color: var(--green);
+  color: #fff;
+}
+.pp-apply:not(:disabled):hover {
+  filter: brightness(1.06);
 }
 .pp-cancel {
+  background: transparent;
   color: var(--muted);
 }
 </style>

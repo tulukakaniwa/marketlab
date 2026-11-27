@@ -195,9 +195,6 @@ function handleCursor(time) {
 <template>
   <div class="main-chart-shell" :aria-busy="loading">
     <div class="main-chart-chrome">
-      <div class="chart-context-rail">
-        <WorkbenchSummary :model="summary" compact />
-      </div>
       <div class="chart-control-deck">
         <ChartDisplayTools
           :overlays="overlays"
@@ -208,10 +205,12 @@ function handleCursor(time) {
         />
         <ChartStatusBar :input="input" @change="(field, value) => emit('param-change', field, value)" />
       </div>
+
       <div
-        v-if="overlays.priceReferenceMap !== false || overlays.impactReferenceMap !== false"
-        class="chart-legends-row"
+        v-if="summary || overlays.priceReferenceMap !== false || overlays.impactReferenceMap !== false"
+        class="chart-telemetry-strip"
       >
+        <WorkbenchSummary v-if="summary" :model="summary" compact />
         <PriceReferenceLegend
           v-if="overlays.priceReferenceMap !== false"
           :snapshot="referenceMap"
@@ -227,9 +226,10 @@ function handleCursor(time) {
         />
       </div>
     </div>
+
     <div class="main-chart-stage">
       <div ref="el" class="main-chart-canvas" />
-      <span v-if="loading" class="vela-chart-loading" role="status">正在准备 Vela 研究图</span>
+      <span v-if="loading" class="vela-chart-loading" role="status">正在初始化图表…</span>
     </div>
   </div>
 </template>
@@ -238,18 +238,13 @@ function handleCursor(time) {
 .main-chart-shell[aria-busy='true'] .main-chart-canvas {
   pointer-events: none;
 }
-.chart-control-deck {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
 .vela-chart-loading {
   position: absolute;
-  top: 48%;
-  left: 40%;
+  inset: 0;
+  display: grid;
+  place-items: center;
   color: var(--muted);
-}
-@media (max-width: 1279px) {
-  .chart-control-deck {
-    grid-template-columns: 1fr;
-  }
+  font-size: 0.78rem;
+  pointer-events: none;
 }
 </style>

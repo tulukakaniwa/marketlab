@@ -1,6 +1,6 @@
 .app-root :where(button, input, select, summary, [tabindex]):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--green) 70%, transparent);
-  outline-offset: 2px;
+  outline: 2px solid color-mix(in srgb, var(--green) 75%, transparent);
+  outline-offset: 1px;
 }
 
 .app-root {
@@ -16,10 +16,10 @@
 }
 
 .app-root.left-collapsed {
-  --left-w: 36px !important;
+  --left-w: 34px !important;
 }
 .app-root.right-collapsed {
-  --right-w: 36px !important;
+  --right-w: 34px !important;
 }
 
 .cols {
@@ -28,30 +28,39 @@
   min-height: 0;
   overflow: hidden;
   display: grid;
-  grid-template-columns: var(--left-w) auto minmax(0, 1fr) auto var(--right-w);
-  transition: grid-template-columns 200ms ease;
+  grid-template-columns: var(--left-w) 4px minmax(0, 1fr) 4px var(--right-w);
+  transition: grid-template-columns 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .app-root.left-collapsed .cols {
-  grid-template-columns: 36px minmax(0, 1fr) auto var(--right-w);
+  grid-template-columns: 34px minmax(0, 1fr) 4px var(--right-w);
 }
 .app-root.right-collapsed .cols {
-  grid-template-columns: var(--left-w) auto minmax(0, 1fr) 36px;
+  grid-template-columns: var(--left-w) 4px minmax(0, 1fr) 34px;
 }
 .app-root.left-collapsed.right-collapsed .cols {
-  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
 }
 
 .resizer {
   width: 4px;
   cursor: col-resize;
   background: transparent;
-  transition: background 100ms;
+  position: relative;
   user-select: none;
+  z-index: 15;
 }
 
-.resizer:hover,
-.resizer:active {
+.resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 1px;
+  background: transparent;
+  transition: background-color 120ms ease;
+}
+
+.resizer:hover::after,
+.resizer:active::after {
   background: var(--green);
 }
 
@@ -60,6 +69,7 @@
   min-height: 0;
   position: relative;
   overflow: hidden;
+  background: var(--bg);
 }
 
 .aligned-layout > .app-main {
@@ -82,68 +92,114 @@
   gap: 10px;
   align-items: center;
   margin: 0;
-  padding: 5px 12px;
-  background: var(--red);
-  color: #fff;
+  padding: 6px 14px;
+  background: var(--red-dim);
+  border-bottom: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
+  color: var(--red);
   font-size: 0.76rem;
 }
 
 .err-bar.kind-empty {
-  background: #b8860b;
+  background: var(--amber-dim);
+  border-bottom-color: color-mix(in srgb, var(--amber) 40%, transparent);
+  color: var(--amber);
 }
 .err-bar.kind-parse {
-  background: #884d22;
-}
-.err-bar.kind-network {
-  background: var(--red);
+  background: var(--amber-dim);
+  color: var(--amber);
 }
 .err-msg {
   flex: 1;
+  font-weight: 500;
 }
 
 .err-btn {
-  min-height: 28px;
+  min-height: 24px;
   padding: 2px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 4px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-xs);
   background: transparent;
-  color: #fff;
+  color: inherit;
   font-size: 0.7rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .err-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-}
-.err-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.err-dismiss {
-  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .empty-state {
   width: 100%;
   height: 100%;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  color: var(--muted);
+  background: radial-gradient(circle at 50% 36%, var(--green-dim), transparent 52%), var(--bg);
+}
+
+.empty-state-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.empty-state-brand strong {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.empty-state-brand small {
+  font-size: 0.78rem;
   color: var(--muted);
 }
 
-.empty-state strong {
-  font-size: 1.3rem;
-  color: var(--ink);
+.empty-quick-picks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 540px;
+}
+
+.empty-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  font-size: 0.76rem;
+}
+
+.empty-pick-btn code {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.empty-pick-btn:hover {
+  border-color: var(--green);
+  background: var(--surface-active);
 }
 
 @media (max-width: 1279px) {
   .mobile-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.42);
+    background: rgba(2, 6, 23, 0.58);
+    backdrop-filter: blur(2px);
     z-index: 40;
   }
   .app-root .cols,

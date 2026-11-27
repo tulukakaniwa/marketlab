@@ -23,6 +23,8 @@ const MarketImpactResearchDialog = defineAsyncComponent(
   () => import('./components/market-impact/MarketImpactResearchDialog.vue'),
 )
 
+const QUICK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'NVDA', '600519', '0700.HK']
+
 const lab = useLabStore()
 const impactMap = useImpactChartOverlay(lab)
 const aligned = useAlignedImpactView()
@@ -69,10 +71,22 @@ const allSamples = computed(() => {
   return [...curated.values()]
 })
 
+const quickSamples = computed(() =>
+  QUICK_SYMBOLS.map((sym) => allSamples.value.find((s) => s.symbol === sym)).filter(Boolean),
+)
+
 onMounted(() => {
-  if (lastSampleId.value && !lab.rows.length) {
-    const sample = allSamples.value.find((item) => item.id === lastSampleId.value)
-    if (sample) lab.loadSample(sample)
+  if (!lab.rows.length && allSamples.value.length) {
+    const saved = lastSampleId.value ? allSamples.value.find((item) => item.id === lastSampleId.value) : null
+    const fallback =
+      saved ??
+      allSamples.value.find((item) => item.symbol === 'BTCUSDT') ??
+      allSamples.value.find((item) => item.symbol === 'ETHUSDT') ??
+      allSamples.value[0]
+    if (fallback) {
+      lastSampleId.value = fallback.id
+      lab.loadSample(fallback)
+    }
   }
 })
 
@@ -88,7 +102,7 @@ const topBarMarket = computed(() =>
 )
 
 function resetWorkbench() {
-  if (!confirm('清空所有持久化参数（输入、UI 状态、主题）并刷新？')) return
+  if (!confirm('恢复默认参数并刷新工作台？')) return
   clearPersistedLab()
   window.location.reload()
 }
@@ -171,7 +185,10 @@ function showImpactOnChart() {
 </script>
 
 <template>
-  <RecommendedPoolPage v-if="surface === APP_SURFACES.RECOMMENDED_POOL" />
+  <RecommendedPoolPage
+    v-if="surface === APP_SURFACES.RECOMMENDED_POOL"
+    @back="navigateSurface(APP_SURFACES.WORKBENCH)"
+  />
   <EthDecisionReplay v-else-if="surface === APP_SURFACES.ETH_REPLAY" @back="navigateSurface(APP_SURFACES.WORKBENCH)" />
   <div
     v-else
@@ -198,10 +215,12 @@ function showImpactOnChart() {
       @set-auto-profile="onSetAutoProfile"
       @toggle-theme="toggleTheme"
       @reset="resetWorkbench"
+      @toggle-right="toggleRightPanel"
       @mobile-open-left="openMobileLeft"
       @mobile-open-right="openMobileRight"
       @open-market-impact="openImpactResearch"
       @open-eth-replay="navigateSurface(APP_SURFACES.ETH_REPLAY)"
+      @open-recommended-pool="navigateSurface(APP_SURFACES.RECOMMENDED_POOL)"
     />
 
     <div
@@ -296,10 +315,24 @@ function showImpactOnChart() {
           @open-market-impact="openImpactResearch"
         />
         <div v-else-if="!aligned.active.value" class="empty-state">
-          <Activity :size="36" />
-          <strong>Market Lab</strong>
-          <small v-if="lab.loading">加载中…{{ lab.loadingSampleId ? ' ' + lab.loadingSampleId : '' }}</small>
-          <small v-else>右侧标的列表选品种加载（首次约 1~2 秒）</small>
+          <div class="empty-state-brand">
+            <Activity :size="28" style="color: var(--green)" />
+            <strong>Market Lab</strong>
+            <small v-if="lab.loading">正在载入 {{ lab.loadingSampleId || '行情样本' }}…</small>
+            <small v-else>选择品种载入 K 线与价格带</small>
+          </div>
+          <div v-if="!lab.loading && quickSamples.length" class="empty-quick-picks">
+            <button
+              v-for="item in quickSamples"
+              :key="item.id"
+              type="button"
+              class="empty-pick-btn"
+              @click="selectSample(item)"
+            >
+              <code>{{ item.symbol }}</code>
+              <span>{{ item.label }}</span>
+            </button>
+          </div>
         </div>
       </main>
 

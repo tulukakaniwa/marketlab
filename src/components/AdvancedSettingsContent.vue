@@ -106,8 +106,8 @@ function resetToAuto() {
   font-size: 0.62rem;
 }
 .adv-source.overridden {
-  border-color: #b8860b;
-  color: #b8860b;
+  border-color: var(--amber);
+  color: var(--amber);
 }
 .adv-presets {
   display: flex;
