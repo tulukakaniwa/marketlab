@@ -209,7 +209,7 @@ function pct(v) {
       </article>
 
       <DisclosureSection title="挂单梯度" :meta="`${primaryOrders.length} 档`" :default-open="primaryOrders.length > 0">
-        <OrderTable :title="ordersTitle" :orders="primaryOrders" />
+        <OrderTable :title="ordersTitle" :orders="primaryOrders" :diagnostics="graph?.orderLadderDiagnostics" />
       </DisclosureSection>
     </div>
 

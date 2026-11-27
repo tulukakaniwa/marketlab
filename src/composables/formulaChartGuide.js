@@ -11,6 +11,7 @@ export function buildFormulaChartGuide({
   meanReversion: mr,
   gammaPnl: gp,
   volConfidence: vc,
+  stateRecurrence: sr,
   researchInputs,
   fmt,
   f4,
@@ -133,6 +134,13 @@ export function buildFormulaChartGuide({
         ? `基于 ${vc.sampleSize} 个交易会话样本，IID 正态假设下的近似区间为 [${pctFmt(vc.lower)}, ${pctFmt(vc.upper)}]。相对标准误差 ${pctFmt(vc.relativeUncertainty)}，标签 ${vc.quality}；它不是厚尾或自相关序列的稳健置信区间，也不是未来波动率保证。`
         : '当前收益样本不足，无法给出波动率近似区间；即使样本足够，该区间仍依赖 IID 正态近似，不是未来波动保证。',
     },
+    'state-recurrence': {
+      title: '研究层：同态复现生存',
+      body:
+        sr?.status === 'ok'
+          ? `在历史前缀中取 k=${sr.neighbourCount} 个成本偏离最接近时刻，测算离开邻域后再重返的等待间隔：中位 ${sr.recurrencePeriodSessions} 个交易会话（已完成 ${sr.completedEventCount} 次），并给出 Kaplan–Meier 生存曲线与 Greenwood 95% 区间。`
+          : '历史前缀尚未形成至少 1 次完整的离开再重返周期，生存曲线保持待输入。',
+    },
   }
   return guides[formulaId] || null
 }
@@ -142,17 +150,22 @@ function optionDeltaDirection(optionDelta) {
   return optionDelta > 0 ? '正 Delta = 偏多暴露' : optionDelta < 0 ? '负 Delta = 偏空/保护暴露' : 'Delta 为零'
 }
 
-export function buildFormulaOrderData(plan) {
+export function buildFormulaOrderData(plan, ladderDiagnostics = null) {
   if (!plan?.primaryOrders?.length) return null
-  return plan.primaryOrders.map((order) => ({
-    action: order.role,
-    side: order.side,
-    price: order.price,
-    notional: order.notional,
-    amount: order.amount,
-    target: order.targetPrice,
-    expected: order.expectedProfit,
-  }))
+  return plan.primaryOrders.map((order, idx) => {
+    const diag = ladderDiagnostics?.orders?.[idx] ?? null
+    return {
+      action: order.role,
+      side: order.side,
+      price: order.price,
+      geometricPrice: diag?.geometricPrice ?? null,
+      fillBeforeTargetProb: diag?.fillBeforeTargetProb ?? null,
+      notional: order.notional,
+      amount: order.amount,
+      target: order.targetPrice,
+      expected: order.expectedProfit,
+    }
+  })
 }
 
 function planSummary(plan) {

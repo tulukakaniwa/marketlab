@@ -1,12 +1,15 @@
 <script setup>
 import { computed } from 'vue'
 import { formatFormulaBlockReason, formatFormulaInputList } from '../domain/formula-research/formulaAvailability.js'
+import FormulaRecurrenceView from './FormulaRecurrenceView.vue'
 
 const props = defineProps({
   formulaId: { type: String, required: true },
   netLpData: { type: Object, default: null },
   lpPoolData: { type: Object, default: null },
   dynamicHoldingData: { type: Object, default: null },
+  stateRecurrenceData: { type: Object, default: null },
+  recurrenceChart: { type: Object, default: null },
   fmt: { type: Function, required: true },
   pctFmt: { type: Function, required: true },
 })
@@ -72,7 +75,14 @@ function statusClass(status) {
 }
 function targetName(id) {
   if (!id) return '—'
-  return { firstRepair: '成本下沿', baseAnchor: '成本锚', stretch: 'LP 上沿' }[id] ?? '未标注目标'
+  const isShort = props.dynamicHoldingData?.side === 'short'
+  return (
+    {
+      firstRepair: isShort ? '成本上沿' : '成本下沿',
+      baseAnchor: '成本锚',
+      stretch: isShort ? 'LP 下沿' : 'LP 上沿',
+    }[id] ?? '未标注目标'
+  )
 }
 function actionName(action) {
   return (
@@ -83,6 +93,7 @@ function actionName(action) {
       'wait-target': '等目标',
       'wait-repair-start': '等修复',
       'wait-drawdown-stabilize': '等止跌',
+      'wait-runup-stabilize': '等滞涨',
       'review-extension': '锚后复核',
       'refresh-data': '刷新数据',
     }[action] ?? (action ? '未标注动作' : '—')
@@ -212,10 +223,18 @@ function inputModeLabel(mode, isSynthetic = false) {
           <b>HL</b><span>{{ session(dynamicHoldingData.state?.halfLifeSessions) }}</span>
         </div>
         <div>
-          <b>回撤</b><span>{{ pctFmt(dynamicHoldingData.state?.drawdown?.drawdownDepth) }}</span>
+          <b>{{ dynamicHoldingData.side === 'short' ? '冲高' : '回撤' }}</b
+          ><span>{{
+            pctFmt(
+              dynamicHoldingData.side === 'short'
+                ? dynamicHoldingData.state?.drawdown?.runupDepth
+                : dynamicHoldingData.state?.drawdown?.drawdownDepth,
+            )
+          }}</span>
         </div>
         <div>
-          <b>修复</b><span>{{ ratio(dynamicHoldingData.state?.drawdown?.drawdownRepair) }}</span>
+          <b>{{ dynamicHoldingData.side === 'short' ? '回落' : '修复' }}</b
+          ><span>{{ ratio(dynamicHoldingData.state?.drawdown?.drawdownRepair) }}</span>
         </div>
       </div>
       <div class="ff-progress">
@@ -257,6 +276,13 @@ function inputModeLabel(mode, isSynthetic = false) {
     </template>
     <div v-else class="ff-empty">等待回撤 / z / 半衰期 / 结构目标</div>
   </div>
+
+  <FormulaRecurrenceView
+    v-else-if="formulaId === 'state-recurrence'"
+    :data="stateRecurrenceData"
+    :chart="recurrenceChart"
+    :pct-fmt="pctFmt"
+  />
 </template>
 
 <style>

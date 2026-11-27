@@ -27,16 +27,28 @@ def get_delta_bands(entry_price: float, formula_horizon_sessions: float, iv: flo
     ratio = ((1 + wave) / (1 - wave)) ** 2
     long_cost = entry_price * (delta_slope * ratio - delta_slope + 1) ** 2 / ratio
     short_cost = entry_price * (delta_slope / ratio - delta_slope + 1) ** 2 * ratio
+    long_curv = -math.sqrt(long_cost * ratio) / (2 * (ratio - 1) * (entry_price ** 1.5))
     return {
         "wave": wave,
         "ratio": ratio,
         "longLow": long_cost / ratio,
         "longCost": long_cost,
         "longHigh": long_cost * ratio,
+        "longCurvature": long_curv,
         "shortLow": short_cost / ratio,
         "shortCost": short_cost,
         "shortHigh": short_cost * ratio,
     }
+
+
+def invert_delta_band(lower_price: float, upper_price: float, entry_price: float, formula_horizon_sessions: float, tdpy: float) -> dict:
+    ratio = math.sqrt(upper_price / lower_price)
+    rho = math.sqrt(ratio)
+    wave = (rho - 1) / (rho + 1)
+    time_scale = math.sqrt(formula_horizon_sessions / (tdpy * 2 * math.pi))
+    implied_vol = wave / time_scale
+    implied_slope = (math.sqrt(upper_price / entry_price) - 1) / (ratio - 1)
+    return {"impliedVol": implied_vol, "impliedDeltaSlope": implied_slope, "impliedAnchor": math.sqrt(lower_price * upper_price)}
 
 
 def black_scholes(entry_price: float, strike_price: float, time_to_expiry_sessions: float, iv: float, risk_free_rate: float, opt_type: str, tdpy: float) -> dict:
@@ -87,6 +99,32 @@ def bachelier(entry_price: float, strike_price: float, time_to_expiry_sessions: 
     }
 
 
+def bachelier_carry(entry_price: float, strike_price: float, time_to_expiry_sessions: float, normal_vol: float, risk_free_rate: float, dividend_yield: float, opt_type: str, tdpy: float) -> dict:
+    t = time_to_expiry_sessions / tdpy
+    sigma_t = normal_vol * math.sqrt(t)
+    carry = risk_free_rate - dividend_yield
+    fwd = entry_price * math.exp(carry * t)
+    disc = math.exp(-risk_free_rate * t)
+    d = (fwd - strike_price) / sigma_t
+    nd = normal_cdf(d)
+    pdf = normal_pdf(d)
+    raw = disc * ((strike_price - fwd) * normal_cdf(-d) + sigma_t * pdf) if opt_type == "put" else disc * ((fwd - strike_price) * nd + sigma_t * pdf)
+    delta = math.exp(-dividend_yield * t) * (nd - 1 if opt_type == "put" else nd)
+    gamma = math.exp((risk_free_rate - 2 * dividend_yield) * t) * pdf / sigma_t
+    theta_ann = risk_free_rate * raw - carry * entry_price * delta - disc * normal_vol * pdf / (2 * math.sqrt(t))
+    rho_pct = t * (entry_price * delta - raw) / 100
+    vega_norm = disc * math.sqrt(t) * pdf
+    return {
+        "price": raw,
+        "optionDelta": delta,
+        "optionGamma": gamma,
+        "optionThetaAnnual": theta_ann,
+        "optionThetaPerSession": theta_ann / tdpy,
+        "optionRhoPerPct": rho_pct,
+        "optionNormalVegaPerUnit": vega_norm,
+    }
+
+
 def v3_inventory(mark_price: float, lower_price: float, upper_price: float, liquidity: float) -> dict:
     sqrt_p = math.sqrt(mark_price)
     sqrt_l = math.sqrt(lower_price)
@@ -124,22 +162,26 @@ def funding_rate(perp_twap: float, spot_twap: float, hours: float) -> dict:
 def js_values() -> dict:
     code = """
       import {
+        bachelierCarryOption,
         bachelierOption,
         blackScholes,
         capitalEfficiency,
         estimateCumulativeFundingProxy,
         getDeltaBands,
         fullRangeV2ImpermanentLoss,
+        invertDeltaBand,
         uniswapV3Inventory,
       } from './src/domain/formulas/core.js'
       const bands = getDeltaBands({ entryPrice: 100, formulaHorizonSessions: 30, iv: 0.4, deltaSlope: 0.3, tradingDaysPerYear: 365 })
+      const inv = invertDeltaBand({ lowerPrice: bands.long.low, upperPrice: bands.long.high, entryPrice: 100, formulaHorizonSessions: 30, tradingDaysPerYear: 365 })
       const bs = blackScholes({ entryPrice: 100, strikePrice: 105, timeToExpirySessions: 30, iv: 0.4, riskFreeRate: 0.04, type: 'put', tradingDaysPerYear: 365 })
       const bach = bachelierOption({ entryPrice: 100, strikePrice: 105, timeToExpirySessions: 30, normalVol: 40, riskFreeRate: 0.04, type: 'put', tradingDaysPerYear: 365 })
+      const bachCarry = bachelierCarryOption({ entryPrice: 100, strikePrice: 105, timeToExpirySessions: 30, normalVol: 40, riskFreeRate: 0.04, dividendYield: 0.01, type: 'put', tradingDaysPerYear: 365 })
       const lp = uniswapV3Inventory({ markPrice: 110, lowerPrice: 70, upperPrice: 130, liquidity: 10 })
       const il = fullRangeV2ImpermanentLoss({ markPrice: 110, startPrice: 100, liquidity: 10 })
       const ce = capitalEfficiency({ rangeWidth: 0.1, skew: 1.4 })
       const funding = estimateCumulativeFundingProxy({ perpTwap: 101, spotTwap: 100, horizonHours: 8 })
-      console.log(JSON.stringify({ bands, bs, bach, lp, il, ce, funding }))
+      console.log(JSON.stringify({ bands, inv, bs, bach, bachCarry, lp, il, ce, funding }))
     """
     result = subprocess.run(
         ["node", "--input-type=module", "-e", code],
@@ -163,10 +205,13 @@ def compare(label: str, js: float, py: float, tol: float = TOL) -> list[str]:
 
 def main() -> int:
     js = js_values()
+    py_bands = get_delta_bands(100, 30, 0.4, 0.3, 365)
     py = {
-        "bands": get_delta_bands(100, 30, 0.4, 0.3, 365),
+        "bands": py_bands,
+        "inv": invert_delta_band(py_bands["longLow"], py_bands["longHigh"], 100, 30, 365),
         "bs": black_scholes(100, 105, 30, 0.4, 0.04, "put", 365),
         "bach": bachelier(100, 105, 30, 40, 0.04, "put", 365),
+        "bachCarry": bachelier_carry(100, 105, 30, 40, 0.04, 0.01, "put", 365),
         "lp": v3_inventory(110, 70, 130, 10),
         "il": impermanent_loss(110, 100),
         "ce": capital_efficiency(0.1, 1.4),
@@ -176,6 +221,10 @@ def main() -> int:
         ("delta-band.long.low", js["bands"]["long"]["low"], py["bands"]["longLow"]),
         ("delta-band.long.cost", js["bands"]["long"]["cost"], py["bands"]["longCost"]),
         ("delta-band.long.high", js["bands"]["long"]["high"], py["bands"]["longHigh"]),
+        ("delta-band.long.curvatureAtEntry", js["bands"]["long"]["curvatureAtEntry"], py["bands"]["longCurvature"]),
+        ("invert-delta.impliedVol", js["inv"]["impliedVol"], py["inv"]["impliedVol"]),
+        ("invert-delta.impliedDeltaSlope", js["inv"]["impliedDeltaSlope"], py["inv"]["impliedDeltaSlope"]),
+        ("invert-delta.impliedAnchor", js["inv"]["impliedAnchor"], py["inv"]["impliedAnchor"]),
         ("black-scholes.price", js["bs"]["price"], py["bs"]["price"]),
         ("black-scholes.optionDelta", js["bs"]["optionDelta"], py["bs"]["optionDelta"]),
         ("black-scholes.optionGamma", js["bs"]["optionGamma"], py["bs"]["optionGamma"]),
@@ -194,6 +243,21 @@ def main() -> int:
             "bachelier.optionNormalVegaPerUnit",
             js["bach"]["optionNormalVegaPerUnit"],
             py["bach"]["optionNormalVegaPerUnit"],
+        ),
+        ("bachelier-carry.price", js["bachCarry"]["price"], py["bachCarry"]["price"]),
+        ("bachelier-carry.optionDelta", js["bachCarry"]["optionDelta"], py["bachCarry"]["optionDelta"]),
+        ("bachelier-carry.optionGamma", js["bachCarry"]["optionGamma"], py["bachCarry"]["optionGamma"]),
+        ("bachelier-carry.optionThetaAnnual", js["bachCarry"]["optionThetaAnnual"], py["bachCarry"]["optionThetaAnnual"]),
+        (
+            "bachelier-carry.optionThetaPerSession",
+            js["bachCarry"]["optionThetaPerSession"],
+            py["bachCarry"]["optionThetaPerSession"],
+        ),
+        ("bachelier-carry.optionRhoPerPct", js["bachCarry"]["optionRhoPerPct"], py["bachCarry"]["optionRhoPerPct"]),
+        (
+            "bachelier-carry.optionNormalVegaPerUnit",
+            js["bachCarry"]["optionNormalVegaPerUnit"],
+            py["bachCarry"]["optionNormalVegaPerUnit"],
         ),
         ("lp-v3.token0", js["lp"]["token0"], py["lp"]["token0"]),
         ("lp-v3.token1", js["lp"]["token1"], py["lp"]["token1"]),

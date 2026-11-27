@@ -155,4 +155,25 @@ export const formulaFusionStages = [
     status: 'implemented',
     feeds: ['volatility'],
   },
+  {
+    id: 'state-recurrence',
+    layer: '二阶',
+    label: '同态复现生存',
+    role: '前缀 k=⌈√N⌉ 近邻复现间隔与 Kaplan-Meier / Greenwood 生存曲线；刻画再访当前偏离态的等待分布，不等同回归成本锚',
+    inputs: ['截至当前会话的成本偏离序列', '可见历史样本长度 N'],
+    outputs: [
+      'recurrencePeriodSessions（中位再访会话）',
+      'empiricalRadiusRank（经验邻域半径分位）',
+      'currentEpisodeAgeSessions（当前连续停留会话）',
+      'kaplanMeier.points（生存率与 log-log Greenwood 95% 区间）',
+    ],
+    formulas: [
+      'k = ⌈√N⌉, r_k = d_{(k)}(|x_i - x_t|)',
+      'w_m = start(E_m) - end(E_{m-1}) > 0',
+      'S(τ) = Π_{t_j ≤ τ} (1 - d_j / n_j), Var(ln(-ln S)) ≈ Σ d_j / (n_j(n_j - d_j)(ln S)²)',
+    ],
+    sources: ['kaplan-meier-1958', 'ysv2j74j6k'],
+    status: 'research-only',
+    feeds: [],
+  },
 ]

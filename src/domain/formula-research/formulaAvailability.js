@@ -71,6 +71,7 @@ const STAGE_ACTIONS = Object.freeze({
   'dynamic-holding-state': '等待单调 AR 衰减、前向结构目标和有限公式周期同时成立。',
   'gamma-pnl': '先补充独立期权周期并生成 Gamma，再指定价格变动与名义口径。',
   'vol-confidence': '先积累至少 5 个有效会话并生成历史已实现波动率。',
+  'state-recurrence': '继续积累可见样本，待形成至少一次离开后再进入当前偏离邻域的完整复现间隔。',
 })
 
 const AVAILABILITY_RULES = Object.freeze({
@@ -118,6 +119,10 @@ const AVAILABILITY_RULES = Object.freeze({
       positive(ctx.market?.annualVol ?? ctx.graph?.inputs?.iv) ? null : 'realized-volatility',
       ctx.activeRows.length >= 5 ? null : 'volatility-sample-size',
     ]),
+  'state-recurrence': (ctx) => {
+    if (ctx.graph?.stateRecurrence?.status === 'ok') return []
+    return ctx.activeRows.length >= 10 ? ['completed-recurrence-intervals'] : ['cost-distance-series']
+  },
 })
 
 export function buildFormulaAvailabilityMap(context = {}) {

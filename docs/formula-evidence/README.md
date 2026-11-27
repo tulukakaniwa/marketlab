@@ -17,6 +17,7 @@ Market Lab 的公式层要从“公式展示”升级成“公式证据编排”
 - `ERRATA.md`：已确认错误、正确口径、修复状态和升为 `verified` 的验收条件。
 - `evidence-catalog.md`：公式证据模型、来源等级、当前公式覆盖表。
 - `formula-reference.md`：公式本体、变量语义、输出字段和图表落点。
+- `formal-proofs.md`：六大核心定理的形式化数学证明（前缀因果与 AR 修复周期、`GetDelta` 多空对偶/负凸性/逆双射、CK 回文四次根式解、Spot-Carry Bachelier 解析 Greeks、卡尔曼正定与吸收首达质量守恒、$\sqrt{P}$ 挂单几何排布）。
 - `formula-inventory.md`：当前实现里的公式函数、派生量和执行公式完整索引。
 - `wiring-audit.md`：逐项接线审计矩阵，防止 catalog-only / 空实现。
 - `implementation-roadmap.md`：分阶段实现顺序和文件边界。

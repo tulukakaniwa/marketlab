@@ -1,5 +1,8 @@
 import { normalCdf, normalPdf } from './probability.js'
 import { defineLegacyAliasContract } from './legacyAliases.js'
+import { bachelierCarryOption, getDeltaBandCurvature, invertDeltaBand } from './deltaBandOperators.js'
+
+export { bachelierCarryOption, getDeltaBandCurvature, invertDeltaBand }
 
 const OPTION_GREEK_LEGACY_CONTRACT = defineLegacyAliasContract({
   delta: 'optionDelta',
@@ -53,6 +56,11 @@ export function getDeltaBands({ entryPrice, formulaHorizonSessions, iv, deltaSlo
     cost: shortCost,
     low: shortCost * shortRatio,
   }
+  const longCurvature = getDeltaBandCurvature({ price: entryPrice, cost: long.cost, ratio: longRatio })
+  const shortRemainingLongSlope = getDeltaBandSlope({ price: entryPrice, cost: short.cost, ratio: longRatio })
+  const shortMirrorPayoff = getDeltaBandValue({ price: entryPrice, cost: short.cost, ratio: longRatio })
+  const shortCurvature = getDeltaBandCurvature({ price: entryPrice, cost: short.cost, ratio: longRatio })
+
   return {
     sourceId: GET_DELTA_SOURCE.id,
     sourceTitle: GET_DELTA_SOURCE.title,
@@ -72,11 +80,17 @@ export function getDeltaBands({ entryPrice, formulaHorizonSessions, iv, deltaSlo
       ...long,
       localSlopeAtEntry: getDeltaBandSlope({ price: entryPrice, cost: long.cost, ratio: longRatio }),
       payoffAtEntry: getDeltaBandValue({ price: entryPrice, cost: long.cost, ratio: longRatio }),
+      curvatureAtEntry: longCurvature,
+      dollarConvexityAtEntry: Number.isFinite(longCurvature) ? entryPrice * entryPrice * longCurvature : null,
     },
     short: {
       ...short,
-      localSlopeAtEntry: null,
-      payoffAtEntry: null,
+      remainingLongSlopeAtEntry: shortRemainingLongSlope,
+      localSlopeAtEntry: Number.isFinite(shortRemainingLongSlope) ? shortRemainingLongSlope - 1 : null,
+      payoffAtEntry: Number.isFinite(shortMirrorPayoff) ? short.cost + entryPrice - shortMirrorPayoff : null,
+      unhedgedMirrorValueAtEntry: shortMirrorPayoff,
+      curvatureAtEntry: shortCurvature,
+      dollarConvexityAtEntry: Number.isFinite(shortCurvature) ? entryPrice * entryPrice * shortCurvature : null,
     },
   }
 }

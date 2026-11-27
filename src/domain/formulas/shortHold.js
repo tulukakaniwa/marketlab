@@ -20,6 +20,7 @@ import {
 } from './shortHoldHelpers.js'
 
 export { DEFAULT_DYNAMIC_HOLDING_PROFILES } from './dynamicHoldingSupport.js'
+export { deriveRunupFeatures } from './shortHoldHelpers.js'
 
 export function deriveShortHoldWindow({
   zScore,
@@ -291,7 +292,7 @@ export function deriveDynamicHoldingState({
     })
   }
 
-  const phase = classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct })
+  const phase = classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct, side })
   const state = {
     zScore,
     absZ: Math.abs(zScore),

@@ -18,6 +18,7 @@ import { useChartOverlays } from '../composables/useChartOverlays.js'
 import { persistedReactive } from '../composables/usePersisted.js'
 import { buildWorkbenchSummary } from '../domain/workbench/workbenchSummary.js'
 import { buildDynamicHoldingGate } from '../domain/strategy-planning/dynamicHoldingGate.js'
+import { evaluateOrderLadderDiagnostics } from '../domain/strategy-planning/orderLadderDiagnostics.js'
 
 const LP_SCENARIO_FIELDS = new Set([
   'lpScenarioEnabled',
@@ -126,16 +127,36 @@ export const useLabStore = defineStore('lab', () => {
   )
   const researchGraph = computed(() => {
     if (!marketState.market.value || !planningGraph.value?.inputs) return null
+    const visibleRows = marketState.activeRows.value
+    const visibleCostPath = marketState.costPath.value.slice(0, visibleRows.length)
     return buildResearchSnapshot({
       market: marketState.market.value,
       input: effectiveInput.value,
       executable: planningGraph.value,
+      rows: visibleRows,
+      costPath: visibleCostPath,
     })
   })
+  const orderLadderDiagnostics = computed(() =>
+    evaluateOrderLadderDiagnostics({
+      orders: planningGraph.value?.plan?.primaryOrders ?? [],
+      side: planningGraph.value?.position?.side ?? null,
+      markPrice: marketState.market.value?.markPrice ?? null,
+      addToPrice: planningGraph.value?.position?.addToPrice ?? null,
+      stopPrice: planningGraph.value?.position?.stopPrice ?? null,
+      targetPrice: planningGraph.value?.position?.targetPrice ?? null,
+      horizonSessions:
+        planningGraph.value?.position?.formulaHorizonSessions ??
+        planningGraph.value?.inputs?.formulaHorizonSessions ??
+        null,
+      causalState: causalModel.snapshot.value?.state ?? null,
+    }),
+  )
   const graph = computed(() => ({
     ...planningGraph.value,
     ...(researchGraph.value ?? {}),
     research: researchGraph.value,
+    orderLadderDiagnostics: orderLadderDiagnostics.value,
     causalModel: causalModel.snapshot.value,
     causalModelQuery: causalModel.queryState.value,
     marketCenters: marketCenters.snapshot.value,

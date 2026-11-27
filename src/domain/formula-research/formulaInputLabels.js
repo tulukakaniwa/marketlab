@@ -97,6 +97,8 @@ const INPUT_LABELS = Object.freeze({
   'option-gamma': '期权 Gamma',
   'price-change-scenario': '价格变动情景',
   'volatility-sample-size': '至少 5 个有效波动样本',
+  'completed-recurrence-intervals': '至少 1 个完整离开再重返样本周期',
+  'short-side-target-horizon-binding': '独立空头侧结构目标与周期绑定',
 })
 
 const WORD_LABELS = Object.freeze({
@@ -144,6 +146,12 @@ const BLOCK_REASON_LABELS = Object.freeze({
   'invalid-recovery-input': '结构修复周期的输入不完整',
   'delta-band-model-domain': '当前参数超出 GetDelta 有效定义域',
   'degenerate-volatility': '波动率样本为零，模型退化，当前不生成零宽价格带',
+  'runup-expanding': '冲高仍在扩张',
+  'runup-pullback-insufficient': '冲高回落尚不足',
+  'no-completed-leave-then-return-episodes': '历史前缀尚未完成完整的离开再重返周期',
+  'insufficient-recurrence-prefix': '复现诊断样本前缀不足',
+  'insufficient-recurrence-candidates': '历史同态候选样本不足',
+  'zero-recurrence-radius': '邻域半径退化为零',
 })
 
 export function formatFormulaInputToken(value) {

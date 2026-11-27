@@ -53,9 +53,9 @@ export const formulaCapabilities = [
   {
     id: 'second-order',
     label: '二阶分析',
-    role: '速度 · 凸性 · 不确定性：均值回归、凸性项和波动率区间',
-    stages: ['mean-reversion', 'dynamic-holding-state', 'gamma-pnl', 'vol-confidence'],
-    action: '展示 AR 样本速度、动态持仓状态、Gamma 情景值和历史波动样本区间。',
+    role: '速度 · 凸性 · 不确定性 · 同态复现：均值回归、凸性项、波动率区间与生存分布',
+    stages: ['mean-reversion', 'dynamic-holding-state', 'gamma-pnl', 'vol-confidence', 'state-recurrence'],
+    action: '展示 AR 样本速度、动态持仓状态、Gamma 情景值、波动样本区间与状态复现生存曲线。',
   },
 ]
 

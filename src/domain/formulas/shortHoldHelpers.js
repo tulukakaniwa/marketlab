@@ -6,7 +6,7 @@ export function buildDynamicState({ phase, state, structural, profiles }) {
   const shortTrade = buildHoldingPlan({ kind: 'shortTrade', profile: profiles.shortTrade, phase, milestones })
   const fundCycle = buildHoldingPlan({ kind: 'fundCycle', profile: profiles.fundCycle, phase, milestones })
   const status =
-    phase === 'falling-expansion'
+    phase === 'falling-expansion' || phase === 'rising-expansion'
       ? '等待'
       : [shortTrade, fundCycle].some((plan) => plan.status === '观察')
         ? '观察'
@@ -90,6 +90,73 @@ export function drawdownDepthAt(rows, index, lookback) {
   if (!sample.length) return 0
   const peak = Math.max(...sample.map((row) => row.close))
   return sample.at(-1).close / peak - 1
+}
+
+export function runupDepthAt(rows, index, lookback) {
+  const end = Math.min(Math.max(index, 0), rows.length - 1)
+  const start = Math.max(0, end - lookback + 1)
+  const sample = rows.slice(start, end + 1).filter((row) => Number.isFinite(row?.close) && row.close > 0)
+  if (!sample.length) return 0
+  const trough = Math.min(...sample.map((row) => row.close))
+  return trough > 0 ? sample.at(-1).close / trough - 1 : 0
+}
+
+export function deriveRunupFeatures({ rows, index = null, lookback = null, minSamples = null } = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) return insufficientDrawdown(rows?.length ?? 0)
+  const end = Number.isInteger(index) ? Math.min(Math.max(index, 0), rows.length - 1) : rows.length - 1
+  const visibleCount = end + 1
+  const explicitLookback = positiveInteger(lookback)
+  const lookbackSessions = Math.min(explicitLookback ?? visibleCount, visibleCount)
+  const minimumRequired = positiveInteger(minSamples) ?? Math.max(3, Math.ceil(Math.sqrt(lookbackSessions)))
+  const start = Math.max(0, end - lookbackSessions + 1)
+  const sample = rows.slice(start, end + 1).filter((row) => Number.isFinite(row?.close) && row.close > 0)
+  const windowSpec = deriveDrawdownWindowSpec(sample.length, explicitLookback !== null)
+  if (sample.length < minimumRequired || !windowSpec) {
+    return insufficientDrawdown(sample.length, {
+      lookbackSessions,
+      minimumRequired,
+      mode: explicitLookback === null ? 'expanding-prefix' : 'explicit-scenario',
+    })
+  }
+
+  let troughRel = 0
+  for (let i = 1; i < sample.length; i += 1) if (sample[i].close <= sample[troughRel].close) troughRel = i
+  let peakRel = troughRel
+  for (let i = troughRel; i < sample.length; i += 1) if (sample[i].close >= sample[peakRel].close) peakRel = i
+
+  const current = sample.at(-1).close
+  const trough = sample[troughRel].close
+  const peak = sample[peakRel].close
+  const runupDepth = current / trough - 1
+  const runupSpeedFast = runupDepth - runupDepthAt(rows, end - windowSpec.fastLagSessions, lookbackSessions)
+  const runupSpeedSlow = runupDepth - runupDepthAt(rows, end - windowSpec.slowLagSessions, lookbackSessions)
+  const pullbackRepair = peak > trough ? clamp01((peak - current) / (peak - trough)) : 1
+
+  return {
+    status: 'ok',
+    side: 'short',
+    lookbackSessions: sample.length,
+    runupDepth,
+    runupSpeedFast,
+    runupSpeedSlow,
+    pullbackRepair,
+    drawdownDepth: peak > 0 ? current / peak - 1 : 0,
+    drawdownSpeedFast: -runupSpeedFast,
+    drawdownSpeedSlow: -runupSpeedSlow,
+    drawdownRepair: pullbackRepair,
+    drawdownAge: {
+      peakSessions: sample.length - 1 - peakRel,
+      troughSessions: sample.length - 1 - troughRel,
+    },
+    windowSpec: {
+      ...windowSpec,
+      lookbackSessions: sample.length,
+      minimumRequired,
+      mode: explicitLookback === null ? 'expanding-prefix' : 'explicit-scenario',
+    },
+    peakPrice: peak,
+    troughPrice: trough,
+  }
 }
 
 export function insufficientDrawdown(sampleSize, windowSpec = null) {

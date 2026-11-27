@@ -154,6 +154,7 @@
 | `expectedProfit`                  | buy `(target-price)*amount`, sell `(price-target)*amount`                        | scenario arithmetic, not expectancy         |
 | `buildFormulaStrategyComposition` | explanation model for executable formula chain                                   | implemented                                 |
 | `buildFormulaBasis`               | GetDelta variable basis for UI/audit                                             | implemented                                 |
+| `evaluateOrderLadderDiagnostics`  | sqrt(P)-geometric ladder rungs and absorbing first-passage fill diagnostics      | research-only query                         |
 
 ## Replay / Account Simulation
 
@@ -179,8 +180,13 @@
 
 | Function                  | Formula / meaning                                                                                  | Status            |
 | ------------------------- | -------------------------------------------------------------------------------------------------- | ----------------- |
-| `buildResearchSnapshot`   | gathers option, LP, funding, portfolio research outputs                                            | research-only     |
+| `buildResearchSnapshot`   | gathers option, LP, funding, portfolio, inverse-delta, recurrence research                         | research-only     |
 | `optionLegPnL`            | scenario option PnL inside LP portfolio curve                                                      | research-only     |
+| `getDeltaBandCurvature`   | exact negative convexity `V''(P)` of concentrated-liquidity GetDelta band                          | exact identity    |
+| `invertDeltaBand`         | exact inverse bijection `(lower, upper, entry, H) -> (impliedVol, impliedSlope)`                   | research-only     |
+| `bachelierCarryOption`    | spot-carry risk-neutral Bachelier with closed-form Delta/Gamma/Theta/Rho/Vega                      | research-only     |
+| `estimateDynamicCkSkew`   | half-life-weighted directional move-scale ratio bridged into CK Part 2 frontier                    | research-only     |
+| `deriveStateRecurrence`   | prefix-causal kNN exit-to-reentry waiting intervals with KM/Greenwood survival                     | research-only     |
 | `buildLiquidityRackModel` | density and simulated-order rack; full visible prefix unless viewport is explicit, with windowSpec | research-only     |
 | `buildTraderChecklist`    | status aggregation over market, trigger, account, orders, option, LP, funding                      | implemented query |
 
@@ -191,7 +197,7 @@
 | `deriveRecoveryHorizon`                                                                                                           | target-specific `H=HL*log2(1/(1-recoveryFraction))`; rejects `q<=0` or `q>=1`                                     | implemented query       |
 | `meanReversionHalfLife`                                                                                                           | AR(1) canonical outputs `arCoefficient`, `arDecayRatePerStep`, `halfLifeSessions`                                 | implemented query       |
 | `deriveShortHoldWindow`, `deriveStructuralHoldWindow`                                                                             | legacy-compatible query shells that now require a target-derived recovery fraction and have no hidden holding cap | implemented query       |
-| `deriveDynamicHoldingState`, `deriveDrawdownFeatures`, `classifyPhase`                                                            | dynamic state from causal drawdown, AR half-life and structural targets                                           | implemented query       |
+| `deriveDynamicHoldingState`, `deriveDrawdownFeatures`, `deriveRunupFeatures`, `classifyPhase`                                     | symmetric long/short dynamic state from causal drawdown/runup, AR half-life and structural targets                | implemented query       |
 | `buildMilestones`, `buildHoldingPlan`, `buildExpectation`                                                                         | maps target-specific horizons into research plans without fixed day buckets                                       | implemented query       |
 | `normalizeProfiles`, `DEFAULT_DYNAMIC_HOLDING_PROFILES`                                                                           | target-order profile normalization; legacy min/max day fields are ignored                                         | implemented query       |
 | `emptyDynamicState`, `phaseLabel`, `unique`                                                                                       | explicit missing-state and presentation-safe domain helpers                                                       | implemented query       |

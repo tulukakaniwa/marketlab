@@ -243,6 +243,15 @@ export const formulaEvidenceCatalog = [
   ),
   entry('gamma-pnl', 'paper', 'implemented', false, ['gamma', 'priceChange'], ['gammaPnl'], ['black-scholes-1973']),
   entry('vol-confidence', 'heuristic', 'implemented', false, ['annualVol', 'sampleSize'], ['confidenceRange'], []),
+  entry(
+    'state-recurrence',
+    'paper',
+    'research-only',
+    false,
+    ['costDistanceSeries'],
+    ['recurrencePeriodSessions', 'empiricalRadiusRank', 'kaplanMeier'],
+    ['kaplan-meier-1958', 'ysv2j74j6k'],
+  ),
 ]
 
 export function getFormulaEvidence(id) {

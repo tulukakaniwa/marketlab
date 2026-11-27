@@ -6,7 +6,13 @@ export const DEFAULT_DYNAMIC_HOLDING_PROFILES = {
 }
 
 export function buildMilestones(structural) {
-  const alias = { costLower: 'firstRepair', anchor: 'baseAnchor', lpUpper: 'stretch' }
+  const alias = {
+    costLower: 'firstRepair',
+    costUpper: 'firstRepair',
+    anchor: 'baseAnchor',
+    lpUpper: 'stretch',
+    lpLower: 'stretch',
+  }
   return structural.candidates.map((candidate) => ({
     id: alias[candidate.id] ?? candidate.id,
     sourceId: candidate.id,
@@ -23,7 +29,7 @@ export function buildMilestones(structural) {
         : null,
     recoveryFraction: candidate.recoveryFraction,
     zAtTarget: candidate.zAtTarget,
-    isStretch: candidate.id === 'lpUpper',
+    isStretch: candidate.id === 'lpUpper' || candidate.id === 'lpLower',
     blockedReasons: candidate.blockedReasons,
   }))
 }
@@ -31,6 +37,7 @@ export function buildMilestones(structural) {
 export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   if (phase === 'insufficient-history') return plan('需刷新数据', 'refresh-data', null, ['insufficient-history'])
   if (phase === 'falling-expansion') return plan('等待', 'wait-drawdown-stabilize', null, ['drawdown-expanding'])
+  if (phase === 'rising-expansion') return plan('等待', 'wait-runup-stabilize', null, ['runup-expanding'])
   if (phase === 'post-anchor-extension')
     return plan('等待', 'review-extension', milestoneById(milestones, 'stretch'), ['post-anchor-extension'])
 
@@ -39,10 +46,12 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   const candidates = targetOrder.map((id) => milestoneById(milestones, id)).filter(Boolean)
   const target = candidates.find((item) => usableMilestone(item, profile))
 
-  if (phase === 'low-compression') {
-    if (target) return plan('等待', 'wait-repair-start', target, ['drawdown-repair-insufficient'])
+  if (phase === 'low-compression' || phase === 'high-compression') {
+    const compressionReason =
+      phase === 'high-compression' ? 'runup-pullback-insufficient' : 'drawdown-repair-insufficient'
+    if (target) return plan('等待', 'wait-repair-start', target, [compressionReason])
     const pendingTarget = candidates.find(forwardMilestone) ?? null
-    const reasons = unique(['drawdown-repair-insufficient', ...profileMilestoneBlockedReasons(pendingTarget, profile)])
+    const reasons = unique([compressionReason, ...profileMilestoneBlockedReasons(pendingTarget, profile)])
     return plan('等待', 'wait-repair-start', pendingTarget, reasons)
   }
   if (target) {
@@ -65,7 +74,17 @@ export function buildHoldingPlan({ kind, profile, phase, milestones }) {
   )
 }
 
-export function classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct }) {
+export function classifyPhase({ drawdown, entryPrice, anchorPrice, costSlopePct, side = 'long' }) {
+  if (side === 'short') {
+    if (entryPrice <= anchorPrice) return 'post-anchor-extension'
+    const speedFast = Number(drawdown.runupSpeedFast ?? -(drawdown.drawdownSpeedFast ?? 0))
+    const speedSlow = Number(drawdown.runupSpeedSlow ?? -(drawdown.drawdownSpeedSlow ?? 0))
+    const repair = Number(drawdown.pullbackRepair ?? drawdown.drawdownRepair ?? 0)
+    if (speedFast >= 0.015 || speedSlow >= 0.035) return 'rising-expansion'
+    if (repair >= 0.35) return 'mean-reverting'
+    if (repair >= 0.15 && speedFast <= 0.005 && costSlopePct <= 1.5) return 'repair-start'
+    return 'high-compression'
+  }
   if (entryPrice >= anchorPrice) return 'post-anchor-extension'
   if (drawdown.drawdownSpeedFast <= -0.015 || drawdown.drawdownSpeedSlow <= -0.035) return 'falling-expansion'
   if (drawdown.drawdownRepair >= 0.35) return 'mean-reverting'
@@ -121,7 +140,9 @@ export function phaseLabel(phase) {
   return (
     {
       'falling-expansion': '下跌扩张',
+      'rising-expansion': '冲高扩张',
       'low-compression': '低位压缩',
+      'high-compression': '高位钝化',
       'repair-start': '修复启动',
       'mean-reverting': '回归中',
       'post-anchor-extension': '锚后扩展',

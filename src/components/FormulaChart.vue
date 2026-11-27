@@ -17,10 +17,10 @@ const {
   stage, availability, orderReview, activeIndex, fmt, f4, pctFmt, pathData, costData, volData, bandData,
   greeksData, lpData, syH, lpV3Curve, lpV3Marker, lpRealMarker, lpV3Bounds, ceData,
   ceCurve, ceDot, ceFrontierDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
-  bachelierData, ammData, fingerprintData, devScoreData, normalCurve, zMarker,
-  riskSurfaceData, lpPoolData, netLpData, netCarryData, netCarryDisplay, guide, mrData, dynamicHoldingData,
-  decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, orderData,
-  W, H, PL, PR, pw, ph, sx, sy,
+  bachelierData, bachelierCarryData, deltaInversionData, dynamicCkData, ammData, fingerprintData, devScoreData,
+  normalCurve, zMarker, riskSurfaceData, lpPoolData, netLpData, netCarryData, netCarryDisplay, guide, mrData,
+  dynamicHoldingData, decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, stateRecurrenceData,
+  recurrenceChart, orderData, W, H, PL, PR, pw, ph, sx, sy,
 } = useFormulaChartModel(props)
 
 function greekTone(value) {
@@ -118,6 +118,7 @@ function greekTone(value) {
       <line :x1="PL" :x2="W-PR" :y1="sy(bandData.price)" :y2="sy(bandData.price)" stroke="var(--ink)" stroke-width="2" />
       <circle :cx="sx(0.01)" :cy="sy(bandData.price)" r="4" fill="var(--ink)" />
       <text :x="sx(0.01)+8" :y="sy(bandData.price)+4" class="fc-tick">现价 {{ fmt(props.market?.markPrice) }}</text>
+      <text v-if="deltaInversionData" :x="PL" :y="H-4" class="fc-tick">反推 σ={{ pctFmt(deltaInversionData.impliedVol) }} · d={{ deltaInversionData.impliedDeltaSlope.toFixed(2) }}</text>
       <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">波 {{ bandData.wave.toFixed(4) }} · 率 {{ bandData.ratio.toFixed(2) }}</text>
     </svg>
 
@@ -170,15 +171,10 @@ function greekTone(value) {
       />
     </div>
 
-    <!-- AMM GEOMETRY -->
     <svg v-else-if="formulaId === 'amm-geometry' && ammData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">AMM 储备曲线 · xy = k</text>
-
-      <!-- Axes -->
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <line :x1="PL" :x2="PL" :y1="sy(1)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
-
-      <!-- Hyperbola xy = k -->
       <polyline
         :points="ammData.curve.points.map(p => {
           const rx = PL + (p.x / (ammData.curve.currentX * 3)) * pw
@@ -195,17 +191,12 @@ function greekTone(value) {
         }).join(' ')"
         fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="4,3"
       />
-
-      <!-- Current reserve point -->
       <line :x1="PL" :x2="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :y1="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" :y2="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
       <line :x1="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :x2="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :y1="sy(0)" :y2="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
       <circle :cx="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :cy="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" r="5" fill="var(--ink)" />
       <text :x="sx(ammData.curve.currentX / (ammData.curve.currentX * 3)) + 8" :y="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph - 6" class="fc-tick">储备 ({{ f4(ammData.curve.currentX) }}, {{ f4(ammData.curve.currentY) }})</text>
-
-      <!-- Labels -->
       <text :x="W-PR" :y="sy(0.05)" text-anchor="end" class="fc-tick">x (Token0)</text>
       <text :x="PL+4" :y="sy(0.95)" class="fc-tick">y (Token1)</text>
-
       <text :x="W-PR" :y="H-18" text-anchor="end" class="fc-tick">绿 xy=k · 蓝 Lambert W 研究曲线 · Numoen {{ availability.label }}</text>
       <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">L = {{ f4(ammData.curve.L) }} · k = {{ fmt(ammData.curve.invariant) }} · slip {{ f4(ammData.numoen.slippageY) }}</text>
     </svg>
@@ -222,7 +213,7 @@ function greekTone(value) {
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0%</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">100%</text>
-      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">CK ±84.13% 仅是几何中点/端点比目标下的精确拐点；不是标的交易最优区间</text>
+      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">{{ dynamicCkData ? `动态偏斜 α̂=${dynamicCkData.directionalMoveScaleRatio.toFixed(2)} · 拐点 CE ${dynamicCkData.efficiencyAtGeometricMidpoint.toFixed(2)}× · 仅研究` : 'CK ±84.13% 仅是几何中点/端点比目标下的精确拐点；不是标的交易最优区间' }}</text>
     </svg>
 
     <!-- FUNDING -->
@@ -261,8 +252,8 @@ function greekTone(value) {
         <div class="fc-orders">
           <div v-for="(o, i) in orderData" :key="i" class="fc-orow">
             <span class="fc-orole">{{ o.action }}</span>
-            <span>{{ o.side === 'buy' ? '买' : '卖' }} @ {{ fmt(o.price) }}</span>
-            <span class="fc-onotional">模拟名义 {{ fmt(o.notional) }}</span>
+            <span>{{ o.side === 'buy' ? '买' : '卖' }} @ {{ fmt(o.price) }}<small v-if="o.geometricPrice"> · √P {{ fmt(o.geometricPrice) }}</small></span>
+            <span class="fc-onotional">模拟名义 {{ fmt(o.notional) }}<small v-if="Number.isFinite(o.fillBeforeTargetProb)"> · 触价 {{ pctFmt(o.fillBeforeTargetProb) }}</small></span>
             <span v-if="o.expected" :class="o.expected > 0 ? 'green' : 'red'">情景 {{ fmt(o.expected) }}</span>
           </div>
         </div>
@@ -311,7 +302,7 @@ function greekTone(value) {
         <div class="fc-gi"><b>B-Δ</b><span :class="greekTone(bachelierData?.optionDelta)">{{ f4(bachelierData?.optionDelta) }}</span></div>
         <div class="fc-gi"><b>B-Γ</b><span>{{ f4(bachelierData?.optionGamma) }}</span></div>
       </div>
-      <div class="fc-meta">Bachelier 使用 normal vol = S·σ；Asian/Bachelier 只用于 LP payoff fit 研究，不进入挂单。</div>
+      <div class="fc-meta">Carry Bachelier Θ/会话 {{ f4(bachelierCarryData?.optionThetaPerSession) }} · ρ/1% {{ f4(bachelierCarryData?.optionRhoPerPct) }} · 仅研究，不进入挂单。</div>
     </div>
 
     <!-- DEVIATION SCORE -->
@@ -346,17 +337,19 @@ function greekTone(value) {
       <text :x="W-PR" :y="sy(0)+18" text-anchor="end" class="fc-tick">{{ fmt(riskSurfaceData.bandHigh) }}</text>
     </svg>
 
-    <!-- FUSION CARDS -->
     <FormulaFusionViews
       v-else-if="
         (formulaId === 'net-lp-efficiency' && netLpData) ||
         (formulaId === 'dynamic-holding-state' && dynamicHoldingData) ||
-        (formulaId === 'lp-pool-coverage' && lpPoolData)
+        (formulaId === 'lp-pool-coverage' && lpPoolData) ||
+        (formulaId === 'state-recurrence' && stateRecurrenceData?.status === 'ok')
       "
       :formula-id="formulaId"
       :net-lp-data="netLpData"
       :lp-pool-data="lpPoolData"
       :dynamic-holding-data="dynamicHoldingData"
+      :state-recurrence-data="stateRecurrenceData"
+      :recurrence-chart="recurrenceChart"
       :fmt="fmt"
       :pct-fmt="pctFmt"
     />

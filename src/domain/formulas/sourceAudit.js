@@ -26,6 +26,8 @@ const BOUNDARIES = {
   'mean-reversion': 'Second-order observation for speed; it is not a timing command.',
   'gamma-pnl': 'Risk attribution for convexity; no execution authority by default.',
   'vol-confidence': 'Uncertainty band around volatility estimate; no direct order output.',
+  'state-recurrence':
+    'Research-only exit-to-reentry recurrence and Kaplan-Meier survival estimate; never defines recoveryFraction or execution targets.',
 }
 
 export const formulaSourceAudit = formulaStages.map((stage) => {
