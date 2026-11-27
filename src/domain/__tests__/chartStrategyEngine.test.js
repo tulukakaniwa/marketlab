@@ -71,4 +71,24 @@ describe('Chart Profitable Strategy Engine', () => {
     expect(priceSeries.some((s) => s.id === 'strategyStop' && s.points.length > 0)).toBe(true)
     expect(priceSeries.some((s) => s.id === 'strategyTarget' && s.points.length > 0)).toBe(true)
   })
+
+  it('delivers positive multi-year returns on default crypto & tech datasets without full-Kelly blowup', () => {
+    for (const [file, tdpy] of [
+      ['public/data/BTCUSDT-1d.csv', 365],
+      ['public/data/ETHUSDT-1d.csv', 365],
+      ['public/data/NVDA-1d.csv', 252],
+      ['public/data/0700_HK-1d.csv', 245],
+    ]) {
+      const rows = parseCsvText(readFileSync(resolve(file), 'utf8'))
+      const res = evaluateChartStrategy({
+        strategyId: 'regime-combo',
+        rows,
+        tradingDaysPerYear: tdpy,
+        feeRate: 0.001,
+      })
+      expect(res.summary.closedCount).toBeGreaterThan(0)
+      expect(res.summary.totalNetReturn).toBeGreaterThan(0)
+      expect(res.summary.maxDrawdown).toBeGreaterThan(-0.25)
+    }
+  })
 })

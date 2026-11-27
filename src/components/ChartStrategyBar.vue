@@ -68,7 +68,9 @@ function price(value) {
 
       <span v-if="strategy.activePosition" class="csb-live-pill is-open">
         持仓 {{ strategy.activePosition.legLabel }} · 防守 {{ price(strategy.activePosition.stopPrice) }} → 目标
-        {{ price(strategy.activePosition.targetPrice) }} ({{ signedPct(strategy.activePosition.unrealizedNetReturn) }})
+        {{ strategy.activePosition.targetPrice ? price(strategy.activePosition.targetPrice) : '趋势跟踪' }} ({{
+          signedPct(strategy.activePosition.unrealizedNetReturn)
+        }})
       </span>
       <span v-else-if="strategy.latestSignal" class="csb-live-pill is-signal">
         今日信号 {{ strategy.latestSignal.legLabel }} · 次日开盘验证
