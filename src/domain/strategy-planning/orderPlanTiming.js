@@ -175,6 +175,10 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
     })
   }
   if (belowCost && buyEdge >= minEdge) {
+    const atrBuffer = Math.max(atr * 1.5, 0.015)
+    const fallbackLongStop = market.markPrice * (1 - atrBuffer)
+    const rawLongStop =
+      positive(bands?.long?.low) && bands.long.low < market.markPrice ? bands.long.low : fallbackLongStop
     return activeTiming({
       state: '低于成本带',
       side: 'buy',
@@ -182,7 +186,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       reason: buildReason(),
       signalStrength,
       edge: buyEdge,
-      stop: Math.min(market.costLow, bands?.long.low ?? market.costLow),
+      stop: Math.min(rawLongStop, market.markPrice * 0.995),
       target: positive(inputs.horizonTargetPrice) ?? market.costLow,
       ...withFacts(baseFacts, {
         triggeredConditions: [
@@ -205,6 +209,10 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
     })
   }
   if (aboveCost && sellEdge >= minEdge) {
+    const atrBuffer = Math.max(atr * 1.5, 0.015)
+    const fallbackShortStop = market.markPrice * (1 + atrBuffer)
+    const rawShortStop =
+      positive(bands?.short?.high) && bands.short.high > market.markPrice ? bands.short.high : fallbackShortStop
     return activeTiming({
       state: '高于成本带',
       side: 'sell',
@@ -212,7 +220,7 @@ export function buildEntryTiming(market, bands, profile = strategyProfiles.balan
       reason: buildReason(),
       signalStrength,
       edge: sellEdge,
-      stop: Math.max(market.costHigh, bands?.short.high ?? market.costHigh),
+      stop: Math.max(rawShortStop, market.markPrice * 1.005),
       target: positive(inputs.horizonTargetPrice) ?? market.costHigh,
       ...withFacts(baseFacts, {
         triggeredConditions: ['价格高于成本带', '溢价幅度达到策略档位阈值'],

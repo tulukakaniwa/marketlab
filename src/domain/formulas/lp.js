@@ -107,11 +107,11 @@ export function uniswapV3HedgedInventory({
   if (!currentPayoff || !entryPayoff) return null
 
   const lpPnl = liquidity * (currentPayoff.value - entryPayoff.value)
-  const hedgePnl = hedgeSize * (markPrice - strikePrice)
+  const hedgePnl = -hedgeSize * (markPrice - strikePrice)
   const feeIncome = fee.value
 
   return {
-    value: lpPnl - hedgePnl + feeIncome,
+    value: lpPnl + hedgePnl + feeIncome,
     lpPnl,
     hedgePnl,
     feeIncome,

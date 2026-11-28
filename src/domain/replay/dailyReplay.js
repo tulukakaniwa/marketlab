@@ -1,6 +1,6 @@
 import { buildMarketStatePath, isPrefixCausalMarketStatePath } from '../market-data/cost.js'
 import { buildFormulaPath } from '../formula-research/path/formulaPath.js'
-import { buildDecisionGraph, resolveProfile } from '../strategy-planning/orderPlan.js'
+import { buildDecisionGraph, resolveProfile, scaleProfileToMarket } from '../strategy-planning/orderPlan.js'
 import { buildDynamicHoldingGate } from '../strategy-planning/dynamicHoldingGate.js'
 import {
   accountExit,
@@ -59,14 +59,15 @@ export function buildDailyReplay(rows, input, marketStates = null) {
   for (let index = startIndex; index < rows.length; index += 1) {
     const row = rows[index]
     const market = states[index]
-    const accountAction = accountExit({ row, index, market, cash, fee, profile, exitPlans, input })
+    const executableProfile = scaleProfileToMarket(profile, market)
+    const accountAction = accountExit({ row, index, market, cash, fee, profile: executableProfile, exitPlans, input })
     if (accountAction) {
       cash = accountAction.cash
       base = accountAction.base
       costBasis = accountAction.costBasis
       exitPlans = accountAction.exitPlans
       events.push(...accountAction.events)
-      nextSignalIndex = index + profile.buyCooldown
+      nextSignalIndex = index + executableProfile.buyCooldown
       pendingOrder = null
     }
 
@@ -95,7 +96,8 @@ export function buildDailyReplay(rows, input, marketStates = null) {
             costBasis = applied.costBasis
             exitPlans = applied.exitPlans
             events.push(applied.event)
-            nextSignalIndex = index + (filledOrder.side === 'buy' ? profile.buyCooldown : profile.sellCooldown)
+            nextSignalIndex =
+              index + (filledOrder.side === 'buy' ? executableProfile.buyCooldown : executableProfile.sellCooldown)
           }
         }
         pendingOrder = null

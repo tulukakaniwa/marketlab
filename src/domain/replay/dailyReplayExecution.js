@@ -107,8 +107,8 @@ export function resolveLongLotExit({ row, index, market, profile, plan, input })
 
 export function closeAccountPosition({ row, index, cash, fee, plan, exit }) {
   const sellBase = plan.baseAmount
-  const averageCost = plan.investedCost / sellBase
   const proceeds = sellBase * exit.price * (1 - fee)
+  const netPnl = proceeds - plan.investedCost
   return {
     cash: cash + proceeds,
     event: {
@@ -131,8 +131,8 @@ export function closeAccountPosition({ row, index, cash, fee, plan, exit }) {
       notional: sellBase * exit.price,
       baseAmount: sellBase,
       investedCost: plan.investedCost,
-      pnl: proceeds - plan.investedCost,
-      returnRate: averageCost > 0 ? (exit.price - averageCost) / averageCost : 0,
+      pnl: netPnl,
+      returnRate: plan.investedCost > 0 ? netPnl / plan.investedCost : 0,
       reason: exit.reason,
       intrabarBothHit: exit.intrabarBothHit,
       intrabarPolicy: exit.intrabarPolicy,
