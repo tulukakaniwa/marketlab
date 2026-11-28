@@ -32,7 +32,16 @@ export function buildPositionPlan(timing, bands, account, profile, market, execu
       rule: '缺少底仓输入，模拟挂单不生成卖出单。',
     }
   }
-  const stopDistance = Math.max(Math.abs(market.markPrice - timing.stop) / market.markPrice, 0.001)
+  const directionalStopGap = timing.side === 'buy' ? market.markPrice - timing.stop : timing.stop - market.markPrice
+  if (!Number.isFinite(directionalStopGap) || directionalStopGap <= 0) {
+    return {
+      ...emptyPosition(timing, account),
+      action: '失效线方向异常',
+      missingInputs: ['directional-stop-price'],
+      rule: '失效线未位于入场方向的风险侧，模拟挂单保持关闭。',
+    }
+  }
+  const stopDistance = Math.max(directionalStopGap / market.markPrice, 0.001)
   const signalStrength = timing.signalStrength ?? 0
   const sizingCapital = Math.max(account.equity ?? account.capital ?? 0, 0)
   const riskBudgetPct =

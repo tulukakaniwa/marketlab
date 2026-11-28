@@ -528,6 +528,40 @@ function simulateTrade(rows, signalIndex, profile, signalPlan, market) {
     const row = rows[i]
     const stopHit = row.low <= stopPrice
     const targetHit = row.high >= targetPrice
+    const gapThroughTarget = targetHit && Number.isFinite(row.open) && row.open >= targetPrice
+    const gapThroughStop = stopHit && Number.isFinite(row.open) && row.open <= stopPrice
+    if (gapThroughStop) return tradeResult({
+      entry,
+      exit: row,
+      entryGap,
+      entryPrice,
+      exitPrice: row.open,
+      reason: 'stop',
+      actualHoldSessions: i - entryIndex,
+      targetPrice,
+      entryTarget,
+      signalPlan,
+      intrabarBothHit: targetHit,
+      modelHorizonSessions,
+      appliedHorizonSessions,
+      settlementLagSessions,
+    })
+    if (gapThroughTarget) return tradeResult({
+      entry,
+      exit: row,
+      entryGap,
+      entryPrice,
+      exitPrice: row.open,
+      reason: 'target',
+      actualHoldSessions: i - entryIndex,
+      targetPrice,
+      entryTarget,
+      signalPlan,
+      intrabarBothHit: stopHit,
+      modelHorizonSessions,
+      appliedHorizonSessions,
+      settlementLagSessions,
+    })
     if (stopHit) return tradeResult({
       entry,
       exit: row,

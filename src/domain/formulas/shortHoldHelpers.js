@@ -57,7 +57,8 @@ export function buildTargetCandidate({
     recoveryFraction > 0 && recoveryFraction < 1 ? halfLifeSessions * log2(1 / (1 - recoveryFraction)) : null
   const executableHoldingSessions =
     partialRecoverySessions !== null ? Math.max(minExecutableSessions, Math.ceil(partialRecoverySessions)) : null
-  const grossReturn = direction === 1 ? effectiveTargetPrice / entryPrice - 1 : entryPrice / effectiveTargetPrice - 1
+  const grossReturn =
+    direction === 1 ? effectiveTargetPrice / entryPrice - 1 : (entryPrice - effectiveTargetPrice) / entryPrice
 
   if (partialRecoverySessions === null) blockedReasons.push('non-finite-target-horizon')
   if (Number.isFinite(maxHoldingSessions) && partialRecoverySessions > maxHoldingSessions)
