@@ -6,7 +6,7 @@ defineProps({
   ready: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'open-rotation'])
 
 function pct(value, digits = 1) {
   if (!Number.isFinite(value)) return '—'
@@ -43,6 +43,14 @@ function price(value) {
         @click="emit('select', item.id)"
       >
         {{ item.shortLabel }}
+      </button>
+      <button
+        type="button"
+        class="csb-rotation-btn"
+        title="打开跨市场多标的闲置资金轮动引擎（18标的旗舰池 + √P 限价梯队）"
+        @click="emit('open-rotation')"
+      >
+        多标的轮动
       </button>
     </div>
 
@@ -122,6 +130,21 @@ function price(value) {
   border-color: color-mix(in srgb, var(--green) 46%, transparent);
   background: var(--green-dim);
   color: var(--green);
+}
+.csb-rotation-btn {
+  min-height: 22px;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
+  border-radius: var(--r-xs);
+  background: var(--blue-dim);
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.csb-rotation-btn:hover {
+  filter: brightness(1.12);
 }
 .csb-telemetry {
   display: inline-flex;

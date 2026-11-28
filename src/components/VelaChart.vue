@@ -48,6 +48,7 @@ const emit = defineEmits([
   'ready',
   'fatal-error',
   'open-market-impact',
+  'open-portfolio-rotation',
 ])
 const el = ref(null),
   loading = ref(true)
@@ -220,6 +221,7 @@ function handleCursor(time) {
         :strategy="chartStrategy"
         :ready="!loading"
         @select="(id) => emit('set-chart-strategy', id)"
+        @open-rotation="emit('open-portfolio-rotation')"
       />
 
       <div

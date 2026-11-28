@@ -31,6 +31,12 @@ export const CHART_STRATEGY_CATALOG = Object.freeze([
     shortLabel: '全天候组合',
     role: '自适应双周期成本锚分流：顺势期运行压缩突破抓长右尾，震荡回撤期运行结构低吸吃均值回归',
   }),
+  Object.freeze({
+    id: 'lp-carry-hybrid',
+    label: '二阶收租+趋势',
+    shortLabel: 'LP收租+趋势',
+    role: '收敛震荡期部署对冲型 Uniswap v3 集中流动性收租，破上轨即刻撤池无缝切入右尾趋势 + √P 梯队低吸',
+  }),
 ])
 
 const VALID_IDS = new Set(CHART_STRATEGY_CATALOG.map((item) => item.id))

@@ -36,6 +36,7 @@ const emit = defineEmits([
   'set-chart-strategy',
   'native-settings-change',
   'open-market-impact',
+  'open-portfolio-rotation',
 ])
 const workspace = useChartWorkspace()
 const runtimeLoading = ref(false)
@@ -75,6 +76,7 @@ function handleLoading(value) {
       @fatal-error="handleFailure"
       @ready="handleReady"
       @open-market-impact="emit('open-market-impact')"
+      @open-portfolio-rotation="emit('open-portfolio-rotation')"
     />
     <section v-else class="main-chart-shell">
       <div class="chart-workspace-state" role="status" :aria-busy="switchLoading">

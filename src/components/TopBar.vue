@@ -45,12 +45,18 @@ const emit = defineEmits([
   'mobile-open-left',
   'mobile-open-right',
   'open-market-impact',
+  'open-portfolio-rotation',
   'open-eth-replay',
   'open-recommended-pool',
 ])
 
 function openImpactResearch() {
   emit('open-market-impact')
+  closeOverflow()
+}
+
+function openPortfolioRotation() {
+  emit('open-portfolio-rotation')
   closeOverflow()
 }
 
@@ -160,6 +166,7 @@ function pctSign(v) {
 
     <div class="tb-actions tb-desktop-only">
       <nav class="tb-nav-pills" aria-label="研究视图切换">
+        <button class="tb-nav-pill" type="button" @click="openPortfolioRotation">组合轮动</button>
         <button class="tb-nav-pill" type="button" @click="openImpactResearch">冲击研究</button>
         <a class="tb-nav-pill" href="?surface=eth-replay" @click.prevent="openEthReplay">ETH 回放</a>
         <a class="tb-nav-pill" href="?surface=recommended-pool" @click.prevent="openRecommendedPool">A股门禁</a>
@@ -203,6 +210,7 @@ function pctSign(v) {
         </button>
         <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
           <div class="tb-overflow-section">专项视图</div>
+          <button class="tb-overflow-item" type="button" @click="openPortfolioRotation">跨市场组合轮动</button>
           <button class="tb-overflow-item" type="button" @click="openImpactResearch">ETH 市场冲击研究</button>
           <a class="tb-overflow-item" href="?surface=eth-replay" @click.prevent="openEthReplay">ETH 分钟决策回放</a>
           <a class="tb-overflow-item" href="?surface=recommended-pool" @click.prevent="openRecommendedPool">
