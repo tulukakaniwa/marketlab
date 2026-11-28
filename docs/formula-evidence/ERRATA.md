@@ -92,7 +92,7 @@
 - 对：在索引 `t` 用 `deriveWindows(t+1)`，或让 query 自己基于可见前缀推导。
 - 条件：显式用户情景窗口可以固定，但必须带 `windowMode=explicit-scenario`，不能伪装为自适应。
 - 防复发：对同一前缀分别计算 `path(prefix)` 与 `path(prefix+future).slice(0,prefix.length)`，字段逐点相等。
-- 涉及：`src/domain/market-data/cost.js`、`src/domain/market-data/formulaPath.js`。
+- 涉及：`src/domain/market-data/cost.js`、`src/domain/formula-research/path/formulaPath.js`。
 
 ### E-002 — 年化交易日基准漂移
 

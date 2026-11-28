@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { formulaEvidenceCatalog } from '../formulas/evidence.js'
 import { formulaStages, getFormulaStage } from '../formulas/registry.js'
 import { formulaSourceAudit } from '../formulas/sourceAudit.js'
-import { FORMULA_PATH_CURVES, FORMULA_PATH_FIELDS } from '../market-data/formulaPath.js'
+import { FORMULA_PATH_CURVES, FORMULA_PATH_FIELDS } from '../formula-research/path/formulaPath.js'
 
 describe('formula source audit', () => {
   it('keeps blog/desmos research formulas out of the executable chain by default', () => {

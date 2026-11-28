@@ -23,6 +23,8 @@ export const MARKET_LAB_SERIES_STYLES = Object.freeze({
   mark: style('现价', 'price', '#202020', 1),
   target: style('模拟目标', 'price', '#0e7558', 1, 'dashed'),
   stop: style('失效线', 'price', '#a93226', 2, 'dashed'),
+  strategyStop: style('策略防守轨', 'price', '#ef4444', 2, 'dashed'),
+  strategyTarget: style('策略目标轨', 'price', '#10b981', 1, 'dashed'),
   bsDelta: style('期权 Delta', 'num', '#a93226'),
   bsGamma: style('期权 Gamma', 'num', '#8b5a16'),
   bsTheta: style('期权 Theta/交易会话', 'num', '#274f9f'),

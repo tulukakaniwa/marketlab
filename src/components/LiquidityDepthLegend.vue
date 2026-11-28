@@ -68,8 +68,8 @@ const items = computed(() => {
   background: linear-gradient(90deg, var(--red), var(--blue));
 }
 .legend-real i {
-  border-color: #8b5a16;
-  background: rgba(139, 90, 22, 0.18);
+  border-color: var(--amber);
+  background: var(--amber-dim);
 }
 .legend-base i {
   background: var(--blue);
@@ -85,6 +85,6 @@ const items = computed(() => {
 }
 .legend-range i,
 .legend-gap i {
-  background: #8b5a16;
+  background: var(--amber);
 }
 </style>

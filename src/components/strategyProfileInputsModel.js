@@ -54,14 +54,11 @@ export function strategyFieldValue(input, field) {
   return field.pct ? Number((value * 100).toFixed(2)) : value
 }
 
-export function setStrategyFieldValue(input, field, raw) {
+export function parseStrategyFieldValue(field, raw) {
   const value = Number(raw)
-  if (!Number.isFinite(value)) return
+  if (!Number.isFinite(value)) return null
   const normalized = field.pct ? value / 100 : value
-  input[field.key] = Math.min(
-    field.max / (field.pct ? 100 : 1),
-    Math.max(field.min / (field.pct ? 100 : 1), normalized),
-  )
+  return Math.min(field.max / (field.pct ? 100 : 1), Math.max(field.min / (field.pct ? 100 : 1), normalized))
 }
 
 export function formatStrategyNumber(value) {

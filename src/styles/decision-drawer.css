@@ -1,122 +1,162 @@
 .dd-drawer {
   display: grid;
-  gap: 0;
+  gap: 12px;
   min-width: 0;
 }
 .dd-drawer > * {
   min-width: 0;
 }
-.dd-reason-text {
-  margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-.dd-action-card {
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface-alt);
+.dd-tier-group {
+  display: grid;
+  gap: 6px;
   min-width: 0;
 }
+.dd-tier-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 2px 0;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+.dd-tier-label em {
+  font-style: normal;
+  font-family: var(--mono);
+  color: var(--green);
+}
+
 .dd-context-card {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  padding: 9px 10px;
+  border-radius: var(--r-md);
   background: var(--surface-alt);
+  border: 1px solid var(--line);
   min-width: 0;
 }
-.dd-context-card header {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  justify-content: space-between;
-  min-width: 0;
+.dd-asof-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
 }
-.dd-context-card header strong {
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dd-context-card header em {
-  flex-shrink: 0;
+.dd-asof-label {
   color: var(--muted);
-  font-style: normal;
   font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
+.dd-asof-input {
+  min-width: 0;
+  min-height: 26px;
+  padding: 2px 6px;
+  font-family: var(--mono);
+  font-size: 0.73rem;
+}
+.dd-asof-latest {
+  min-height: 26px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+}
+
 .dd-context-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 .dd-context-grid div {
   display: grid;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 .dd-context-grid span {
   color: var(--muted);
-  font-size: 0.6rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 0.64rem;
 }
 .dd-context-grid strong {
-  font-size: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.dd-context-grid strong.green {
+  color: var(--green);
+}
+.dd-context-grid strong.red {
+  color: var(--red);
+}
+
 .dd-account-inputs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 7px;
+  gap: 6px;
 }
 .dd-account-inputs label {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
 }
 .dd-account-inputs span {
   color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 0.64rem;
+  font-weight: 600;
 }
 .dd-account-inputs input {
   min-width: 0;
   min-height: 28px;
+}
+
+.dd-action-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
   border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 3px 7px;
-  background: var(--bg);
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
+  border-left: 3px solid var(--amber);
+  min-width: 0;
+}
+.dd-action-card.ready {
+  border-left-color: var(--green);
+  background: color-mix(in srgb, var(--green) 6%, var(--surface-alt));
 }
 .dd-action-card header {
   display: flex;
+  justify-content: space-between;
   gap: 8px;
-  align-items: baseline;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.dd-action-card header > div {
+  display: grid;
+  gap: 1px;
+}
+.dd-state-eyebrow {
+  font-size: 0.64rem;
+  color: var(--muted);
+  font-weight: 600;
 }
 .dd-action-card header strong {
-  font-size: 1rem;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
-.dd-action-card header em {
+.dd-extreme-pill {
   font-style: normal;
-  color: var(--muted);
-  font-size: 0.72rem;
-  padding: 1px 7px;
+  font-family: var(--mono);
+  color: var(--ink-secondary);
+  background: var(--bg);
   border: 1px solid var(--line);
+  font-size: 0.66rem;
+  padding: 2px 7px;
   border-radius: 999px;
   white-space: nowrap;
 }
+
 .dd-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -125,78 +165,99 @@
 .dd-action-grid div {
   display: grid;
   gap: 1px;
+  padding: 5px 7px;
+  border-radius: var(--r-xs);
+  background: var(--bg);
   min-width: 0;
 }
 .dd-action-grid span {
   color: var(--muted);
-  font-size: 0.6rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 0.62rem;
 }
 .dd-action-grid strong {
-  font-size: 0.84rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+.dd-action-grid strong.green {
+  color: var(--green);
+}
+.dd-action-grid strong.red {
+  color: var(--red);
+}
+
 .dd-empty-note {
   margin: 0;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.73rem;
   line-height: 1.45;
 }
+
 .dd-risk-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-  padding: 6px 9px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--panel);
+  padding: 5px 8px;
+  border-radius: var(--r-xs);
+  background: var(--surface-alt);
   min-width: 0;
 }
 .dd-risk-row span {
   color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 600;
   flex-shrink: 0;
 }
+.dd-risk-row.is-pass span {
+  color: var(--green);
+}
+.dd-risk-row.is-block span {
+  color: var(--red);
+}
 .dd-risk-row strong {
-  font-size: 0.82rem;
-  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  font-weight: 500;
   text-align: right;
   overflow-wrap: anywhere;
 }
 .dd-risk-row strong.green {
   color: var(--green);
+  font-family: var(--mono);
 }
 .dd-risk-row strong.red {
   color: var(--red);
+  font-family: var(--mono);
 }
+
 .dd-profile-tabs {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 3px;
+  padding: 2px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--line);
 }
 .dd-profile-tabs button {
   min-width: 0;
-  min-height: 28px;
-  padding: 3px 4px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
+  min-height: 26px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--muted);
   font-size: 0.7rem;
-  font-weight: 700;
-  cursor: pointer;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dd-profile-tabs button.active {
-  border-color: var(--green);
-  background: var(--surface-active);
+  background: var(--surface);
+  color: var(--green);
 }
 .dd-profile-grid {
   display: grid;
@@ -207,30 +268,41 @@
 }
 .dd-profile-grid li {
   display: grid;
-  grid-template-columns: minmax(40px, auto) 1fr minmax(0, 1.4fr);
+  grid-template-columns: minmax(42px, auto) 1fr minmax(0, 1.3fr);
   gap: 6px;
   padding: 5px 8px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
+  border-radius: var(--r-xs);
+  background: var(--surface-alt);
   font-size: 0.72rem;
   align-items: baseline;
   min-width: 0;
 }
 .dd-profile-grid li.active {
-  border-color: var(--green);
   background: var(--surface-active);
+  color: var(--green);
 }
 .dd-profile-grid span {
-  color: var(--muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 .dd-profile-grid strong {
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 .dd-profile-grid em {
   font-style: normal;
+  font-family: var(--mono);
   color: var(--muted);
-  font-size: 0.64rem;
-  overflow-wrap: anywhere;
+  font-size: 0.65rem;
+  text-align: right;
+}
+
+.ot-diag-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 5px 8px 0;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
 }

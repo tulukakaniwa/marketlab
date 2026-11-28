@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChartStatusBar from './ChartStatusBar.vue'
 import ChartDisplayTools from './ChartDisplayTools.vue'
+import ChartStrategyBar from './ChartStrategyBar.vue'
 import WorkbenchSummary from './WorkbenchSummary.vue'
 import PriceReferenceLegend from './PriceReferenceLegend.vue'
 import ImpactReferenceLegend from './ImpactReferenceLegend.vue'
@@ -33,6 +34,9 @@ const props = defineProps({
   drawingScope: { type: String, default: '' },
   overlays: { type: Object, required: true },
   input: { type: Object, required: true },
+  chartStrategy: { type: Object, default: null },
+  chartStrategyId: { type: String, default: 'off' },
+  chartStrategyCatalog: { type: Array, default: () => [] },
   theme: { type: String, default: 'light' },
 })
 const emit = defineEmits([
@@ -40,6 +44,7 @@ const emit = defineEmits([
   'param-change',
   'center-input-change',
   'set-overlay',
+  'set-chart-strategy',
   'ready',
   'fatal-error',
   'open-market-impact',
@@ -124,6 +129,7 @@ watch(
     model.value,
     props.decision,
     props.replay,
+    props.chartStrategy,
     props.overlays,
     props.centerConfig,
     props.referenceMap,
@@ -172,6 +178,7 @@ async function sync() {
       decision: props.decision,
       overlays: props.overlays,
       formulaPath: props.formulaPath,
+      strategyMarkers: props.chartStrategy?.markers ?? [],
     }),
   })
   await adapter.whenReady()
@@ -195,10 +202,6 @@ function handleCursor(time) {
 <template>
   <div class="main-chart-shell" :aria-busy="loading">
     <div class="main-chart-chrome">
-      <div class="chart-context-rail">
-        <WorkbenchSummary :model="summary" compact />
-        <slot name="engine-switch" />
-      </div>
       <div class="chart-control-deck">
         <ChartDisplayTools
           :overlays="overlays"
@@ -209,23 +212,40 @@ function handleCursor(time) {
         />
         <ChartStatusBar :input="input" @change="(field, value) => emit('param-change', field, value)" />
       </div>
-      <PriceReferenceLegend
-        v-if="overlays.priceReferenceMap !== false"
-        :snapshot="referenceMap"
-        :query="referenceQuery"
-        :date="rows[cursorIndex ?? rows.length - 1]?.date"
-        :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
+
+      <ChartStrategyBar
+        v-if="chartStrategyCatalog.length"
+        :strategy-id="chartStrategyId"
+        :catalog="chartStrategyCatalog"
+        :strategy="chartStrategy"
+        :ready="!loading"
+        @select="(id) => emit('set-chart-strategy', id)"
       />
-      <ImpactReferenceLegend
-        v-if="overlays.impactReferenceMap !== false"
-        :snapshot="impactMap"
-        :date="rows[cursorIndex ?? rows.length - 1]?.date"
-        @open-research="emit('open-market-impact')"
-      />
+
+      <div
+        v-if="summary || overlays.priceReferenceMap !== false || overlays.impactReferenceMap !== false"
+        class="chart-telemetry-strip"
+      >
+        <WorkbenchSummary v-if="summary" :model="summary" compact />
+        <PriceReferenceLegend
+          v-if="overlays.priceReferenceMap !== false"
+          :snapshot="referenceMap"
+          :query="referenceQuery"
+          :date="rows[cursorIndex ?? rows.length - 1]?.date"
+          :band-visible="overlays.priceBands !== false && overlays.costBand !== false"
+        />
+        <ImpactReferenceLegend
+          v-if="overlays.impactReferenceMap !== false"
+          :snapshot="impactMap"
+          :date="rows[cursorIndex ?? rows.length - 1]?.date"
+          @open-research="emit('open-market-impact')"
+        />
+      </div>
     </div>
+
     <div class="main-chart-stage">
       <div ref="el" class="main-chart-canvas" />
-      <span v-if="loading" class="vela-chart-loading" role="status">正在准备 Vela 研究图</span>
+      <span v-if="loading" class="vela-chart-loading" role="status">正在初始化图表…</span>
     </div>
   </div>
 </template>
@@ -234,18 +254,13 @@ function handleCursor(time) {
 .main-chart-shell[aria-busy='true'] .main-chart-canvas {
   pointer-events: none;
 }
-.chart-control-deck {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
 .vela-chart-loading {
   position: absolute;
-  top: 48%;
-  left: 40%;
+  inset: 0;
+  display: grid;
+  place-items: center;
   color: var(--muted);
-}
-@media (max-width: 1279px) {
-  .chart-control-deck {
-    grid-template-columns: 1fr;
-  }
+  font-size: 0.78rem;
+  pointer-events: none;
 }
 </style>

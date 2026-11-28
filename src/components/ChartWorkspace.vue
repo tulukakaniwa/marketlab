@@ -1,6 +1,5 @@
 <script setup>
 import { computed, ref } from 'vue'
-import ChartEngineSwitcher from './ChartEngineSwitcher.vue'
 import { useChartWorkspace } from '../composables/useChartWorkspace.js'
 
 const props = defineProps({
@@ -23,6 +22,9 @@ const props = defineProps({
   drawingScope: { type: String, default: '' },
   overlays: { type: Object, required: true },
   input: { type: Object, required: true },
+  chartStrategy: { type: Object, default: null },
+  chartStrategyId: { type: String, default: 'off' },
+  chartStrategyCatalog: { type: Array, default: () => [] },
   theme: { type: String, default: 'light' },
 })
 
@@ -31,36 +33,25 @@ const emit = defineEmits([
   'param-change',
   'center-input-change',
   'set-overlay',
+  'set-chart-strategy',
   'native-settings-change',
   'open-market-impact',
 ])
 const workspace = useChartWorkspace()
 const runtimeLoading = ref(false)
 const currentComponent = computed(() => workspace.activeComponent.value)
-const renderedEngine = computed(() => workspace.displayEngine.value)
-// The official unified history has no public clear API. Start fresh on a new
-// source so native Undo cannot revive drawings or indicators from another source.
-const engineKey = computed(() =>
-  renderedEngine.value === 'vela' ? `vela:${props.drawingScope}` : renderedEngine.value,
-)
+const engineKey = computed(() => `vela:${props.drawingScope}`)
 const switchLoading = computed(() => workspace.loading.value || runtimeLoading.value)
 
-function changeEngine(engine) {
-  if (engine === workspace.engine.value && !workspace.requestedEngine.value) return
-  emit('cursor-change', null)
-  runtimeLoading.value = false
-  emit('native-settings-change', false)
-  workspace.selectEngine(engine)
-}
 function handleFailure(error) {
   runtimeLoading.value = false
   emit('native-settings-change', false)
-  workspace.fallback(error, renderedEngine.value)
+  workspace.fallback(error)
 }
 function handleReady() {
   runtimeLoading.value = false
-  workspace.confirmReady(renderedEngine.value)
-  emit('native-settings-change', renderedEngine.value === 'vela')
+  workspace.confirmReady()
+  emit('native-settings-change', true)
 }
 function handleLoading(value) {
   runtimeLoading.value = value
@@ -79,35 +70,16 @@ function handleLoading(value) {
       @center-input-change="(command) => emit('center-input-change', command)"
       @cursor-change="(index) => emit('cursor-change', index)"
       @set-overlay="(key, value) => emit('set-overlay', key, value)"
+      @set-chart-strategy="(id) => emit('set-chart-strategy', id)"
       @loading-change="handleLoading"
       @fatal-error="handleFailure"
       @ready="handleReady"
       @open-market-impact="emit('open-market-impact')"
-    >
-      <template #engine-switch>
-        <ChartEngineSwitcher
-          :engine="renderedEngine"
-          :loading="switchLoading"
-          :pending-engine="workspace.requestedEngine.value || workspace.engine.value"
-          :error="workspace.fallbackError.value"
-          @change="changeEngine"
-          @retry="workspace.retry"
-        />
-      </template>
-    </component>
+    />
     <section v-else class="main-chart-shell">
-      <div class="main-chart-chrome">
-        <ChartEngineSwitcher
-          :engine="renderedEngine"
-          :loading="switchLoading"
-          :pending-engine="workspace.requestedEngine.value || workspace.engine.value"
-          :error="workspace.fallbackError.value"
-          @change="changeEngine"
-          @retry="workspace.retry"
-        />
-      </div>
       <div class="chart-workspace-state" role="status" :aria-busy="switchLoading">
-        {{ switchLoading ? '正在加载图表引擎' : '图表未就绪，可重试或切换引擎' }}
+        <p>{{ workspace.fallbackError.value || (switchLoading ? '正在加载 Vela 研究图…' : '图表未就绪') }}</p>
+        <button v-if="!switchLoading" type="button" class="chart-retry-btn" @click="workspace.retry">重试加载</button>
       </div>
     </section>
   </div>
@@ -116,7 +88,29 @@ function handleLoading(value) {
 <style scoped>
 .chart-workspace-state {
   display: grid;
+  gap: 10px;
   place-content: center;
+  justify-items: center;
   color: var(--muted);
+  padding: 24px;
+  text-align: center;
+}
+.chart-workspace-state p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+.chart-retry-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chart-retry-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
 }
 </style>

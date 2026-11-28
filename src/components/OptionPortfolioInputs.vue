@@ -7,7 +7,7 @@ const props = defineProps({
   input: { type: Object, required: true },
 })
 
-const emit = defineEmits(['set-path-scenario', 'set-lp-scenario-field'])
+const emit = defineEmits(['set-path-scenario', 'set-lp-scenario-field', 'patch-input'])
 
 const strategies = [
   { id: 'single', label: '单腿', hint: '单个 call / put' },
@@ -37,36 +37,10 @@ const secondStrikeLabel = computed(() => {
   return '高行权价'
 })
 
-const widthP = computed({
-  get: () => toPercent(props.input.optionWidthPct),
-  set: (v) => {
-    props.input.optionWidthPct = fromPercent(v, 5)
-    syncStrikesFromWidth()
-  },
-})
-
-const rfrP = computed({
-  get: () => toPercent(props.input.riskFreeRate),
-  set: (v) => {
-    props.input.riskFreeRate = fromPercent(v, 4)
-  },
-})
-
-const premiumInput = computed({
-  get: () => optionalFinite(props.input.optionPremium) ?? '',
-  set: (v) => {
-    const next = optionalFinite(v)
-    props.input.optionPremium = next !== null && next >= 0 ? next : null
-  },
-})
-
-const feeIncomeInput = computed({
-  get: () => optionalFinite(props.input.feeIncomeQuote) ?? '',
-  set: (v) => {
-    const next = optionalFinite(v)
-    props.input.feeIncomeQuote = next !== null && next >= 0 ? next : null
-  },
-})
+const widthPercentValue = computed(() => toPercent(props.input.optionWidthPct))
+const rfrPercentValue = computed(() => toPercent(props.input.riskFreeRate))
+const premiumValue = computed(() => optionalFinite(props.input.optionPremium) ?? '')
+const feeIncomeValue = computed(() => optionalFinite(props.input.feeIncomeQuote) ?? '')
 
 const summary = computed(() => {
   const side = props.input.optionSide === 'short' ? '卖出' : '买入'
@@ -86,60 +60,108 @@ watch(
   () => ensureOptionDefaults(),
 )
 
+function buildStrikesPatch({
+  nextStrategy = strategy.value,
+  nextType = props.input.optionType,
+  nextWidth = positive(props.input.optionWidthPct) ?? 0.05,
+  resetPrimary = false,
+} = {}) {
+  const entry = positive(props.input.entryPrice)
+  if (!entry) return {}
+  if (nextStrategy === 'strangle' || nextStrategy === 'collar') {
+    return {
+      ...(resetPrimary ? { strikePrice: round(entry * (1 - nextWidth)) } : {}),
+      strikePrice2: round(entry * (1 + nextWidth)),
+    }
+  }
+  if (nextStrategy === 'vertical') {
+    const k1 = positive(props.input.strikePrice) ?? entry
+    const sign = nextType === 'call' ? 1 : -1
+    return { strikePrice2: round(k1 * (1 + sign * nextWidth)) }
+  }
+  return {}
+}
+
 function setStrategy(id) {
-  props.input.optionStrategy = id
-  syncStrikesFromWidth(true)
+  emit('patch-input', {
+    optionStrategy: id,
+    ...buildStrikesPatch({ nextStrategy: id, resetPrimary: true }),
+  })
 }
 
 function setOptionType(id) {
-  props.input.optionType = id
-  if (strategy.value === 'vertical') syncStrikesFromWidth(true)
+  emit('patch-input', {
+    optionType: id,
+    ...(strategy.value === 'vertical' ? buildStrikesPatch({ nextType: id, resetPrimary: true }) : {}),
+  })
 }
 
 function setSide(id) {
-  props.input.optionSide = id
+  emit('patch-input', { optionSide: id })
 }
 
 function useAtm() {
   const entry = positive(props.input.entryPrice)
   if (!entry) return
-  props.input.strikePrice = round(entry)
-  syncStrikesFromWidth(true)
+  emit('patch-input', {
+    strikePrice: round(entry),
+    ...buildStrikesPatch({ resetPrimary: true }),
+  })
 }
 
 function setWidth(value) {
-  props.input.optionWidthPct = value
-  syncStrikesFromWidth(true)
+  emit('patch-input', {
+    optionWidthPct: value,
+    ...buildStrikesPatch({ nextWidth: value, resetPrimary: true }),
+  })
+}
+
+function onWidthInput(raw) {
+  const nextWidth = fromPercent(raw, 5)
+  emit('patch-input', {
+    optionWidthPct: nextWidth,
+    ...buildStrikesPatch({ nextWidth }),
+  })
+}
+
+function onRfrInput(raw) {
+  emit('patch-input', { riskFreeRate: fromPercent(raw, 4) })
+}
+
+function onOptionalNonNegative(field, raw) {
+  const next = optionalFinite(raw)
+  emit('patch-input', { [field]: next !== null && next >= 0 ? next : null })
+}
+
+function onPositiveField(field, raw, fallback) {
+  const next = positive(raw)
+  emit('patch-input', { [field]: next ?? fallback })
+}
+
+function onOptionalPositiveInt(field, raw) {
+  const next = positive(raw)
+  emit('patch-input', { [field]: next ? Math.round(next) : null })
 }
 
 function ensureOptionDefaults() {
-  if (!['single', 'vertical', 'straddle', 'strangle', 'collar'].includes(props.input.optionStrategy))
-    props.input.optionStrategy = 'single'
-  if (!['put', 'call'].includes(props.input.optionType)) props.input.optionType = 'put'
-  if (!['long', 'short'].includes(props.input.optionSide)) props.input.optionSide = 'long'
-  if (!positive(props.input.optionQuantity)) props.input.optionQuantity = 1
-  if (!positive(props.input.optionMultiplier)) props.input.optionMultiplier = 1
-  if (!positive(props.input.optionWidthPct)) props.input.optionWidthPct = 0.05
-  if (!nonNegative(props.input.riskFreeRate)) props.input.riskFreeRate = 0.04
-  if (!positive(props.input.strikePrice) && positive(props.input.entryPrice))
-    props.input.strikePrice = round(props.input.entryPrice)
-  if (needsSecondStrike.value && !positive(props.input.strikePrice2)) syncStrikesFromWidth(true)
-}
-
-function syncStrikesFromWidth(resetPrimary = false) {
-  const entry = positive(props.input.entryPrice)
-  if (!entry) return
-  const width = positive(props.input.optionWidthPct) ?? 0.05
-  if (strategy.value === 'strangle' || strategy.value === 'collar') {
-    if (resetPrimary) props.input.strikePrice = round(entry * (1 - width))
-    props.input.strikePrice2 = round(entry * (1 + width))
-    return
+  const patch = {}
+  const nextStrategy = ['single', 'vertical', 'straddle', 'strangle', 'collar'].includes(props.input.optionStrategy)
+    ? props.input.optionStrategy
+    : 'single'
+  if (nextStrategy !== props.input.optionStrategy) patch.optionStrategy = nextStrategy
+  if (!['put', 'call'].includes(props.input.optionType)) patch.optionType = 'put'
+  if (!['long', 'short'].includes(props.input.optionSide)) patch.optionSide = 'long'
+  if (!positive(props.input.optionQuantity)) patch.optionQuantity = 1
+  if (!positive(props.input.optionMultiplier)) patch.optionMultiplier = 1
+  if (!positive(props.input.optionWidthPct)) patch.optionWidthPct = 0.05
+  if (!nonNegative(props.input.riskFreeRate)) patch.riskFreeRate = 0.04
+  if (!positive(props.input.strikePrice) && positive(props.input.entryPrice)) {
+    patch.strikePrice = round(props.input.entryPrice)
   }
-  if (strategy.value === 'vertical') {
-    const k1 = positive(props.input.strikePrice) ?? entry
-    const sign = props.input.optionType === 'call' ? 1 : -1
-    props.input.strikePrice2 = round(k1 * (1 + sign * width))
+  if (['vertical', 'strangle', 'collar'].includes(nextStrategy) && !positive(props.input.strikePrice2)) {
+    Object.assign(patch, buildStrikesPatch({ nextStrategy, resetPrimary: true }))
   }
+  if (Object.keys(patch).length) emit('patch-input', patch)
 }
 
 function positive(value) {
@@ -235,23 +257,52 @@ function fmt(value) {
     <div class="opi-grid">
       <label>
         <span>{{ strategy === 'strangle' || strategy === 'collar' ? '低行权价' : '行权价' }}</span>
-        <input v-model.number="input.strikePrice" type="number" step="0.01" />
+        <input
+          :value="input.strikePrice"
+          type="number"
+          step="0.01"
+          @input="onPositiveField('strikePrice', $event.target.value, 0)"
+        />
       </label>
       <label v-if="needsSecondStrike">
         <span>{{ secondStrikeLabel }}</span>
-        <input v-model.number="input.strikePrice2" type="number" step="0.01" />
+        <input
+          :value="input.strikePrice2"
+          type="number"
+          step="0.01"
+          @input="onPositiveField('strikePrice2', $event.target.value, 0)"
+        />
       </label>
       <label>
         <span>数量</span>
-        <input v-model.number="input.optionQuantity" type="number" min="0.0001" step="1" />
+        <input
+          :value="input.optionQuantity"
+          type="number"
+          min="0.0001"
+          step="1"
+          @input="onPositiveField('optionQuantity', $event.target.value, 1)"
+        />
       </label>
       <label>
         <span>乘数</span>
-        <input v-model.number="input.optionMultiplier" type="number" min="0.0001" step="1" />
+        <input
+          :value="input.optionMultiplier"
+          type="number"
+          min="0.0001"
+          step="1"
+          @input="onPositiveField('optionMultiplier', $event.target.value, 1)"
+        />
       </label>
       <label>
         <span>距到期交易会话</span>
-        <input v-model.number="input.optionTenorSessions" type="number" min="1" step="1" placeholder="必填" />
+        <input
+          :value="input.optionTenorSessions ?? ''"
+          type="number"
+          min="1"
+          step="1"
+          placeholder="必填"
+          @input="onOptionalPositiveInt('optionTenorSessions', $event.target.value)"
+        />
       </label>
     </div>
 
@@ -265,19 +316,39 @@ function fmt(value) {
       <div class="opi-grid">
         <label>
           <span>首腿权利金</span>
-          <input v-model="premiumInput" type="number" min="0" step="0.01" placeholder="模型估算" />
+          <input
+            :value="premiumValue"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="模型估算"
+            @input="onOptionalNonNegative('optionPremium', $event.target.value)"
+          />
         </label>
         <label>
           <span>无风险利率%</span>
-          <input v-model.number="rfrP" type="number" step="0.1" />
+          <input :value="rfrPercentValue" type="number" step="0.1" @input="onRfrInput($event.target.value)" />
         </label>
         <label>
           <span>区间宽度%</span>
-          <input v-model.number="widthP" type="number" min="0.1" step="0.5" />
+          <input
+            :value="widthPercentValue"
+            type="number"
+            min="0.1"
+            step="0.5"
+            @input="onWidthInput($event.target.value)"
+          />
         </label>
         <label>
           <span>同周期路径手续费（报价币）</span>
-          <input v-model="feeIncomeInput" type="number" min="0" step="0.01" placeholder="必填；无费用填 0" />
+          <input
+            :value="feeIncomeValue"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="必填；无费用填 0"
+            @input="onOptionalNonNegative('feeIncomeQuote', $event.target.value)"
+          />
         </label>
       </div>
       <div class="opi-widths">
@@ -291,142 +362,4 @@ function fmt(value) {
   </div>
 </template>
 
-<style>
-.opi-card {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-alt);
-}
-.opi-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: end;
-}
-.opi-head div {
-  display: grid;
-  gap: 1px;
-}
-.opi-head span {
-  color: var(--green);
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.opi-head strong {
-  font-size: 0.95rem;
-}
-.opi-head small {
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 800;
-  text-align: right;
-}
-.opi-strategies,
-.opi-controls,
-.opi-segment,
-.opi-widths {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-.opi-strategies button,
-.opi-controls button,
-.opi-widths button {
-  min-height: 28px;
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 0.72rem;
-}
-.opi-strategies button.active,
-.opi-segment button.active {
-  border-color: var(--green);
-  background: var(--surface-active);
-  color: var(--green);
-}
-.opi-summary {
-  display: grid;
-  gap: 2px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-}
-.opi-summary b {
-  font-size: 0.78rem;
-}
-.opi-summary span {
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.35;
-}
-.opi-controls {
-  align-items: center;
-}
-.opi-segment {
-  padding: 2px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--bg);
-}
-.opi-segment button {
-  min-height: 24px;
-  border: 0;
-  background: transparent;
-  padding: 3px 8px;
-  font-size: 0.7rem;
-}
-.opi-ghost {
-  margin-left: auto;
-}
-.opi-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.opi-grid label {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.opi-grid span {
-  color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-.opi-grid input {
-  min-width: 0;
-  min-height: 28px;
-  padding: 3px 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
-}
-.opi-advanced {
-  border-top: 1px solid var(--line);
-  padding-top: 6px;
-}
-.opi-advanced summary {
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 0.68rem;
-  font-weight: 800;
-}
-.opi-advanced[open] {
-  display: grid;
-  gap: 8px;
-}
-.opi-widths button {
-  min-height: 24px;
-  padding: 2px 8px;
-  font-size: 0.68rem;
-}
-</style>
+<style src="../styles/option-portfolio-inputs.css"></style>

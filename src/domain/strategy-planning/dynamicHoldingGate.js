@@ -4,6 +4,7 @@ import {
   deriveDrawdownFeatures,
   deriveDynamicHoldingState,
 } from '../formulas/core.js'
+import { deriveRunupFeatures } from '../formulas/shortHoldHelpers.js'
 
 export const DYNAMIC_HOLDING_GATE_VERSION = 'dynamic-holding-candidate-v1'
 
@@ -11,9 +12,11 @@ export function buildDynamicHoldingGate({ market, rows = [], formulaPoint, tradi
   const candidateProfiles = profiles ?? DEFAULT_DYNAMIC_HOLDING_PROFILES
   const formulaState = formulaPoint?.fieldStates?.formulaHorizonSessions
   const horizon = formulaPoint?.fieldStates?.formulaHorizonSessions?.context
+  const side = horizon?.side === 'short' ? 'short' : 'long'
   const formulaHorizonSessions = positive(formulaPoint?.formulaHorizonSessions)
   const halfLifeSessions = positive(horizon?.halfLifeSessions ?? horizon?.meanReversion?.halfLifeSessions)
   const cycleStartPrice = positive(horizon?.cycleStartPrice)
+  const firstBandTarget = side === 'short' ? market?.costHigh : market?.costLow
   const deviation = deviationScore({
     costDistance: market?.costDistance,
     annualVol: market?.annualVol,
@@ -21,23 +24,33 @@ export function buildDynamicHoldingGate({ market, rows = [], formulaPoint, tradi
     tradingDaysPerYear: positive(tradingDaysPerYear),
   })
 
-  if (![deviation?.z, halfLifeSessions, cycleStartPrice, market?.costAnchor, market?.costLow].every(Number.isFinite)) {
-    return unavailableGate(formulaState, { formulaHorizonSessions, cycleStartPrice, profiles: candidateProfiles })
+  if (![deviation?.z, halfLifeSessions, cycleStartPrice, market?.costAnchor, firstBandTarget].every(Number.isFinite)) {
+    return unavailableGate(formulaState, { formulaHorizonSessions, cycleStartPrice, side, profiles: candidateProfiles })
   }
+
+  const excursion =
+    side === 'short'
+      ? deriveRunupFeatures({ rows, index: rows.length - 1 })
+      : deriveDrawdownFeatures({ rows, index: rows.length - 1 })
 
   const gate = deriveDynamicHoldingState({
     zScore: deviation.z,
     halfLifeSessions,
     entryPrice: cycleStartPrice,
     anchorPrice: market.costAnchor,
-    targetPrices: { costLower: market.costLow, anchor: market.costAnchor },
-    drawdown: deriveDrawdownFeatures({ rows, index: rows.length - 1 }),
+    targetPrices:
+      side === 'short'
+        ? { costUpper: market.costHigh, anchor: market.costAnchor }
+        : { costLower: market.costLow, anchor: market.costAnchor },
+    drawdown: excursion,
     costSlopePct: Number.isFinite(market.costSlopeRecent) ? market.costSlopeRecent * 100 : 0,
     profiles: candidateProfiles,
+    side,
   })
 
   return {
     ...gate,
+    side,
     candidateStatus: gate.status,
     source: 'current-formula-path-prefix',
     gateVersion: DYNAMIC_HOLDING_GATE_VERSION,
@@ -49,7 +62,7 @@ export function buildDynamicHoldingGate({ market, rows = [], formulaPoint, tradi
   }
 }
 
-function unavailableGate(formulaState, { formulaHorizonSessions, cycleStartPrice, profiles }) {
+function unavailableGate(formulaState, { formulaHorizonSessions, cycleStartPrice, side = 'long', profiles }) {
   const fieldStatus = formulaState?.status ?? 'missing-input'
   const status = ['not-applicable', 'model-gate-failed'].includes(fieldStatus) ? '等待' : '需刷新数据'
   const phaseLabel =
@@ -62,6 +75,7 @@ function unavailableGate(formulaState, { formulaHorizonSessions, cycleStartPrice
   if (status === '需刷新数据' && !missingInputs.length) missingInputs.push('dynamic-holding-state')
   return {
     status,
+    side,
     candidateStatus: status,
     phase: 'unavailable',
     phaseLabel,

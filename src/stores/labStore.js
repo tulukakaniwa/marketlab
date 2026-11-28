@@ -18,6 +18,8 @@ import { useChartOverlays } from '../composables/useChartOverlays.js'
 import { persistedReactive } from '../composables/usePersisted.js'
 import { buildWorkbenchSummary } from '../domain/workbench/workbenchSummary.js'
 import { buildDynamicHoldingGate } from '../domain/strategy-planning/dynamicHoldingGate.js'
+import { evaluateOrderLadderDiagnostics } from '../domain/strategy-planning/orderLadderDiagnostics.js'
+import { evaluateChartStrategy } from '../domain/strategy-planning/chartStrategyEngine.js'
 
 const LP_SCENARIO_FIELDS = new Set([
   'lpScenarioEnabled',
@@ -126,16 +128,36 @@ export const useLabStore = defineStore('lab', () => {
   )
   const researchGraph = computed(() => {
     if (!marketState.market.value || !planningGraph.value?.inputs) return null
+    const visibleRows = marketState.activeRows.value
+    const visibleCostPath = marketState.costPath.value.slice(0, visibleRows.length)
     return buildResearchSnapshot({
       market: marketState.market.value,
       input: effectiveInput.value,
       executable: planningGraph.value,
+      rows: visibleRows,
+      costPath: visibleCostPath,
     })
   })
+  const orderLadderDiagnostics = computed(() =>
+    evaluateOrderLadderDiagnostics({
+      orders: planningGraph.value?.plan?.primaryOrders ?? [],
+      side: planningGraph.value?.position?.side ?? null,
+      markPrice: marketState.market.value?.markPrice ?? null,
+      addToPrice: planningGraph.value?.position?.addToPrice ?? null,
+      stopPrice: planningGraph.value?.position?.stopPrice ?? null,
+      targetPrice: planningGraph.value?.position?.targetPrice ?? null,
+      horizonSessions:
+        planningGraph.value?.position?.formulaHorizonSessions ??
+        planningGraph.value?.inputs?.formulaHorizonSessions ??
+        null,
+      causalState: causalModel.snapshot.value?.state ?? null,
+    }),
+  )
   const graph = computed(() => ({
     ...planningGraph.value,
     ...(researchGraph.value ?? {}),
     research: researchGraph.value,
+    orderLadderDiagnostics: orderLadderDiagnostics.value,
     causalModel: causalModel.snapshot.value,
     causalModelQuery: causalModel.queryState.value,
     marketCenters: marketCenters.snapshot.value,
@@ -143,6 +165,17 @@ export const useLabStore = defineStore('lab', () => {
   }))
 
   const executionBrief = computed(() => buildExecutionBrief(graph.value))
+  const chartStrategy = computed(() =>
+    evaluateChartStrategy({
+      strategyId: planning.chartStrategyId.value,
+      rows: marketState.activeRows.value,
+      costPath: marketState.costPath.value.slice(0, marketState.activeRows.value.length),
+      formulaPath: marketState.formulaPath.value,
+      marketStates: activeMarketStates.value,
+      tradingDaysPerYear: effectiveTdpy.value,
+      feeRate: Number.isFinite(input.replayFeeRate) && input.replayFeeRate >= 0 ? input.replayFeeRate : 0.001,
+    }),
+  )
   const workbenchSummary = computed(() =>
     buildWorkbenchSummary({
       source: data.source.value,
@@ -306,6 +339,9 @@ export const useLabStore = defineStore('lab', () => {
     setTdpyOverride: planning.setTdpyOverride,
     clearTdpyOverride: planning.clearTdpyOverride,
     setPathUsesScenarioInputs: planning.setPathUsesScenarioInputs,
+    setInputField: planning.setInputField,
+    patchInput: planning.patchInput,
+    setFeatureFlag: planning.setFeatureFlag,
     setLpScenarioField,
     tdpyOverride: planning.tdpyOverride,
 
@@ -337,6 +373,10 @@ export const useLabStore = defineStore('lab', () => {
     activeCapabilityStages: planning.activeCapabilityStages,
     formulaCapabilities: planning.formulaCapabilities,
     strategyProfileList: planning.strategyProfileList,
+    chartStrategyId: planning.chartStrategyId,
+    chartStrategyCatalog: planning.chartStrategyCatalog,
+    setChartStrategy: planning.setChartStrategy,
+    chartStrategy,
     selectCapability: planning.selectCapability,
     selectFormula: planning.selectFormula,
 

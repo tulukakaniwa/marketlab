@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import { buildDailyReplay } from '../domain/replay/dailyReplay.js'
-import { strategyProfileList } from '../domain/planning/orderPlan.js'
+import { strategyProfileList } from '../domain/strategy-planning/orderPlan.js'
 
 /**
  * 回放层：跑当前 profile 的回放，再并行跑三档 profile 用于评分选档
@@ -22,17 +22,18 @@ import { strategyProfileList } from '../domain/planning/orderPlan.js'
  * 不会出现 shape 漂移。
  */
 export function useReplay(rows, input, effectiveInput, marketStateFull, featureFlags = {}) {
-  const profileReplays = computed(() => strategyProfileList.map((profile) => ({
-    profile,
-    replay: featureFlags.replayAccount
-      ? buildDailyReplay(rows.value, { ...effectiveInput.value, strategyProfile: profile.id }, marketStateFull.value)
-      : emptyReplay(),
-  })))
+  const profileReplays = computed(() =>
+    strategyProfileList.map((profile) => ({
+      profile,
+      replay: featureFlags.replayAccount
+        ? buildDailyReplay(rows.value, { ...effectiveInput.value, strategyProfile: profile.id }, marketStateFull.value)
+        : emptyReplay(),
+    })),
+  )
 
-  const recommendedProfile = computed(() => chooseProfile(
-    profileReplays.value,
-    Number(input.capital) + Number(input.baseNotional || 0),
-  ))
+  const recommendedProfile = computed(() =>
+    chooseProfile(profileReplays.value, Number(input.capital) + Number(input.baseNotional || 0)),
+  )
 
   // dedupe: replay 直接复用 profileReplays 中匹配 effectiveInput.strategyProfile 的那条；
   // 如果 strategyProfileList 中没有对应 id（极端 fallback），临时算一次保证可用。

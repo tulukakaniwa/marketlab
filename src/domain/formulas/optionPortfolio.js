@@ -1,4 +1,4 @@
-import { bachelierOption, blackScholes } from './options.js'
+import { bachelierCarryOption, bachelierOption, blackScholes } from './options.js'
 import { defineLegacyAliasContract } from './legacyAliases.js'
 
 const DEFAULT_STEPS = 80
@@ -168,7 +168,12 @@ export function normalizeOptionLegs(legs) {
         strikePrice: strike,
         quantity,
         premium: optionalFinite(item.premium),
-        model: item.model === 'bachelier' ? 'bachelier' : 'black-scholes',
+        model:
+          item.model === 'bachelier'
+            ? 'bachelier'
+            : item.model === 'bachelier-carry'
+              ? 'bachelier-carry'
+              : 'black-scholes',
         normalVol: Number(item.normalVol),
       })
     })
@@ -200,16 +205,27 @@ function priceLeg({
           type: leg.type,
           tradingDaysPerYear,
         })
-      : blackScholes({
-          entryPrice: price,
-          strikePrice: leg.strikePrice,
-          timeToExpirySessions,
-          iv,
-          riskFreeRate,
-          dividendYield,
-          type: leg.type,
-          tradingDaysPerYear,
-        })
+      : leg.model === 'bachelier-carry'
+        ? bachelierCarryOption({
+            entryPrice: price,
+            strikePrice: leg.strikePrice,
+            timeToExpirySessions,
+            normalVol: positive(leg.normalVol) ?? iv * price,
+            riskFreeRate,
+            dividendYield,
+            type: leg.type,
+            tradingDaysPerYear,
+          })
+        : blackScholes({
+            entryPrice: price,
+            strikePrice: leg.strikePrice,
+            timeToExpirySessions,
+            iv,
+            riskFreeRate,
+            dividendYield,
+            type: leg.type,
+            tradingDaysPerYear,
+          })
   if (!quote) return null
   const direction = leg.side === 'short' ? -1 : 1
   const signedQuantity = direction * leg.quantity * contractMultiplier

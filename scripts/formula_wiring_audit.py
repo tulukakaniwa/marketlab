@@ -22,6 +22,7 @@ def run_node_checks() -> list[dict]:
         capitalEfficiency,
         ckCapitalEfficiencyReference,
         deriveDynamicHoldingState,
+        deriveStateRecurrence,
         deviationScore,
         estimateCumulativeFundingProxy,
         gammaPnl,
@@ -41,8 +42,8 @@ def run_node_checks() -> list[dict]:
       import { formulaEvidenceCatalog } from './src/domain/formulas/evidence.js'
       import { buildPortfolioResearch } from './src/domain/formula-research/portfolioResearch.js'
       import { buildCostPath, buildMarketState, buildMarketStatePath } from './src/domain/market-data/cost.js'
-      import { buildFormulaPath } from './src/domain/market-data/formulaPath.js'
-      import { deriveFormulaPathLpResearchRange } from './src/domain/market-data/formulaPathLpResearchRange.js'
+      import { buildFormulaPath } from './src/domain/formula-research/path/formulaPath.js'
+      import { deriveFormulaPathLpResearchRange } from './src/domain/formula-research/path/formulaPathLpResearchRange.js'
       import { lpPoolCoverageMetrics } from './src/domain/market-data/lpPoolMetrics.js'
       import { parseBinanceKlines, parseCsvText } from './src/domain/market-data/ohlcv.js'
       import { inferTdpy } from './src/domain/market-data/tdpy.js'
@@ -118,6 +119,10 @@ def run_node_checks() -> list[dict]:
       const formulaPath = buildFormulaPath(rows, input)
       const marketPath = buildMarketStatePath(rows, 365)
       const costPath = buildCostPath(rows)
+      const stateRecurrence = deriveStateRecurrence({
+        costDistanceSeries: costPath.map((c, idx) => (c?.anchor > 0 && rows[idx]?.close > 0 ? (rows[idx].close - c.anchor) / c.anchor : null)),
+        dates: rows.map((row) => row.date),
+      })
       const buyMarket = {
         rows: 120,
         markPrice: 90,
@@ -355,6 +360,7 @@ def run_node_checks() -> list[dict]:
         'net-carry': carry?.status === 'proxy-only' && finite(carry?.netReturn) && pathFinite('netCarry'),
         'mean-reversion': halfLife !== null && Object.prototype.hasOwnProperty.call(halfLife, 'halfLifeSessions') && typeof halfLife.speed === 'string',
         'dynamic-holding-state': dynamicHolding?.phase === 'repair-start' && nonEmpty(dynamicHolding?.milestones) && dynamicHolding?.holdingPlan?.shortTrade?.status === '观察',
+        'state-recurrence': stateRecurrence?.status === 'ok' && finite(stateRecurrence?.recurrencePeriodSessions) && nonEmpty(stateRecurrence?.kaplanMeier?.points),
         'gamma-pnl': finite(gp?.gammaPnl),
         'vol-confidence': finite(vc?.se) && finite(vc?.lower) && finite(vc?.upper),
       }

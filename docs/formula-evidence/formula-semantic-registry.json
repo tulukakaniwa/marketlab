@@ -184,7 +184,7 @@
       "allowedInferences": ["当前价格相对样本成本锚的位置", "成本结构随已知历史的变化"],
       "forbiddenInferences": ["做市商真实持仓成本", "未来一定回归", "使用全样本长度为历史时点选择窗口"],
       "sources": ["docs/formula-evidence/formula-reference.md#2-market-cost"],
-      "implementation": ["src/domain/market-data/cost.js", "src/domain/market-data/formulaPath.js"],
+      "implementation": ["src/domain/market-data/cost.js", "src/domain/formula-research/path/formulaPath.js"],
       "tests": ["src/domain/__tests__/cost.test.js"],
       "horizonMode": "formula-derived"
     },
@@ -233,7 +233,7 @@
         "src/stores/labStore.js",
         "src/composables/usePlanning.js",
         "src/composables/useMarketState.js",
-        "src/domain/market-data/formulaPath.js",
+        "src/domain/formula-research/path/formulaPath.js",
         "src/domain/formula-research/researchSnapshot.js",
         "src/domain/replay/dailyReplay.js",
         "src/domain/strategy-planning/orderPlanTiming.js",
@@ -287,7 +287,7 @@
       "allowedInferences": ["历史窗口波动相对大小", "同口径情景敏感性"],
       "forbiddenInferences": ["未来实现波动率", "期权可成交 IV", "正态分布已经成立"],
       "sources": ["docs/formula-evidence/formula-reference.md#3-volatility--atr"],
-      "implementation": ["src/domain/market-data/cost.js", "src/domain/market-data/formulaPath.js"],
+      "implementation": ["src/domain/market-data/cost.js", "src/domain/formula-research/path/formulaPath.js"],
       "tests": ["src/domain/__tests__/cost.test.js"],
       "horizonMode": "formula-derived"
     },
@@ -424,7 +424,7 @@
       "implementation": [
         "src/domain/formulas/options.js",
         "src/domain/formulas/inputSemantics.js",
-        "src/domain/market-data/formulaPath.js"
+        "src/domain/formula-research/path/formulaPath.js"
       ],
       "tests": ["src/domain/__tests__/optionFormulas.test.js", "src/domain/__tests__/planning.test.js"],
       "horizonMode": "formula-derived"
@@ -587,7 +587,7 @@
       "forbiddenInferences": ["30 天是下限", "60/90 天适合所有标的", "情景值是预测值"],
       "sources": ["docs/formula-evidence/ERRATA.md#e-011--e-016--周期与可知时点"],
       "implementation": [
-        "src/domain/market-data/formulaPath.js",
+        "src/domain/formula-research/path/formulaPath.js",
         "src/composables/usePlanning.js",
         ".agents/skills/china-stock-selection/scripts/replay-short-hold.mjs",
         "scripts/source_coverage_audit.py"
@@ -855,7 +855,7 @@
       "implementation": [
         "src/domain/formulas/lp.js",
         "src/domain/formula-research/researchSnapshot.js",
-        "src/domain/market-data/formulaPath.js"
+        "src/domain/formula-research/path/formulaPath.js"
       ],
       "tests": ["src/domain/__tests__/lpResearch.test.js", "src/domain/__tests__/formulaPath.test.js"],
       "horizonMode": "same-horizon-required"
@@ -1132,7 +1132,7 @@
         "src/domain/formulas/lp.js",
         "src/domain/formula-research/researchSnapshot.js",
         "src/domain/formula-research/portfolioResearch.js",
-        "src/domain/market-data/formulaPath.js"
+        "src/domain/formula-research/path/formulaPath.js"
       ],
       "tests": [
         "src/domain/__tests__/carryContracts.test.js",
@@ -1530,7 +1530,7 @@
       "forbiddenInferences": ["一个 H 适用所有方向", "H(costLower)=H(costAnchor)", "long H 可用于 sell"],
       "sources": ["docs/formula-evidence/ERRATA.md#e-019--e-020--周期必须与方向终点和实际起点同一"],
       "implementation": [
-        "src/domain/market-data/formulaPath.js",
+        "src/domain/formula-research/path/formulaPath.js",
         "src/domain/strategy-planning/orderPlanHorizonBinding.js",
         "src/domain/strategy-planning/orderPlanExecution.js",
         "src/domain/replay/dailyReplayExecution.js"
@@ -2144,7 +2144,7 @@
         "src/domain/formula-research/portfolioResearch.js",
         "src/domain/formulas/dynamicHoldingSupport.js",
         "src/domain/formulas/shortHold.js",
-        "src/domain/market-data/formulaPath.js",
+        "src/domain/formula-research/path/formulaPath.js",
         "research/latent-liquidity-lab/src/cycleHorizon.js",
         ".agents/skills/china-stock-selection/scripts/selection-helpers.mjs"
       ],

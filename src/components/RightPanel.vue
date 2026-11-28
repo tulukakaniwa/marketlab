@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { Search, X, PanelRightClose, PanelRightOpen, ChevronRight } from 'lucide-vue-next'
 import { inferTdpy } from '../domain/market-data/tdpy.js'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
 
@@ -18,13 +19,12 @@ const filter = ref('')
 const collapsedGroupIds = ref(new Set())
 
 const GROUP_META = [
-  { id: 'crypto', label: '加密', icon: '🪙' },
-  { id: 'us', label: '美股', icon: '📈' },
-  { id: 'hk', label: '港股', icon: '🇭🇰' },
-  { id: 'cn', label: 'A 股', icon: '🇨🇳' },
+  { id: 'crypto', label: '加密现货', code: 'CRYPTO' },
+  { id: 'us', label: '美股市场', code: 'US' },
+  { id: 'hk', label: '港股市场', code: 'HK' },
+  { id: 'cn', label: 'A股市场', code: 'CN' },
 ]
 
-// 按已识别市场分组；missing-input 样本不猜测 TDPY，也不混入任一市场组。
 const groupedSamples = computed(() => {
   const buckets = { crypto: [], us: [], hk: [], cn: [] }
   for (const s of props.samples) {
@@ -34,7 +34,6 @@ const groupedSamples = computed(() => {
   return GROUP_META.map((g) => ({ ...g, items: buckets[g.id] })).filter((g) => g.items.length > 0)
 })
 
-// 过滤后的分组（按 symbol 或 label 不区分大小写包含匹配；空组隐藏）
 const filteredGroups = computed(() => {
   const q = filter.value.trim().toLowerCase()
   if (!q) return groupedSamples.value
@@ -80,20 +79,26 @@ function onGroupToggle(groupId, event) {
     :inert="isCompact && !open"
     aria-label="标的列表面板"
   >
-    <!-- 移动端关闭按钮 -->
-    <button v-if="isCompact" class="rp-mobile-close" type="button" aria-label="关闭" @click="emit('toggle')">✕</button>
-    <!-- 折叠态 -->
-    <button v-if="!open" type="button" class="rp-edge" title="展开市场列表" @click="emit('toggle')">
-      <span class="rp-edge-icon">◀</span>
-      <span class="rp-edge-text">市场</span>
+    <button v-if="isCompact" class="rp-mobile-close" type="button" aria-label="关闭" @click="emit('toggle')">
+      <X :size="18" />
     </button>
 
-    <!-- 展开态 -->
+    <button v-if="!open" type="button" class="rp-edge" title="展开市场列表" @click="emit('toggle')">
+      <PanelRightOpen :size="15" />
+      <span class="rp-edge-text">标的</span>
+    </button>
+
     <template v-else>
       <header class="rp-head">
-        <input v-model="filter" type="search" class="rp-filter" placeholder="过滤代码/名称…" aria-label="过滤标的" />
-        <button class="rp-collapse" type="button" aria-label="收起右侧面板" title="收起" @click="emit('toggle')">
-          ▶
+        <div class="rp-search-box">
+          <Search :size="13" class="rp-search-icon" />
+          <input v-model="filter" type="search" class="rp-filter" placeholder="搜索代码或名称…" aria-label="过滤标的" />
+          <button v-if="filter" type="button" class="rp-clear" aria-label="清空过滤" @click="filter = ''">
+            <X :size="12" />
+          </button>
+        </div>
+        <button class="rp-collapse" type="button" aria-label="收起右侧面板" title="收起面板" @click="emit('toggle')">
+          <PanelRightClose :size="14" />
         </button>
       </header>
 
@@ -107,7 +112,11 @@ function onGroupToggle(groupId, event) {
           @toggle="onGroupToggle(g.id, $event)"
         >
           <summary>
-            <span class="rp-g-label">{{ g.icon }} {{ g.label }}</span>
+            <span class="rp-g-left">
+              <ChevronRight :size="12" class="rp-g-chevron" />
+              <code class="rp-g-code">{{ g.code }}</code>
+              <span class="rp-g-label">{{ g.label }}</span>
+            </span>
             <em class="rp-g-count">{{ g.items.length }}</em>
           </summary>
           <ul>
@@ -125,7 +134,7 @@ function onGroupToggle(groupId, event) {
               >
                 <span class="sym">{{ s.symbol }}</span>
                 <span v-if="s.label !== s.symbol" class="lbl">{{ s.label }}</span>
-                <span v-if="loadingSampleId === s.id" class="loader">载入中…</span>
+                <span v-if="loadingSampleId === s.id" class="loader">载入…</span>
               </button>
             </li>
           </ul>
@@ -146,7 +155,6 @@ function onGroupToggle(groupId, event) {
   overflow: hidden;
 }
 
-/* 折叠态 */
 .rp-edge {
   width: 100%;
   height: 100%;
@@ -154,230 +162,245 @@ function onGroupToggle(groupId, event) {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 10px;
   padding: 12px 0;
   border: none;
+  border-radius: 0;
   background: transparent;
-  color: var(--ink);
-  cursor: pointer;
+  color: var(--muted);
 }
 .rp-edge:hover {
-  background: var(--surface-active);
+  background: var(--surface-hover);
   color: var(--green);
-}
-.rp-edge-icon {
-  font-size: 0.78rem;
 }
 .rp-edge-text {
   writing-mode: vertical-rl;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
 }
 
-/* 展开态 head */
 .rp-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 8px 7px 10px;
+  padding: 6px 8px;
   border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.rp-search-box {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.rp-search-box:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 2px var(--green-dim);
+}
+.rp-search-icon {
+  color: var(--muted);
   flex-shrink: 0;
 }
 .rp-filter {
   flex: 1;
   min-width: 0;
-  min-height: 24px;
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  background: transparent !important;
   color: var(--ink);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
 }
-.rp-filter:focus {
-  outline: none;
-  border-color: var(--green);
+.rp-filter::-webkit-search-cancel-button {
+  display: none;
+}
+.rp-clear {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
 }
 .rp-collapse {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.72rem;
-  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
   flex-shrink: 0;
 }
 .rp-collapse:hover {
-  border-color: var(--green);
-  color: var(--green);
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 
-/* 展开态 body */
 .rp-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: 6px 8px 10px;
+  padding: 4px 6px 10px;
 }
 .rp-empty {
   margin: 12px 4px;
-  padding: 14px;
+  padding: 16px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   text-align: center;
-  border: 1px dashed var(--line);
-  border-radius: 6px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
 }
 .rp-group {
-  margin: 4px 0;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
+  margin: 2px 0 6px;
 }
 .rp-group > summary {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 9px;
-  font-size: 0.78rem;
-  font-weight: 800;
+  padding: 5px 6px;
+  border-radius: var(--r-xs);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
   cursor: pointer;
   list-style: none;
+}
+.rp-group > summary:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
 }
 .rp-group > summary::-webkit-details-marker {
   display: none;
 }
-.rp-g-label {
-  line-height: 1.2;
+.rp-g-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rp-g-chevron {
+  transition: transform 140ms ease;
+}
+.rp-group[open] .rp-g-chevron {
+  transform: rotate(90deg);
+}
+.rp-g-code {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-alt);
+  color: var(--green);
 }
 .rp-g-count {
   font-style: normal;
+  font-family: var(--mono);
   color: var(--muted);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
 }
 .rp-group ul {
   list-style: none;
-  margin: 0;
-  padding: 2px 4px 6px;
-}
-.rp-group li {
-  min-width: 0;
+  margin: 2px 0 0;
+  padding: 0;
 }
 .rp-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: 8px;
   align-items: baseline;
   width: 100%;
   min-width: 0;
-  min-height: 32px;
+  min-height: 29px;
   border: none;
-  border-radius: 4px;
-  padding: 5px 8px;
+  border-radius: var(--r-xs);
+  padding: 4px 8px;
   background: transparent;
   color: var(--ink);
   font-size: 0.74rem;
-  font-weight: 400;
+  font-weight: 500;
   text-align: left;
-  cursor: pointer;
 }
 .rp-item:hover {
-  background: var(--surface-active);
-}
-.rp-item:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: -2px;
-  background: var(--surface-active);
+  background: var(--surface-hover);
 }
 .rp-item.active {
   background: var(--surface-active);
-  border-left: 2px solid var(--green);
-  padding-left: 6px;
   color: var(--green);
-  font-weight: 800;
-}
-.rp-item.loading {
-  opacity: 0.6;
-  cursor: wait;
 }
 .rp-item .sym {
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 0.75rem;
 }
 .rp-item .lbl {
   color: var(--muted);
+  font-size: 0.72rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: right;
+}
+.rp-item.active .lbl {
+  color: color-mix(in srgb, var(--green) 80%, var(--ink));
 }
 .rp-item .loader {
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
 }
 
-/* 移动端关闭按钮：默认隐藏，仅在 mobile 媒体查询里显示 */
 .rp-mobile-close {
   display: none;
 }
 
-/* mobile drawer 形态：从右侧滑入 */
 @media (max-width: 1279px) {
   .rp.rp-mobile {
     position: fixed;
     top: 0;
     right: 0;
-    width: 100vw;
+    width: min(340px, 88vw);
     height: 100vh;
     height: 100dvh;
-    max-width: 100vw;
     z-index: 50;
-    background: var(--bg);
+    background: var(--panel);
     transform: translateX(100%);
-    transition: transform 200ms ease;
-    overflow: hidden;
-    overscroll-behavior: contain;
-    box-shadow: -2px 0 12px rgba(0, 0, 0, 0.18);
-  }
-  .rp.rp-mobile .rp-body {
-    -webkit-overflow-scrolling: touch;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: var(--shadow-pop);
   }
   .rp.rp-mobile.rp-mobile-open {
     transform: translateX(0);
   }
   .rp.rp-mobile .rp-mobile-close {
-    display: block;
+    display: grid;
+    place-items: center;
     position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 44px;
-    height: 44px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--ink);
-    font-size: 20px;
-    line-height: 1;
-    cursor: pointer;
+    top: 10px;
+    left: 10px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
     z-index: 51;
   }
-  .rp.rp-mobile .rp-mobile-close:hover {
-    border-color: var(--green);
-  }
   .rp.rp-mobile .rp-head {
-    min-height: 64px;
-    padding-left: 60px;
+    min-height: 56px;
+    padding-left: 52px;
   }
   .rp.rp-mobile .rp-item {
-    min-height: 44px;
+    min-height: 38px;
   }
   .rp.rp-mobile .rp-collapse {
     display: none;

@@ -5,22 +5,17 @@ description: Use this skill for Market Lab A-share and Hong Kong stock screening
 
 # China Stock Selection — Generic Runtime Wrapper
 
-Before taking any action, read `.agents/skills/china-stock-selection/SKILL.md` completely. That file is the sole semantic and safety contract for this skill.
-
-This runtime delegates executable behavior to the canonical `.agents` implementation. Do not copy formulas or maintain alternate scoring rules here.
+执行任何选股或回放前，完整阅读 `.agents/skills/china-stock-selection/SKILL.md`（sole semantic and safety contract）。本目录仅作通用 Agent 运行时薄封装，所有算法与契约统一委托给 `.agents` 标准实现。
 
 ```bash
 node skills/china-stock-selection/scripts/screen-cn-stocks.mjs --market A股,港股 --top 20
-node skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo
+node skills/china-stock-selection/scripts/replay-short-hold.mjs --profile combo --fee 0.0011
 ```
 
-In particular, preserve these canonical rules:
+核心守则：
 
-- the social-security whitelist filters A shares only; Hong Kong stocks bypass it
-- normal-reference deviation percentile/tail and empirical ranks diagnose extremeness, not reversion probability
-- synthetic CK geometry is not a real LP position, token holding, fee income, or return
-- dynamic targets use the cost band and anchor only
-- AR holding/return fields are conditional zero-shock projections, not forecasts
-- `signalStrength` is deviation extremeness, not confidence; all notionals stay simulation-only
-- this static research skill never emits an executable order
-- RSI, KDJ, EMA, and MA are outside this skill's decision model
+- 社保白名单仅过滤 `A股`，`港股` 自动绕过；历史回放默认关闭静态白名单以防前视偏差。
+- `probabilitySemantics`：正态参考分位与历史经验分位仅度量偏离极端度，不是未来回归概率（not a future mean-reversion probability）。
+- `synthetic CK geometry` 是基于滚动成本锚的无量纲形状诊断，不是真实 LP 仓位、持币量或手续费收益。
+- 动态目标仅消费 `costLow` 与 `costAnchor`；AR 修复周期为冻结结构下的零冲击条件投影。
+- 严禁引入 RSI、KDJ、EMA、MA 参与评分或门禁；所有模拟仓位保持 `simulation-only`。

@@ -1,0 +1,246 @@
+.fc-shell {
+  min-height: 190px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+.fc-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.fc-ttl {
+  font-size: 0.68rem;
+  font-weight: 600;
+  fill: var(--green);
+  color: var(--green);
+}
+.fc-tick {
+  font-family: var(--mono);
+  font-size: 9px;
+  fill: var(--muted);
+}
+.fc-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+.fc-availability {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 0.68rem;
+}
+.fc-availability strong {
+  font-size: 0.72rem;
+}
+.fc-availability.state-missing,
+.fc-availability.state-gate-failed {
+  color: var(--red);
+}
+.fc-availability.state-not-applicable {
+  color: var(--muted);
+}
+.fc-fallback-state {
+  width: max-content;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: var(--bg);
+}
+.fc-fallback-state.state-missing,
+.fc-fallback-state.state-gate-failed {
+  color: var(--red);
+  background: var(--red-dim);
+}
+.fc-fallback-state.state-not-applicable,
+.fc-fallback-state.state-unverified {
+  color: var(--muted);
+}
+.fc-fallback-state.state-research {
+  color: var(--blue);
+  background: var(--blue-dim);
+}
+.fc-fallback-state.state-proxy {
+  color: var(--amber);
+  background: var(--amber-dim);
+}
+.fc-fallback-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+.fc-fallback-row b {
+  color: var(--muted);
+  font-weight: 600;
+}
+.fc-kv {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+.fc-kv div,
+.fc-gi {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.fc-kv b,
+.fc-gi b {
+  font-size: 0.62rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.fc-kv span,
+.fc-gi span {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fc-gr4,
+.fc-gr3 {
+  display: grid;
+  gap: 5px;
+}
+.fc-gr4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.fc-gr3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.fc-big {
+  font-family: var(--mono);
+  font-size: 1.55rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.fc-meta {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.fc-ce-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.fc-vol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.fc-vol-main {
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+.fc-vol-main small {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+.fc-formulas {
+  display: grid;
+  gap: 4px;
+}
+.fc-formulas code {
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  padding: 5px 8px;
+  background: var(--bg);
+  color: var(--blue);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: auto;
+}
+.fc-orders {
+  display: grid;
+  gap: 4px;
+}
+.fc-orow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+}
+.fc-orole {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--green);
+  font-size: 0.68rem;
+  min-width: 36px;
+}
+.fc-onotional {
+  color: var(--muted);
+  margin-left: auto;
+}
+.fc-asian {
+  display: grid;
+  gap: 8px;
+}
+.fc-asian-cmp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fc-plan-wait {
+  display: grid;
+  gap: 8px;
+}
+.fc-guide {
+  margin: 0 8px 8px;
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.fc-guide-title {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--green);
+  margin-bottom: 3px;
+}
+.fc-guide-body {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--ink-secondary);
+  line-height: 1.4;
+}
+.fc-liquidity-rack {
+  height: min(680px, 72vh);
+  min-height: 520px;
+  background: var(--surface);
+}
+.green {
+  color: var(--green);
+}
+.red {
+  color: var(--red);
+}
+@media (max-width: 768px) {
+  .fc-liquidity-rack {
+    height: 600px;
+    min-height: 600px;
+  }
+}

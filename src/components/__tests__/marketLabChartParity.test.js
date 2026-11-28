@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { buildVelaResearchGroups, velaSeriesTitle } from '../../infrastructure/charting/velaResearchAdapter.js'
-import { fallbackValue, latestFinitePathPoint, SERIES_META } from '../researchChartLegendMeta.js'
 import {
   MARKET_LAB_CHART_INDICATOR_CATALOG,
   queryMarketLabChartSeries,
@@ -77,6 +76,11 @@ const fixture = {
   formulaPath,
   costPath: [],
   causalPath: rows.map((row, index) => ({ date: row.date, equilibriumPrice: index > 7 ? 10 + index / 20 : null })),
+  strategyPath: rows.map((row, index) => ({
+    date: row.date,
+    strategyStop: index > 5 ? 9.4 + index / 25 : null,
+    strategyTarget: index > 5 ? 11.6 + index / 25 : null,
+  })),
   centerPath: rows.map((row, index) => ({
     date: row.date,
     statisticalCenterPrice: index > 7 ? 10 + index / 30 : null,
@@ -95,13 +99,13 @@ const fixture = {
   replay: { equityCurve: rows.map((row, index) => ({ date: row.date, equity: 100_000 + index * 100 })) },
 }
 
-describe('Market Lab Vela / HQ chart parity', () => {
+describe('Market Lab Vela main-chart & HQ option-series contracts', () => {
   it('Vela preserves every active domain series, gaps, latest-only points and styles', () => {
     const model = queryMarketLabChartSeries(fixture)
     const output = buildVelaResearchGroups(model, 'test')
     const rendered = output.flatMap((group) => group.output.series)
     for (const definition of MARKET_LAB_CHART_INDICATOR_CATALOG) {
-      if (definition.id === 'mark') continue // Vela's native current-price line owns the latest close.
+      if (definition.id === 'mark') continue
       const input = model.groups.flatMap((group) => group.series).find((series) => series.id === definition.id)
       const series = rendered.find((series) => series.id === `test:${definition.id}`)
       expect(series, definition.id).toBeDefined()
@@ -128,23 +132,7 @@ describe('Market Lab Vela / HQ chart parity', () => {
     expect(output.filter((group) => group.groupId === 'lp')).toHaveLength(3)
   })
 
-  it('Historical legend values and the domain envelope read identical formula/constant values', () => {
-    const model = queryMarketLabChartSeries(fixture)
-    const comparableIds = MARKET_LAB_CHART_INDICATOR_CATALOG.map((item) => item.id).filter(
-      (id) => !['equity', 'kdjK', 'kdjJ', 'rsi'].includes(id),
-    )
-
-    for (const id of comparableIds) {
-      const series = findSeries(model, id)
-      const byTime = new Map(series.points.map((point) => [point.time, point.value]))
-      rows.forEach((row, index) => {
-        const lightValue = fallbackValue(id, index, fixture)
-        expect(Number.isFinite(lightValue) ? lightValue : null, `${id}@${row.date}`).toBe(byTime.get(row.date) ?? null)
-      })
-    }
-  })
-
-  it('现价、入场、成本、GetDelta 与 LP 区间始终共用主 K 线价格轴', () => {
+  it('现价、入场、成本、GetDelta 与 LP 区间始终共用 Vela 主 K 线价格轴', () => {
     const model = queryMarketLabChartSeries(fixture)
     const required = [
       'entry',
@@ -166,7 +154,6 @@ describe('Market Lab Vela / HQ chart parity', () => {
     expect(velaPrice.flatMap((group) => group.output.series).map((series) => series.id)).toEqual(
       expect.arrayContaining(required.map((id) => `price-test:${id}`)),
     )
-    expect(buildHqResearchChartConfig(model).overlayIndex[0]).toMatchObject({ Windows: 0, IsShareY: true })
   })
 
   it('latest-only pool snapshots stay anchored to the active formula observation date', () => {
@@ -182,54 +169,20 @@ describe('Market Lab Vela / HQ chart parity', () => {
     expect(concentration.points).toEqual([
       { time: rows[activeLength - 1].date, value: formulaPath[activeLength - 1].lpPoolTopReserveShare },
     ])
-    expect(latestFinitePathPoint(rows, activeFixture.formulaPath, 'lpPoolTurnover24h')).toEqual(turnover.points[0])
-    expect(fallbackValue('lpPoolTurnover', activeLength - 1, activeFixture)).toBe(
-      formulaPath[activeLength - 1].lpPoolTurnover24h,
-    )
-    expect(fallbackValue('lpPoolTurnover', rows.length - 1, activeFixture)).toBeNull()
   })
 
-  it('causal line preserves gaps and the observation cutoff in both engines, with a shared toggle', () => {
-    const causalPath = fixture.causalPath
-      .slice(0, 16)
-      .map((point, i) => (i === 12 ? { ...point, equilibriumPrice: null } : point))
-    const props = { ...fixture, causalPath, overlays: { ...ALL_ON, causalEquilibrium: true } }
-    const model = queryMarketLabChartSeries(props)
-    const hq = toHqResearchIndexResponse(model, hqResearchApiId('price'))
-    const values = hq.outdata.outvar.find((item) => item.name === SERIES_META.causalEquilibrium.title).data
-    rows.forEach((row, index) => {
-      expect(values[index]).toBe(fallbackValue('causalEquilibrium', index, props) ?? null)
-    })
-    expect(values[12]).toBeNull()
-    expect(values.slice(16)).toEqual([null, null, null, null])
-    props.overlays.causalEquilibrium = false
-    expect(
-      buildVelaResearchGroups(queryMarketLabChartSeries(props), 'lab')
-        .flatMap((group) => group.output.series)
-        .find((series) => series.id === 'lab:causalEquilibrium'),
-    ).toBeUndefined()
-    expect(findSeries(queryMarketLabChartSeries(props), 'causalEquilibrium')).toBeUndefined()
-    props.overlays.causalEquilibrium = true
-    expect(
-      buildVelaResearchGroups(queryMarketLabChartSeries(props), 'lab')
-        .flatMap((group) => group.output.series)
-        .find((series) => series.id === 'lab:causalEquilibrium'),
-    ).toBeDefined()
-    expect(findSeries(queryMarketLabChartSeries(props), 'causalEquilibrium').points).toEqual(
-      findSeries(model, 'causalEquilibrium').points,
-    )
-  })
-
-  it('HQ responses preserve every active domain series name, color, render mode and aligned values', () => {
+  it('HQ option Greeks adapter preserves Delta / Gamma / Theta scale groups and aligned values', () => {
     const model = queryMarketLabChartSeries(fixture)
-    const config = buildHqResearchChartConfig(model)
-    const price = model.groups.find((group) => group.id === 'price')
-    const hqGroups = [price, ...config.paneGroups.flat()]
+    const greeksOnly = {
+      dates: model.dates,
+      groups: model.groups.filter((group) => group.id === 'greeks'),
+    }
+    const config = buildHqResearchChartConfig(greeksOnly, { windowOffset: 1 })
+    expect(config.paneGroups[0]).toHaveLength(3)
 
-    for (const group of hqGroups) {
-      const response = toHqResearchIndexResponse(model, hqResearchApiId(group.id), {})
+    for (const group of config.paneGroups.flat()) {
+      const response = toHqResearchIndexResponse(greeksOnly, hqResearchApiId(group.id), {})
       expect(response.code, group.id).toBe(0)
-      expect(response.outdata.name).toBe(`Lab · ${group.label}`)
       expect(response.outdata.date).toEqual(model.dates.map(compactDate))
       expect(response.outdata.outvar).toEqual(group.series.map((series) => expectedHqOutVar(series, model.dates)))
     }

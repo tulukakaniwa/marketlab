@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { deriveFormulaPathLpResearchRange } from '../market-data/formulaPathLpResearchRange.js'
-import { resolveFormulaPathVolatility, rollingAnnualVol } from '../market-data/formulaPathVolatility.js'
+import { deriveFormulaPathLpResearchRange } from '../formula-research/path/formulaPathLpResearchRange.js'
+import { resolveFormulaPathVolatility, rollingAnnualVol } from '../formula-research/path/formulaPathVolatility.js'
 
 function flatRows(count, close = 10) {
   return Array.from({ length: count }, (_, index) => ({ date: `session-${index}`, close }))

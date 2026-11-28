@@ -1,8 +1,6 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { Moon, Sun, Menu, List, MoreHorizontal } from 'lucide-vue-next'
-import { summarizeRegime } from '../domain/decision/narrative.js'
-import { deriveWindows } from '../domain/market-data/cost.js'
+import { Moon, Sun, Menu, List, MoreHorizontal, RotateCcw, ChevronDown } from 'lucide-vue-next'
 import { useBreakpoint } from '../composables/useBreakpoint.js'
 import ProfileChip from './ProfileChip.vue'
 
@@ -43,13 +41,26 @@ const emit = defineEmits([
   'set-auto-profile',
   'toggle-theme',
   'reset',
+  'toggle-right',
   'mobile-open-left',
   'mobile-open-right',
   'open-market-impact',
+  'open-eth-replay',
+  'open-recommended-pool',
 ])
 
 function openImpactResearch() {
   emit('open-market-impact')
+  closeOverflow()
+}
+
+function openEthReplay() {
+  emit('open-eth-replay')
+  closeOverflow()
+}
+
+function openRecommendedPool() {
+  emit('open-recommended-pool')
   closeOverflow()
 }
 
@@ -82,23 +93,7 @@ const dailyChange = computed(() => {
   return (last - prev) / prev
 })
 
-const narrativeText = computed(() => {
-  const m = props.market
-  if (!m) return '载入 K 线后判断'
-  const window = props.rows.length ? deriveWindows(props.rows.length).cost : null
-  return summarizeRegime({
-    markPrice: m.markPrice,
-    costAnchor: m.costAnchor,
-    costDistance: m.costDistance,
-    costWindow: window,
-  })
-})
-
-const recommendation = computed(() => {
-  const d = props.decision
-  if (!d) return null
-  return d.state || null
-})
+const recommendation = computed(() => props.decision?.state || null)
 
 function money(v) {
   return Number.isFinite(v) ? new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v) : '—'
@@ -116,33 +111,60 @@ function pctSign(v) {
       v-if="isCompact"
       class="tb-mobile-btn tb-mobile-left"
       type="button"
-      aria-label="打开菜单"
+      aria-label="打开左侧工具面板"
       @click="$emit('mobile-open-left')"
     >
-      <Menu :size="20" />
+      <Menu :size="18" />
     </button>
-    <div class="tb-brand">
-      <span
-        >Market Lab <em v-if="source">{{ source.symbol }} · {{ source.interval }}</em></span
-      >
-      <h1>{{ source?.label ?? '行情研究台' }}</h1>
-    </div>
 
-    <div v-if="market" class="tb-summary">
-      <div class="tb-segment tb-price">
-        <strong>{{ money(market.markPrice) }}</strong>
-        <em :class="{ up: (dailyChange ?? 0) >= 0, down: (dailyChange ?? 0) < 0 }">{{ pctSign(dailyChange) }}</em>
+    <div class="tb-left">
+      <div class="tb-logo" aria-hidden="true">
+        <span class="tb-logo-dot" />
+        <span class="tb-logo-text">ML</span>
       </div>
-      <div v-if="!researchOnly" class="tb-segment tb-narrative" :title="narrativeText">{{ narrativeText }}</div>
-      <div v-if="recommendation" class="tb-segment tb-action">
-        <span>市场结构</span>
-        <strong>{{ recommendation }}</strong>
-        <em title="正态参考下的偏离极端度，不是胜率">偏离极端度 {{ Math.round(extremeness * 100) }}%</em>
+
+      <button
+        type="button"
+        class="tb-symbol-btn"
+        title="切换市场标的"
+        @click="isCompact ? $emit('mobile-open-right') : $emit('toggle-right')"
+      >
+        <code v-if="source?.symbol" class="tb-ticker">{{ source.symbol }}</code>
+        <span class="tb-name">{{ source?.label ?? '选择标的' }}</span>
+        <span v-if="source?.interval" class="tb-interval">{{ source.interval }}</span>
+        <ChevronDown :size="13" class="tb-chevron" />
+      </button>
+
+      <div v-if="market" class="tb-telemetry">
+        <div class="tb-price">
+          <strong>{{ money(market.markPrice) }}</strong>
+          <em v-if="dailyChange !== null" :class="{ up: dailyChange >= 0, down: dailyChange < 0 }">
+            {{ pctSign(dailyChange) }}
+          </em>
+        </div>
+
+        <div v-if="!researchOnly && Number.isFinite(market.costAnchor)" class="tb-anchor-stat">
+          <span>成本锚</span>
+          <strong>{{ money(market.costAnchor) }}</strong>
+          <em :class="{ up: (market.costDistance ?? 0) >= 0, down: (market.costDistance ?? 0) < 0 }">
+            {{ pctSign(market.costDistance) }}
+          </em>
+        </div>
+
+        <div v-if="recommendation" class="tb-regime-badge">
+          <span class="tb-regime-state">{{ recommendation }}</span>
+          <em title="偏离度（非胜率）">偏离 {{ Math.round(extremeness * 100) }}%</em>
+        </div>
       </div>
     </div>
 
     <div class="tb-actions tb-desktop-only">
-      <button class="tb-reset" type="button" @click="openImpactResearch">市场冲击研究</button>
+      <nav class="tb-nav-pills" aria-label="研究视图切换">
+        <button class="tb-nav-pill" type="button" @click="openImpactResearch">冲击研究</button>
+        <a class="tb-nav-pill" href="?surface=eth-replay" @click.prevent="openEthReplay">ETH 回放</a>
+        <a class="tb-nav-pill" href="?surface=recommended-pool" @click.prevent="openRecommendedPool">A股门禁</a>
+      </nav>
+
       <ProfileChip
         v-if="!researchOnly"
         :profile-id="profileId"
@@ -152,289 +174,80 @@ function pctSign(v) {
         @set="(id) => emit('set-profile', id)"
         @set-auto="(v) => emit('set-auto-profile', v)"
       />
-      <button class="tb-theme" type="button" title="切换主题" @click="$emit('toggle-theme')">
-        <Moon v-if="theme === 'light'" :size="14" />
-        <Sun v-else :size="14" />
-      </button>
-      <button class="tb-reset" type="button" title="清空持久化参数" @click="$emit('reset')">重置</button>
-    </div>
-    <div v-if="isCompact" class="tb-overflow-wrap">
+
       <button
-        class="tb-mobile-btn tb-overflow-btn"
+        class="tb-icon-btn"
         type="button"
-        aria-label="更多"
-        aria-haspopup="menu"
-        :aria-expanded="overflowOpen ? 'true' : 'false'"
-        @click="toggleOverflow"
+        :title="theme === 'dark' ? '切至亮色' : '切至暗色'"
+        @click="$emit('toggle-theme')"
       >
-        <MoreHorizontal :size="20" />
+        <Sun v-if="theme === 'dark'" :size="14" />
+        <Moon v-else :size="14" />
       </button>
-      <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
-        <button class="tb-overflow-item" @click="openImpactResearch">市场冲击研究</button>
-        <button class="tb-overflow-item" @click="toggleThemeFromOverflow">
-          切换主题（当前 {{ theme === 'dark' ? '深色' : '浅色' }}）
-        </button>
-        <button class="tb-overflow-item" @click="resetFromOverflow">重置工作台</button>
-        <template v-if="!researchOnly">
-          <div class="tb-overflow-section">策略 Profile</div>
-          <button
-            v-for="p in profileList"
-            :key="p.id"
-            class="tb-overflow-item"
-            :class="{ 'is-active': p.id === profileId && !autoProfile }"
-            @click="setProfileFromOverflow(p.id)"
-          >
-            {{ p.label || p.id }}
-            <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
-          </button>
-          <button class="tb-overflow-item" :class="{ 'is-active': autoProfile }" @click="toggleAutoProfileFromOverflow">
-            自动跟随回放：{{ autoProfile ? '开' : '关' }}
-          </button>
-        </template>
-      </div>
+      <button class="tb-icon-btn" type="button" title="重置默认参数" @click="$emit('reset')">
+        <RotateCcw :size="14" />
+      </button>
     </div>
-    <button
-      v-if="isCompact"
-      class="tb-mobile-btn tb-mobile-right"
-      type="button"
-      aria-label="打开标的列表"
-      @click="$emit('mobile-open-right')"
-    >
-      <List :size="20" />
-    </button>
+
+    <div v-if="isCompact" class="tb-mobile-actions">
+      <div class="tb-overflow-wrap">
+        <button
+          class="tb-mobile-btn tb-overflow-btn"
+          type="button"
+          aria-label="更多"
+          aria-haspopup="menu"
+          :aria-expanded="overflowOpen ? 'true' : 'false'"
+          @click="toggleOverflow"
+        >
+          <MoreHorizontal :size="18" />
+        </button>
+        <div v-if="overflowOpen" class="tb-overflow-menu" @click.stop>
+          <div class="tb-overflow-section">专项视图</div>
+          <button class="tb-overflow-item" type="button" @click="openImpactResearch">ETH 市场冲击研究</button>
+          <a class="tb-overflow-item" href="?surface=eth-replay" @click.prevent="openEthReplay">ETH 分钟决策回放</a>
+          <a class="tb-overflow-item" href="?surface=recommended-pool" @click.prevent="openRecommendedPool">
+            A股研究门禁报告
+          </a>
+          <div class="tb-overflow-section">工作台</div>
+          <button class="tb-overflow-item" type="button" @click="toggleThemeFromOverflow">
+            切换主题（当前{{ theme === 'dark' ? '暗色' : '亮色' }}）
+          </button>
+          <button class="tb-overflow-item" type="button" @click="resetFromOverflow">重置默认参数</button>
+          <template v-if="!researchOnly">
+            <div class="tb-overflow-section">策略档位</div>
+            <button
+              v-for="p in profileList"
+              :key="p.id"
+              type="button"
+              class="tb-overflow-item"
+              :class="{ 'is-active': p.id === profileId && !autoProfile }"
+              @click="setProfileFromOverflow(p.id)"
+            >
+              {{ p.label || p.id }}
+              <span v-if="p.id === recommendedId" class="tb-recommended">推荐</span>
+            </button>
+            <button
+              type="button"
+              class="tb-overflow-item"
+              :class="{ 'is-active': autoProfile }"
+              @click="toggleAutoProfileFromOverflow"
+            >
+              回放选档：{{ autoProfile ? '开' : '关' }}
+            </button>
+          </template>
+        </div>
+      </div>
+
+      <button
+        class="tb-mobile-btn tb-mobile-right"
+        type="button"
+        aria-label="打开标的列表"
+        @click="$emit('mobile-open-right')"
+      >
+        <List :size="18" />
+      </button>
+    </div>
   </header>
 </template>
 
-<style>
-.topbar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: center;
-  padding: 7px 14px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  flex-shrink: 0;
-}
-.tb-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.tb-brand span {
-  color: var(--green);
-  font-size: 0.6rem;
-  font-weight: 900;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-.tb-brand span em {
-  color: var(--muted);
-  font-style: normal;
-  letter-spacing: 0.03em;
-}
-.tb-brand h1 {
-  margin: 0;
-  font-size: 0.96rem;
-  line-height: 1;
-}
-.tb-summary {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  min-width: 0;
-}
-.tb-segment {
-  display: inline-flex;
-  gap: 5px;
-  align-items: baseline;
-  padding: 0 10px;
-  border-left: 1px solid var(--line);
-  white-space: nowrap;
-}
-.tb-segment:first-child {
-  border-left: none;
-  padding-left: 0;
-}
-.tb-price strong {
-  font-size: 1rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-}
-.tb-price em {
-  font-style: normal;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-.tb-price em.up {
-  color: var(--green);
-}
-.tb-price em.down {
-  color: var(--red);
-}
-.tb-narrative {
-  color: var(--ink);
-  font-size: 0.85rem;
-  line-height: 1.3;
-  max-width: 360px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tb-action span {
-  color: var(--muted);
-  font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.tb-action strong {
-  font-size: 0.86rem;
-  font-weight: 800;
-}
-.tb-action em {
-  font-style: normal;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-.tb-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.tb-theme {
-  min-width: 28px;
-  min-height: 28px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--ink);
-  cursor: pointer;
-}
-.tb-theme:hover {
-  border-color: var(--green);
-}
-.tb-reset {
-  min-height: 26px;
-  padding: 1px 9px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.66rem;
-  cursor: pointer;
-  opacity: 0.7;
-}
-.tb-reset:hover {
-  opacity: 1;
-  border-color: var(--green);
-}
-
-@media (max-width: 1024px) {
-  .tb-summary .tb-action {
-    display: none;
-  }
-}
-@media (max-width: 1279px) {
-  .tb-summary .tb-narrative,
-  .tb-summary .tb-action {
-    display: none;
-  }
-}
-
-.tb-mobile-btn {
-  display: none;
-}
-@media (max-width: 1279px) {
-  /* mobile 下 topbar 子节点变多（左按钮 / brand / summary / actions / 右按钮），
-     扩到 5 列 grid 避免 implicit row 自动换行；summary 仍是唯一弹性轨道 */
-  .topbar {
-    grid-template-columns: auto auto 1fr auto auto;
-    gap: 8px;
-    padding: 7px 10px;
-  }
-  .tb-brand {
-    min-width: 0;
-  }
-  .tb-brand h1 {
-    max-width: 180px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .tb-mobile-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--ink);
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .tb-mobile-btn:hover {
-    border-color: var(--green);
-  }
-}
-
-@media (max-width: 1279px) {
-  .tb-desktop-only {
-    display: none !important;
-  }
-
-  .tb-overflow-wrap {
-    position: relative;
-  }
-  .tb-overflow-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 4px;
-    min-width: 220px;
-    max-width: 80vw;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    z-index: 60;
-    padding: 4px;
-  }
-  .tb-overflow-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 10px 12px;
-    border: none;
-    background: transparent;
-    color: var(--ink);
-    font-size: 0.82rem;
-    cursor: pointer;
-    border-radius: 6px;
-  }
-  .tb-overflow-item:hover {
-    background: var(--surface-alt);
-  }
-  .tb-overflow-item.is-active {
-    color: var(--green);
-    font-weight: 700;
-  }
-  .tb-overflow-section {
-    padding: 8px 12px 4px;
-    font-size: 0.66rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .tb-recommended {
-    margin-left: 6px;
-    font-size: 0.66rem;
-    color: var(--green);
-  }
-}
-</style>
+<style src="../styles/topbar.css"></style>

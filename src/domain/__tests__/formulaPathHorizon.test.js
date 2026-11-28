@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deriveRecoveryHorizon } from '../formulas/core.js'
-import { resolveFormulaPathHorizon } from '../market-data/formulaPathHorizon.js'
+import { resolveFormulaPathHorizon } from '../formula-research/path/formulaPathHorizon.js'
 
 const distances = [-0.4, -0.32, -0.256, -0.2048, -0.16384, -0.131072, -0.104858, -0.083886]
 

@@ -14,33 +14,33 @@ defineProps({
       <span class="ws-candidate">{{ model.gate.candidateLabel }}</span>
       <span class="ws-gate">{{ model.gate.executionLabel }}</span>
       <span class="ws-reason">{{ model.reason }}</span>
-      <span class="ws-more">看懂当前图</span>
+      <span class="ws-more">诊断详情 ▾</span>
     </summary>
     <div class="ws-grid">
       <article>
-        <span>1 · 数据能用吗</span>
+        <span>样本状态</span>
         <strong>{{ model.data.label }}</strong>
-        <small>{{ model.data.detail }} · {{ model.data.source }} · 模型：{{ model.data.modelLabel }}</small>
+        <small>{{ model.data.detail }} · {{ model.data.source }} · {{ model.data.modelLabel }}</small>
       </article>
       <article>
-        <span>2 · 当前门禁</span>
+        <span>当前门禁</span>
         <strong>{{ model.gate.candidateLabel }} · 执行{{ model.gate.executionLabel }}</strong>
         <small>市场结构：{{ model.gate.marketState }}</small>
       </article>
       <article>
-        <span>3 · 为什么</span>
+        <span>触发原因</span>
         <strong>{{ model.reason }}</strong>
       </article>
       <article>
-        <span>4 · {{ model.review?.label || '何时复核' }}</span>
+        <span>{{ model.review?.label || '复核节点' }}</span>
         <strong>{{ model.review?.value || '下一交易会话复核结构' }}</strong>
       </article>
       <article>
-        <span>5 · 下一步</span>
+        <span>下一步</span>
         <strong>{{ model.nextCheck }}</strong>
       </article>
     </div>
-    <p>
+    <p class="ws-foot">
       {{ model.disclosure }} <b>{{ model.data.claimLabel || '口径待核验' }}</b>
     </p>
   </details>
@@ -50,34 +50,38 @@ defineProps({
 .workbench-summary {
   min-width: 0;
   container-type: inline-size;
+  border-radius: var(--r-sm);
+  background: var(--surface-alt);
   border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--surface);
+}
+.workbench-summary.compact {
+  border: none;
+  background: transparent;
 }
 .workbench-summary summary {
-  min-height: 38px;
-  display: grid;
-  grid-template-columns: auto auto auto auto minmax(120px, 1fr) auto;
-  gap: 8px;
+  min-height: 24px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
   align-items: center;
-  padding: 6px 9px;
+  padding: 2px 4px;
   cursor: pointer;
   list-style: none;
+}
+.workbench-summary:not(.compact) summary {
+  display: flex;
+  padding: 6px 8px;
 }
 .workbench-summary summary::-webkit-details-marker {
   display: none;
 }
-.workbench-summary summary:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 2px;
-}
 .ws-data,
 .ws-candidate,
 .ws-gate {
-  border-radius: 999px;
-  padding: 2px 7px;
-  font-size: 0.68rem;
-  font-weight: 900;
+  border-radius: var(--r-xs);
+  padding: 1px 6px;
+  font-size: 0.66rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 .ws-data {
@@ -94,99 +98,81 @@ defineProps({
   background: var(--blue-dim);
 }
 .ws-candidate {
-  border: 1px solid var(--line);
-  color: var(--ink);
-  background: var(--surface-active);
+  color: var(--ink-secondary);
+  background: var(--surface-hover);
 }
 .workbench-summary summary > strong {
-  font-size: 0.82rem;
+  font-size: 0.74rem;
+  font-weight: 600;
 }
 .ws-reason {
-  min-width: 0;
+  max-width: 300px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ws-more {
-  color: var(--green);
-  font-size: 0.7rem;
-  font-weight: 800;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
   white-space: nowrap;
+}
+.ws-more:hover {
+  color: var(--green);
 }
 .ws-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1px;
-  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
   background: var(--line);
 }
 .ws-grid article {
   min-width: 0;
   display: grid;
   align-content: start;
-  gap: 4px;
-  padding: 9px;
+  gap: 3px;
+  padding: 8px 10px;
   background: var(--panel);
 }
 .ws-grid span {
-  color: var(--green);
-  font-size: 0.68rem;
-  font-weight: 900;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 600;
 }
 .ws-grid strong {
-  font-size: 0.76rem;
-  line-height: 1.4;
+  font-size: 0.74rem;
+  line-height: 1.38;
   overflow-wrap: anywhere;
 }
 .ws-grid small {
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   line-height: 1.35;
 }
-.workbench-summary > p {
+.ws-foot {
   margin: 0;
-  padding: 7px 9px;
+  padding: 5px 4px 2px;
   color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.4;
+  font-size: 0.66rem;
+  line-height: 1.35;
 }
-.workbench-summary > p b {
-  margin-left: 5px;
+.ws-foot b {
+  margin-left: 4px;
   color: var(--blue);
+  font-weight: 600;
 }
-@container (max-width: 900px) {
-  .workbench-summary summary {
-    grid-template-columns: auto auto auto minmax(90px, 1fr) auto;
-  }
-  .ws-gate {
-    display: none;
-  }
+@container (max-width: 820px) {
   .ws-grid {
     grid-template-columns: 1fr 1fr;
   }
   .ws-grid article:last-child {
     grid-column: 1 / -1;
-  }
-}
-@container (max-width: 300px) {
-  .workbench-summary summary {
-    grid-template-columns: auto auto auto 1fr;
-  }
-  .ws-reason {
-    grid-column: 1 / -1;
-  }
-  .ws-more {
-    grid-column: 4;
-    grid-row: 1;
-    justify-self: end;
-  }
-  .ws-grid {
-    grid-template-columns: 1fr;
-  }
-  .ws-grid article:last-child {
-    grid-column: auto;
   }
 }
 </style>

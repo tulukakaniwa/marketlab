@@ -17,10 +17,10 @@ const {
   stage, availability, orderReview, activeIndex, fmt, f4, pctFmt, pathData, costData, volData, bandData,
   greeksData, lpData, syH, lpV3Curve, lpV3Marker, lpRealMarker, lpV3Bounds, ceData,
   ceCurve, ceDot, ceFrontierDot, fundData, portData, waterfallBars, portfolioCurves, asianData,
-  bachelierData, ammData, fingerprintData, devScoreData, normalCurve, zMarker,
-  riskSurfaceData, lpPoolData, netLpData, netCarryData, netCarryDisplay, guide, mrData, dynamicHoldingData,
-  decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, orderData,
-  W, H, PL, PR, pw, ph, sx, sy,
+  bachelierData, bachelierCarryData, deltaInversionData, dynamicCkData, ammData, fingerprintData, devScoreData,
+  normalCurve, zMarker, riskSurfaceData, lpPoolData, netLpData, netCarryData, netCarryDisplay, guide, mrData,
+  dynamicHoldingData, decayCurve, hlMarker, gpData, gammaCurve, gpMarker, vcData, stateRecurrenceData,
+  recurrenceChart, orderData, W, H, PL, PR, pw, ph, sx, sy,
 } = useFormulaChartModel(props)
 
 function greekTone(value) {
@@ -118,6 +118,7 @@ function greekTone(value) {
       <line :x1="PL" :x2="W-PR" :y1="sy(bandData.price)" :y2="sy(bandData.price)" stroke="var(--ink)" stroke-width="2" />
       <circle :cx="sx(0.01)" :cy="sy(bandData.price)" r="4" fill="var(--ink)" />
       <text :x="sx(0.01)+8" :y="sy(bandData.price)+4" class="fc-tick">现价 {{ fmt(props.market?.markPrice) }}</text>
+      <text v-if="deltaInversionData" :x="PL" :y="H-4" class="fc-tick">反推 σ={{ pctFmt(deltaInversionData.impliedVol) }} · d={{ deltaInversionData.impliedDeltaSlope.toFixed(2) }}</text>
       <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">波 {{ bandData.wave.toFixed(4) }} · 率 {{ bandData.ratio.toFixed(2) }}</text>
     </svg>
 
@@ -150,9 +151,9 @@ function greekTone(value) {
       <circle v-if="lpV3Curve" :cx="lpV3Marker?.cx" :cy="lpV3Marker?.cy" r="4" fill="var(--ink)" />
       <text v-if="lpV3Curve" :x="lpV3Marker?.cx + 8" :y="lpV3Marker?.cy - 6" class="fc-tick">入场</text>
       <!-- Real on-chain pool price marker -->
-      <line v-if="lpRealMarker" :x1="lpRealMarker.x" :x2="lpRealMarker.x" :y1="syH(1)" :y2="syH(0.08)" stroke="#8b5a16" stroke-width="1.6" stroke-dasharray="2,2" />
-      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.14)" class="fc-tick" fill="#8b5a16">链上 {{ fmt(lpRealMarker.price) }}</text>
-      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.23)" class="fc-tick" fill="#8b5a16">偏离 {{ pctFmt(lpRealMarker.divergence) }}</text>
+      <line v-if="lpRealMarker" :x1="lpRealMarker.x" :x2="lpRealMarker.x" :y1="syH(1)" :y2="syH(0.08)" stroke="var(--amber)" stroke-width="1.6" stroke-dasharray="2,2" />
+      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.14)" class="fc-tick" fill="var(--amber)">链上 {{ fmt(lpRealMarker.price) }}</text>
+      <text v-if="lpRealMarker" :x="lpRealMarker.x + 6" :y="syH(0.23)" class="fc-tick" fill="var(--amber)">偏离 {{ pctFmt(lpRealMarker.divergence) }}</text>
       <!-- Range bounds -->
       <line v-if="lpV3Curve" :x1="lpV3Bounds?.loX" :x2="lpV3Bounds?.loX" :y1="syH(1)" :y2="syH(0.1)" stroke="var(--blue)" stroke-width="0.8" stroke-dasharray="3,3" />
       <line v-if="lpV3Curve" :x1="lpV3Bounds?.hiX" :x2="lpV3Bounds?.hiX" :y1="syH(1)" :y2="syH(0.1)" stroke="var(--red)" stroke-width="0.8" stroke-dasharray="3,3" />
@@ -170,15 +171,10 @@ function greekTone(value) {
       />
     </div>
 
-    <!-- AMM GEOMETRY -->
     <svg v-else-if="formulaId === 'amm-geometry' && ammData" :viewBox="`0 0 ${W} ${H}`" class="fc-svg">
       <text :x="W/2" :y="14" text-anchor="middle" class="fc-ttl">AMM 储备曲线 · xy = k</text>
-
-      <!-- Axes -->
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <line :x1="PL" :x2="PL" :y1="sy(1)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
-
-      <!-- Hyperbola xy = k -->
       <polyline
         :points="ammData.curve.points.map(p => {
           const rx = PL + (p.x / (ammData.curve.currentX * 3)) * pw
@@ -195,17 +191,12 @@ function greekTone(value) {
         }).join(' ')"
         fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="4,3"
       />
-
-      <!-- Current reserve point -->
       <line :x1="PL" :x2="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :y1="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" :y2="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
       <line :x1="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :x2="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :y1="sy(0)" :y2="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" stroke="var(--muted)" stroke-width="0.5" stroke-dasharray="3,3" />
       <circle :cx="sx(ammData.curve.currentX / (ammData.curve.currentX * 3))" :cy="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph" r="5" fill="var(--ink)" />
       <text :x="sx(ammData.curve.currentX / (ammData.curve.currentX * 3)) + 8" :y="sy(0) - (ammData.curve.currentY / (ammData.curve.currentY * 3)) * ph - 6" class="fc-tick">储备 ({{ f4(ammData.curve.currentX) }}, {{ f4(ammData.curve.currentY) }})</text>
-
-      <!-- Labels -->
       <text :x="W-PR" :y="sy(0.05)" text-anchor="end" class="fc-tick">x (Token0)</text>
       <text :x="PL+4" :y="sy(0.95)" class="fc-tick">y (Token1)</text>
-
       <text :x="W-PR" :y="H-18" text-anchor="end" class="fc-tick">绿 xy=k · 蓝 Lambert W 研究曲线 · Numoen {{ availability.label }}</text>
       <text :x="W-PR" :y="H-4" text-anchor="end" class="fc-tick">L = {{ f4(ammData.curve.L) }} · k = {{ fmt(ammData.curve.invariant) }} · slip {{ f4(ammData.numoen.slippageY) }}</text>
     </svg>
@@ -222,7 +213,7 @@ function greekTone(value) {
       <line :x1="PL" :x2="W-PR" :y1="sy(0)" :y2="sy(0)" stroke="var(--line)" stroke-width="1" />
       <text :x="PL" :y="sy(0)+16" class="fc-tick">0%</text>
       <text :x="W-PR" :y="sy(0)+16" text-anchor="end" class="fc-tick">100%</text>
-      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">CK ±84.13% 仅是几何中点/端点比目标下的精确拐点；不是标的交易最优区间</text>
+      <text :x="W/2" :y="H-4" text-anchor="middle" class="fc-tick">{{ dynamicCkData ? `动态偏斜 α̂=${dynamicCkData.directionalMoveScaleRatio.toFixed(2)} · 拐点 CE ${dynamicCkData.efficiencyAtGeometricMidpoint.toFixed(2)}× · 仅研究` : 'CK ±84.13% 仅是几何中点/端点比目标下的精确拐点；不是标的交易最优区间' }}</text>
     </svg>
 
     <!-- FUNDING -->
@@ -261,8 +252,8 @@ function greekTone(value) {
         <div class="fc-orders">
           <div v-for="(o, i) in orderData" :key="i" class="fc-orow">
             <span class="fc-orole">{{ o.action }}</span>
-            <span>{{ o.side === 'buy' ? '买' : '卖' }} @ {{ fmt(o.price) }}</span>
-            <span class="fc-onotional">模拟名义 {{ fmt(o.notional) }}</span>
+            <span>{{ o.side === 'buy' ? '买' : '卖' }} @ {{ fmt(o.price) }}<small v-if="o.geometricPrice"> · √P {{ fmt(o.geometricPrice) }}</small></span>
+            <span class="fc-onotional">模拟名义 {{ fmt(o.notional) }}<small v-if="Number.isFinite(o.fillBeforeTargetProb)"> · 触价 {{ pctFmt(o.fillBeforeTargetProb) }}</small></span>
             <span v-if="o.expected" :class="o.expected > 0 ? 'green' : 'red'">情景 {{ fmt(o.expected) }}</span>
           </div>
         </div>
@@ -311,7 +302,7 @@ function greekTone(value) {
         <div class="fc-gi"><b>B-Δ</b><span :class="greekTone(bachelierData?.optionDelta)">{{ f4(bachelierData?.optionDelta) }}</span></div>
         <div class="fc-gi"><b>B-Γ</b><span>{{ f4(bachelierData?.optionGamma) }}</span></div>
       </div>
-      <div class="fc-meta">Bachelier 使用 normal vol = S·σ；Asian/Bachelier 只用于 LP payoff fit 研究，不进入挂单。</div>
+      <div class="fc-meta">Carry Bachelier Θ/会话 {{ f4(bachelierCarryData?.optionThetaPerSession) }} · ρ/1% {{ f4(bachelierCarryData?.optionRhoPerPct) }} · 仅研究，不进入挂单。</div>
     </div>
 
     <!-- DEVIATION SCORE -->
@@ -346,17 +337,19 @@ function greekTone(value) {
       <text :x="W-PR" :y="sy(0)+18" text-anchor="end" class="fc-tick">{{ fmt(riskSurfaceData.bandHigh) }}</text>
     </svg>
 
-    <!-- FUSION CARDS -->
     <FormulaFusionViews
       v-else-if="
         (formulaId === 'net-lp-efficiency' && netLpData) ||
         (formulaId === 'dynamic-holding-state' && dynamicHoldingData) ||
-        (formulaId === 'lp-pool-coverage' && lpPoolData)
+        (formulaId === 'lp-pool-coverage' && lpPoolData) ||
+        (formulaId === 'state-recurrence' && stateRecurrenceData?.status === 'ok')
       "
       :formula-id="formulaId"
       :net-lp-data="netLpData"
       :lp-pool-data="lpPoolData"
       :dynamic-holding-data="dynamicHoldingData"
+      :state-recurrence-data="stateRecurrenceData"
+      :recurrence-chart="recurrenceChart"
       :fmt="fmt"
       :pct-fmt="pctFmt"
     />
@@ -442,56 +435,4 @@ function greekTone(value) {
   </div>
 </template>
 
-<style>
-.fc-shell { min-height: 200px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
-.fc-svg { display: block; width: 100%; height: auto; }
-.fc-ttl { font-size: 0.7rem; font-weight: 900; fill: var(--green); letter-spacing: 0.04em; color: var(--green); }
-.fc-tick { font-size: 9px; fill: var(--muted); }
-.fc-card { display: grid; gap: 8px; padding: 12px; }
-.fc-availability { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: baseline; padding: 7px 10px; border-bottom: 1px solid currentColor; background: var(--surface-alt); font-size: 0.68rem; }
-.fc-availability strong { font-size: 0.72rem; }
-.fc-availability.state-missing, .fc-availability.state-gate-failed { color: var(--red); }
-.fc-availability.state-not-applicable { color: var(--muted); }
-.fc-fallback-state { width: max-content; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 0.72rem; }
-.fc-fallback-state.state-missing, .fc-fallback-state.state-gate-failed { color: var(--red); }
-.fc-fallback-state.state-not-applicable { color: var(--muted); }
-.fc-fallback-state.state-research { color: var(--blue); }
-.fc-fallback-state.state-proxy { color: #8b5a16; }
-.fc-fallback-state.state-unverified { color: var(--muted); }
-.fc-fallback-row { display: grid; grid-template-columns: 68px 1fr; gap: 8px; font-size: 0.74rem; line-height: 1.45; }
-.fc-fallback-row b { color: var(--muted); }
-.fc-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.fc-kv div { display: grid; gap: 1px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
-.fc-kv b { font-size: 0.6rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.fc-kv span { font-size: 0.82rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.fc-gr4, .fc-gr3 { display: grid; gap: 6px; }
-.fc-gr4 { grid-template-columns: repeat(4, 1fr); }
-.fc-gr3 { grid-template-columns: repeat(3, 1fr); }
-.fc-gi { display: grid; gap: 2px; padding: 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); }
-.fc-gi b { font-size: 0.6rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.fc-gi span { font-size: 0.88rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.fc-big { font-size: 1.8rem; font-weight: 900; font-variant-numeric: tabular-nums; }
-.fc-meta { font-size: 0.72rem; color: var(--muted); }
-.fc-ce-row { display: flex; align-items: baseline; gap: 12px; }
-.fc-vol { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.fc-vol-main { display: grid; gap: 2px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); text-align: center; }
-.fc-vol-main small { font-size: 0.66rem; color: var(--muted); }
-.fc-formulas { display: grid; gap: 4px; }
-.fc-formulas code { display: block; border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; background: var(--bg); color: var(--blue); font-size: 0.74rem; white-space: nowrap; overflow: auto; }
-.fc-orders { display: grid; gap: 4px; }
-.fc-orow { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 0.78rem; }
-.fc-orole { font-weight: 800; color: var(--green); font-size: 0.7rem; min-width: 36px; }
-.fc-onotional { color: var(--muted); margin-left: auto; }
-.fc-asian { display: grid; gap: 8px; }
-.fc-asian-cmp { display: flex; align-items: center; gap: 10px; }
-.fc-plan-wait { display: grid; gap: 8px; }
-.fc-guide { margin: 0 10px 10px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--surface-alt); }
-.fc-guide-title { display: block; font-size: 0.68rem; font-weight: 900; color: var(--green); margin-bottom: 4px; }
-.fc-guide-body { margin: 0; font-size: 0.74rem; color: var(--ink); line-height: 1.45; }
-.fc-liquidity-rack { height: min(680px, 72vh); min-height: 520px; background: var(--surface); }
-.green { color: var(--green); }
-.red { color: var(--red); }
-@media (max-width: 768px) {
-  .fc-liquidity-rack { height: 620px; min-height: 620px; }
-}
-</style>
+<style src="../styles/formula-chart.css"></style>

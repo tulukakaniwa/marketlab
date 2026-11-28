@@ -1,4 +1,4 @@
-export function resolveChartOverlayPlan({ overlays, formulaPath }) {
+export function resolveChartOverlayPlan({ overlays, formulaPath, strategyPath = [] }) {
   const priceBands = overlayOn(overlays, 'priceBands')
   const lpBand = priceBands && overlays?.lpBand === true
   const greeks =
@@ -32,6 +32,7 @@ export function resolveChartOverlayPlan({ overlays, formulaPath }) {
       lpBand,
       lpRealPrice: lpBand && hasPathData(formulaPath, ['lpRealPrice']),
       entryLine: overlayOn(overlays, 'entryLine'),
+      strategyOverlay: hasPathData(strategyPath, ['strategyStop', 'strategyTarget']),
       currentLine: true,
     },
     panes,

@@ -2,11 +2,14 @@ export { normalCdf, normalPdf, inverseNormalCdf, integrateTrapezoid } from './pr
 export {
   GET_DELTA_SOURCE,
   asianOption,
+  bachelierCarryOption,
   bachelierOption,
   blackScholes,
+  getDeltaBandCurvature,
   getDeltaBandSlope,
   getDeltaBandValue,
   getDeltaBands,
+  invertDeltaBand,
   riskSurface,
 } from './options.js'
 export { buildOptionPortfolio, optionLegsFromTemplate, normalizeOptionLegs } from './optionPortfolio.js'
@@ -49,11 +52,13 @@ export {
   sampleCapitalEfficiencyCurve,
 } from './capitalEfficiency.js'
 export { compareFeeCarryToTheta, estimateLpPathFees, lpResearchAttribution, netLpEfficiency } from './lpResearch.js'
+export { deriveStateRecurrence, estimateDynamicCkSkew } from './latentRecurrence.js'
 export {
   DEFAULT_DYNAMIC_HOLDING_PROFILES,
   deriveDrawdownFeatures,
   deriveDynamicHoldingState,
   deriveRecoveryHorizon,
+  deriveRunupFeatures,
   deriveShortHoldWindow,
   deriveStructuralHoldWindow,
 } from './shortHold.js'

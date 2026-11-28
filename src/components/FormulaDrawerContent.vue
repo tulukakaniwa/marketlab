@@ -58,6 +58,18 @@ const currentValues = computed(() => {
       v.push(['多头成本', fmt(g.deltaBands?.long?.cost)])
       v.push(['多头高', fmt(g.deltaBands?.long?.high)])
       v.push(['e_T', f4(g.deltaBands?.wave)])
+      v.push(['入场局部凸性', f4(g.deltaBands?.long?.curvatureAtEntry)])
+      if (g.deltaBandInversion) {
+        v.push(['反推隐含 σ', pct(g.deltaBandInversion.impliedVol)])
+        v.push(['反推斜率 d', f4(g.deltaBandInversion.impliedDeltaSlope)])
+      }
+      break
+    case 'asian-option':
+      v.push(['Asian 价格', fmt(g.asian?.price)])
+      v.push(['几何 IV', pct(g.asian?.sigmaGeo)])
+      v.push(['Carry Bachelier', fmt(g.bachelierCarry?.price)])
+      v.push(['Carry Θ/会话', f4(g.bachelierCarry?.optionThetaPerSession)])
+      v.push(['Carry ρ/1%', f4(g.bachelierCarry?.optionRhoPerPct)])
       break
     case 'option-greeks':
       if (g.optionPortfolio) {
@@ -88,6 +100,20 @@ const currentValues = computed(() => {
       ])
       v.push(['区间下沿', f4(g.efficiency?.lower)])
       v.push(['区间上沿', f4(g.efficiency?.upper)])
+      if (g.dynamicCkSkew?.status === 'ok') {
+        v.push(['前缀动态偏斜 α̂', f4(g.dynamicCkSkew.directionalMoveScaleRatio)])
+        v.push(['动态 CK 拐点 CE', `${g.dynamicCkSkew.efficiencyAtGeometricMidpoint.toFixed(2)}×`])
+      }
+      break
+    case 'state-recurrence':
+      if (g.stateRecurrence?.status === 'ok') {
+        v.push(['中位重返等待', `${g.stateRecurrence.recurrencePeriodSessions} 会话`])
+        v.push(['同态邻域 k', g.stateRecurrence.neighbourCount])
+        v.push(['已完成重返', `${g.stateRecurrence.completedEventCount} 次`])
+        v.push(['当前驻留', `${g.stateRecurrence.currentEpisodeAgeSessions} 会话`])
+      } else {
+        v.push(['当前输出', '等待至少 1 个完整离开再重返样本周期'])
+      }
       break
     case 'funding':
       v.push(['基差比例代理', pct(g.funding?.basisFraction)])
@@ -136,6 +162,7 @@ const decisionImpact = computed(() => {
     'dynamic-holding-state': '把回撤、z、半衰期和结构目标合成观察/等待/剔除',
     'gamma-pnl': '单位与名义口径下的凸性情景值；不是已实现人民币收益',
     'vol-confidence': '历史已实现波动样本区间；不是市场 IV 的置信区间或未来保证',
+    'state-recurrence': '前缀因果 kNN 离开再重返等待分布与 Kaplan–Meier 生存曲线；仅作节奏研究参考',
   }
   return map[id] ?? '该公式参与研究层，不直接进入挂单结论'
 })
@@ -309,7 +336,7 @@ function pct(v) {
   color: var(--blue);
 }
 .fdc-availability.state-proxy {
-  color: #8b5a16;
+  color: var(--amber);
 }
 .fdc-availability.state-unverified,
 .fdc-availability.state-not-applicable {

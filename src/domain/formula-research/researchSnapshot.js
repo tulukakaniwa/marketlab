@@ -1,12 +1,16 @@
 import {
   asianOption,
+  bachelierCarryOption,
   bachelierOption,
   blackScholes,
   buildOptionPortfolio,
   capitalEfficiency,
+  deriveStateRecurrence,
+  estimateDynamicCkSkew,
   fullRangeV2ImpermanentLoss,
   estimateCumulativeFundingProxy,
   hedgedLpPortfolioCurve,
+  invertDeltaBand,
   liquidityFingerprint,
   netCarry,
   numoenSnapshot,
@@ -21,7 +25,7 @@ import { resolveLpValuationSpec } from '../lp/lpValuationSpec.js'
 import { buildLpDataState } from '../market-data/lpOnchain.js'
 import { buildPortfolioResearch } from './portfolioResearch.js'
 
-export function buildResearchSnapshot({ market, input, executable }) {
+export function buildResearchSnapshot({ market, input, executable, rows = [], costPath = [] }) {
   const { entryPrice, iv } = executable.inputs
   const formulaHorizonSessions = positive(executable.inputs.formulaHorizonSessions)
   const optionTenorSessions = positive(input.optionTenorSessions)
@@ -89,6 +93,16 @@ export function buildResearchSnapshot({ market, input, executable }) {
     timeToExpirySessions: optionTenorSessions,
     normalVol: iv * entryPrice,
     riskFreeRate: Number(input.riskFreeRate) || 0,
+    type: input.optionType,
+    tradingDaysPerYear: tdpy,
+  })
+  const bachelierCarry = bachelierCarryOption({
+    entryPrice,
+    strikePrice,
+    timeToExpirySessions: optionTenorSessions,
+    normalVol: iv * entryPrice,
+    riskFreeRate: Number(input.riskFreeRate) || 0,
+    dividendYield: Number(input.dividendYield) || 0,
     type: input.optionType,
     tradingDaysPerYear: tdpy,
   })
@@ -211,6 +225,21 @@ export function buildResearchSnapshot({ market, input, executable }) {
     u: Number(input.numoenU) || 4,
     dy: Number(input.numoenDy) || 0.1,
   })
+  const deltaBandInversion = resolveDeltaBandInversion({
+    lpValuation,
+    lowerPrice,
+    upperPrice,
+    market,
+    entryPrice,
+    formulaHorizonSessions,
+    tdpy,
+  })
+  const dynamicCkSkew = estimateDynamicCkSkew({
+    rows,
+    referencePrice: market?.costAnchor || entryPrice,
+    halfLifeSessions: executable.inputs.horizonHalfLifeSessions,
+  })
+  const stateRecurrence = resolveStateRecurrence(rows, costPath)
   const portfolioResearch = buildPortfolioResearch({
     lpMark: lpV3Raw?.value,
     lpEntryValue: lpV3Entry?.value,
@@ -276,6 +305,10 @@ export function buildResearchSnapshot({ market, input, executable }) {
     optionPortfolio,
     asian,
     bachelier,
+    bachelierCarry,
+    deltaBandInversion,
+    dynamicCkSkew,
+    stateRecurrence,
     lp,
     lpV3: lpV3Raw,
     lpV3Hedged,
@@ -320,4 +353,56 @@ function optionalFinite(value) {
   if (value === null || value === undefined || value === '') return null
   const next = Number(value)
   return Number.isFinite(next) ? next : null
+}
+
+function resolveDeltaBandInversion({
+  lpValuation,
+  lowerPrice,
+  upperPrice,
+  market,
+  entryPrice,
+  formulaHorizonSessions,
+  tdpy,
+}) {
+  if (!formulaHorizonSessions || !tdpy || !positive(entryPrice)) return null
+  const realizedVol = positive(market?.annualVol)
+  if (lpValuation.available && positive(lowerPrice) && positive(upperPrice)) {
+    const inverted = invertDeltaBand({
+      lowerPrice,
+      upperPrice,
+      entryPrice,
+      formulaHorizonSessions,
+      tradingDaysPerYear: tdpy,
+      realizedVol,
+    })
+    if (inverted) return { ...inverted, rangeSource: 'lp-valuation-range' }
+  }
+  if (positive(market?.costLow) && positive(market?.costHigh) && market.costHigh > market.costLow) {
+    const inverted = invertDeltaBand({
+      lowerPrice: market.costLow,
+      upperPrice: market.costHigh,
+      entryPrice,
+      formulaHorizonSessions,
+      tradingDaysPerYear: tdpy,
+      realizedVol,
+    })
+    if (inverted) return { ...inverted, rangeSource: 'market-cost-band' }
+  }
+  return null
+}
+
+function resolveStateRecurrence(rows, costPath) {
+  if (!Array.isArray(rows) || !Array.isArray(costPath) || rows.length < 5 || costPath.length < 5) {
+    return deriveStateRecurrence({ costDistanceSeries: [] })
+  }
+  const len = Math.min(rows.length, costPath.length)
+  const costDistanceSeries = []
+  const dates = []
+  for (let idx = 0; idx < len; idx += 1) {
+    const anchor = costPath[idx]?.anchor
+    const close = rows[idx]?.close
+    costDistanceSeries.push(anchor > 0 && close > 0 ? (close - anchor) / anchor : null)
+    dates.push(rows[idx]?.date ?? null)
+  }
+  return deriveStateRecurrence({ costDistanceSeries, dates })
 }

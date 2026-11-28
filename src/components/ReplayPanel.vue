@@ -8,21 +8,28 @@ const props = defineProps({
   input: { type: Object, default: null },
 })
 
+const emit = defineEmits(['patch-input'])
+
 const isDisabled = computed(() => props.replay.status === 'disabled')
 const isMissingAccount = computed(() => props.replay.status === 'missing-account-input')
 const isMissingFee = computed(() => props.replay.status === 'missing-replay-fee-input')
 const isMissingInput = computed(() => isMissingAccount.value || isMissingFee.value)
 const isRunnable = computed(() => !isDisabled.value && !isMissingInput.value)
-const replayFeePct = computed({
-  get: () => (Number.isFinite(props.input?.replayFeeRate) ? props.input.replayFeeRate * 100 : null),
-  set: (value) => {
-    if (!props.input) return
-    props.input.replayFeeRate =
-      value === '' || value === null || value === undefined || !Number.isFinite(Number(value))
-        ? null
-        : Number(value) / 100
-  },
-})
+const replayFeePctValue = computed(() =>
+  Number.isFinite(props.input?.replayFeeRate) ? props.input.replayFeeRate * 100 : '',
+)
+
+function onFeeInput(raw) {
+  const replayFeeRate =
+    raw === '' || raw === null || raw === undefined || !Number.isFinite(Number(raw)) ? null : Number(raw) / 100
+  emit('patch-input', { replayFeeRate })
+}
+
+function nonNegativeNum(raw) {
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? n : 0
+}
+
 const titleValue = computed(() => {
   if (isDisabled.value) return '未启用'
   if (isMissingInput.value) return '未运行'
@@ -149,15 +156,34 @@ function pct(value) {
     <div v-if="isMissingInput && input" class="replay-account-inputs">
       <label>
         <span>账户资金</span>
-        <input v-model.number="input.capital" type="number" min="0" step="100" />
+        <input
+          :value="input.capital"
+          type="number"
+          min="0"
+          step="100"
+          @input="emit('patch-input', { capital: nonNegativeNum($event.target.value) })"
+        />
       </label>
       <label>
         <span>底仓名义</span>
-        <input v-model.number="input.baseNotional" type="number" min="0" step="100" />
+        <input
+          :value="input.baseNotional"
+          type="number"
+          min="0"
+          step="100"
+          @input="emit('patch-input', { baseNotional: nonNegativeNum($event.target.value) })"
+        />
       </label>
       <label>
         <span>回放总费率 %</span>
-        <input v-model.number="replayFeePct" type="number" min="0" step="0.01" placeholder="需显式填写" />
+        <input
+          :value="replayFeePctValue"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="需显式填写"
+          @input="onFeeInput($event.target.value)"
+        />
       </label>
     </div>
   </section>

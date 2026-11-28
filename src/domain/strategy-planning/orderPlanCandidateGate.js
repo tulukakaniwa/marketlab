@@ -1,6 +1,6 @@
 export function applyDynamicHoldingCandidateGate({ timing, gate, inputs = {} } = {}) {
   const diagnosticTiming = timing ?? emptyDiagnosticTiming()
-  if (diagnosticTiming.side === 'sell') return applyShortCandidateGate(diagnosticTiming, inputs)
+  if (diagnosticTiming.side === 'sell') return applyShortCandidateGate(diagnosticTiming, inputs, gate)
   const candidateStatus = gate?.status ?? fallbackCandidateStatus(inputs, diagnosticTiming)
 
   if (diagnosticTiming.side !== 'buy' || candidateStatus === '观察') {
@@ -32,22 +32,41 @@ export function applyDynamicHoldingCandidateGate({ timing, gate, inputs = {} } =
   }
 }
 
-function applyShortCandidateGate(timing, inputs) {
-  if (hasIndependentShortBinding(inputs, timing)) return { ...timing, candidateStatus: '观察' }
-  const reason = '缺少独立的 short-side 结构目标、成本锚与周期绑定，减仓模拟保持关闭。'
-  return {
-    ...timing,
-    side: null,
-    action: '未触发',
-    path: '独立 short-side 候选门禁',
-    edge: 0,
-    stop: null,
-    target: null,
-    reason,
-    blockedReasons: unique([reason, ...(timing.blockedReasons ?? [])]),
-    missingInputs: unique([...(timing.missingInputs ?? []), 'short-side-target-horizon-binding']),
-    candidateStatus: '需刷新数据',
+function applyShortCandidateGate(timing, inputs, gate = null) {
+  if (!hasIndependentShortBinding(inputs, timing)) {
+    const reason = '缺少独立的 short-side 结构目标、成本锚与周期绑定，减仓模拟保持关闭。'
+    return {
+      ...timing,
+      side: null,
+      action: '未触发',
+      path: '独立 short-side 候选门禁',
+      edge: 0,
+      stop: null,
+      target: null,
+      reason,
+      blockedReasons: unique([reason, ...(timing.blockedReasons ?? [])]),
+      missingInputs: unique([...(timing.missingInputs ?? []), 'short-side-target-horizon-binding']),
+      candidateStatus: '需刷新数据',
+    }
   }
+  if (gate && gate.side === 'short' && gate.status !== '观察') {
+    const reason = gateReason(gate)
+    return {
+      ...timing,
+      side: null,
+      action: '未触发',
+      path: '动态持仓候选门禁',
+      edge: 0,
+      stop: null,
+      target: null,
+      reason,
+      signalSemantics: 'candidate-gate-not-confidence-or-win-probability',
+      blockedReasons: unique([reason, ...(gate.blockedReasons ?? []), ...(timing.blockedReasons ?? [])]),
+      missingInputs: unique([...(timing.missingInputs ?? []), ...(gate.missingInputs ?? [])]),
+      candidateStatus: gate.status,
+    }
+  }
+  return { ...timing, candidateStatus: '观察' }
 }
 
 function hasIndependentShortBinding(inputs, timing) {

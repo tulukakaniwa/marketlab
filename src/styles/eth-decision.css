@@ -1,0 +1,307 @@
+.eth-replay {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px clamp(14px, 3vw, 40px) 56px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.eth-replay h1,
+.eth-replay h2,
+.eth-replay p {
+  margin: 0;
+}
+.eth-head,
+.eth-heading,
+.eth-section-head,
+.eth-controls,
+.eth-buttons,
+.eth-clock nav,
+.eth-facts,
+.eth-sample {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.eth-head,
+.eth-heading,
+.eth-section-head {
+  justify-content: space-between;
+}
+.eth-head {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.eth-head a {
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: none;
+}
+.eth-heading {
+  padding: 18px 0 14px;
+}
+.eth-heading h1 {
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  letter-spacing: -0.02em;
+}
+.eth-replay p,
+.eth-sample small,
+.eth-stages small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.eth-sample {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-family: var(--mono);
+}
+.eth-card,
+.eth-clock {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: clamp(12px, 1.8vw, 18px);
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.eth-clock {
+  border-top: 2px solid var(--green);
+}
+.eth-controls,
+.eth-clock nav,
+.eth-facts {
+  flex-wrap: wrap;
+}
+.eth-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.eth-clock input[type='range'] {
+  width: 100%;
+  margin: 12px 0 8px;
+  accent-color: var(--green);
+  cursor: pointer;
+}
+.eth-time {
+  font-family: var(--mono);
+  font-size: 1.25rem;
+}
+.eth-time small,
+.eth-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.eth-buttons {
+  margin-left: auto;
+  gap: 5px;
+}
+.eth-play {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.eth-clock nav {
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.eth-clock nav button {
+  min-height: 24px;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+}
+.eth-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr;
+  gap: 12px;
+}
+.eth-grid h2 {
+  font-family: var(--mono);
+  font-size: 1.55rem;
+  padding: 4px 0;
+}
+.eth-decision {
+  border-left: 3px solid var(--green);
+}
+.eth-decision h2 {
+  font-family: var(--font-sans);
+}
+.eth-profit h2,
+.eth-decision h2,
+.eth-spot {
+  color: var(--green);
+}
+.eth-perp {
+  color: var(--blue);
+}
+.eth-card dl {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+}
+.eth-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+}
+.eth-card dt {
+  color: var(--muted);
+}
+.eth-card dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.eth-section-head {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.eth-card > h2,
+.eth-section-head h2 {
+  font-size: 1rem;
+}
+.eth-section-head > b {
+  font-family: var(--mono);
+  color: var(--green);
+  font-size: 0.78rem;
+}
+.eth-facts {
+  gap: 6px 20px;
+  padding: 10px 0;
+  font-size: 0.76rem;
+}
+.eth-facts b {
+  font-family: var(--mono);
+  margin-left: 3px;
+}
+.eth-table-wrap {
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.eth-card table {
+  width: 100%;
+  text-align: right;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.76rem;
+}
+.eth-card th,
+.eth-card td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.eth-card th:first-child,
+.eth-card td:first-child {
+  text-align: left;
+  font-family: var(--font-sans);
+}
+.eth-card thead {
+  color: var(--muted);
+  background: var(--surface);
+}
+.eth-card th small {
+  display: block;
+  color: var(--muted);
+}
+.eth-stages {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 12px 0 6px;
+}
+.eth-stages div {
+  padding: 8px 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.eth-stages strong,
+.eth-stages div > small {
+  display: block;
+}
+.eth-empty {
+  padding: 10px 0 0;
+}
+.eth-plot {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  gap: 4px;
+  font-family: var(--mono);
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+.eth-plot aside,
+.eth-plot footer {
+  display: flex;
+  justify-content: space-between;
+}
+.eth-plot aside {
+  flex-direction: column;
+}
+.eth-plot svg {
+  width: 100%;
+  height: 110px;
+}
+.eth-plot path {
+  fill: none;
+  stroke-width: 1.7;
+  vector-effect: non-scaling-stroke;
+}
+.eth-plot .gridline {
+  stroke: var(--line);
+  stroke-dasharray: 3 5;
+  stroke-width: 1;
+}
+.eth-plot .spot-line {
+  stroke: var(--green);
+}
+.eth-plot .perp-line {
+  stroke: var(--blue);
+}
+.eth-plot footer {
+  grid-column: 2;
+}
+.eth-replay summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.eth-replay details p {
+  margin-top: 6px;
+}
+.eth-checks {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+}
+.eth-checks li {
+  padding: 2px 0;
+}
+.eth-checks span {
+  font-weight: 600;
+  margin-right: 6px;
+}
+.eth-checks .yes {
+  color: var(--green);
+}
+.eth-checks .no {
+  color: var(--red);
+}
+@media (max-width: 800px) {
+  .eth-grid {
+    grid-template-columns: 1fr;
+  }
+  .eth-sample {
+    display: none;
+  }
+  .eth-buttons {
+    margin-left: 0;
+  }
+}

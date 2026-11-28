@@ -1,0 +1,130 @@
+.order-table {
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.order-table header {
+  padding: 7px 10px 5px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
+
+.order-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.74rem;
+  table-layout: fixed;
+}
+
+.order-table th {
+  padding: 5px 6px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 50%, transparent);
+}
+
+.order-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px;
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+
+.order-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.order-table th:first-child,
+.order-table td:first-child {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.positive {
+  color: var(--green);
+}
+
+.negative {
+  color: var(--red);
+}
+
+.formula-detail {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+}
+
+.formula-detail header {
+  display: grid;
+  gap: 3px;
+}
+
+.formula-detail header strong {
+  font-size: 0.96rem;
+}
+
+.formula-detail header small,
+.formula-detail p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.formula-role {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.io-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.io-grid b {
+  display: block;
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.formula-detail code {
+  display: block;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  color: var(--blue);
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.formula-detail footer {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.formula-detail footer span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}

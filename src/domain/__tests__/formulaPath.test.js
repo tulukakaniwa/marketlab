@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadCsv } from '../../test/helpers/loadCsv.js'
-import { FORMULA_PATH_FIELDS, buildFormulaPath } from '../market-data/formulaPath.js'
-import { resolveExplicitScenarioHorizonSessions } from '../market-data/formulaPathScenarioInput.js'
+import { FORMULA_PATH_FIELDS, buildFormulaPath } from '../formula-research/path/formulaPath.js'
 
 const DEPRECATED_CANONICAL_PATH_ALIASES = [
   'formulaHorizonDays',
@@ -28,24 +27,6 @@ function makeRows(count, start = 0) {
 }
 
 describe('buildFormulaPath causal horizon contract', () => {
-  it('显式 scenario adapter 在关闭时不消费旧周期字段', () => {
-    expect(resolveExplicitScenarioHorizonSessions({ formulaHorizonDays: 9, holdingDays: 7 })).toBeNull()
-    expect(
-      resolveExplicitScenarioHorizonSessions({
-        formulaHorizonDays: 9,
-        holdingDays: 7,
-        pathUsesScenarioInputs: false,
-      }),
-    ).toBeNull()
-    expect(
-      resolveExplicitScenarioHorizonSessions({
-        formulaHorizonDays: 9,
-        holdingDays: 7,
-        pathUsesScenarioInputs: true,
-      }),
-    ).toBe(9)
-  })
-
   it('追加未来极端数据不会改写历史公式路径', () => {
     const prefix = makeRows(80)
     const future = makeRows(20, 80).map((row, offset) => ({

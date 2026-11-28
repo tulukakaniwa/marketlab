@@ -6,7 +6,8 @@ const props = defineProps({
   graph: { type: Object, default: null },
 })
 
-// 百分号转换：输入 0.05（5%）→ 显示 5；输入 5 → 存储 0.05
+const emit = defineEmits(['patch-input'])
+
 function pctIn(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n / 100 : 0
@@ -14,36 +15,19 @@ function pctIn(v) {
 function pctOut(v) {
   return Number.isFinite(v) ? Number((v * 100).toFixed(2)) : 0
 }
-
-// 波动率、GetDelta 目标增量、退出目标 三个百分号字段
-const ivP = computed({
-  get: () => pctOut(props.input.iv),
-  set: (v) => {
-    props.input.iv = pctIn(v)
-    props.input.ivSource = 'manual-scenario'
-  },
-})
-const deltaSlopeP = computed({
-  get: () => pctOut(props.input.deltaSlope),
-  set: (v) => {
-    props.input.deltaSlope = pctIn(v)
-  },
-})
-const exitTargetP = computed({
-  get: () => pctOut(props.input.exitTargetReturn),
-  set: (v) => {
-    props.input.exitTargetReturn = pctIn(v)
-  },
-})
+function numIn(raw, fallback = 0) {
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : fallback
+}
 
 const bandText = computed(() => {
   const band = props.graph?.deltaBands?.long
-  if (!band) return '等待市场样本'
-  return `${fmt(band.low)} / ${fmt(band.cost)} / ${fmt(band.high)}`
+  if (!band) return '等待样本'
+  return `${fmt(band.low)} · ${fmt(band.cost)} · ${fmt(band.high)}`
 })
 const horizonText = computed(() => {
   const days = props.graph?.inputs?.formulaHorizonSessions
-  return Number.isFinite(days) ? `${days} 个交易会话` : '等待结构目标'
+  return Number.isFinite(days) ? `${days} 会话` : '待推导'
 })
 
 function fmt(value) {
@@ -55,20 +39,52 @@ function fmt(value) {
 <template>
   <div class="si-card">
     <div class="si-card-head">
-      <strong>GetDelta 价格带</strong>
-      <small>P + H(q) + s + d</small>
+      <strong>GetDelta(P, T, σ, d)</strong>
+      <code>{{ bandText }}</code>
     </div>
 
     <div class="si-form">
-      <label><span>入场价</span><input v-model.number="input.entryPrice" type="number" step="0.01" /></label>
-      <label
-        ><span>公式周期</span><output>{{ horizonText }}</output></label
-      >
-      <label><span>情景 σ%</span><input v-model.number="ivP" type="number" step="0.5" /></label>
-      <label><span>目标增量 d%</span><input v-model.number="deltaSlopeP" type="number" step="0.5" /></label>
-      <label><span>退出目标%</span><input v-model.number="exitTargetP" type="number" step="0.5" /></label>
+      <label>
+        <span>入场价 P</span>
+        <input
+          :value="input.entryPrice"
+          type="number"
+          step="0.01"
+          @input="emit('patch-input', { entryPrice: numIn($event.target.value, input.entryPrice) })"
+        />
+      </label>
+      <label>
+        <span>周期 T</span>
+        <output>{{ horizonText }}</output>
+      </label>
+      <label>
+        <span>波动率 σ (%)</span>
+        <input
+          :value="pctOut(input.iv)"
+          type="number"
+          step="0.5"
+          @input="emit('patch-input', { iv: pctIn($event.target.value), ivSource: 'manual-scenario' })"
+        />
+      </label>
+      <label>
+        <span>增量 d (%)</span>
+        <input
+          :value="pctOut(input.deltaSlope)"
+          type="number"
+          step="0.5"
+          @input="emit('patch-input', { deltaSlope: pctIn($event.target.value) })"
+        />
+      </label>
+      <label>
+        <span>止盈目标 (%)</span>
+        <input
+          :value="pctOut(input.exitTargetReturn)"
+          type="number"
+          step="0.5"
+          @input="emit('patch-input', { exitTargetReturn: pctIn($event.target.value) })"
+        />
+      </label>
     </div>
-    <p class="si-link">多头低/成本/高：{{ bandText }}。模拟挂单继续叠加成本带、策略档位和账户权益。</p>
   </div>
 </template>
 
@@ -76,65 +92,57 @@ function fmt(value) {
 .si-card {
   display: grid;
   gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  padding: 9px 10px;
+  border-radius: var(--r-md);
   background: var(--surface-alt);
+  border: 1px solid var(--line);
 }
 .si-card-head {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  align-items: end;
+  align-items: baseline;
+  flex-wrap: wrap;
 }
 .si-card-head strong {
-  font-size: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink);
 }
-.si-card-head small {
-  color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 700;
-  text-align: right;
+.si-card-head code {
+  font-family: var(--mono);
+  color: var(--green);
+  font-size: 0.68rem;
 }
 .si-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
 }
 .si-form label {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 .si-form span {
   color: var(--muted);
-  font-size: 0.62rem;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 0.64rem;
+  font-weight: 600;
 }
 .si-form input,
-.si-form output,
-.si-form select {
+.si-form output {
+  min-width: 0;
   min-height: 28px;
-  padding: 3px 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-size: 0.76rem;
 }
 .si-form output {
   display: flex;
   align-items: center;
-}
-.si-form select {
-  font-weight: 600;
-}
-.si-link {
-  margin: 0;
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  border: 1px solid var(--line);
   color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 </style>

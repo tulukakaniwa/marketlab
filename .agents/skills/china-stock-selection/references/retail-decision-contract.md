@@ -1,91 +1,51 @@
-# Retail Decision Contract
+# 交易决策纪律契约（Retail Decision Contract）
 
-Use this contract whenever the skill ranks, explains, or plans around a candidate. Its purpose is to reduce irreversible mistakes, not to manufacture certainty.
+本契约用于约束候选排序、个股解读与模拟交易预案，目标是**用结构门禁过滤亏损陷阱，用清晰人话呈现可执行复核的事实**，既不制造虚假确定性，也不堆砌机械免责套话。
 
-## Four Separate States
+## 1. 四态独立原则
 
-Do not compress different permissions into one optimistic label:
+严禁把高评分直接等同于“可买”：
 
-- `dataState`: `ready`, `provisional`, `stale`, or `invalid`. An isolated dated path diagnostic can be `ready` only for its narrowly verified scope. The current local-only screen/replay candidate record always stays `provisional` when current because corporate actions, suspension/limit status, exchange calendar, point-in-time identity, and execution inputs are not all verified.
-- `scoreStatus`: the raw diagnostic ranking only. It grants no permission.
-- `candidateStatus`: `需刷新数据`, `剔除`, `等待`, or `观察`. `观察` means the declared research gates passed; it is still not an order.
-- `executionStatus`: only `blocked` or `simulation-only` in this static stock-selection skill. It never becomes `executable`; that requires a separate execution workflow with timestamped account, quote, liquidity, settlement, and cost inputs.
+- `dataState`：`ready` / `provisional` / `stale` / `invalid`。本地日线 CSV 因缺少实时停复牌、除权公告与盘口深度，最新有效态统一为 `provisional`。
+- `scoreStatus`：`diagnostic-high` / `diagnostic-medium` / `diagnostic-low`，仅反映多维几何与偏离打分高低，不授予入场权限。
+- `candidateStatus`：`需刷新数据` / `剔除` / `等待` / `观察`。只有通过单调 AR 回归与右侧相位门禁才可进入 `观察`；`low-compression`（低位钝化）即使算出前向目标价，也必须保持 `等待`，防止左侧盲目抄底。
+- `executionStatus`：静态环境下仅限 `blocked` 或 `simulation-only`，实盘下单需独立补齐实时盘口、账户风险预算与交割规则。
 
-Never promote any state merely because a raw score is high. Preserve all four states and the reasons for every blocked or provisional state.
+## 2. 最小决策底稿（Backing Record）
 
-## Required Minimum Backing Record
-
-For each shortlisted candidate, produce this minimum backing record or explicitly mark
-fields missing. The five-question retail view below is a projection of this record, not
-a replacement for its evidence and risk fields:
+对重点分析标的，底稿需覆盖以下结构化要素（缺失项显式标注，不得编造）：
 
 ```text
-instrument: symbol / verified or source-labelled name / market
-data: source / dataThrough / rows / freshness / filters
+instrument: 代码 / 带来源简称 / 市场（A股 | 港股）
+data: 数据源 / dataThrough / K线根数 / staleDays / 启用过滤项
 state: dataState / scoreStatus -> candidateStatus / executionStatus
-thesis: one testable sentence
-claims: each non-trivial claim paired with exact-identity / sample-estimate / calibrated-estimate / scenario-proxy / missing-input
-supportingEvidence: domain outputs that support the thesis
-counterEvidence: trend, drawdown, uncertainty, missing fundamentals/news, or conflicting model outputs
-invalidation: observable condition that would make the thesis no longer apply
-riskBudget: account loss limit and position size, or unavailable when account inputs are missing
-executionGate: blocked / simulation-only, with missing inputs
-nextCheck: what data or event should be checked next
+thesis: 一句话可证伪的交易逻辑（例：筹码锚走平下的超跌右侧首轮修复至成本下沿）
+claims: 关键量对应的证据等级（exact-identity | sample-estimate | calibrated-estimate | scenario-proxy | missing-input）
+supportingEvidence: 支撑该逻辑的 domain 结构指标（折价深度、单调 AR 半衰期、止跌相位）
+counterEvidence: 反面风险（成本斜率转负、样本偏短、缺乏基本面/财报事件核验）
+invalidation: 明确的失效退场条件（跌破 GetDelta 下沿或预设止损、成本锚加速下移）
+riskBudget: 账户单笔风险预算与模拟名义仓位（未配置本金时标为 unavailable）
+executionGate: blocked | simulation-only 及缺失输入列表
+nextCheck: 下一步观察触发点（如次日开盘跳空重算周期、观察能否站回 costLow）
 ```
 
-Do not invent `invalidation` or `riskBudget`. When domain outputs do not support them, mark them missing and keep the plan non-executable.
+## 3. 面向用户的五问精简视图
 
-`low-compression` is always a `等待` gate even when a forward structural target can be
-computed. A target coordinate does not prove that drawdown repair has started.
+主回复直接回答交易者最关心的五个问题：
 
-## Retail Default View
+1. **数据够新吗？**（截止日、样本量、是否过期）
+2. **当前什么状态？**（`观察` / `等待` / `剔除`）
+3. **核心依据是什么？**（成本折价、AR 半衰期、右侧止跌是否共振）
+4. **哪里算错离场？**（明确的价格失效线或结构破坏条件）
+5. **下一步盯什么？**（次日开盘重绑定、第一目标 `costLow` 保本棘轮、或需补充的盘前核查）
 
-The compact answer or main workbench should answer only:
+## 4. 仓位与历史回放准则
 
-1. Is the data usable?
-2. What is the gated state?
-3. Why is it in that state?
-4. What would invalidate the thesis or force a review?
-5. What must be checked next?
+- **仓位计算前提**：必须具备账户权益、单笔最大亏损预算、T+1/T+0 制度、整手规则与交易摩擦假设；否则只展示条件收益率情景，不给具体股数。
+- **A 股 T+1 纪律**：收盘信号最早次日开盘成交，且成交当日不可卖出（`settlementLagSessions=1`）；日内同 K 线同时触及止盈止损时，一律按保守止损优先（`stop-first-conservative-when-both-hit`）结算。
+- **回放统计完整性**：汇报回放表现时，除胜率与均值外，必须同时给出交易笔数、中位数、下分位（P10/最差单笔）与费率假设，区分样本内回放与样本外验证。
 
-Formula details, sensitivity curves, source evidence, and alternative assumptions belong in an advanced research layer.
+## 5. 表达规范
 
-## Thesis Discipline
-
-- A deviation observation is not itself a mean-reversion thesis.
-- A mean-reversion thesis requires positive monotonic decay evidence, a declared sample, and a target derived without future data.
-- A cost-anchor or structural-repair thesis must include the adverse case where the anchor continues to fall.
-- A high synthetic CK geometry score is supporting shape evidence only. It cannot supply a price target or a fee thesis.
-- `orderPlan.signalStrength` is normal-reference extremeness. It is not confidence, win probability, or calibrated edge and cannot justify live position size.
-- `expectedSessions` and `expectedReturn*` are conditional zero-shock AR-path projections. Treat them as sensitivity coordinates, not expected realized outcomes; no fixed 21-session monthly conversion is emitted.
-- Missing fundamentals, corporate actions, sector context, news, and calendar effects are counter-evidence gaps, not neutral facts.
-
-## Risk and Position Sizing
-
-Position sizing is unavailable unless the workflow has at least:
-
-- account equity and available cash
-- maximum loss per position and portfolio loss budget
-- market lot size, T+1/T+0 constraints, fees, taxes, and conservative slippage
-- entry, stop/invalidation, and maximum holding rule
-- current liquidity evidence appropriate to the instrument
-
-If any are missing, show scenario returns only and do not output an order quantity. Even when the local workbench has account inputs, its profile-scaled notionals remain `simulation-only` until a separate execution workflow validates the full list.
-
-For A-share T+1 research, a signal after close enters no earlier than the next session. A same-bar target/stop ambiguity in daily OHLC replay uses the conservative policy declared by the replay contract; it is not evidence of actual intraday fill order.
-
-## Replay Interpretation
-
-- Freeze the rule and thresholds before evaluating the holdout period.
-- Report sample size, coverage period, skipped signals, fees, fill timing, stop/target ambiguity policy, and point-in-time limitations.
-- Average return and win rate are insufficient. Include median, downside quantile, worst result, and profile-level counts.
-- A replay on the same data used to design thresholds is an in-sample diagnostic, not validated expectancy.
-- Static current whitelists, names, or classifications applied to history introduce lookahead and must be disclosed.
-
-## Language
-
-Use: `观察`, `等待`, `剔除`, `需刷新数据`, `研究坐标`, `情景`, `门禁`, `缺失输入`.
-
-Avoid: `必涨`, `确定反转`, `抄底`, `买点`, `卖点`, `回归概率`, `机构托底`, `做市商囤货`, `稳赚手续费`, or unqualified `预期收益` / `月化收益`.
-
-When historical or scenario returns are shown, prefix them with `历史回放` or `条件情景`, and state the horizon and assumptions.
+- **标准状态词**：`观察`、`等待`、`剔除`、`需刷新数据`、`结构目标`、`条件情景`、`失效线`。
+- **禁用误导词**：严禁输出 `必涨`、`确定反转`、`无脑抄底`、`回归概率`、`做市商囤满`、`稳赚手续费`、`机构托底` 或未经限定的 `预期月化收益`。展示历史回放或 AR 投影收益时，明确冠以 `历史回放净收益` 或 `零冲击条件空间`。

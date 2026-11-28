@@ -11,16 +11,16 @@ const centerTools = [
   {
     key: 'statisticalCenter',
     label: '统计中心',
-    title: '统计回归中心；仅在窗口可识别时显示，可在 Vela 原生设置调整窗口',
+    title: '统计回归中心；可在 Vela 原生设置调整窗口',
   },
   {
     key: 'vwapCost',
     label: '成交重心',
-    title: 'HLC3 成交量重心代理；不代表持仓者的真实成本，可在 Vela 原生设置调整窗口',
+    title: 'HLC3 成交量重心代理；可在 Vela 原生设置调整窗口',
   },
-  { key: 'cohortCost', label: '存续成本', title: '随机换手存续成本代理；不含未知初始持仓，缺已知流通数据时不生成数值' },
-  { key: 'supplyDemand', label: '供需场景', title: '供需均衡参数场景；仅标当前观察点，需填写独立场景参数' },
-  { key: 'fundamental', label: '估值场景', title: '基本面估值参数场景；仅标当前观察点，需填写独立场景参数' },
+  { key: 'cohortCost', label: '存续成本', title: '换手存续成本代理' },
+  { key: 'supplyDemand', label: '供需场景', title: '供需均衡场景标尺' },
+  { key: 'fundamental', label: '估值场景', title: '基本面估值场景标尺' },
 ]
 
 function toggle(key, available = true) {
@@ -31,13 +31,13 @@ function toggle(key, available = true) {
 
 <template>
   <div class="chart-display-tools" role="toolbar" aria-label="图表显示工具">
-    <span class="chart-display-tools-label">显示</span>
+    <span class="chart-display-tools-label">图层</span>
     <button
       type="button"
       :class="{ active: overlays.volume !== false }"
       :aria-pressed="overlays.volume !== false"
       :disabled="!ready"
-      title="显示或隐藏 OHLCV 成交量副图"
+      title="成交量副图"
       @click="toggle('volume')"
     >
       成交量
@@ -48,7 +48,7 @@ function toggle(key, available = true) {
       :class="{ active: overlays.stockChipProfile !== false }"
       :aria-pressed="overlays.stockChipProfile !== false"
       :disabled="!ready || !chipAvailable"
-      :title="chipAvailable ? `显示或隐藏${chipSource}` : '筹码图在桌面宽度显示'"
+      :title="chipAvailable ? chipSource : '筹码分布仅在桌面宽度显示'"
       @click="toggle('stockChipProfile', chipAvailable)"
     >
       筹码
@@ -58,17 +58,17 @@ function toggle(key, available = true) {
       :class="{ active: overlays.causalEquilibrium !== false }"
       :aria-pressed="overlays.causalEquilibrium !== false"
       :disabled="!ready"
-      title="价格滤波参考；历史局部趋势滤波值，不代表因果均衡或回归目标"
+      title="局部趋势价格滤波参考线"
       @click="toggle('causalEquilibrium')"
     >
-      <span style="color: #a855f7" aria-hidden="true">━</span> 滤波参考
+      <span class="cdt-dot-purple" aria-hidden="true" />滤波参考
     </button>
     <button
       type="button"
       :class="{ active: overlays.priceReferenceMap !== false }"
       :aria-pressed="overlays.priceReferenceMap !== false"
       :disabled="!ready"
-      title="量价地图：历史成交密度节点与成本带填色；点大小表示当日窗口内相对密度，OHLCV 代理"
+      title="量价地图：历史成交密度节点与成本带填色（OHLCV 代理）"
       @click="toggle('priceReferenceMap')"
     >
       量价地图
@@ -78,11 +78,14 @@ function toggle(key, available = true) {
       :class="{ active: overlays.impactReferenceMap !== false }"
       :aria-pressed="overlays.impactReferenceMap !== false"
       :disabled="!ready"
-      title="导入研究价位：LP 动作区间与期权 OI；仅在标的、报价和可用时间匹配时显示"
+      title="LP 区间与期权 OI 研究价位"
       @click="toggle('impactReferenceMap')"
     >
       研究价位
     </button>
+
+    <i class="cdt-sep" aria-hidden="true" />
+
     <button
       v-for="tool in centerTools"
       :key="tool.key"
@@ -95,7 +98,7 @@ function toggle(key, available = true) {
     >
       {{ tool.label }}
     </button>
-    <span class="chart-scale-badge" title="主图价格轴默认使用对数坐标">主图 Log</span>
+    <span class="chart-scale-badge" title="主图价格轴使用对数坐标">主图 Log</span>
   </div>
 </template>
 
@@ -106,46 +109,62 @@ function toggle(key, available = true) {
   gap: 3px;
   align-items: center;
   min-width: 0;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chart-display-tools::-webkit-scrollbar {
+  display: none;
 }
 .chart-display-tools-label {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 0.68rem;
+  font-weight: 600;
+  margin-right: 2px;
+  flex-shrink: 0;
+}
+.cdt-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--line-strong);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+.cdt-dot-purple {
+  width: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: #a855f7;
+  display: inline-block;
 }
 .chart-display-tools button,
 .chart-scale-badge {
-  min-height: 30px;
-  padding: 3px 7px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: var(--surface);
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  background: transparent;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 600;
   white-space: nowrap;
+  flex-shrink: 0;
 }
-.chart-display-tools button {
-  cursor: pointer;
+.chart-display-tools button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--ink);
+  border-color: transparent;
 }
 .chart-display-tools button.active {
-  border-color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 42%, transparent);
   background: var(--green-dim);
   color: var(--green);
 }
-.chart-display-tools button:disabled {
-  opacity: 0.48;
-  cursor: not-allowed;
-}
 .chart-scale-badge {
-  display: grid;
-  place-items: center;
-  border-style: dashed;
-  background: transparent;
-  color: var(--green);
-}
-.chart-display-tools :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--green) 58%, white);
-  outline-offset: 2px;
+  display: inline-flex;
+  align-items: center;
+  border-color: var(--line);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--muted);
 }
 </style>

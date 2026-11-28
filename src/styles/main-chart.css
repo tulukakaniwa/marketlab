@@ -5,25 +5,44 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  background: var(--panel);
+  background: var(--bg);
 }
 
 .main-chart-chrome {
   min-width: 0;
-  display: grid;
-  gap: 6px;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
+  border-bottom: 1px solid var(--line);
   z-index: 22;
 }
 
 .chart-control-deck {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(420px, 1fr) auto auto;
-  gap: 10px;
-  align-items: end;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 10px;
+}
+
+.chart-telemetry-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 2px 10px 4px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.chart-telemetry-strip > details {
+  min-width: 0;
+}
+
+.chart-telemetry-strip > details[open] {
+  flex-basis: 100%;
 }
 
 .main-chart-stage {
@@ -38,21 +57,10 @@
   height: 100%;
 }
 
-@media (max-width: 1279px) {
+@media (max-width: 1024px) {
   .chart-control-deck {
-    grid-template-columns: 1fr;
-    gap: 5px;
-  }
-}
-
-@media (max-width: 768px) {
-  .main-chart-shell,
-  .main-chart-stage,
-  .main-chart-canvas {
-    min-height: 0;
-  }
-  .main-chart-chrome {
-    padding: 5px 6px;
+    flex-wrap: wrap;
+    padding: 5px 8px;
   }
 }
 

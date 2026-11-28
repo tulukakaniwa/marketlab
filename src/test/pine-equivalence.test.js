@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loadCsv } from './helpers/loadCsv.js'
 import { DEFAULTS as PINE_DEFAULTS, derivePineWindows, pineEquivalent } from '../../scripts/verify-pine-equivalence.mjs'
 import { buildMarketState } from '../domain/market-data/cost.js'
-import { buildFormulaPath } from '../domain/market-data/formulaPath.js'
+import { buildFormulaPath } from '../domain/formula-research/path/formulaPath.js'
 import { deviationScore } from '../domain/formulas/core.js'
 import { inferTdpy } from '../domain/market-data/tdpy.js'
 

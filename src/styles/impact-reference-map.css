@@ -1,33 +1,40 @@
 .impact-reference-legend {
-  border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.7rem;
 }
 .impact-reference-legend summary {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px 12px;
-  padding: 7px 2px;
+  gap: 5px 10px;
+  min-height: 24px;
+  padding: 2px 4px;
   cursor: pointer;
+  list-style: none;
+}
+.impact-reference-legend summary::-webkit-details-marker {
+  display: none;
 }
 .impact-reference-legend summary strong,
 .impact-reference-legend summary b {
-  color: var(--ink);
+  color: var(--ink-secondary);
+  font-weight: 600;
 }
-.impact-reference-legend summary::before {
-  content: '▸';
-}
-.impact-reference-legend[open] summary::before {
-  content: '▾';
+.impact-reference-legend summary time {
+  font-family: var(--mono);
 }
 .impact-reference-details {
-  padding: 4px 10px 10px;
+  padding: 6px 10px 10px;
+  margin-top: 2px;
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  border: 1px solid var(--line);
   overflow-x: auto;
-  max-height: 260px;
+  max-height: 240px;
 }
 .impact-reference-details p {
-  margin: 4px 0 8px;
+  margin: 3px 0 6px;
+  font-size: 0.68rem;
 }
 .impact-reference-source {
   display: flex;
@@ -43,16 +50,19 @@
 .impact-reference-details th,
 .impact-reference-details td {
   text-align: right;
-  padding: 5px;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
 .impact-reference-details th:first-child,
 .impact-reference-details td:first-child {
   text-align: left;
+  font-family: var(--font-sans);
 }
 .impact-reference-details caption {
   text-align: left;
-  padding: 7px 0;
+  padding: 4px 0;
   color: var(--muted);
 }
 .impact-reference-details small {
@@ -61,15 +71,5 @@
 }
 .impact-reference-details button {
   margin-top: 8px;
-  min-height: 32px;
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--panel);
-  color: var(--ink);
-  cursor: pointer;
-}
-.impact-reference-legend :focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 2px;
+  min-height: 26px;
 }
