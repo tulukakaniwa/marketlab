@@ -14,6 +14,7 @@ import { useImpactChartOverlay } from './composables/useImpactChartOverlay.js'
 import { APP_SURFACES, useAppSurface } from './composables/useAppSurface.js'
 import { useTheme } from './composables/useTheme.js'
 import { usePanelResize } from './composables/usePanelResize.js'
+import { usePortfolioRotation } from './composables/usePortfolioRotation.js'
 import stockIndex from './data/stock-index.json'
 
 const RecommendedPoolPage = defineAsyncComponent(() => import('./components/RecommendedPoolPage.vue'))
@@ -22,6 +23,7 @@ const AlignedImpactChart = defineAsyncComponent(() => import('./components/marke
 const MarketImpactResearchDialog = defineAsyncComponent(
   () => import('./components/market-impact/MarketImpactResearchDialog.vue'),
 )
+const PortfolioRotationDialog = defineAsyncComponent(() => import('./components/PortfolioRotationDialog.vue'))
 
 const QUICK_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'NVDA', '600519', '0700.HK']
 
@@ -70,6 +72,16 @@ const allSamples = computed(() => {
   }
   return [...curated.values()]
 })
+const rotation = usePortfolioRotation(allSamples)
+
+function jumpToRotationSymbol(symbol) {
+  const found = allSamples.value.find((item) => item.symbol === symbol)
+  if (found) {
+    selectSample(found)
+    if (lab.chartStrategyId === 'off') lab.setChartStrategy('lp-carry-hybrid')
+  }
+  rotation.closeRotation()
+}
 
 const quickSamples = computed(() =>
   QUICK_SYMBOLS.map((sym) => allSamples.value.find((s) => s.symbol === sym)).filter(Boolean),
@@ -219,6 +231,7 @@ function showImpactOnChart() {
       @mobile-open-left="openMobileLeft"
       @mobile-open-right="openMobileRight"
       @open-market-impact="openImpactResearch"
+      @open-portfolio-rotation="rotation.openRotation"
       @open-eth-replay="navigateSurface(APP_SURFACES.ETH_REPLAY)"
       @open-recommended-pool="navigateSurface(APP_SURFACES.RECOMMENDED_POOL)"
     />
@@ -317,6 +330,7 @@ function showImpactOnChart() {
           @center-input-change="lab.setCenterInput"
           @native-settings-change="(enabled) => (nativeCenterSettings = enabled)"
           @open-market-impact="openImpactResearch"
+          @open-portfolio-rotation="rotation.openRotation"
         />
         <div v-else-if="!aligned.active.value" class="empty-state">
           <div class="empty-state-brand">
@@ -363,6 +377,22 @@ function showImpactOnChart() {
       :open="impactResearchOpen"
       @close="closeImpactResearch"
       @show-on-chart="showImpactOnChart"
+    />
+    <PortfolioRotationDialog
+      v-if="rotation.visited.value"
+      :open="rotation.open.value"
+      :running="rotation.running.value"
+      :error="rotation.error.value"
+      :presets="rotation.presets"
+      :preset-id="rotation.presetId.value"
+      :max-slots="rotation.maxSlots.value"
+      :use-maker-ladder="rotation.useMakerLadder.value"
+      :result="rotation.result.value"
+      @close="rotation.closeRotation"
+      @select-preset="rotation.setPreset"
+      @set-slots="rotation.setMaxSlots"
+      @toggle-ladder="rotation.toggleMakerLadder"
+      @jump-symbol="jumpToRotationSymbol"
     />
   </div>
 </template>

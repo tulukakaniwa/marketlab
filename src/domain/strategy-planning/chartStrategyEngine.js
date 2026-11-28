@@ -1,16 +1,16 @@
 import { buildCostPath, buildMarketStatePath } from '../market-data/cost.js'
 import { buildFormulaPath } from '../formula-research/path/formulaPath.js'
+import { evaluateLpCarryTrendHybrid } from './alphaHybridEngine.js'
 import {
   CHART_STRATEGY_CATALOG,
   buildMacroCostPath,
   detectStrategySignalAt,
   normalizeChartStrategyId,
 } from './chartStrategySignals.js'
+import { buildStrategyMarkers, emptyStrategyResult, summarizeTrades } from './chartStrategySummary.js'
 
 export { CHART_STRATEGY_CATALOG, normalizeChartStrategyId }
 
-const MAX_MARKERS = 96
-const MAX_LABELLED_EXITS = 8
 const RISK_BUDGET_PER_TRADE = 0.035
 
 /**
@@ -42,8 +42,31 @@ export function evaluateChartStrategy({
     Array.isArray(formulaPath) && formulaPath.length === rows.length
       ? formulaPath
       : buildFormulaPath(rows, { tradingDaysPerYear: tdpy })
-  const macroPath = buildMacroCostPath(rows)
 
+  if (id === 'lp-carry-hybrid') {
+    const hybrid = evaluateLpCarryTrendHybrid({
+      rows,
+      states,
+      resolvedCosts,
+      resolvedFormulas,
+      tradingDaysPerYear: tdpy,
+      feeRate: drag,
+    })
+    return assembleStrategyResult({
+      id,
+      meta,
+      drag,
+      trades: hybrid.trades,
+      activePosition: hybrid.activePosition,
+      pendingSignal: hybrid.latestSignal,
+      strategyPath: hybrid.strategyPath,
+      realizedEquity: hybrid.realizedEquity,
+      maxDrawdown: hybrid.maxDrawdown,
+      rows,
+    })
+  }
+
+  const macroPath = buildMacroCostPath(rows)
   const trades = []
   const strategyPath = new Array(rows.length)
   let openTrade = null
@@ -113,9 +136,34 @@ export function evaluateChartStrategy({
   }
 
   const activePosition = openTrade ? snapshotOpenTrade(openTrade, rows.at(-1), states.at(-1), drag) : null
+  return assembleStrategyResult({
+    id,
+    meta,
+    drag,
+    trades,
+    activePosition,
+    pendingSignal,
+    strategyPath,
+    realizedEquity,
+    maxDrawdown,
+    rows,
+  })
+}
+
+function assembleStrategyResult({
+  id,
+  meta,
+  drag,
+  trades,
+  activePosition,
+  pendingSignal,
+  strategyPath,
+  realizedEquity,
+  maxDrawdown,
+  rows,
+}) {
   const markers = buildStrategyMarkers({ trades, activePosition, pendingSignal, rows })
   const summary = summarizeTrades({ trades, realizedEquity, maxDrawdown, activePosition, pendingSignal, feeRate: drag })
-
   return {
     active: true,
     status: 'ready',
@@ -139,8 +187,7 @@ export function evaluateChartStrategy({
 function tryEnterAtOpen(signal, row, index, drag) {
   const open = positive(row?.open) ?? positive(row?.close)
   if (!open) return null
-  const isBuy = signal.side === 'buy'
-  if (isBuy) {
+  if (signal.side === 'buy') {
     if (open <= signal.stopPrice || (positive(signal.targetPrice) && open >= signal.targetPrice)) return null
     const signalRiskPct = (signal.signalClose - signal.stopPrice) / signal.signalClose
     if ((open - signal.signalClose) / signal.signalClose > Math.max(signalRiskPct * 1.25, 0.045)) return null
@@ -332,109 +379,6 @@ function snapshotOpenTrade(trade, lastRow, lastMarket, drag) {
     trailMode: trade.trailMode,
     breakevenLocked: trade.breakevenLocked,
     unrealizedNetReturn: markUnrealizedReturn(trade, mark, drag),
-  }
-}
-
-function buildStrategyMarkers({ trades, activePosition, pendingSignal, rows }) {
-  const out = []
-  const recentTrades = trades.slice(-Math.floor(MAX_MARKERS / 2))
-  const labelStart = Math.max(0, recentTrades.length - MAX_LABELLED_EXITS)
-
-  recentTrades.forEach((trade, idx) => {
-    const isBuy = trade.side === 'buy'
-    const showLabel = idx >= labelStart
-    out.push({
-      time: trade.entryDate,
-      position: isBuy ? 'belowBar' : 'aboveBar',
-      shape: isBuy ? 'arrowUp' : 'arrowDown',
-      color: isBuy ? '#10b981' : '#f59e0b',
-      ...(showLabel ? { text: trade.legLabel } : {}),
-      id: `strat-in-${idx}`,
-    })
-    const win = trade.netReturn >= 0
-    out.push({
-      time: trade.exitDate,
-      position: win ? 'aboveBar' : 'belowBar',
-      shape: 'circle',
-      color: win ? '#10b981' : '#ef4444',
-      ...(showLabel ? { text: `${win ? '+' : ''}${(trade.netReturn * 100).toFixed(1)}%` } : {}),
-      id: `strat-out-${idx}`,
-    })
-  })
-
-  if (activePosition) {
-    const isBuy = activePosition.side === 'buy'
-    out.push({
-      time: activePosition.entryDate,
-      position: isBuy ? 'belowBar' : 'aboveBar',
-      shape: isBuy ? 'arrowUp' : 'arrowDown',
-      color: isBuy ? '#10b981' : '#f59e0b',
-      text: `${activePosition.legLabel}持仓`,
-      id: 'strat-active-entry',
-    })
-  } else if (pendingSignal && rows.length) {
-    const isBuy = pendingSignal.side === 'buy'
-    out.push({
-      time: pendingSignal.signalDate,
-      position: isBuy ? 'belowBar' : 'aboveBar',
-      shape: isBuy ? 'arrowUp' : 'arrowDown',
-      color: '#38bdf8',
-      text: `信号:${pendingSignal.legLabel}`,
-      id: 'strat-pending-signal',
-    })
-  }
-  return out
-}
-
-function summarizeTrades({ trades, realizedEquity, maxDrawdown, activePosition, pendingSignal, feeRate }) {
-  const closedCount = trades.length
-  const wins = trades.filter((t) => t.netReturn > 0)
-  const losses = trades.filter((t) => t.netReturn <= 0)
-  const grossWinSum = wins.reduce((s, t) => s + t.netReturn, 0)
-  const grossLossAbs = Math.abs(losses.reduce((s, t) => s + t.netReturn, 0))
-  return {
-    closedCount,
-    winCount: wins.length,
-    lossCount: losses.length,
-    winRate: closedCount > 0 ? wins.length / closedCount : null,
-    profitFactor: grossLossAbs > 0 ? grossWinSum / grossLossAbs : wins.length > 0 ? Infinity : null,
-    totalNetReturn: realizedEquity - 1,
-    avgNetReturn: closedCount > 0 ? trades.reduce((s, t) => s + t.netReturn, 0) / closedCount : null,
-    maxDrawdown,
-    feeRate,
-    liveState: activePosition ? 'in-position' : pendingSignal ? 'signal-ready' : 'waiting',
-  }
-}
-
-function emptyStrategyResult(id, meta) {
-  return {
-    active: false,
-    status: id === 'off' ? 'off' : 'missing-input',
-    strategyId: id,
-    label: meta.label,
-    shortLabel: meta.shortLabel,
-    role: meta.role,
-    feeRate: 0.001,
-    intrabarPolicy: 'stop-first-conservative-when-both-hit',
-    claimClass: 'scenario-proxy',
-    executionAuthority: 'none',
-    trades: [],
-    activePosition: null,
-    latestSignal: null,
-    strategyPath: [],
-    markers: [],
-    summary: {
-      closedCount: 0,
-      winCount: 0,
-      lossCount: 0,
-      winRate: null,
-      profitFactor: null,
-      totalNetReturn: 0,
-      avgNetReturn: null,
-      maxDrawdown: 0,
-      feeRate: 0.001,
-      liveState: 'off',
-    },
   }
 }
 
